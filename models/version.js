@@ -13,7 +13,7 @@ const VersionSchema = new Schema({
   migration: Number,
   date: Date,
   type: { type: String, enum: ['user', 'migration'] },
-  user: { type: Schema.Types.ObjectId, ref: 'User' },
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: function () { return this.type === 'user' } },
   undo: [JSONPatchSchema]
 }, { _id: false })
 
