@@ -1,22 +1,26 @@
 module.exports = {
-  _id: 2,
+  _id: 'mongo-objectid',
   meta: {
     published: 2,
     parent: 1
   },
   data: {
     template: 'txst-standard',
+    name: 'test-page',
     title: 'My Latest Test Page',
-    areas: {
-      banner: [{ /* component data */ }],
-      body: [{
-        template: 'txst-twocolumn',
-        areas: {
-          left: [{ /* component data */ }],
-          right: [{ /* component data */ }]
-        }
-      }]
-    }
+    areas: [
+      { name: 'banner', components: [{ /* component data */ }] },
+      { name: 'body',
+        components: [{
+          _id: 'mongo-objectid',
+          template: 'txst-twocolumn',
+          areas: [
+            { name: 'left', components: [{ /* component data */ }] },
+            { name: 'right', components: [{ /* component data */ }] }
+          ]
+        }]
+      }
+    ]
   },
   versions: [
     {

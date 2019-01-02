@@ -1,0 +1,25 @@
+{
+  "name": "dosgato",
+  "version": "1.0.0",
+  "main": "index.js",
+  "private": true,
+  "dependencies": {
+    "node-api-utils": "txstate-etc/node-api-utils#1.1.7",
+    "mongoose-update-if-current": "^1.0.3"
+  },
+  "devDependencies": {
+    "mocha": "^5.2.0",
+    "should": "^13.2.3"
+  },
+  "scripts": {
+    "start": "node ./index",
+    "docs": "node ./docs",
+    "integration": "mocha --exit test/api"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/txstate-etc/dosgato"
+  },
+  "author": "nwing@txstate.edu",
+  "license": "MIT"
+}
