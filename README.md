@@ -28,7 +28,7 @@ In order to preserve uptime, we can now follow a specific upgrade flow to avoid 
 * Update Client/UI services, one by one, until all are updated.
 This diagram illustrates the process.
 
-![Upgrade Process Flow Diagram](readme/upgradeflow.png?raw=true)
+![Upgrade Process Flow Diagram](readme/upgradeflow2.png?raw=true)
 
 As you can see, when the API services are partially upgraded, the upgraded services simply need to downgrade schema versions on the way out to maintain compatibility. When all API services are prepared to serve the next schema version, clients may begin their upgrades.
 
