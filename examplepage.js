@@ -25,9 +25,8 @@ module.exports = {
   versions: [
     {
       id: 3,
-      migration: 25,
+      schemaversion: 25,
       date: '2018-12-19T12:24:04Z',
-      type: 'user',
       user: 'nw13',
       undo: [
         /* JSON Patch Operations RFC6902 */
@@ -37,9 +36,9 @@ module.exports = {
     },
     {
       id: 2,
-      migration: 25,
+      schemaversion: 25,
       date: '2018-12-19T12:22:31Z',
-      type: 'migration',
+      user: 'nw13',
       undo: [
         /* JSON Patch Operations RFC6902 */
         { op: 'move', from: '/title', path: '/oldtitle' }
@@ -47,9 +46,8 @@ module.exports = {
     },
     {
       id: 1,
-      migration: 19,
-      date: '2018-12-18T17:48:23Z',
-      type: 'init'
+      schemaversion: 19,
+      date: '2018-12-18T17:48:23Z'
     }
   ]
 }

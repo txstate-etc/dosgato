@@ -40,7 +40,7 @@ As you can see, when the API services are partially upgraded, the upgraded servi
 
 * Reading a page
   * retrieve page data
-  * rewind to requested version, if applicable
+  * rewind to requested content version, if applicable
   * run migrations to update to requested schema version
   * return modified page data
 
@@ -51,7 +51,7 @@ As you can see, when the API services are partially upgraded, the upgraded servi
 
 * Restoring a page
   * retrieve page
-  * rewind to requested version
+  * rewind to requested content version
   * save a new content version with page data exactly as it was, tagged with the old schema version
 
 * Deleting a page
