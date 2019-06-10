@@ -5,20 +5,20 @@ This is a place to record ideas and code for an experimental new CMS for use at 
 The core concepts focus on our handling of data and versions, in an effort to preserve editing history, maximize API compatibility, and reduce system downtime.
 
 ## Definitions
-Schema Version
+### Schema Version
 Each primary object (pages/assets) in the database will have a schema version that increments each time we need to alter database structure. This would also be the API version presented to clients.
 
-Content Version
+### Content Version
 Each primary object in the database will have a content version that increments each time a user makes a data change. Each content version will also be tagged with the corresponding schema version at the time of its creation. An API parameter will allow clients to request a specific historical version of a page/asset.
 
-Migration
+### Migration
 A migration is a piece of code that converts a piece of data from one schema version to another. Typically migrations will be written so that they can both upgrade to and downgrade from a particular schema version. This is called a reversible migration. If a reversible migration is impossible to write, for example when a field is being deleted, we will have a non-reversible migration. All system updates including a non-reversible migration will require downtime, and clients older than that version will cease to function.
 
 Deletion of a non-required field might not crash, so we could theoretically avoid downtime, but in those cases we should write a migration downgrade where we set it to a default value.
 
 In general we should avoid non-reversible migrations as much as possible, to avoid making older clients incompatible.
 
-Minimum Schema Version
+### Minimum Schema Version
 The earliest schema version after which all migrations are reversible. Each API request will contain the API/Schema version that the client expects, so that it always receives data structured in a way that it can handle. If the requested API version is less than the minimum schema version, the request will be rejected. That client will be required to upgrade.
 
 ## Upgrade Process
