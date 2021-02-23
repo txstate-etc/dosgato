@@ -3,6 +3,7 @@ import { applyPatch, compare } from 'fast-json-patch'
 import intersect from 'fast_array_intersect'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
+import { nanoid } from 'nanoid'
 import rfdc from 'rfdc'
 import { mapConcurrent } from 'txstate-utils'
 import { Index, IndexStorage, NotFoundError, Tag, Versioned, VersionedStorage, VersionStorage } from './types'
@@ -93,7 +94,7 @@ export class VersionedService {
   }
 
   async create (type: string, data: any, indexes: Index[], user?: string): Promise<string> {
-    const id = Math.random().toString(36).slice(2, 12)
+    const id = nanoid(10)
     try {
       await db.transaction(async db => {
         await db.insert(`
