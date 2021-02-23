@@ -116,7 +116,8 @@ export class VersionedService {
       const current = await db.getrow<VersionedStorage>('SELECT * FROM storage WHERE id=?', [id])
       if (!current) throw new NotFoundError('Unable to update node with non-existing id: ' + id)
       const newversion = current.version + 1
-      const undo = compare(data, current.data)
+      const currentdata = JSON.parse(current.data)
+      const undo = compare(data, currentdata)
       await db.update(`
         UPDATE storage SET modified=NOW(), version=?, data=?, user=?, comment=? WHERE id=?
       `, [newversion, JSON.stringify(data), user ?? '', comment ?? '', id])
