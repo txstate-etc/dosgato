@@ -104,7 +104,7 @@ export class VersionedService {
       })
       return id
     } catch (e) {
-      if (e.errno === 1062) return await this.create(type, data, indexes)
+      if (e.errno === 1062) return await this.create(type, data, indexes, user)
       throw e
     }
   }
