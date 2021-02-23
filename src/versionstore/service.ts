@@ -1,8 +1,13 @@
 import { DataLoaderFactory, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { applyPatch, compare } from 'fast-json-patch'
+import intersect from 'fast_array_intersect'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
-import { Index, NotFoundError, Tag, Versioned, VersionedStorage, VersionStorage } from './types'
+import rfdc from 'rfdc'
+import { mapConcurrent } from 'txstate-utils'
+import { Index, IndexStorage, NotFoundError, Tag, Versioned, VersionedStorage, VersionStorage } from './types'
+
+const cloneDeep = rfdc()
 
 const storageLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -37,6 +42,7 @@ const versionsByNumberLoader = new OneToManyLoader({
 
 export class VersionedService {
   protected factory = new DataLoaderFactory()
+  protected static cleaningIndexValues: boolean
 
   async get (id: string, { version, tag }: { version?: number, tag?: string } = {}) {
     const data = await this.factory.get(storageLoader).load(id)
@@ -55,12 +61,34 @@ export class VersionedService {
     return data
   }
 
+  async find (indexes: Index[], tag?: string) {
+    let from = ''
+    let where = ''
+    if (tag?.length) {
+      from = ' INNER JOIN tags t ON t.id=i.id AND t.version=i.version'
+      where = ' AND t.tag=?'
+    }
+    const idsets = await mapConcurrent(indexes, 2, async index => {
+      const binds: string[] = [index.name]
+      if (tag?.length) binds.push(tag)
+      return await db.getvals<string>(`SELECT DISTINCT i.id FROM indexes i INNER JOIN indexvalues v ON i.value_id=v.id${from} WHERE i.name=?${where} AND v.value IN (${db.in(binds, index.values)})`, binds)
+    })
+    return intersect(idsets)
+  }
+
   async setIndexes (id: string, version: number, indexes: Index[], tdb: Queryable = db) {
-    const indexEntries = indexes.flatMap(ind => ind.values.map(value => [id, version, ind.name, value]))
-    const binds: (string|number)[] = []
+    const values = indexes.flatMap(ind => ind.values)
     await tdb.execute('DELETE FROM indexes WHERE id=? AND version=?', [id, version])
+    const binds: (string|number)[] = []
+    await tdb.insert(`INSERT INTO indexvalues (value) VALUES (${values.map(v => '?').join(',')}) ON DUPLICATE KEY UPDATE value=value`)
+    const valuerows = await tdb.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${values.map(v => '?').join(',')})`, values, { rowsAsArray: true })
+    const valuehash: Record<string, number> = {}
+    for (const [id, value] of valuerows) {
+      valuehash[value] = id
+    }
+    const indexEntries = indexes.flatMap(ind => ind.values.map(value => [id, version, ind.name, valuehash[value]]))
     await tdb.insert(`
-      INSERT INTO indexes (id, version, name, value) VALUES (${db.in(binds, indexEntries)})
+      INSERT INTO indexes (id, version, name, value_id) VALUES (${db.in(binds, indexEntries)})
     `, binds)
   }
 
@@ -69,8 +97,8 @@ export class VersionedService {
     try {
       await db.transaction(async db => {
         await db.insert(`
-          INSERT INTO storage (id, type, version, data, created, createdBy, modified, modifiedBy)
-          VALUES (?, ?, 0, ?, NOW(), ?, NOW(), ?)
+          INSERT INTO storage (id, type, version, data, created, createdBy, modified, modifiedBy, comment)
+          VALUES (?, ?, 0, ?, NOW(), ?, NOW(), ?, '')
         `, [id, type, JSON.stringify(data), user ?? '', user ?? ''])
         await this.setIndexes(id, 0, indexes, db)
       })
@@ -81,22 +109,59 @@ export class VersionedService {
     }
   }
 
-  async update (id: string, data: any, indexes: Index[], user?: string) {
+  async update (id: string, data: any, indexes: Index[], { user, comment }: { user?: string, comment?: string } = {}) {
     await db.transaction(async db => {
       const current = await db.getrow<VersionedStorage>('SELECT * FROM storage WHERE id=?', [id])
       if (!current) throw new NotFoundError('Unable to update node with non-existing id: ' + id)
       const newversion = current.version + 1
       const undo = compare(data, current.data)
-      await db.execute(`
-        UPDATE storage SET modified=NOW(), version=?, data=?, user=? WHERE id=?
-      `, [newversion, JSON.stringify(data), user ?? '', id])
+      await db.update(`
+        UPDATE storage SET modified=NOW(), version=?, data=?, user=?, comment=? WHERE id=?
+      `, [newversion, JSON.stringify(data), user ?? '', comment ?? '', id])
       await db.insert(`
-        INSERT INTO versions (id, version, date, user, undo)
-        VALUES (?, ?, ?, ?, ?)
-      `, [id, current.version, current.modified, current.modifiedBy, JSON.stringify(undo)])
+        INSERT INTO versions (id, version, date, user, comment, undo)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [id, current.version, current.modified, current.modifiedBy, current.comment, JSON.stringify(undo)])
       await this.setIndexes(id, newversion, indexes, db)
     })
     return true
+  }
+
+  async restore (id: string, version: number, { user, indexes, comment }: { user?: string, indexes?: Index[], comment?: string } = {}) {
+    await db.transaction(async db => {
+      const current = await db.getrow<VersionedStorage>('SELECT * FROM storage WHERE id=?', [id])
+      if (!current) throw new NotFoundError('Unable to update node with non-existing id: ' + id)
+      const newversion = current.version + 1
+      const currentdata = JSON.parse(current.data)
+      const versions = await db.getall<VersionStorage>('SELECT * FROM versions WHERE id=? AND version >= ?', [id, version])
+
+      const updated = cloneDeep(currentdata)
+      for (const version of versions) {
+        const undo = JSON.parse(version.undo)
+        applyPatch(updated, undo)
+      }
+
+      const undo = JSON.stringify(compare(updated, currentdata))
+      await db.insert(`
+        INSERT INTO versions (id, version, date, user, comment, undo)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [id, current.version, current.modified, current.modifiedBy, current.comment, undo])
+      await db.update(`
+        UPDATE storage SET modified=NOW(), version=?, data=?, user=?, comment=?
+        WHERE id=?
+      `, [newversion, JSON.stringify(updated), user ?? '', comment ?? `restored from earlier version (${version})`, id])
+
+      if (!indexes) {
+        const indexrows = await db.getall<IndexStorage>('SELECT i.*, v.value FROM indexes i INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? ORDER BY i.name, v.value', [id, version])
+        const indexhash: Record<string, Index> = {}
+        for (const row of indexrows) {
+          indexhash[row.name] ??= { name: row.name, values: [] }
+          indexhash[row.name].values.push(row.value)
+        }
+        indexes = Object.values(indexhash)
+      }
+      await this.setIndexes(id, newversion, indexes, db)
+    })
   }
 
   async delete (id: string) {
@@ -106,10 +171,21 @@ export class VersionedService {
       await db.execute('DELETE FROM tags WHERE id=?', [id])
       await db.execute('DELETE FROM indexes WHERE id=?', [id])
     })
+    this.cleanIndexValues().catch((e: Error) => console.error(e))
   }
 
   async tag (id: string, tag: string, version: number) {
-    await db.insert('INSERT INTO tags (id, tag, version) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE', [id, tag, version])
+    await db.insert('INSERT INTO tags (id, tag, version) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE version=version', [id, tag, version])
+  }
+
+  protected async cleanIndexValues () {
+    if (VersionedService.cleaningIndexValues) return
+    try {
+      VersionedService.cleaningIndexValues = true
+      await db.execute('DELETE v FROM indexvalues v LEFT JOIN indexes i ON v.id=i.value_id WHERE i.value_id IS NULL')
+    } finally {
+      VersionedService.cleaningIndexValues = false
+    }
   }
 }
 

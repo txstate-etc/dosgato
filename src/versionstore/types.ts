@@ -8,6 +8,7 @@ interface VersionedCommon {
   createdBy: string
   modified: Date
   modifiedBy: string
+  comment: string
 }
 export interface Versioned extends VersionedCommon {
   data: any
