@@ -1,3 +1,4 @@
+/* eslint-disable no-multi-str */
 import { DataLoaderFactory, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { applyPatch, compare } from 'fast-json-patch'
 import intersect from 'fast_array_intersect'
@@ -187,6 +188,83 @@ export class VersionedService {
     } finally {
       VersionedService.cleaningIndexValues = false
     }
+  }
+
+  static async init () {
+    await db.execute("\
+    CREATE TABLE IF NOT EXISTS `storage` ( \
+      `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `type` TINYTEXT NOT NULL, \
+      `version` MEDIUMINT UNSIGNED NOT NULL, \
+      `data` LONGTEXT CHARACTER SET 'utf8mb4' COLLATE 'utf8mb4_bin' NOT NULL, \
+      `created` DATETIME NOT NULL, \
+      `createdBy` TINYTEXT NOT NULL, \
+      `modified` DATETIME NOT NULL, \
+      `modifiedBy` TINYTEXT NOT NULL, \
+      `comment` TINYTEXT NOT NULL, \
+      PRIMARY KEY (`id`), \
+      INDEX `type_modified` (`type` ASC, `modified` DESC)) \
+    ENGINE = InnoDB \
+    DEFAULT CHARACTER SET = utf8mb4 \
+    DEFAULT COLLATE = utf8mb4_general_ci")
+    await db.execute("\
+    CREATE TABLE IF NOT EXISTS `versions` ( \
+      `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `version` MEDIUMINT UNSIGNED NOT NULL, \
+      `date` DATETIME NOT NULL, \
+      `user` TINYTEXT NOT NULL, \
+      `comment` TINYTEXT NOT NULL, \
+      `undo` LONGTEXT CHARACTER SET 'utf8mb4' COLLATE 'utf8mb4_bin' NOT NULL, \
+      PRIMARY KEY (`id`, `version`), \
+      INDEX `date` (`date` ASC), \
+      CONSTRAINT `id` \
+        FOREIGN KEY (`id`) \
+        REFERENCES `storage` (`id`) \
+    ) \
+    ENGINE = InnoDB \
+    DEFAULT CHARACTER SET = utf8mb4 \
+    DEFAULT COLLATE = utf8mb4_general_ci")
+    await db.execute("\
+    CREATE TABLE IF NOT EXISTS `tags` ( \
+      `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `tag` TINYTEXT CHARACTER SET 'ascii' NOT NULL, \
+      `version` MEDIUMINT UNSIGNED NOT NULL, \
+      PRIMARY KEY (`id`, `tag`), \
+      CONSTRAINT `storage` \
+        FOREIGN KEY (`id`) \
+        REFERENCES `storage` (`id`) \
+    ) \
+    ENGINE = InnoDB \
+    DEFAULT CHARACTER SET = utf8mb4 \
+    DEFAULT COLLATE = utf8mb4_general_ci")
+    await db.execute("\
+    CREATE TABLE IF NOT EXISTS `indexes` ( \
+      `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `version` MEDIUMINT UNSIGNED NOT NULL, \
+      `name` TINYTEXT CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL, \
+      `value_id` INT UNSIGNED NOT NULL, \
+      INDEX `value_idx` (`value_id` ASC), \
+      INDEX `name_value` (`name` ASC, `value_id` ASC), \
+      PRIMARY KEY (`id`, `version`, `name`, `value_id`), \
+      CONSTRAINT `value` \
+        FOREIGN KEY (`value_id`) \
+        REFERENCES `indexvalues` (`id`), \
+      CONSTRAINT `id` \
+        FOREIGN KEY (`id`) \
+        REFERENCES `storage` (`id`) \
+    ) \
+    ENGINE = InnoDB \
+    DEFAULT CHARACTER SET = utf8mb4 \
+    DEFAULT COLLATE = utf8mb4_general_ci")
+    await db.execute('\
+    CREATE TABLE IF NOT EXISTS `indexvalues` ( \
+      `id` INT UNSIGNED NOT NULL, \
+      `value` TEXT NOT NULL, \
+      PRIMARY KEY (`id`), \
+      INDEX `value` (`value` ASC)) \
+    ENGINE = InnoDB \
+    DEFAULT CHARACTER SET = utf8mb4 \
+    DEFAULT COLLATE = utf8mb4_general_ci')
   }
 }
 
