@@ -1,12 +1,11 @@
 /* eslint-disable no-multi-str */
 import { DataLoaderFactory, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { applyPatch, compare } from 'fast-json-patch'
-import intersect from 'fast_array_intersect'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import rfdc from 'rfdc'
-import { mapConcurrent } from 'txstate-utils'
+import { intersectSorted, mapConcurrent } from 'txstate-utils'
 import { Index, IndexStorage, NotFoundError, Tag, Versioned, VersionedStorage, VersionStorage } from './types'
 
 const cloneDeep = rfdc()
@@ -75,7 +74,7 @@ export class VersionedService {
       if (tag?.length) binds.push(tag)
       return await db.getvals<string>(`SELECT DISTINCT i.id FROM indexes i INNER JOIN indexvalues v ON i.value_id=v.id${from} WHERE i.name=?${where} AND v.value IN (${db.in(binds, index.values)})`, binds)
     })
-    return intersect(idsets)
+    return intersectSorted(idsets)
   }
 
   async setIndexes (id: string, version: number, indexes: Index[], tdb: Queryable = db) {
