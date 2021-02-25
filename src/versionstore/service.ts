@@ -72,7 +72,7 @@ export class VersionedService {
     const idsets = await mapConcurrent(indexes, 2, async index => {
       const binds: string[] = [index.name]
       if (tag?.length) binds.push(tag)
-      return await db.getvals<string>(`SELECT DISTINCT i.id FROM indexes i INNER JOIN indexvalues v ON i.value_id=v.id${from} WHERE i.name=?${where} AND v.value IN (${db.in(binds, index.values)})`, binds)
+      return await db.getvals<string>(`SELECT DISTINCT i.id FROM indexes i INNER JOIN indexvalues v ON i.value_id=v.id${from} WHERE i.name=?${where} AND v.value IN (${db.in(binds, index.values)}) ORDER BY i.id`, binds)
     })
     return intersectSorted(idsets)
   }
