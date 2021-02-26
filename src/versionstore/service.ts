@@ -180,6 +180,39 @@ export class VersionedService {
     await db.insert('INSERT INTO tags (id, tag, version) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE version=version', [id, tag, version])
   }
 
+  async deleteOldVersions (olderThan: Date) {
+    await db.transaction(async db => {
+      // delete every version older than the date, except versions newer than the oldest tag
+      // for instance, "published" is a planned tag, so we would not want a version to be wiped
+      // out if it was still marked as published - we would have to hang on to it
+      await db.execute(`
+        DELETE v FROM versions v
+        LEFT JOIN (
+          SELECT t.id, MIN(t.version) as version
+          FROM tags t
+          INNER JOIN versions v ON v.id=t.id AND v.version=t.version
+          WHERE v.date < ?
+          GROUP BY t.id
+        ) t ON t.id=v.id
+        WHERE v.date < ? AND (t.version IS NULL OR v.version < t.version)
+      `, [olderThan, olderThan])
+
+      // delete (newly) orphaned indexes
+      // this query is a bit slow as it requires a table scan of indexes but it
+      // reliably cleans up orphans
+      // it could be changed to clean up indexes specifically for the versions
+      // identified above but then it's possible some orphaned indexes would accrue
+      // in the system
+      await db.execute(`
+        DELETE i FROM indexes i
+        LEFT JOIN versions v ON i.id=v.id AND i.version=v.version
+        LEFT JOIN storage s ON i.id=s.id AND i.version=s.version
+        WHERE v.id IS NULL AND s.id IS NULL
+      `)
+      await this.cleanIndexValues()
+    })
+  }
+
   protected async cleanIndexValues () {
     if (VersionedService.cleaningIndexValues) return
     try {
