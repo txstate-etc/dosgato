@@ -37,7 +37,7 @@ const versionsByNumberLoader = new OneToManyLoader({
     const rows = await db.getall<VersionStorage>(`SELECT id, version, date, user, undo FROM versions WHERE (${where.join(') OR (')}) ORDER BY version DESC`, binds)
     return rows.map(r => ({ ...r, undo: JSON.parse(r.undo) }))
   },
-  matchKey: ({ id, version }, entry) => entry.id === id && entry.version >= version,
+  matchKey: ({ id, version, current }, entry) => entry.id === id && entry.version >= version && entry.version < current,
   maxBatchSize: 50
 })
 
