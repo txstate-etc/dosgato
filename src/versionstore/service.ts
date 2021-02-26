@@ -112,46 +112,22 @@ export class VersionedService {
 
   async update (id: string, data: any, indexes: Index[], { user, comment }: { user?: string, comment?: string } = {}) {
     await db.transaction(async db => {
-      const current = await db.getrow<VersionedStorage>('SELECT * FROM storage WHERE id=?', [id])
-      if (!current) throw new NotFoundError('Unable to update node with non-existing id: ' + id)
-      const newversion = current.version + 1
-      const currentdata = JSON.parse(current.data)
-      const undo = compare(data, currentdata)
-      await db.update(`
-        UPDATE storage SET modified=NOW(), version=?, data=?, user=?, comment=? WHERE id=?
-      `, [newversion, JSON.stringify(data), user ?? '', comment ?? '', id])
-      await db.insert(`
-        INSERT INTO versions (id, version, date, user, comment, undo)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [id, current.version, current.modified, current.modifiedBy, current.comment, JSON.stringify(undo)])
-      await this.setIndexes(id, newversion, indexes, db)
+      const current = await this.getDirect(db, id)
+      await this.sharedUpdate(db, current, data, indexes, user, comment)
     })
     return true
   }
 
   async restore (id: string, version: number, { user, indexes, comment }: { user?: string, indexes?: Index[], comment?: string } = {}) {
     await db.transaction(async db => {
-      const current = await db.getrow<VersionedStorage>('SELECT * FROM storage WHERE id=?', [id])
-      if (!current) throw new NotFoundError('Unable to update node with non-existing id: ' + id)
-      const newversion = current.version + 1
-      const currentdata = JSON.parse(current.data)
-      const versions = await db.getall<VersionStorage>('SELECT * FROM versions WHERE id=? AND version >= ?', [id, version])
+      const current = await this.getDirect(db, id)
 
-      const updated = cloneDeep(currentdata)
+      const versions = await db.getall<VersionStorage>('SELECT * FROM versions WHERE id=? AND version >= ?', [id, version])
+      const updated = cloneDeep(current.data)
       for (const version of versions) {
         const undo = JSON.parse(version.undo)
         applyPatch(updated, undo)
       }
-
-      const undo = JSON.stringify(compare(updated, currentdata))
-      await db.insert(`
-        INSERT INTO versions (id, version, date, user, comment, undo)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [id, current.version, current.modified, current.modifiedBy, current.comment, undo])
-      await db.update(`
-        UPDATE storage SET modified=NOW(), version=?, data=?, user=?, comment=?
-        WHERE id=?
-      `, [newversion, JSON.stringify(updated), user ?? '', comment ?? `restored from earlier version (${version})`, id])
 
       if (!indexes) {
         const indexrows = await db.getall<IndexStorage>('SELECT i.*, v.value FROM indexes i INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? ORDER BY i.name, v.value', [id, version])
@@ -162,7 +138,8 @@ export class VersionedService {
         }
         indexes = Object.values(indexhash)
       }
-      await this.setIndexes(id, newversion, indexes, db)
+
+      await this.sharedUpdate(db, current, updated, indexes, user, comment ?? `restored from earlier version (${version})`)
     })
   }
 
@@ -221,6 +198,30 @@ export class VersionedService {
     } finally {
       VersionedService.cleaningIndexValues = false
     }
+  }
+
+  // internal method for updating a versioned object
+  // implements common logic shared by the public update and restore methods
+  protected async sharedUpdate (db: Queryable, current: Versioned, data: any, indexes: Index[], user?: string, comment?: string) {
+    const newversion = current.version + 1
+    const undo = compare(data, current.data)
+    await db.update(`
+      UPDATE storage SET modified=NOW(), version=?, data=?, user=?, comment=? WHERE id=?
+    `, [newversion, JSON.stringify(data), user ?? '', comment ?? '', current.id])
+    await db.insert(`
+      INSERT INTO versions (id, version, date, user, comment, undo)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [current.id, current.version, current.modified, current.modifiedBy, current.comment, JSON.stringify(undo)])
+    await this.setIndexes(current.id, newversion, indexes, db)
+  }
+
+  // internal method for getting a versioned object within a transaction
+  // the public .get method involves dataloader so it could not be part of a transaction
+  protected async getDirect (db: Queryable, id: string) {
+    const current = await db.getrow<VersionedStorage>('SELECT * FROM storage WHERE id=?', [id])
+    if (!current) throw new NotFoundError('Unable to find node with id: ' + id)
+    current.data = JSON.parse(current.data)
+    return current as Versioned
   }
 
   static async init () {
