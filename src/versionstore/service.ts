@@ -4,11 +4,7 @@ import { applyPatch, compare } from 'fast-json-patch'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import rfdc from 'rfdc'
-import { intersectSorted, mapConcurrent } from 'txstate-utils'
 import { Index, IndexStorage, NotFoundError, Tag, Versioned, VersionedStorage, VersionStorage } from './types'
-
-const cloneDeep = rfdc()
 
 const storageLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -45,6 +41,10 @@ export class VersionedService {
   protected factory = new DataLoaderFactory()
   protected static cleaningIndexValues: boolean
 
+  /**
+   * Retrieve an object with a specific version or tag. This method is dataloaded so don't
+   * be afraid to make massively concurrent requests for many objects.
+   */
   async get (id: string, { version, tag }: { version?: number, tag?: string } = {}) {
     const data = await this.factory.get(storageLoader).load(id)
     if (!data) throw new NotFoundError()
@@ -62,21 +62,56 @@ export class VersionedService {
     return data
   }
 
-  async find (indexes: Index[], tag?: string) {
-    let from = ''
-    let where = ''
-    if (tag?.length) {
-      from = ' INNER JOIN tags t ON t.id=i.id AND t.version=i.version'
-      where = ' AND t.tag=?'
+  /**
+   * Indexed search for objects. Tag required, use 'latest' for current version.
+   */
+  async find (indexes: Index[], tag: string) {
+    let tagfrom = ''
+    let tagwhere = ''
+    if (tag === 'latest') {
+      tagfrom = 'INNER JOIN storage s ON s.id=i.id AND s.version=i.version'
+    } else {
+      tagfrom = ' INNER JOIN tags t ON t.id=i.id AND t.version=i.version'
+      tagwhere = ' t.tag=? AND'
     }
-    const idsets = await mapConcurrent(indexes, 2, async index => {
-      const binds: string[] = [index.name]
-      if (tag?.length) binds.push(tag)
-      return await db.getvals<string>(`SELECT DISTINCT i.id FROM indexes i INNER JOIN indexvalues v ON i.value_id=v.id${from} WHERE i.name=?${where} AND v.value IN (${db.in(binds, index.values)}) ORDER BY i.id`, binds)
-    })
-    return intersectSorted(idsets)
+
+    const binds = []
+    const virtuals = []
+    for (let i = 0; i < indexes.length; i++) {
+      const index = indexes[i]
+      if (tagwhere?.length) binds.push(tag)
+      virtuals.push(`
+        INNER JOIN (
+          SELECT DISTINCT i.id
+          FROM indexes i
+          INNER JOIN indexvalues v ON i.value_id=v.id
+          ${tagfrom}
+          WHERE
+          ${tagwhere}
+          i.name=? AND v.value IN (${db.in(binds, index.values)})
+        ) r${i} ON r${i}.id=i.id
+      `)
+    }
+
+    return await db.getvals<string>(`SELECT DISTINCT s.id FROM storage s ${virtuals.join('')}`, binds)
   }
 
+  /**
+   * See the indexes associated with a particular version
+   */
+  async getIndexes (id: string, version: number) {
+    const indexrows = await db.getall<IndexStorage>('SELECT i.*, v.value FROM indexes i INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? ORDER BY i.name, v.value', [id, version])
+    const indexhash: Record<string, Index> = {}
+    for (const row of indexrows) {
+      indexhash[row.name] ??= { name: row.name, values: [] }
+      indexhash[row.name].values.push(row.value)
+    }
+    return Object.values(indexhash)
+  }
+
+  /**
+   * Completely overwrite all the indexes for a specific version of an object.
+   */
   async setIndexes (id: string, version: number, indexes: Index[]) {
     await db.transaction(async db => {
       // this method expects to already be in a transaction because it's shared by
@@ -85,7 +120,9 @@ export class VersionedService {
     })
   }
 
-  /* Only overwrite a single index type, leave the others alone */
+  /**
+   *  Only overwrite a single index type, leave the others alone.
+   */
   async setIndex (id: string, version: number, index: Index) {
     await db.transaction(async db => {
       await db.execute('DELETE FROM indexes WHERE id=? AND version=? AND name=?', [id, version, index.name])
@@ -98,6 +135,9 @@ export class VersionedService {
     })
   }
 
+  /**
+   * Create a new versioned object. Returns its auto-generated id (a 10 character string).
+   */
   async create (type: string, data: any, indexes: Index[], user?: string): Promise<string> {
     const id = nanoid(10)
     try {
@@ -115,39 +155,48 @@ export class VersionedService {
     }
   }
 
+  /**
+   * Update an object, retaining the version history. You are expected to provide your own
+   * index strings; they will be stored and kept for the entire version history.
+   *
+   * You may optionally provide a user who is responsible for the update and a comment string.
+   */
   async update (id: string, data: any, indexes: Index[], { user, comment }: { user?: string, comment?: string } = {}) {
     await db.transaction(async db => {
-      const current = await this.getDirect(db, id)
-      await this.sharedUpdate(db, current, data, indexes, user, comment)
-    })
-    return true
-  }
-
-  async restore (id: string, version: number, { user, indexes, comment }: { user?: string, indexes?: Index[], comment?: string } = {}) {
-    await db.transaction(async db => {
-      const current = await this.getDirect(db, id)
-
-      const versions = await db.getall<VersionStorage>('SELECT * FROM versions WHERE id=? AND version >= ?', [id, version])
-      const updated = cloneDeep(current.data)
-      for (const version of versions) {
-        const undo = JSON.parse(version.undo)
-        applyPatch(updated, undo)
-      }
-
-      if (!indexes) {
-        const indexrows = await db.getall<IndexStorage>('SELECT i.*, v.value FROM indexes i INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? ORDER BY i.name, v.value', [id, version])
-        const indexhash: Record<string, Index> = {}
-        for (const row of indexrows) {
-          indexhash[row.name] ??= { name: row.name, values: [] }
-          indexhash[row.name].values.push(row.value)
-        }
-        indexes = Object.values(indexhash)
-      }
-
-      await this.sharedUpdate(db, current, updated, indexes, user, comment ?? `restored from earlier version (${version})`)
+      const current = await db.getrow<VersionedStorage>('SELECT * FROM storage WHERE id=?', [id])
+      if (!current) throw new NotFoundError('Unable to find node with id: ' + id)
+      const currentdata = JSON.parse(current.data)
+      const newversion = current.version + 1
+      const undo = compare(data, currentdata)
+      await db.update(`
+        UPDATE storage SET modified=NOW(), version=?, data=?, user=?, comment=? WHERE id=?
+      `, [newversion, JSON.stringify(data), user ?? '', comment ?? '', current.id])
+      await db.insert(`
+        INSERT INTO versions (id, version, date, user, comment, undo)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [current.id, current.version, current.modified, current.modifiedBy, current.comment, JSON.stringify(undo)])
+      await this._setIndexes(current.id, newversion, indexes, db)
     })
   }
 
+  /**
+   * Restore a previous version of the object. Creates a new version. You could do
+   * this with a .get and subsequent .update, but this is here for convenience.
+   *
+   * If you provide an indexes array, it will be used. Otherwise the indexes for the version
+   * being restored will be restored as well.
+   */
+  async restore (id: string, { tag, version }: { tag?: string, version?: number }, { indexes, user, comment }: { indexes?: Index[], user?: string, comment?: string } = {}) {
+    const toberestored = await this.get(id, { tag, version })
+    if (!toberestored) throw new NotFoundError('Could not restore version for non-existing id: ' + id)
+    indexes ??= await this.getIndexes(id, toberestored.version)
+    await this.update(id, toberestored.data, indexes, { user: user, comment: `restored from earlier version ${toberestored.version}${comment ? '\n' + comment : ''}` })
+  }
+
+  /**
+   * Completely remove an object and its entire version history. Use with caution. May be
+   * better to place a soft delete flag inside the object data.
+   */
   async delete (id: string) {
     await db.transaction(async db => {
       await db.execute('DELETE FROM storage WHERE id=?', [id])
@@ -158,10 +207,45 @@ export class VersionedService {
     this.cleanIndexValues().catch((e: Error) => console.error(e))
   }
 
-  async tag (id: string, tag: string, version: number) {
+  /**
+   * Tag a specific version of an object. A tag can only point to one version at a time, so this
+   * replaces an existing tag on another version. Cannot be undone.
+   *
+   * A common example will be tagging a version as 'published' or 'approved' as part of a workflow.
+   *
+   * 'latest' is reserved for the most current version of an object.
+   */
+  async tag (id: string, tag: string, version?: number) {
+    version ??= await db.getval('SELECT version FROM storage WHERE id=?', [id])
+    if (typeof version === 'undefined') throw new NotFoundError('Unable to tag non-existing object with id ' + id)
+    if (tag === 'latest') throw new Error('Object versions may not be manually tagged as latest. That tag is managed automatically.')
     await db.insert('INSERT INTO tags (id, tag, version) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE version=version', [id, tag, version])
   }
 
+  /**
+   * Remove a tag from an object, no matter which version it might be pointing at. Cannot be undone.
+   */
+  async removeTag (id: string, tag: string) {
+    await db.execute('DELETE FROM tags WHERE id=? AND tag=?', [id, tag])
+  }
+
+  /**
+   * Remove a tag from the system. Important to do this for obsolete tags so that versions
+   * can be properly cleaned up. Any tag on a version will prevent it from being deleted by
+   * retention policy.
+   *
+   * Use with caution, this cannot be undone.
+   */
+  async globalRemoveTag (tag: string) {
+    await db.execute('DELETE FROM tags WHERE tag=?', [tag])
+  }
+
+  /**
+   * Delete old versions in the system to implement a retention policy. Will not
+   * delete any versions newer than the oldest active tag. For instance, if an object on
+   * version 7 has a version 2 made many years ago but still tagged as 'published', version 2
+   * and greater will be retained. Make sure any tags you use are managed carefully.
+   */
   async deleteOldVersions (olderThan: Date) {
     await db.transaction(async db => {
       // delete every version older than the date, except versions newer than the oldest tag
@@ -205,32 +289,10 @@ export class VersionedService {
     }
   }
 
-  // internal method for updating a versioned object
-  // implements common logic shared by the public update and restore methods
-  protected async sharedUpdate (db: Queryable, current: Versioned, data: any, indexes: Index[], user?: string, comment?: string) {
-    const newversion = current.version + 1
-    const undo = compare(data, current.data)
-    await db.update(`
-      UPDATE storage SET modified=NOW(), version=?, data=?, user=?, comment=? WHERE id=?
-    `, [newversion, JSON.stringify(data), user ?? '', comment ?? '', current.id])
-    await db.insert(`
-      INSERT INTO versions (id, version, date, user, comment, undo)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [current.id, current.version, current.modified, current.modifiedBy, current.comment, JSON.stringify(undo)])
-    await this._setIndexes(current.id, newversion, indexes, db)
-  }
-
-  // internal method for getting a versioned object within a transaction
-  // the public .get method involves dataloader so it could not be part of a transaction
-  protected async getDirect (db: Queryable, id: string) {
-    const current = await db.getrow<VersionedStorage>('SELECT * FROM storage WHERE id=?', [id])
-    if (!current) throw new NotFoundError('Unable to find node with id: ' + id)
-    current.data = JSON.parse(current.data)
-    return current as Versioned
-  }
-
-  // internal method to map a set of index strings to their id in indexvalues table
-  // inserts any values that do not already exist
+  /**
+   * internal method to map a set of index strings to their id in indexvalues table
+   * inserts any values that do not already exist
+   */
   protected async getIndexValueIds (values: string[], db: Queryable) {
     await db.insert(`INSERT INTO indexvalues (value) VALUES (${values.map(v => '?').join(',')}) ON DUPLICATE KEY UPDATE value=value`)
     const valuerows = await db.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${values.map(v => '?').join(',')})`, values, { rowsAsArray: true })
@@ -242,7 +304,7 @@ export class VersionedService {
   }
 
   // internal method to replace all indexes for a given version of a versioned object
-  // the public create, update, restore, and setIndexes all share this common logic
+  // the public create, update, and setIndexes all share this common logic
   protected async _setIndexes (id: string, version: number, indexes: Index[], db: Queryable) {
     const values = indexes.flatMap(ind => ind.values)
     await db.execute('DELETE FROM indexes WHERE id=? AND version=?', [id, version])
