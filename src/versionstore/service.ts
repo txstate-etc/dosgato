@@ -214,12 +214,15 @@ export class VersionedService {
    * A common example will be tagging a version as 'published' or 'approved' as part of a workflow.
    *
    * 'latest' is reserved for the most current version of an object.
+   *
+   * @param version If undefined, tags latest version.
+   * @param user Person responsible for applying the tag.
    */
-  async tag (id: string, tag: string, version?: number) {
+  async tag (id: string, tag: string, version?: number, user?: string) {
     version ??= await db.getval('SELECT version FROM storage WHERE id=?', [id])
     if (typeof version === 'undefined') throw new NotFoundError('Unable to tag non-existing object with id ' + id)
     if (tag === 'latest') throw new Error('Object versions may not be manually tagged as latest. That tag is managed automatically.')
-    await db.insert('INSERT INTO tags (id, tag, version) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE version=version', [id, tag, version])
+    await db.insert('INSERT INTO tags (id, tag, version, date, user) VALUES (?, ?, ?, NOW(), ?) ON DUPLICATE KEY UPDATE version=VALUES(version), user=VALUES(user), date=VALUES(date)', [id, tag, version, user ?? ''])
   }
 
   /**
@@ -355,6 +358,8 @@ export class VersionedService {
       `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `tag` TINYTEXT CHARACTER SET 'ascii' NOT NULL, \
       `version` MEDIUMINT UNSIGNED NOT NULL, \
+      `user` TINYTEXT NOT NULL, \
+      `date` DATETIME NOT NULL, \
       PRIMARY KEY (`id`, `tag`), \
       CONSTRAINT `storage` \
         FOREIGN KEY (`id`) \
