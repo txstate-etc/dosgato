@@ -77,20 +77,25 @@ export class VersionedService {
     return intersectSorted(idsets)
   }
 
-  async setIndexes (id: string, version: number, indexes: Index[], tdb: Queryable = db) {
-    const values = indexes.flatMap(ind => ind.values)
-    await tdb.execute('DELETE FROM indexes WHERE id=? AND version=?', [id, version])
-    const binds: (string|number)[] = []
-    await tdb.insert(`INSERT INTO indexvalues (value) VALUES (${values.map(v => '?').join(',')}) ON DUPLICATE KEY UPDATE value=value`)
-    const valuerows = await tdb.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${values.map(v => '?').join(',')})`, values, { rowsAsArray: true })
-    const valuehash: Record<string, number> = {}
-    for (const [id, value] of valuerows) {
-      valuehash[value] = id
-    }
-    const indexEntries = indexes.flatMap(ind => ind.values.map(value => [id, version, ind.name, valuehash[value]]))
-    await tdb.insert(`
-      INSERT INTO indexes (id, version, name, value_id) VALUES (${db.in(binds, indexEntries)})
-    `, binds)
+  async setIndexes (id: string, version: number, indexes: Index[]) {
+    await db.transaction(async db => {
+      // this method expects to already be in a transaction because it's shared by
+      // create, update, and restore and they all do more work in the same transaction
+      await this._setIndexes(id, version, indexes, db)
+    })
+  }
+
+  /* Only overwrite a single index type, leave the others alone */
+  async setIndex (id: string, version: number, index: Index) {
+    await db.transaction(async db => {
+      await db.execute('DELETE FROM indexes WHERE id=? AND version=? AND name=?', [id, version, index.name])
+      const valuehash = await this.getIndexValueIds(index.values, db)
+      const indexEntries = index.values.map(value => [id, version, index.name, valuehash[value]])
+      const binds: (string|number)[] = []
+      await db.insert(`
+        INSERT INTO indexes (id, version, name, value_id) VALUES (${db.in(binds, indexEntries)})
+      `, binds)
+    })
   }
 
   async create (type: string, data: any, indexes: Index[], user?: string): Promise<string> {
@@ -101,7 +106,7 @@ export class VersionedService {
           INSERT INTO storage (id, type, version, data, created, createdBy, modified, modifiedBy, comment)
           VALUES (?, ?, 0, ?, NOW(), ?, NOW(), ?, '')
         `, [id, type, JSON.stringify(data), user ?? '', user ?? ''])
-        await this.setIndexes(id, 0, indexes, db)
+        await this._setIndexes(id, 0, indexes, db)
       })
       return id
     } catch (e) {
@@ -212,7 +217,7 @@ export class VersionedService {
       INSERT INTO versions (id, version, date, user, comment, undo)
       VALUES (?, ?, ?, ?, ?, ?)
     `, [current.id, current.version, current.modified, current.modifiedBy, current.comment, JSON.stringify(undo)])
-    await this.setIndexes(current.id, newversion, indexes, db)
+    await this._setIndexes(current.id, newversion, indexes, db)
   }
 
   // internal method for getting a versioned object within a transaction
@@ -222,6 +227,31 @@ export class VersionedService {
     if (!current) throw new NotFoundError('Unable to find node with id: ' + id)
     current.data = JSON.parse(current.data)
     return current as Versioned
+  }
+
+  // internal method to map a set of index strings to their id in indexvalues table
+  // inserts any values that do not already exist
+  protected async getIndexValueIds (values: string[], db: Queryable) {
+    await db.insert(`INSERT INTO indexvalues (value) VALUES (${values.map(v => '?').join(',')}) ON DUPLICATE KEY UPDATE value=value`)
+    const valuerows = await db.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${values.map(v => '?').join(',')})`, values, { rowsAsArray: true })
+    const valuehash: Record<string, number> = {}
+    for (const [id, value] of valuerows) {
+      valuehash[value] = id
+    }
+    return valuehash
+  }
+
+  // internal method to replace all indexes for a given version of a versioned object
+  // the public create, update, restore, and setIndexes all share this common logic
+  protected async _setIndexes (id: string, version: number, indexes: Index[], db: Queryable) {
+    const values = indexes.flatMap(ind => ind.values)
+    await db.execute('DELETE FROM indexes WHERE id=? AND version=?', [id, version])
+    const valuehash = await this.getIndexValueIds(values, db)
+    const indexEntries = indexes.flatMap(ind => ind.values.map(value => [id, version, ind.name, valuehash[value]]))
+    const binds: (string|number)[] = []
+    await db.insert(`
+      INSERT INTO indexes (id, version, name, value_id) VALUES (${db.in(binds, indexEntries)})
+    `, binds)
   }
 
   static async init () {
