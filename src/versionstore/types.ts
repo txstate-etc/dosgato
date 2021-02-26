@@ -56,3 +56,9 @@ export class NotFoundError extends Error {
     super(message ?? 'Object not found.')
   }
 }
+
+export class UpdateConflictError extends Error {
+  constructor (id: string) {
+    super(`Unable to update object with id: ${id}. Another user has updated the object since you loaded it.`)
+  }
+}

@@ -4,7 +4,7 @@ import { applyPatch, compare } from 'fast-json-patch'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { Index, IndexStorage, NotFoundError, Tag, Versioned, VersionedStorage, VersionStorage } from './types'
+import { Index, IndexStorage, NotFoundError, Tag, UpdateConflictError, Versioned, VersionedStorage, VersionStorage } from './types'
 
 const storageLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -160,11 +160,15 @@ export class VersionedService {
    * index strings; they will be stored and kept for the entire version history.
    *
    * You may optionally provide a user who is responsible for the update and a comment string.
+   *
+   * You may also optionally provide the version that you had when you started the update for
+   * an optimistic concurrency check.
    */
-  async update (id: string, data: any, indexes: Index[], { user, comment }: { user?: string, comment?: string } = {}) {
+  async update (id: string, data: any, indexes: Index[], { user, comment, version }: { user?: string, comment?: string, version?: number } = {}) {
     await db.transaction(async db => {
       const current = await db.getrow<VersionedStorage>('SELECT * FROM storage WHERE id=?', [id])
       if (!current) throw new NotFoundError('Unable to find node with id: ' + id)
+      if (typeof version !== 'undefined' && version !== current.version) throw new UpdateConflictError(id)
       const currentdata = JSON.parse(current.data)
       const newversion = current.version + 1
       const undo = compare(data, currentdata)
