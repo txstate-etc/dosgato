@@ -63,3 +63,4 @@ typings/
 .vscode
 .DS_Store
 node_modules
+*.mwb.bak
