@@ -4,12 +4,12 @@ import { applyPatch, compare } from 'fast-json-patch'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { Index, IndexStorage, NotFoundError, Tag, UpdateConflictError, Versioned, VersionedStorage, VersionStorage } from './types'
+import { Index, IndexStorage, NotFoundError, Tag, UpdateConflictError, Version, Versioned, VersionedStorage, VersionStorage } from './types'
 
 const storageLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
     const binds: string[] = []
-    const rows = await db.getall<VersionedStorage>(`SELECT id, type, version, data FROM storage WHERE id IN ${db.in(binds, ids)}`, binds)
+    const rows = await db.getall<VersionedStorage>(`SELECT * FROM storage WHERE id IN ${db.in(binds, ids)}`, binds)
     return rows.map(r => ({ ...r, data: JSON.parse(r.data) }) as Versioned)
   }
 })
@@ -17,7 +17,7 @@ const storageLoader = new PrimaryKeyLoader({
 const tagLoader = new PrimaryKeyLoader({
   fetch: async (keys: { id: string, tag: string }[]) => {
     const binds: string[] = []
-    return await db.getall<Tag>(`SELECT id, version, tag FROM tags WHERE (id, tag) IN (${db.in(binds, keys.map(k => [k.id, k.tag]))})`, binds)
+    return await db.getall<Tag>(`SELECT * FROM tags WHERE (id, tag) IN (${db.in(binds, keys.map(k => [k.id, k.tag]))})`, binds)
   },
   extractId: tag => ({ id: tag.id, tag: tag.tag })
 })
@@ -30,7 +30,7 @@ const versionsByNumberLoader = new OneToManyLoader({
       where.push('id=? AND version >= ? AND version < ?')
       binds.push(id, version, current)
     }
-    const rows = await db.getall<VersionStorage>(`SELECT id, version, date, user, undo FROM versions WHERE (${where.join(') OR (')}) ORDER BY version DESC`, binds)
+    const rows = await db.getall<VersionStorage>(`SELECT * FROM versions WHERE (${where.join(') OR (')}) ORDER BY version DESC`, binds)
     return rows.map(r => ({ ...r, undo: JSON.parse(r.undo) }))
   },
   matchKey: ({ id, version, current }, entry) => entry.id === id && entry.version >= version && entry.version < current,
@@ -42,8 +42,12 @@ export class VersionedService {
   protected static cleaningIndexValues: boolean
 
   /**
-   * Retrieve an object with a specific version or tag. This method is dataloaded so don't
-   * be afraid to make massively concurrent requests for many objects.
+   * Retrieve an object with a specific version or tag.
+   *
+   * This method is dataloaded so don't be afraid to make massively concurrent
+   * requests for many objects.
+   *
+   * If you ask for a specific tag that doesn't exist, you'll receive undefined.
    */
   async get (id: string, { version, tag }: { version?: number, tag?: string } = {}) {
     const data = await this.factory.get(storageLoader).load(id)
@@ -137,6 +141,11 @@ export class VersionedService {
 
   /**
    * Create a new versioned object. Returns its auto-generated id (a 10 character string).
+   *
+   * You are expected to provide your own index strings; they will be stored and kept for
+   * the entire version history.
+   *
+   * You may optionally provide a user who is responsible for the update.
    */
   async create (type: string, data: any, indexes: Index[], user?: string): Promise<string> {
     const id = nanoid(10)
@@ -144,9 +153,9 @@ export class VersionedService {
       await db.transaction(async db => {
         await db.insert(`
           INSERT INTO storage (id, type, version, data, created, createdBy, modified, modifiedBy, comment)
-          VALUES (?, ?, 0, ?, NOW(), ?, NOW(), ?, '')
+          VALUES (?, ?, 1, ?, NOW(), ?, NOW(), ?, '')
         `, [id, type, JSON.stringify(data), user ?? '', user ?? ''])
-        await this._setIndexes(id, 0, indexes, db)
+        await this._setIndexes(id, 1, indexes, db)
       })
       return id
     } catch (e) {
@@ -156,8 +165,10 @@ export class VersionedService {
   }
 
   /**
-   * Update an object, retaining the version history. You are expected to provide your own
-   * index strings; they will be stored and kept for the entire version history.
+   * Update an object, retaining the version history.
+   *
+   * You are expected to provide your own index strings; they will be stored and kept for
+   * the entire version history.
    *
    * You may optionally provide a user who is responsible for the update and a comment string.
    *
@@ -208,7 +219,7 @@ export class VersionedService {
       await db.execute('DELETE FROM tags WHERE id=?', [id])
       await db.execute('DELETE FROM indexes WHERE id=?', [id])
     })
-    this.cleanIndexValues().catch((e: Error) => console.error(e))
+    VersionedService.cleanIndexValues().catch((e: Error) => console.error(e))
   }
 
   /**
@@ -230,6 +241,18 @@ export class VersionedService {
   }
 
   /**
+   * Get the version number associated with a tag on a given object.
+   *
+   * This method is dataloaded so it is safe to call it many times concurrently.
+   *
+   * If the object does not have the given tag, returns undefined.
+   */
+  async getTagVersion (id: string, tag: string) {
+    const row = await this.factory.get(tagLoader).load({ id, tag })
+    return row?.version
+  }
+
+  /**
    * Remove a tag from an object, no matter which version it might be pointing at. Cannot be undone.
    */
   async removeTag (id: string, tag: string) {
@@ -248,12 +271,57 @@ export class VersionedService {
   }
 
   /**
+   * List versions of an object so one can be picked for retrieval.
+   */
+  async listVersions (id: string) {
+    const versions = await db.getall(`
+      SELECT v.version, v.date, v.user, v.comment, t.tag
+      FROM versions v LEFT JOIN tags t ON t.id=v.id AND t.version=v.version
+    `)
+    const versionhash: Record<number, Version> = {}
+    for (const { version, date, user, comment, tag } of versions) {
+      versionhash[version] ??= { id, version, date, user, comment, tags: [] }
+      versionhash[version].tags.push(tag)
+    }
+    return Object.values(versionhash)
+  }
+
+  /**
+   * internal method to map a set of index strings to their id in indexvalues table
+   * inserts any values that do not already exist
+   */
+  protected async getIndexValueIds (values: string[], db: Queryable) {
+    await db.insert(`INSERT INTO indexvalues (value) VALUES (${values.map(v => '?').join(',')}) ON DUPLICATE KEY UPDATE value=value`)
+    const valuerows = await db.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${values.map(v => '?').join(',')})`, values, { rowsAsArray: true })
+    const valuehash: Record<string, number> = {}
+    for (const [id, value] of valuerows) {
+      valuehash[value] = id
+    }
+    return valuehash
+  }
+
+  /**
+   * internal method to replace all indexes for a given version of a versioned object
+   * the public create, update, and setIndexes all share this common logic
+   */
+  protected async _setIndexes (id: string, version: number, indexes: Index[], db: Queryable) {
+    const values = indexes.flatMap(ind => ind.values)
+    await db.execute('DELETE FROM indexes WHERE id=? AND version=?', [id, version])
+    const valuehash = await this.getIndexValueIds(values, db)
+    const indexEntries = indexes.flatMap(ind => ind.values.map(value => [id, version, ind.name, valuehash[value]]))
+    const binds: (string|number)[] = []
+    await db.insert(`
+      INSERT INTO indexes (id, version, name, value_id) VALUES (${db.in(binds, indexEntries)})
+    `, binds)
+  }
+
+  /**
    * Delete old versions in the system to implement a retention policy. Will not
    * delete any versions newer than the oldest active tag. For instance, if an object on
    * version 7 has a version 2 made many years ago but still tagged as 'published', version 2
    * and greater will be retained. Make sure any tags you use are managed carefully.
    */
-  async deleteOldVersions (olderThan: Date) {
+  static async deleteOldVersions (olderThan: Date) {
     await db.transaction(async db => {
       // delete every version older than the date, except versions newer than the oldest tag
       // for instance, "published" is a planned tag, so we would not want a version to be wiped
@@ -283,10 +351,22 @@ export class VersionedService {
         WHERE v.id IS NULL AND s.id IS NULL
       `)
       await this.cleanIndexValues()
+      await this.optimize()
     })
   }
 
-  protected async cleanIndexValues () {
+  /**
+   * internal method to defragment and optimize the database tables
+   */
+  protected static async optimize () {
+    await db.execute('OPTIMIZE TABLES storage, versions, tags, indexes, indexvalues')
+  }
+
+  /**
+   * internal method to clean out value strings from the indexvalues table when they are no longer
+   * used
+   */
+  protected static async cleanIndexValues () {
     if (VersionedService.cleaningIndexValues) return
     try {
       VersionedService.cleaningIndexValues = true
@@ -294,33 +374,6 @@ export class VersionedService {
     } finally {
       VersionedService.cleaningIndexValues = false
     }
-  }
-
-  /**
-   * internal method to map a set of index strings to their id in indexvalues table
-   * inserts any values that do not already exist
-   */
-  protected async getIndexValueIds (values: string[], db: Queryable) {
-    await db.insert(`INSERT INTO indexvalues (value) VALUES (${values.map(v => '?').join(',')}) ON DUPLICATE KEY UPDATE value=value`)
-    const valuerows = await db.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${values.map(v => '?').join(',')})`, values, { rowsAsArray: true })
-    const valuehash: Record<string, number> = {}
-    for (const [id, value] of valuerows) {
-      valuehash[value] = id
-    }
-    return valuehash
-  }
-
-  // internal method to replace all indexes for a given version of a versioned object
-  // the public create, update, and setIndexes all share this common logic
-  protected async _setIndexes (id: string, version: number, indexes: Index[], db: Queryable) {
-    const values = indexes.flatMap(ind => ind.values)
-    await db.execute('DELETE FROM indexes WHERE id=? AND version=?', [id, version])
-    const valuehash = await this.getIndexValueIds(values, db)
-    const indexEntries = indexes.flatMap(ind => ind.values.map(value => [id, version, ind.name, valuehash[value]]))
-    const binds: (string|number)[] = []
-    await db.insert(`
-      INSERT INTO indexes (id, version, name, value_id) VALUES (${db.in(binds, indexEntries)})
-    `, binds)
   }
 
   static async init () {
@@ -402,5 +455,3 @@ export class VersionedService {
     DEFAULT COLLATE = utf8mb4_general_ci')
   }
 }
-
-export const versionedService = new VersionedService()

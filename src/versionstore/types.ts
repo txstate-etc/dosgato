@@ -1,5 +1,3 @@
-import { Operation } from 'fast-json-patch'
-
 interface VersionedCommon {
   id: string
   type: string
@@ -22,6 +20,7 @@ interface VersionCommon {
   version: number
   date: Date
   user: string
+  comment: string
 }
 
 export interface VersionStorage extends VersionCommon {
@@ -29,7 +28,6 @@ export interface VersionStorage extends VersionCommon {
 }
 
 export interface Version extends VersionCommon {
-  undo: Operation[]
   tags: string[]
 }
 
