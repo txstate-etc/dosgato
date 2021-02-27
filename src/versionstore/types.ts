@@ -35,6 +35,8 @@ export interface Tag {
   id: string
   version: number
   tag: string
+  user: string
+  date: Date
 }
 
 export interface Index {

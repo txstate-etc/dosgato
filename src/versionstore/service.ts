@@ -241,15 +241,14 @@ export class VersionedService {
   }
 
   /**
-   * Get the version number associated with a tag on a given object.
+   * Get the version number, user, and date associated with a tag on a given object.
    *
    * This method is dataloaded so it is safe to call it many times concurrently.
    *
    * If the object does not have the given tag, returns undefined.
    */
-  async getTagVersion (id: string, tag: string) {
-    const row = await this.factory.get(tagLoader).load({ id, tag })
-    return row?.version
+  async getTag (id: string, tag: string) {
+    return await this.factory.get(tagLoader).load({ id, tag })
   }
 
   /**
