@@ -382,7 +382,15 @@ export class VersionedService {
     if (VersionedService.optimizingTables) return
     try {
       VersionedService.optimizingTables = true
-      await db.execute('OPTIMIZE TABLES storage, versions, tags, indexes, indexvalues')
+      const tables = await db.getvals<string>(`
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE data_free > 50*1024*1024 AND data_free / data_length > 0.25
+        AND table_schema=DATABASE()
+        AND table_name IN ('storage','versions','tags','indexes','indexvalues')
+        order by data_free
+      `)
+      for (const table of tables) await db.execute(`OPTIMIZE TABLE ${table}`)
     } finally {
       VersionedService.optimizingTables = false
     }
