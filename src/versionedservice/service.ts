@@ -4,7 +4,7 @@ import { applyPatch, compare } from 'fast-json-patch'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { Index, IndexStorage, NotFoundError, Tag, UpdateConflictError, Version, Versioned, VersionedStorage, VersionStorage } from './types'
+import { Index, IndexJoinedStorage, IndexStorage, NotFoundError, Tag, UpdateConflictError, Version, Versioned, VersionedStorage, VersionStorage } from './types'
 
 const storageLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -40,6 +40,7 @@ const versionsByNumberLoader = new OneToManyLoader({
 export class VersionedService {
   protected factory = new DataLoaderFactory()
   protected static cleaningIndexValues: boolean
+  protected static optimizingTables: boolean
 
   /**
    * Retrieve an object with a specific version or tag.
@@ -104,7 +105,7 @@ export class VersionedService {
    * See the indexes associated with a particular version
    */
   async getIndexes (id: string, version: number) {
-    const indexrows = await db.getall<IndexStorage>('SELECT i.*, v.value FROM indexes i INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? ORDER BY i.name, v.value', [id, version])
+    const indexrows = await db.getall<IndexJoinedStorage>('SELECT i.*, v.value FROM indexes i INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? ORDER BY i.name, v.value', [id, version])
     const indexhash: Record<string, Index> = {}
     for (const row of indexrows) {
       indexhash[row.name] ??= { name: row.name, values: [] }
@@ -129,9 +130,21 @@ export class VersionedService {
    */
   async setIndex (id: string, version: number, index: Index) {
     await db.transaction(async db => {
-      await db.execute('DELETE FROM indexes WHERE id=? AND version=? AND name=?', [id, version, index.name])
+      const existing = await db.getvals<string>('SELECT v.value FROM indexes i INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? AND i.name=?')
+      const currentSet = new Set(existing)
+      const nextSet = new Set(index.values)
+      const eliminate = existing.filter(v => nextSet.has(v))
+      if (eliminate.length) {
+        const deletebinds = [id, version, index.name]
+        await db.execute(`
+          DELETE i FROM indexes i
+          INNER JOIN indexvalues v ON v.id=i.value_id
+          WHERE i.id=? AND i.version=? AND i.name=?
+          AND v.value IN (${db.in(deletebinds, eliminate)})
+        `, deletebinds)
+      }
       const valuehash = await this.getIndexValueIds(index.values, db)
-      const indexEntries = index.values.map(value => [id, version, index.name, valuehash[value]])
+      const indexEntries = index.values.filter(v => !currentSet.has(v)).map(value => [id, version, index.name, valuehash[value]])
       const binds: (string|number)[] = []
       await db.insert(`
         INSERT INTO indexes (id, version, name, value_id) VALUES (${db.in(binds, indexEntries)})
@@ -305,9 +318,17 @@ export class VersionedService {
    */
   protected async _setIndexes (id: string, version: number, indexes: Index[], db: Queryable) {
     const values = indexes.flatMap(ind => ind.values)
-    await db.execute('DELETE FROM indexes WHERE id=? AND version=?', [id, version])
     const valuehash = await this.getIndexValueIds(values, db)
     const indexEntries = indexes.flatMap(ind => ind.values.map(value => [id, version, ind.name, valuehash[value]]))
+    const wanted = new Set(indexEntries.map(e => `${e[2]}.${e[3]}`))
+    const currentEntries = await db.getall<IndexStorage>('SELECT * FROM indexes WHERE id=? AND version=?', [id, version])
+    const eliminate = currentEntries
+      .filter(e => !wanted.has(`${e.name}.${e.value_id}`))
+      .map(e => [e.name, e.value_id])
+    if (eliminate.length) {
+      const deletebinds = [id, version]
+      await db.execute(`DELETE FROM indexes WHERE id=? AND version=? AND (name, value_id) IN (${db.in(deletebinds, eliminate)})`, deletebinds)
+    }
     const binds: (string|number)[] = []
     await db.insert(`
       INSERT INTO indexes (id, version, name, value_id) VALUES (${db.in(binds, indexEntries)})
@@ -349,16 +370,22 @@ export class VersionedService {
         LEFT JOIN storage s ON i.id=s.id AND i.version=s.version
         WHERE v.id IS NULL AND s.id IS NULL
       `)
-      await this.cleanIndexValues()
-      await this.optimize()
     })
+    await this.cleanIndexValues()
+    await this.optimize()
   }
 
   /**
    * internal method to defragment and optimize the database tables
    */
   protected static async optimize () {
-    await db.execute('OPTIMIZE TABLES storage, versions, tags, indexes, indexvalues')
+    if (VersionedService.optimizingTables) return
+    try {
+      VersionedService.optimizingTables = true
+      await db.execute('OPTIMIZE TABLES storage, versions, tags, indexes, indexvalues')
+    } finally {
+      VersionedService.optimizingTables = false
+    }
   }
 
   /**

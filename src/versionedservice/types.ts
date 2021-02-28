@@ -48,6 +48,10 @@ export interface IndexStorage {
   id: string
   version: number
   name: string
+  value_id: number
+}
+
+export interface IndexJoinedStorage extends IndexStorage {
   value: string
 }
 
