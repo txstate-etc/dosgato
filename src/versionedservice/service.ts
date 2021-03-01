@@ -468,27 +468,8 @@ export class VersionedService {
       `version` MEDIUMINT UNSIGNED NOT NULL, \
       `user` TINYTEXT NOT NULL, \
       `date` DATETIME NOT NULL, \
-      PRIMARY KEY (`id`, `tag`), \
+      PRIMARY KEY (`id`, `tag`(255)), \
       CONSTRAINT `storage` \
-        FOREIGN KEY (`id`) \
-        REFERENCES `storage` (`id`) \
-    ) \
-    ENGINE = InnoDB \
-    DEFAULT CHARACTER SET = utf8mb4 \
-    DEFAULT COLLATE = utf8mb4_general_ci")
-    await db.execute("\
-    CREATE TABLE IF NOT EXISTS `indexes` ( \
-      `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
-      `version` MEDIUMINT UNSIGNED NOT NULL, \
-      `name` TINYTEXT CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL, \
-      `value_id` INT UNSIGNED NOT NULL, \
-      INDEX `value_idx` (`value_id` ASC), \
-      INDEX `name_value` (`name` ASC, `value_id` ASC), \
-      PRIMARY KEY (`id`, `version`, `name`, `value_id`), \
-      CONSTRAINT `value` \
-        FOREIGN KEY (`value_id`) \
-        REFERENCES `indexvalues` (`id`), \
-      CONSTRAINT `id` \
         FOREIGN KEY (`id`) \
         REFERENCES `storage` (`id`) \
     ) \
@@ -504,5 +485,24 @@ export class VersionedService {
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci')
+    await db.execute("\
+    CREATE TABLE IF NOT EXISTS `indexes` ( \
+      `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `version` MEDIUMINT UNSIGNED NOT NULL, \
+      `name` TINYTEXT CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL, \
+      `value_id` INT UNSIGNED NOT NULL, \
+      INDEX `value_idx` (`value_id` ASC), \
+      INDEX `name_value` (`name` ASC, `value_id` ASC), \
+      PRIMARY KEY (`id`, `version`, `name`(255), `value_id`), \
+      CONSTRAINT `value` \
+        FOREIGN KEY (`value_id`) \
+        REFERENCES `indexvalues` (`id`), \
+      CONSTRAINT `value_foreign` \
+        FOREIGN KEY (`id`) \
+        REFERENCES `storage` (`id`) \
+    ) \
+    ENGINE = InnoDB \
+    DEFAULT CHARACTER SET = utf8mb4 \
+    DEFAULT COLLATE = utf8mb4_general_ci")
   }
 }
