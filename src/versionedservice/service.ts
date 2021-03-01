@@ -70,7 +70,7 @@ export class VersionedService {
   /**
    * Indexed search for objects. Tag required, use 'latest' for current version.
    */
-  async find (indexes: Index[], tag: string) {
+  async find (indexes: Index[], tag: string, type?: string) {
     let tagfrom = ''
     let tagwhere = ''
     if (tag === 'latest') {
@@ -98,7 +98,13 @@ export class VersionedService {
       `)
     }
 
-    return await db.getvals<string>(`SELECT DISTINCT s.id FROM storage s ${virtuals.join('')}`, binds)
+    let typewhere = ''
+    if (type?.length) {
+      binds.push(type)
+      typewhere = 'WHERE s.type=?'
+    }
+
+    return await db.getvals<string>(`SELECT DISTINCT s.id FROM storage s ${virtuals.join('')}${typewhere}`, binds)
   }
 
   /**
