@@ -184,7 +184,7 @@ export class VersionedService {
         await db.insert(`
           INSERT INTO storage (id, type, version, data, created, createdBy, modified, modifiedBy, comment)
           VALUES (?, ?, 1, ?, NOW(), ?, NOW(), ?, '')
-        `, [id, type, JSON.stringify(data), user ?? '', user ?? ''])
+        `, [id, type, JSON.stringify(data), user ?? '', user ?? '', ''])
         await this._setIndexes(id, 1, indexes, db)
       })
       return id
