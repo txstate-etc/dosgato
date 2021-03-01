@@ -4,7 +4,7 @@ import { applyPatch, compare } from 'fast-json-patch'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { Index, IndexJoinedStorage, IndexStorage, NotFoundError, Tag, UpdateConflictError, Version, Versioned, VersionedStorage, VersionStorage } from './types'
+import { Index, IndexJoinedStorage, IndexStorage, NotFoundError, SearchRule, Tag, UpdateConflictError, Version, Versioned, VersionedStorage, VersionStorage } from './types'
 
 const storageLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -70,41 +70,52 @@ export class VersionedService {
   /**
    * Indexed search for objects. Tag required, use 'latest' for current version.
    */
-  async find (indexes: Index[], tag: string, type?: string) {
-    let tagfrom = ''
-    let tagwhere = ''
+  async find (rules: SearchRule[], tag: string, type?: string) {
+    const binds: string[] = []
+    const where: string[] = []
+    const join: string[] = []
     if (tag === 'latest') {
-      tagfrom = 'INNER JOIN storage s ON s.id=i.id AND s.version=i.version'
+      where.push('s.version = i.version')
     } else {
-      tagfrom = ' INNER JOIN tags t ON t.id=i.id AND t.version=i.version'
-      tagwhere = ' t.tag=? AND'
+      join.push('INNER JOIN tags t ON t.id=i.id AND t.version=i.version')
+      where.push('t.tag = ?')
+      binds.push(tag)
     }
 
-    const binds = []
-    const virtuals = []
-    for (let i = 0; i < indexes.length; i++) {
-      const index = indexes[i]
-      if (tagwhere?.length) binds.push(tag)
-      virtuals.push(`
-        INNER JOIN (
-          SELECT DISTINCT i.id
-          FROM indexes i
-          INNER JOIN indexvalues v ON i.value_id=v.id
-          ${tagfrom}
-          WHERE
-          ${tagwhere}
-          i.name=? AND v.value IN (${db.in(binds, index.values)})
-        ) r${i} ON r${i}.id=i.id
-      `)
-    }
-
-    let typewhere = ''
     if (type?.length) {
+      where.push('s.type = ?')
       binds.push(type)
-      typewhere = 'WHERE s.type=?'
     }
 
-    return await db.getvals<string>(`SELECT DISTINCT s.id FROM storage s ${virtuals.join('')}${typewhere}`, binds)
+    for (let i = 0; i < rules.length; i++) {
+      const rule = rules[i]
+      if ('in' in rule) where.push(`v.value IN (${db.in(binds, rule.in)})`)
+      else if ('notIn' in rule) where.push(`v.value NOT IN (${db.in(binds, rule.notIn)})`)
+      else if ('greaterThan' in rule) {
+        where.push(`v.value >${rule.orEqual ? '=' : ''} ?`)
+        binds.push(rule.greaterThan)
+      } else if ('lessThan' in rule) {
+        where.push(`v.value >${rule.orEqual ? '=' : ''} ?`)
+        binds.push(rule.lessThan)
+      } else if ('equal' in rule) {
+        where.push('v.value = ?')
+        binds.push(rule.equal)
+      } else if ('notEqual' in rule) {
+        where.push('v.value != ?')
+        binds.push(rule.notEqual)
+      } else if ('startsWith' in rule) {
+        where.push('v.value LIKE ?')
+        binds.push(rule.startsWith + '%')
+      }
+    }
+
+    return await db.getvals<string>(`
+      SELECT DISTINCT s.id
+      FROM storage s
+      INNER JOIN indexes i ON i.id=s.id
+      INNER JOIN indexvalues v ON i.value_id=v.id
+      ${join.join('\n')}
+      WHERE (${where.join(') AND (')})`, binds)
   }
 
   /**

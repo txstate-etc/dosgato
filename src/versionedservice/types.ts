@@ -55,6 +55,34 @@ export interface IndexJoinedStorage extends IndexStorage {
   value: string
 }
 
+export interface SearchBaseRule {
+  indexName: string
+}
+export interface SearchGreaterRule extends SearchBaseRule {
+  greaterThan: string
+  orEqual: boolean
+}
+export interface SearchLessRule extends SearchBaseRule {
+  lessThan: string
+  orEqual: boolean
+}
+export interface SearchEqualRule extends SearchBaseRule {
+  equal: string
+}
+export interface SearchNotEqualRule extends SearchBaseRule {
+  notEqual: string
+}
+export interface SearchInRule extends SearchBaseRule {
+  in: string[]
+}
+export interface SearchNotInRule extends SearchBaseRule {
+  notIn: string[]
+}
+export interface SearchStartsWithRule extends SearchBaseRule {
+  startsWith: string
+}
+export type SearchRule = SearchEqualRule|SearchNotEqualRule|SearchInRule|SearchNotInRule|SearchGreaterRule|SearchLessRule|SearchStartsWithRule
+
 export class NotFoundError extends Error {
   constructor (message?: string) {
     super(message ?? 'Object not found.')
