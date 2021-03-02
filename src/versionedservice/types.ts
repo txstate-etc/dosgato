@@ -41,6 +41,10 @@ export interface Tag {
 
 export interface Index {
   name: string
+  values: (string|number)[]
+}
+export interface IndexStringified {
+  name: string
   values: string[]
 }
 
@@ -59,27 +63,27 @@ export interface SearchBaseRule {
   indexName: string
 }
 export interface SearchGreaterRule extends SearchBaseRule {
-  greaterThan: string
+  greaterThan: string|number
   orEqual: boolean
 }
 export interface SearchLessRule extends SearchBaseRule {
-  lessThan: string
+  lessThan: string|number
   orEqual: boolean
 }
 export interface SearchEqualRule extends SearchBaseRule {
-  equal: string
+  equal: string|number
 }
 export interface SearchNotEqualRule extends SearchBaseRule {
-  notEqual: string
+  notEqual: string|number
 }
 export interface SearchInRule extends SearchBaseRule {
-  in: string[]
+  in: (string|number)[]
 }
 export interface SearchNotInRule extends SearchBaseRule {
-  notIn: string[]
+  notIn: (string|number)[]
 }
 export interface SearchStartsWithRule extends SearchBaseRule {
-  startsWith: string
+  startsWith: string|number
 }
 export type SearchRule = SearchEqualRule|SearchNotEqualRule|SearchInRule|SearchNotInRule|SearchGreaterRule|SearchLessRule|SearchStartsWithRule
 

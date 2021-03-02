@@ -4,7 +4,7 @@ import { applyPatch, compare } from 'fast-json-patch'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { Index, IndexJoinedStorage, IndexStorage, NotFoundError, SearchRule, Tag, UpdateConflictError, Version, Versioned, VersionedStorage, VersionStorage } from './types'
+import { Index, IndexJoinedStorage, IndexStorage, IndexStringified, NotFoundError, SearchRule, Tag, UpdateConflictError, Version, Versioned, VersionedStorage, VersionStorage } from './types'
 
 const storageLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -36,6 +36,21 @@ const versionsByNumberLoader = new OneToManyLoader({
   matchKey: ({ id, version, current }, entry) => entry.id === id && entry.version >= version && entry.version < current,
   maxBatchSize: 50
 })
+
+function zerofill (n: number|string) {
+  return typeof n === 'number' ? String(n).padStart(10, '0') : n
+}
+
+function zerofillIndexes (indexes: Index[]) {
+  let index: Index
+  for (let i = 0; i < indexes.length; i++) {
+    index = indexes[i]
+    for (let j = 0; i < index.values.length; j++) {
+      index.values[j] = zerofill(index.values[j])
+    }
+  }
+  return indexes as IndexStringified[]
+}
 
 export class VersionedService {
   protected factory = new DataLoaderFactory()
@@ -89,23 +104,23 @@ export class VersionedService {
 
     for (let i = 0; i < rules.length; i++) {
       const rule = rules[i]
-      if ('in' in rule) where.push(`v.value IN (${db.in(binds, rule.in)})`)
-      else if ('notIn' in rule) where.push(`v.value NOT IN (${db.in(binds, rule.notIn)})`)
+      if ('in' in rule) where.push(`v.value IN (${db.in(binds, rule.in.map(zerofill))})`)
+      else if ('notIn' in rule) where.push(`v.value NOT IN (${db.in(binds, rule.notIn.map(zerofill))})`)
       else if ('greaterThan' in rule) {
         where.push(`v.value >${rule.orEqual ? '=' : ''} ?`)
-        binds.push(rule.greaterThan)
+        binds.push(zerofill(rule.greaterThan))
       } else if ('lessThan' in rule) {
         where.push(`v.value >${rule.orEqual ? '=' : ''} ?`)
-        binds.push(rule.lessThan)
+        binds.push(zerofill(rule.lessThan))
       } else if ('equal' in rule) {
         where.push('v.value = ?')
-        binds.push(rule.equal)
+        binds.push(zerofill(rule.equal))
       } else if ('notEqual' in rule) {
         where.push('v.value != ?')
-        binds.push(rule.notEqual)
+        binds.push(zerofill(rule.notEqual))
       } else if ('startsWith' in rule) {
         where.push('v.value LIKE ?')
-        binds.push(rule.startsWith + '%')
+        binds.push(zerofill(rule.startsWith) + '%')
       }
     }
 
@@ -120,6 +135,9 @@ export class VersionedService {
 
   /**
    * See the indexes associated with a particular version
+   *
+   * Note that any numbers you passed in as indexes will have been stringified with
+   * zerofill to 10 digits. This is to help normalize lexical vs numerical comparisons.
    */
   async getIndexes (id: string, version: number) {
     const indexrows = await db.getall<IndexJoinedStorage>('SELECT i.*, v.value FROM indexes i INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? ORDER BY i.name, v.value', [id, version])
@@ -146,13 +164,16 @@ export class VersionedService {
    *  Only overwrite a single index type, leave the others alone.
    */
   async setIndex (id: string, version: number, index: Index) {
+    const [sindex] = zerofillIndexes([index])
     await db.transaction(async db => {
-      const existing = await db.getvals<string>('SELECT v.value FROM indexes i INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? AND i.name=?')
+      const existing = await db.getvals<string>(
+        'SELECT v.value FROM indexes i INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? AND i.name=?',
+        [id, version, sindex.name])
       const currentSet = new Set(existing)
-      const nextSet = new Set(index.values)
+      const nextSet = new Set(sindex.values)
       const eliminate = existing.filter(v => nextSet.has(v))
       if (eliminate.length) {
-        const deletebinds = [id, version, index.name]
+        const deletebinds = [id, version, sindex.name]
         await db.execute(`
           DELETE i FROM indexes i
           INNER JOIN indexvalues v ON v.id=i.value_id
@@ -160,8 +181,8 @@ export class VersionedService {
           AND v.value IN (${db.in(deletebinds, eliminate)})
         `, deletebinds)
       }
-      const valuehash = await this.getIndexValueIds(index.values, db)
-      const indexEntries = index.values.filter(v => !currentSet.has(v)).map(value => [id, version, index.name, valuehash[value]])
+      const valuehash = await this.getIndexValueIds(sindex.values, db)
+      const indexEntries = sindex.values.filter(v => !currentSet.has(v)).map(value => [id, version, index.name, valuehash[value]])
       const binds: (string|number)[] = []
       await db.insert(`
         INSERT INTO indexes (id, version, name, value_id) VALUES (${db.in(binds, indexEntries)})
@@ -320,7 +341,7 @@ export class VersionedService {
    * inserts any values that do not already exist
    */
   protected async getIndexValueIds (values: string[], db: Queryable) {
-    await db.insert(`INSERT INTO indexvalues (value) VALUES (${values.map(v => '?').join(',')}) ON DUPLICATE KEY UPDATE value=value`)
+    await db.insert(`INSERT INTO indexvalues (value) VALUES (${values.map(v => '?').join(',')}) ON DUPLICATE KEY UPDATE value=value`, values)
     const valuerows = await db.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${values.map(v => '?').join(',')})`, values, { rowsAsArray: true })
     const valuehash: Record<string, number> = {}
     for (const [id, value] of valuerows) {
@@ -334,9 +355,10 @@ export class VersionedService {
    * the public create, update, and setIndexes all share this common logic
    */
   protected async _setIndexes (id: string, version: number, indexes: Index[], db: Queryable) {
-    const values = indexes.flatMap(ind => ind.values)
+    const sindexes = zerofillIndexes(indexes)
+    const values = sindexes.flatMap(ind => ind.values)
     const valuehash = await this.getIndexValueIds(values, db)
-    const indexEntries = indexes.flatMap(ind => ind.values.map(value => [id, version, ind.name, valuehash[value]]))
+    const indexEntries = sindexes.flatMap(ind => ind.values.map(value => [id, version, ind.name, valuehash[value]]))
     const wanted = new Set(indexEntries.map(e => `${e[2]}.${e[3]}`))
     const currentEntries = await db.getall<IndexStorage>('SELECT * FROM indexes WHERE id=? AND version=?', [id, version])
     const eliminate = currentEntries
