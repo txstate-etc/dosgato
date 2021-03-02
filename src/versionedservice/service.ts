@@ -141,7 +141,7 @@ export class VersionedService {
    */
   async getIndexes (id: string, version: number) {
     const indexrows = await db.getall<IndexJoinedStorage>('SELECT i.*, v.value FROM indexes i INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? ORDER BY i.name, v.value', [id, version])
-    const indexhash: Record<string, Index> = {}
+    const indexhash: Record<string, IndexStringified> = {}
     for (const row of indexrows) {
       indexhash[row.name] ??= { name: row.name, values: [] }
       indexhash[row.name].values.push(row.value)
