@@ -1,0 +1,19 @@
+version: '3'
+services:
+  dosgato:
+    build:
+      context: .
+    environment:
+      MYSQL_USER: dosgato
+      MYSQL_PASS: password
+      MYSQL_DATABASE: dosgatotest
+      MYSQL_HOST: mariadb
+    depends_on:
+      - mariadb
+  mariadb:
+    image: mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: dosgatotest
+      MYSQL_USER: dosgato
+      MYSQL_PASSWORD: password
