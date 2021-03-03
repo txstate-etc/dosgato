@@ -45,7 +45,7 @@ function zerofillIndexes (indexes: Index[]) {
   let index: Index
   for (let i = 0; i < indexes.length; i++) {
     index = indexes[i]
-    for (let j = 0; i < index.values.length; j++) {
+    for (let j = 0; j < index.values.length; j++) {
       index.values[j] = zerofill(index.values[j])
     }
   }
