@@ -500,7 +500,7 @@ export class VersionedService {
     DEFAULT COLLATE = utf8mb4_general_ci")
     await db.execute('\
     CREATE TABLE IF NOT EXISTS `indexvalues` ( \
-      `id` INT UNSIGNED NOT NULL, \
+      `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `value` TEXT NOT NULL, \
       PRIMARY KEY (`id`), \
       INDEX `value` (`value` ASC)) \

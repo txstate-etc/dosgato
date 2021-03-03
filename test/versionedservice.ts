@@ -1,5 +1,7 @@
 import { expect } from 'chai'
+import { compare } from 'fast-json-patch'
 import { VersionedService, NotFoundError } from '../src/versionedservice'
+import { getEnabledCategories } from 'trace_events'
 
 const homePage: any = {
   title: 'Texas State University',
@@ -64,21 +66,102 @@ describe('versionedservice', () => {
     const obj = await versionedService.get(id)
     if (obj) {
       expect(obj).to.have.property('data')
-      expect(JSON.parse(obj.data)).to.have.property('icon')
+      expect(obj.data).to.have.property('title')
     } else {
       expect.fail('Object should have been found')
     }
   })
 
-  it.skip('should retrieve an object with a specific version from storage', async () => { })
+  it('should retrieve the indexes associated with a particular version of an object', async () => {
+    const indexes = [{ name: 'index1', values: ['one', 'two'] }, { name: 'index2', values: ['three'] }]
+    const id = await versionedService.create('testdata', { size: 'large', color: 'red' }, indexes)
+    const obj = await versionedService.get(id)
+    if (obj) {
+      const objIndexes = await versionedService.getIndexes(id, obj.version)
+      const diff = compare(indexes, objIndexes)
+      expect(diff.length).to.equal(0)
+    } else {
+      expect.fail('Object should have been found')
+    }
+  })
 
-  it.skip('should should tag a specific version of an object', async () => { })
+  it('should update an object in storage', async () => {
+    const id = await versionedService.create('txstatehome', homePage, [{ name: 'components', values: ['onecolumnsection', 'onecolumnlayout', 'button', 'icontext'] }])
+    const obj = await versionedService.get(id)
+    if (obj) {
+      const indexes = await versionedService.getIndexes(id, obj.version)
+      await versionedService.update(id, { ...homePage, title: 'Updated Home Page' }, indexes)
+      const updatedObj = await versionedService.get(id)
+      if (updatedObj) {
+        expect(updatedObj.data).to.have.property('title')
+        expect(updatedObj.data.title).to.equal('Updated Home Page')
+        expect(updatedObj.version).to.equal(2)
+      } else {
+        expect.fail('Object should have been found')
+      }
+    } else {
+      expect.fail('Object should have been found')
+    }
+  })
 
-  it.skip('should retrieve an object with a specific tag from storage', async () => { })
+  it('should retrieve an object with a specific version from storage', async () => {
+    const indexes = [{ name: 'index3', values: ['test'] }]
+    const data = { name: 'Person A', age: 16, canVote: false }
+    const id = await versionedService.create('testobject', data, indexes)
+    const obj = await versionedService.get(id)
+    if (obj) {
+      data.age = 17
+      await versionedService.update(id, data, indexes)
+      data.age = 18
+      data.canVote = true
+      await versionedService.update(id, data, indexes)
+      const optional = { version: 2 }
+      const obj2 = await versionedService.get(id, optional)
+      if (obj2) {
+        expect(obj2.data.age).to.equal(17)
+        expect(obj2.data.canVote).to.equal(false)
+      } else {
+        expect.fail('Object should have been found')
+      }
+    } else {
+      expect.fail('Object should have been found')
+    }
+  })
+
+  it('should should tag a specific version of an object', async () => {
+    const indexes = [{ name: 'index4', values: ['apple', 'orange'] }]
+    const data = { title: 'Hello World', color: 'red', size: 'extra medium' }
+    const id = await versionedService.create('testdata', data, indexes)
+    await versionedService.tag(id, 'published', 1, 'username')
+    const result = await versionedService.getTag(id, 'published')
+    expect(result).to.have.property('tag')
+    expect(result?.tag).to.equal('published')
+    expect(result?.version).to.equal(1)
+  })
+
+  it('should retrieve an object with a specific tag from storage', async () => {
+    const indexes = [{ name: 'index5', values: ['cat', 'dog'] }]
+    const data = { name: 'Earth', hasWater: true, numMoons: 1 }
+    const id = await versionedService.create('planet', data, indexes)
+    await versionedService.tag(id, 'approved', 1, 'username')
+    const obj = await versionedService.get(id, { tag: 'approved' })
+    expect(obj?.data).to.have.property('name')
+    expect(obj?.data.name).to.equal('Earth')
+  })
+
+  it('should not allow versions to be manually tagged as latest', async () => {
+    const indexes = [{ name: 'index6', values: ['component'] }]
+    const data = { name: 'Chocolate chip', ingredients: ['flour, butter', 'chocolate chips', 'sugar', 'eggs', 'vanilla'] }
+    const id = await versionedService.create('cookie', data, indexes)
+    try {
+      await versionedService.tag(id, 'latest', 1, 'username')
+    } catch (err) {
+      // check for specific error message?
+      expect(err.message.length).to.be.greaterThan(0)
+    }
+  })
 
   it.skip('should return undefined if a requested tag does not exist for the requested object', async () => { })
-
-  it.skip('should update an object in storage', async () => { })
 
   it.skip('should return a NotFoundError when trying to update an object that does not exist', async () => { })
 
@@ -96,13 +179,7 @@ describe('versionedservice', () => {
 
   it.skip('should delete an object and its entire version history', async () => { })
 
-  it.skip('should should tag a specific version of an object', async () => { })
-
   it.skip('should return a NotFoundError when trying to tag an object that does not exist', async () => { })
 
-  it.skip('should not allow versions to be manually tagged as latest', async () => { })
-
   it.skip('should only allow a tag to be used on one version of an object at a time', async () => { })
-
-
 })
