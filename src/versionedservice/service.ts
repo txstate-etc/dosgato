@@ -277,6 +277,7 @@ export class VersionedService {
       await db.execute('DELETE FROM indexes WHERE id=?', [id])
     })
     VersionedService.cleanIndexValues().catch((e: Error) => console.error(e))
+    this.factory.get(storageLoader).clear(id)
   }
 
   /**
@@ -295,6 +296,7 @@ export class VersionedService {
     if (typeof version === 'undefined') throw new NotFoundError('Unable to tag non-existing object with id ' + id)
     if (tag === 'latest') throw new Error('Object versions may not be manually tagged as latest. That tag is managed automatically.')
     await db.insert('INSERT INTO tags (id, tag, version, date, user) VALUES (?, ?, ?, NOW(), ?) ON DUPLICATE KEY UPDATE version=VALUES(version), user=VALUES(user), date=VALUES(date)', [id, tag, version, user ?? ''])
+    this.factory.get(tagLoader).clear({ id, tag })
   }
 
   /**
@@ -313,6 +315,7 @@ export class VersionedService {
    */
   async removeTag (id: string, tag: string) {
     await db.execute('DELETE FROM tags WHERE id=? AND tag=?', [id, tag])
+    this.factory.get(tagLoader).clear({ id, tag })
   }
 
   /**
@@ -324,6 +327,7 @@ export class VersionedService {
    */
   async globalRemoveTag (tag: string) {
     await db.execute('DELETE FROM tags WHERE tag=?', [tag])
+    this.factory.get(tagLoader).clearAll()
   }
 
   /**
