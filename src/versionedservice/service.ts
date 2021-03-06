@@ -341,7 +341,7 @@ export class VersionedService {
     const versionhash: Record<number, Version> = {}
     for (const { version, date, user, comment, tag } of versions) {
       versionhash[version] ??= { id, version, date, user, comment, tags: [] }
-      versionhash[version].tags.push(tag)
+      if (tag) versionhash[version].tags.push(tag)
     }
     return Object.values(versionhash)
   }
