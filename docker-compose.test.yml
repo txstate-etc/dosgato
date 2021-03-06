@@ -12,6 +12,8 @@ services:
       - mariadb
   mariadb:
     image: mariadb
+    logging:
+      driver: none
     environment:
       MYSQL_ROOT_PASSWORD: secret
       MYSQL_DATABASE: dosgatotest

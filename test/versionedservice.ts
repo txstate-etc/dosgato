@@ -1,7 +1,6 @@
 import { expect } from 'chai'
 import { compare } from 'fast-json-patch'
 import { VersionedService, NotFoundError } from '../src/versionedservice'
-import { getEnabledCategories } from 'trace_events'
 
 const homePage: any = {
   title: 'Texas State University',

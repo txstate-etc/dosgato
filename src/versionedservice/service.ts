@@ -9,7 +9,7 @@ import { Index, IndexJoinedStorage, IndexStorage, IndexStringified, NotFoundErro
 const storageLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
     const binds: string[] = []
-    const rows = await db.getall<VersionedStorage>(`SELECT * FROM storage WHERE id IN ${db.in(binds, ids)}`, binds)
+    const rows = await db.getall<VersionedStorage>(`SELECT * FROM storage WHERE id IN (${db.in(binds, ids)})`, binds)
     return rows.map(r => ({ ...r, data: JSON.parse(r.data) }) as Versioned)
   }
 })
@@ -66,20 +66,25 @@ export class VersionedService {
    * If you ask for a specific tag that doesn't exist, you'll receive undefined.
    */
   async get (id: string, { version, tag }: { version?: number, tag?: string } = {}) {
-    const data = await this.factory.get(storageLoader).load(id)
-    if (!data) throw new NotFoundError()
+    const versioned = await this.factory.get(storageLoader).load(id)
+    if (!versioned) throw new NotFoundError()
     if (tag && tag !== 'latest') {
       const verNum = (await this.factory.get(tagLoader).load({ id, tag }))?.version
       if (typeof verNum === 'undefined') return undefined
       version = verNum
     }
-    if (version && data.version !== version) {
-      const versionEntries = await this.factory.get(versionsByNumberLoader).load({ id, version, current: data.version })
+    if (version && versioned.version !== version) {
+      const versionEntries = await this.factory.get(versionsByNumberLoader).load({ id, version, current: versioned.version })
       for (const entry of versionEntries) {
-        applyPatch(data, entry.undo)
+        applyPatch(versioned.data, entry.undo)
       }
+      const lastEntry = versionEntries[versionEntries.length - 1]
+      versioned.modified = lastEntry.date
+      versioned.modifiedBy = lastEntry.user
+      versioned.comment = lastEntry.comment
+      versioned.version = lastEntry.version
     }
-    return data
+    return versioned
   }
 
   /**
@@ -235,13 +240,14 @@ export class VersionedService {
       const newversion = current.version + 1
       const undo = compare(data, currentdata)
       await db.update(`
-        UPDATE storage SET modified=NOW(), version=?, data=?, user=?, comment=? WHERE id=?
+        UPDATE storage SET modified=NOW(), version=?, data=?, modifiedBy=?, comment=? WHERE id=?
       `, [newversion, JSON.stringify(data), user ?? '', comment ?? '', current.id])
       await db.insert(`
-        INSERT INTO versions (id, version, date, user, comment, undo)
+        INSERT INTO versions (id, version, date, user, comment, \`undo\`)
         VALUES (?, ?, ?, ?, ?, ?)
       `, [current.id, current.version, current.modified, current.modifiedBy, current.comment, JSON.stringify(undo)])
       await this._setIndexes(current.id, newversion, indexes, db)
+      this.factory.get(storageLoader).clear(id)
     })
   }
 
@@ -341,7 +347,7 @@ export class VersionedService {
    * inserts any values that do not already exist
    */
   protected async getIndexValueIds (values: string[], db: Queryable) {
-    await db.insert(`INSERT INTO indexvalues (value) VALUES (${values.map(v => '?').join(',')}) ON DUPLICATE KEY UPDATE value=value`, values)
+    await db.insert(`INSERT INTO indexvalues (value) VALUES (${values.map(v => '?').join('),(')}) ON DUPLICATE KEY UPDATE value=value`, values)
     const valuerows = await db.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${values.map(v => '?').join(',')})`, values, { rowsAsArray: true })
     const valuehash: Record<string, number> = {}
     for (const [id, value] of valuerows) {
@@ -370,7 +376,7 @@ export class VersionedService {
     }
     const binds: (string|number)[] = []
     await db.insert(`
-      INSERT INTO indexes (id, version, name, value_id) VALUES (${db.in(binds, indexEntries)})
+      INSERT INTO indexes (id, version, name, value_id) VALUES ${db.in(binds, indexEntries)}
     `, binds)
   }
 
