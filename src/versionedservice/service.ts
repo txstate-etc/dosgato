@@ -4,7 +4,9 @@ import { applyPatch, compare } from 'fast-json-patch'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
+import rfdc from 'rfdc'
 import { Index, IndexJoinedStorage, IndexStorage, IndexStringified, NotFoundError, SearchRule, Tag, UpdateConflictError, Version, Versioned, VersionedStorage, VersionStorage } from './types'
+const clone = rfdc()
 
 const storageLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -66,7 +68,7 @@ export class VersionedService {
    * If you ask for a specific tag that doesn't exist, you'll receive undefined.
    */
   async get (id: string, { version, tag }: { version?: number, tag?: string } = {}) {
-    const versioned = await this.factory.get(storageLoader).load(id)
+    let versioned = await this.factory.get(storageLoader).load(id)
     if (!versioned) throw new NotFoundError()
     if (tag && tag !== 'latest') {
       const verNum = (await this.factory.get(tagLoader).load({ id, tag }))?.version
@@ -74,6 +76,7 @@ export class VersionedService {
       version = verNum
     }
     if (version && versioned.version !== version) {
+      versioned = clone(versioned)
       const versionEntries = await this.factory.get(versionsByNumberLoader).load({ id, version, current: versioned.version })
       for (const entry of versionEntries) {
         applyPatch(versioned.data, entry.undo)
