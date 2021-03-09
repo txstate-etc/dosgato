@@ -40,7 +40,11 @@ before(async () => {
 })
 
 describe('versionedservice', () => {
-  const versionedService = new VersionedService()
+  let versionedService: VersionedService
+
+  beforeEach(() => {
+    versionedService = new VersionedService()
+  })
 
   it('should store a JSON object', async () => {
     const id = await versionedService.create('txstatehome', homePage, [{ name: 'components', values: ['onecolumnsection', 'onecolumnlayout', 'button', 'icontext'] }], 'username')
@@ -160,15 +164,65 @@ describe('versionedservice', () => {
     }
   })
 
-  it.skip('should return undefined if a requested tag does not exist for the requested object', async () => { })
+  it('should return undefined if a requested tag does not exist for the requested object', async () => {
+    const indexes = [{ name: 'index7', values: ['test'] }]
+    const data = { name: 'Snickerdoodle', ingredients: ['flour', 'sugar', 'butter', 'eggs', 'cream of tartar', 'cinnamon'] }
+    const id = await versionedService.create('cookie', data, indexes)
+    const obj = await versionedService.get(id, { tag: 'invalidtag' })
+    expect(obj).to.equal(undefined)
+  })
 
-  it.skip('should return a NotFoundError when trying to update an object that does not exist', async () => { })
+  it('should return a NotFoundError when trying to update an object that does not exist', async () => {
+    try {
+      await versionedService.update('doesnotexist', { name: 'blueberry', isFruit: true, color: 'purple' }, [{ name: 'index8', values: ['anything'] }])
+    } catch (err) {
+      expect(err).to.be.instanceOf(NotFoundError)
+    }
+  })
 
-  it.skip('should restore a previous version of an object', async () => { })
+  it('should restore a previous version of an object', async () => {
+    const indexes = [{ name: 'index8', values: ['does', 'not', 'matter', 'here'] }]
+    const data = { name: 'peanut butter', ingredients: ['flour', 'sugar', 'butter', 'peanut butter', 'eggs'] }
+    const id = await versionedService.create('cookie', data, indexes)
+    await versionedService.update(id, { ...data, name: 'peanut butter cookie', nutfree: false }, indexes, { user: 'username', comment: 'updating cookie name' })
+    await versionedService.restore(id, { version: 1 }, { comment: 'back to version 1' })
+    const restoredObj = await versionedService.get(id)
+    if (restoredObj) {
+      expect(restoredObj.version).to.equal(3)
+      expect(restoredObj.data.name).to.equal('peanut butter')
+      expect(restoredObj.comment).to.contain('restored from earlier version')
+      expect(restoredObj).to.not.have.property('nutfree')
+    } else {
+      expect.fail('Object should have been found')
+    }
+  })
 
-  it.skip('should return a NotFoundError when trying to restore an object that does not exist', async () => { })
+  it('should return a NotFoundError when trying to restore an object that does not exist', async () => {
+    try {
+      await versionedService.restore('doesnotexist', { version: 5 }, { comment: 'This will not work', user: 'username' })
+    } catch (err) {
+      expect(err).to.be.instanceOf(NotFoundError)
+    }
+  })
 
-  it.skip('should restore a previous version of an object and update the indexes', async () => { })
+  it('should restore a previous version of an object and update the indexes', async () => {
+    const data = { name: 'Mars', nickname: 'The Red Planet', numMoons: 2 }
+    const indexes = [{ name: 'planet', values: ['red', 'iron', 'war'] }]
+    const id = await versionedService.create('planet', data, indexes)
+    await versionedService.update(id, { ...data, numMoons: 1 }, indexes, { user: 'username', comment: 'update number of moons' })
+    const newIndexes = [{ name: 'planet', values: ['red'] }]
+    await versionedService.restore(id, { version: 1 }, { indexes: newIndexes, comment: 'undo moon error' })
+    const restoredObj = await versionedService.get(id)
+    if (restoredObj) {
+      expect(restoredObj.version).to.equal(3)
+      expect(restoredObj.data.numMoons).to.equal(2)
+      const indexesRestore = await versionedService.getIndexes(id, restoredObj.version)
+      const diff = compare(newIndexes, indexesRestore)
+      expect(diff.length).to.equal(0)
+    } else {
+      expect.fail('Object should have been found')
+    }
+  })
 
   it.skip('should restore a previous version of an object and include a user', async () => { })
 
