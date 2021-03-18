@@ -4,12 +4,14 @@
   "description": "A CMS system for large institutions.",
   "main": "index.js",
   "dependencies": {
-    "dataloader-factory": "^4.0.2",
+    "@txstate-mws/graphql-server": "^1.0.8",
+    "dataloader-factory": "^4.1.2",
     "fast-json-patch": "^3.0.0-1",
     "mysql2-async": "^1.0.11",
     "nanoid": "^3.1.20",
     "rfdc": "^1.2.0",
-    "txstate-utils": "^1.3.0"
+    "txstate-utils": "^1.3.0",
+    "type-graphql": "^1.1.1"
   },
   "devDependencies": {
     "@types/chai": "^4.2.14",
@@ -25,11 +27,15 @@
     "eslint-plugin-promise": "^4.2.1",
     "mocha": "^8.2.1",
     "ts-node": "^9.1.1",
+    "ts-node-dev": "^1.1.6",
     "typescript": "^4.1.3"
   },
   "scripts": {
     "mocha": "mocha -r ts-node/register test/**/*.ts --exit",
-    "test": "./test.sh"
+    "test": "./test.sh",
+    "compile": "tsc -p ./",
+    "start:dev": "ts-node-dev --respawn --inspect=0.0.0.0:9229 ./src/index.ts",
+    "start": "node ./dist/index.js"
   },
   "repository": {
     "type": "git",

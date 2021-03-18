@@ -1,3 +1,4 @@
+import { Context } from '@txstate-mws/graphql-server'
 import { expect } from 'chai'
 import { compare } from 'fast-json-patch'
 import { VersionedService, NotFoundError } from '../src/versionedservice'
@@ -40,10 +41,10 @@ before(async () => {
 })
 
 describe('versionedservice', () => {
+  const ctx = new Context()
   let versionedService: VersionedService
-
   beforeEach(() => {
-    versionedService = new VersionedService()
+    versionedService = ctx.svc(VersionedService)
   })
 
   it('should store a JSON object', async () => {

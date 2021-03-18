@@ -3,20 +3,29 @@ services:
   dosgato:
     build:
       context: .
-      dockerfile: Dockerfile.test
+      dockerfile: Dockerfile.dev
+    ports:
+      - 80:80
     environment:
+      NODE_ENV: development
       MYSQL_USER: dosgato
       MYSQL_PASS: password
       MYSQL_DATABASE: dosgatotest
       MYSQL_HOST: mysql
+    volumes:
+      - ./src:/usr/app/src
     depends_on:
       - mysql
   mysql:
     image: percona:5
-    logging:
-      driver: none
+    ports:
+      - 3306:3306
     environment:
       MYSQL_ROOT_PASSWORD: secret
       MYSQL_DATABASE: dosgatotest
       MYSQL_USER: dosgato
       MYSQL_PASSWORD: password
+    volumes:
+      - dosgatodb:/var/lib/mysql
+volumes:
+  dosgatodb: {}

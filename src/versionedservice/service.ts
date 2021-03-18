@@ -1,5 +1,6 @@
 /* eslint-disable no-multi-str */
-import { DataLoaderFactory, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { BaseService } from '@txstate-mws/graphql-server'
+import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { applyPatch, compare } from 'fast-json-patch'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
@@ -54,8 +55,7 @@ function zerofillIndexes (indexes: Index[]) {
   return indexes as IndexStringified[]
 }
 
-export class VersionedService {
-  protected factory = new DataLoaderFactory()
+export class VersionedService extends BaseService<Versioned> {
   protected static cleaningIndexValues: boolean
   protected static optimizingTables: boolean
 
@@ -68,16 +68,16 @@ export class VersionedService {
    * If you ask for a specific tag that doesn't exist, you'll receive undefined.
    */
   async get (id: string, { version, tag }: { version?: number, tag?: string } = {}) {
-    let versioned = await this.factory.get(storageLoader).load(id)
+    let versioned = await this.loader.get(storageLoader).load(id)
     if (!versioned) throw new NotFoundError()
     if (tag && tag !== 'latest') {
-      const verNum = (await this.factory.get(tagLoader).load({ id, tag }))?.version
+      const verNum = (await this.loader.get(tagLoader).load({ id, tag }))?.version
       if (typeof verNum === 'undefined') return undefined
       version = verNum
     }
     if (version && versioned.version !== version) {
       versioned = clone(versioned)
-      const versionEntries = await this.factory.get(versionsByNumberLoader).load({ id, version, current: versioned.version })
+      const versionEntries = await this.loader.get(versionsByNumberLoader).load({ id, version, current: versioned.version })
       for (const entry of versionEntries) {
         applyPatch(versioned.data, entry.undo)
       }
@@ -250,7 +250,7 @@ export class VersionedService {
         VALUES (?, ?, ?, ?, ?, ?)
       `, [current.id, current.version, current.modified, current.modifiedBy, current.comment, JSON.stringify(undo)])
       await this._setIndexes(current.id, newversion, indexes, db)
-      this.factory.get(storageLoader).clear(id)
+      this.loader.get(storageLoader).clear(id)
     })
   }
 
@@ -280,7 +280,7 @@ export class VersionedService {
       await db.execute('DELETE FROM indexes WHERE id=?', [id])
     })
     VersionedService.cleanIndexValues().catch((e: Error) => console.error(e))
-    this.factory.get(storageLoader).clear(id)
+    this.loader.get(storageLoader).clear(id)
   }
 
   /**
@@ -299,7 +299,7 @@ export class VersionedService {
     if (typeof version === 'undefined') throw new NotFoundError('Unable to tag non-existing object with id ' + id)
     if (tag === 'latest') throw new Error('Object versions may not be manually tagged as latest. That tag is managed automatically.')
     await db.insert('INSERT INTO tags (id, tag, version, date, user) VALUES (?, ?, ?, NOW(), ?) ON DUPLICATE KEY UPDATE version=VALUES(version), user=VALUES(user), date=VALUES(date)', [id, tag, version, user ?? ''])
-    this.factory.get(tagLoader).clear({ id, tag })
+    this.loader.get(tagLoader).clear({ id, tag })
   }
 
   /**
@@ -310,7 +310,7 @@ export class VersionedService {
    * If the object does not have the given tag, returns undefined.
    */
   async getTag (id: string, tag: string) {
-    return await this.factory.get(tagLoader).load({ id, tag })
+    return await this.loader.get(tagLoader).load({ id, tag })
   }
 
   /**
@@ -318,7 +318,7 @@ export class VersionedService {
    */
   async removeTag (id: string, tag: string) {
     await db.execute('DELETE FROM tags WHERE id=? AND tag=?', [id, tag])
-    this.factory.get(tagLoader).clear({ id, tag })
+    this.loader.get(tagLoader).clear({ id, tag })
   }
 
   /**
@@ -330,7 +330,7 @@ export class VersionedService {
    */
   async globalRemoveTag (tag: string) {
     await db.execute('DELETE FROM tags WHERE tag=?', [tag])
-    this.factory.get(tagLoader).clearAll()
+    this.loader.get(tagLoader).clearAll()
   }
 
   /**
@@ -466,16 +466,16 @@ export class VersionedService {
     await db.execute("\
     CREATE TABLE IF NOT EXISTS `storage` ( \
       `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
-      `type` TINYTEXT NOT NULL, \
+      `type` VARCHAR(255) NOT NULL, \
       `version` MEDIUMINT UNSIGNED NOT NULL, \
       `data` LONGTEXT CHARACTER SET 'utf8mb4' COLLATE 'utf8mb4_bin' NOT NULL, \
       `created` DATETIME NOT NULL, \
-      `createdBy` TINYTEXT NOT NULL, \
+      `createdBy` VARCHAR(255) NOT NULL, \
       `modified` DATETIME NOT NULL, \
-      `modifiedBy` TINYTEXT NOT NULL, \
-      `comment` TINYTEXT NOT NULL, \
+      `modifiedBy` VARCHAR(255) NOT NULL, \
+      `comment` VARCHAR(255) NOT NULL, \
       PRIMARY KEY (`id`), \
-      INDEX `type_modified` (`type` ASC, `modified` DESC)) \
+      INDEX `type_modified` (`type`, `modified` DESC)) \
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci")
@@ -484,8 +484,8 @@ export class VersionedService {
       `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `version` MEDIUMINT UNSIGNED NOT NULL, \
       `date` DATETIME NOT NULL, \
-      `user` TINYTEXT NOT NULL, \
-      `comment` TINYTEXT NOT NULL, \
+      `user` VARCHAR(255) NOT NULL, \
+      `comment` VARCHAR(255) NOT NULL, \
       `undo` LONGTEXT CHARACTER SET 'utf8mb4' COLLATE 'utf8mb4_bin' NOT NULL, \
       PRIMARY KEY (`id`, `version`), \
       INDEX `date` (`date` ASC), \
@@ -499,9 +499,9 @@ export class VersionedService {
     await db.execute("\
     CREATE TABLE IF NOT EXISTS `tags` ( \
       `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
-      `tag` TINYTEXT CHARACTER SET 'ascii' NOT NULL, \
+      `tag` VARCHAR(255) CHARACTER SET 'ascii' NOT NULL, \
       `version` MEDIUMINT UNSIGNED NOT NULL, \
-      `user` TINYTEXT NOT NULL, \
+      `user` VARCHAR(255) NOT NULL, \
       `date` DATETIME NOT NULL, \
       PRIMARY KEY (`id`, `tag`(255)), \
       CONSTRAINT `storage` \
@@ -514,9 +514,10 @@ export class VersionedService {
     await db.execute('\
     CREATE TABLE IF NOT EXISTS `indexvalues` ( \
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
-      `value` TEXT NOT NULL, \
+      `value` VARCHAR(255) NOT NULL, \
       PRIMARY KEY (`id`), \
-      INDEX `value` (`value` ASC)) \
+      INDEX `value` (`value`) \
+    ) \
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci')
@@ -524,11 +525,11 @@ export class VersionedService {
     CREATE TABLE IF NOT EXISTS `indexes` ( \
       `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `version` MEDIUMINT UNSIGNED NOT NULL, \
-      `name` TINYTEXT CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL, \
+      `name` VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL, \
       `value_id` INT UNSIGNED NOT NULL, \
       INDEX `value_idx` (`value_id` ASC), \
       INDEX `name_value` (`name` ASC, `value_id` ASC), \
-      PRIMARY KEY (`id`, `version`, `name`(255), `value_id`), \
+      PRIMARY KEY (`id`, `version`, `name`, `value_id`), \
       CONSTRAINT `value` \
         FOREIGN KEY (`value_id`) \
         REFERENCES `indexvalues` (`id`), \
