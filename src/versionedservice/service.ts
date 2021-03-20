@@ -205,20 +205,24 @@ export class VersionedService extends BaseService<Versioned> {
    * the entire version history.
    *
    * You may optionally provide a user who is responsible for the update.
+   *
+   * @param tdb Optional transaction in which to perform creation.
    */
-  async create (type: string, data: any, indexes: Index[], user?: string): Promise<string> {
+  async create (type: string, data: any, indexes: Index[], user?: string, tdb?: Queryable): Promise<string> {
     const id = nanoid(10)
     try {
-      await db.transaction(async db => {
+      const action = async (db: Queryable) => {
         await db.insert(`
           INSERT INTO storage (id, type, version, data, created, createdBy, modified, modifiedBy, comment)
           VALUES (?, ?, 1, ?, NOW(), ?, NOW(), ?, '')
         `, [id, type, JSON.stringify(data), user ?? '', user ?? '', ''])
         await this._setIndexes(id, 1, indexes, db)
-      })
+      }
+      if (tdb) await action(tdb)
+      else await db.transaction(action)
       return id
     } catch (e) {
-      if (e.errno === 1062) return await this.create(type, data, indexes, user)
+      if (e.errno === 1062) return await this.create(type, data, indexes, user, tdb)
       throw e
     }
   }
