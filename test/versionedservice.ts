@@ -225,15 +225,94 @@ describe('versionedservice', () => {
     }
   })
 
-  it.skip('should restore a previous version of an object and include a user', async () => { })
+  it('should restore a previous version of an object and include a user and comment', async () => {
+    const data = { type: 'M&Ms', count: 12 }
+    const indexes = [{ name: 'candy', values: ['red', 'green', 'yellow'] }]
+    const id = await versionedService.create('candy', data, indexes)
+    await versionedService.update(id, { ...data, count: 14 }, indexes, { user: 'username', comment: 'found two on the floor' })
+    await versionedService.restore(id, { version: 1 }, { user: 'username2', comment: 'Nevermind, those were skittles' })
+    const restoredObj = await versionedService.get(id)
+    if (restoredObj) {
+      expect(restoredObj.version).to.equal(3)
+      expect(restoredObj.data.count).to.equal(12)
+      expect(restoredObj.modifiedBy).to.equal('username2')
+      expect(restoredObj.comment).to.contain('skittles')
+    } else {
+      expect.fail('Object should have been found')
+    }
+  })
 
-  it.skip('should restore a previous version of an object and include a comment', async () => { })
+  it('should delete an object and its entire version history', async () => {
+    const data = { id: 'abc123', name: 'pumpkin', color: 'orange' }
+    const indexes = [{ name: 'food', values: ['fruit', 'orange', 'halloween'] }]
+    const id = await versionedService.create('food', data, indexes)
+    await versionedService.update(id, { ...data, count: 5 }, indexes)
+    await versionedService.delete(id)
+    try {
+      await versionedService.get(id, { version: 2} )
+    } catch (err) {
+      expect(err).to.be.instanceOf(NotFoundError)
+    }
+    try {
+      await versionedService.get(id, { version: 1} )
+    } catch (err) {
+      expect(err).to.be.instanceOf(NotFoundError)
+    }
+  })
 
-  it.skip('should delete an object and its entire version history', async () => { })
+  it('should return a NotFoundError when trying to tag an object that does not exist', async () => {
+    try {
+      await versionedService.tag('doesnotexist', 'published')
+    } catch (err) {
+      expect(err).to.be.instanceOf(NotFoundError)
+    }
+  })
 
-  it.skip('should delete an object and its entire version history', async () => { })
+  it('should only allow a tag to be used on one version of an object at a time', async () => {
+    const data = { id: 3, title: 'About Department', hideInNav: false }
+    const indexes = [{ name: 'components', values: ['onecolumnsection', 'onecolumnlayout', 'button', 'icontext'] }]
+    const id = await versionedService.create('page', data, indexes)
+    await versionedService.update(id, { ...data, hideInNav: true }, indexes)
+    await versionedService.tag(id, 'published', 1)
+    await versionedService.tag(id, 'published', 2)
+    const tag = await versionedService.getTag(id, 'published')
+    expect(tag?.version).to.equal(2)
+  })
 
-  it.skip('should return a NotFoundError when trying to tag an object that does not exist', async () => { })
+  it('should overwrite all indexes for a specific version of an object', async () => {
+    const data = { id: 4, title: 'Resources', hideInNav: false, isSearchPage: false }
+    const indexes = [{ name: 'components', values: ['onecolumnsection', 'onecolumnlayout', 'styledlist'] }, { name: 'other', values: ['one', 'two', 'three', 'four'] }]
+    const id = await versionedService.create('page', data, indexes)
+    await versionedService.setIndexes(id, 1, [{ name: 'components', values: ['onecolumnsection', 'onecolumnlayout', 'richtext'] }])
+    const updatedIndexes = await versionedService.getIndexes(id, 1)
+    expect(updatedIndexes.length).to.equal(1)
+    expect(updatedIndexes[0].values).to.include('richtext')
+  })
 
-  it.skip('should only allow a tag to be used on one version of an object at a time', async () => { })
+  it('should overwrite a single index without affecting the others', async () => {
+    const data = { id: 5, title: 'Contact Us', hideInNav: false }
+    const indexes = [{ name: 'components', values: ['onecolumnsection', 'onecolumnlayout', 'styledlist'] }, { name: 'other', values: ['one', 'two', 'three', 'four'] }]
+    const id = await versionedService.create('page', data, indexes)
+    await versionedService.setIndex(id, 1, { name: 'components', values: ['twocolumnsection', 'twocolumnlayout', 'richtext', 'collage', 'imagecard'] })
+    const updatedIndexes = await versionedService.getIndexes(id, 1)
+    expect(updatedIndexes.length).to.equal(2)
+    for (const idx of updatedIndexes) {
+      if (idx.name === 'components') {
+        expect(idx.values.length).to.equal(5)
+        expect(idx.values).to.contain('twocolumnlayout')
+      } else {
+        expect(idx.values.length).to.equal(4)
+      }
+    }
+  })
+
+  it.skip('should test update concurrency check', async () => { })
+
+  it.skip('should test removeTag', async () => { })
+
+  it.skip('should test globalRemoveTag', async () => { })
+
+  it.skip('should test listVersions', async () => { })
+
+  it.skip('should test deleteOldVersions', async () => { })
 })
