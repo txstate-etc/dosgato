@@ -14,12 +14,22 @@ export class RoleResolver {
   async pagetrees (@Ctx() ctx: Context, @Root() role: Role) {
     throw new UnimplementedError()
   }
+
+  @FieldResolver(returns => RolePermissions)
+  permissions (@Root() role: Role) {
+    return role
+  }
 }
 
 @Resolver(of => RolePermissions)
 export class RolePermissionsResolver {
-  @FieldResolver(type => Boolean, { description: '' })
-  async write (@Ctx() ctx: Context, @Root() role: Role) {
+  @FieldResolver(type => Boolean, { description: 'Current user is able to rename this role.' })
+  async rename (@Ctx() ctx: Context, @Root() role: Role) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(type => Boolean, { description: 'Current user is able to delete this role.' })
+  async delete (@Ctx() ctx: Context, @Root() role: Role) {
     throw new UnimplementedError()
   }
 

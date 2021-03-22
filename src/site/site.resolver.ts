@@ -2,6 +2,7 @@ import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { PageRule, PageRuleFilter } from '../pagerule'
 import { PageTree } from '../pagetree'
+import { Template, TemplateFilter } from '../template'
 import { Site, SiteFilter, SitePermissions } from './site.model'
 
 @Resolver(of => Site)
@@ -17,7 +18,12 @@ export class SiteResolver {
   }
 
   @FieldResolver(returns => [PageRule], { description: 'All pagerules that apply to pages in this site.' })
-  async pagerules (@Ctx() ctx: Context, @Root() pagetree: PageTree, @Arg('filter', { nullable: true }) filter?: PageRuleFilter) {
+  async pagerules (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: PageRuleFilter) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [Template], { description: 'All templates that are approved for use in this site.' })
+  async templates (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: TemplateFilter) {
     throw new UnimplementedError()
   }
 

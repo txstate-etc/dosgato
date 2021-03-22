@@ -21,10 +21,10 @@ export class PageRuleGrants {
   @Field({ description: 'Grants ability to view the latest unpublished version of pages. Published pages are completely public.' })
   viewlatest!: boolean
 
-  @Field({ description: 'Grants ability to update pages but not necessarily move or publish them.' })
+  @Field({ description: 'Grants ability to update page date but not necessarily move, rename, or publish them.' })
   update!: boolean
 
-  @Field({ description: 'Grants ability to move the pages impacted by this rule. Note that user must have the `create` permission for the target page.' })
+  @Field({ description: 'Grants ability to move or rename the pages impacted by this rule. Note that user must have the `create` permission for the target page.' })
   move!: boolean
 
   @Field({ description: 'Grants ability to create or move pages beneath the pages impacted by this rule.' })
@@ -58,6 +58,9 @@ export class PageRuleGrants {
 
 @ObjectType({ description: 'A rule that grants page-related privileges.' })
 export class PageRule {
+  @Field(type => Int)
+  id: number
+
   @Field({ description: 'The path for which this rule grants privileges. Use `mode` to control inheritance behavior.' })
   path: string
 
@@ -72,6 +75,7 @@ export class PageRule {
   pagetreeId?: number
 
   constructor (row: any) {
+    this.id = row.id
     this.roleId = row.role_id
     this.siteId = row.site_id
     this.pagetreeId = row.pagetree_id

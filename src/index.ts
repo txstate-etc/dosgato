@@ -13,6 +13,7 @@ import { DateTimeScalar } from './scalars/datetime'
 import { UrlSafeString, UrlSafeStringScalar } from './scalars/urlsafestring'
 import { SitePermissionsResolver, SiteResolver } from './site'
 import { SiteRulePermissionsResolver, SiteRuleResolver } from './siterule'
+import { TemplatePermissionsResolver, TemplateResolver } from './template'
 import { UserAccessResolver, UserPermissionsResolver, UserResolver } from './user'
 
 async function main () {
@@ -41,6 +42,8 @@ async function main () {
       SitePermissionsResolver,
       SiteRuleResolver,
       SiteRulePermissionsResolver,
+      TemplateResolver,
+      TemplatePermissionsResolver,
       UserResolver,
       UserAccessResolver,
       UserPermissionsResolver

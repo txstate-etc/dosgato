@@ -3,6 +3,7 @@ import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphql'
 import { PageRule, PageRuleFilter } from '../pagerule'
 import { JsonData } from '../scalars/jsondata'
+import { Template, TemplateFilter } from '../template'
 import { User } from '../user'
 import { VersionedService } from '../versionedservice'
 import { Page, PageFilter, PagePermissions } from './page.model'
@@ -37,6 +38,11 @@ export class PageResolver {
 
   @FieldResolver(returns => [PageRule], { description: 'All pagerules that apply to this page.' })
   async pagerules (@Ctx() ctx: Context, @Root() page: Page, @Arg('filter', { nullable: true }) filter?: PageRuleFilter) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [Template], { description: 'All templates that are approved for use in this page.' })
+  async templates (@Ctx() ctx: Context, @Root() page: Page, @Arg('filter', { nullable: true }) filter?: TemplateFilter) {
     throw new UnimplementedError()
   }
 
@@ -96,7 +102,7 @@ export class PagePermissionsResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Boolean, { description: 'User may move this page beneath a page for which they have the `create` permission.' })
+  @FieldResolver(returns => Boolean, { description: 'User may rename this page or move it beneath a page for which they have the `create` permission.' })
   async move (@Ctx() ctx: Context, @Root() page: Page) {
     throw new UnimplementedError()
   }

@@ -21,7 +21,7 @@ export class UserResolver {
     return user
   }
 
-  @Query(returns => UserAccess, { description: 'Should generally be used with the `self` filter. Shows that user is able to undertake certain global actions like creating sites, groups, or roles.  Once the site, group, or role exists, its `permissions` resolver can be used to determine authorization.' })
+  @FieldResolver(returns => UserAccess, { description: 'Should generally be used with the `self` filter. Shows that user is able to undertake certain global actions like creating sites, groups, or roles.  Once the site, group, or role exists, its `permissions` resolver can be used to determine authorization.' })
   access (@Root() user: User) {
     return user
   }

@@ -3,6 +3,7 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Page } from '../page'
 import { PageFilter } from '../page/page.model'
 import { PageRule, PageRuleFilter } from '../pagerule'
+import { Template, TemplateFilter } from '../template'
 import { PageTree, PageTreeFilter, PageTreePermissions } from './pagetree.model'
 
 @Resolver(of => PageTree)
@@ -24,6 +25,11 @@ export class PageTreeResolver {
 
   @FieldResolver(returns => [PageRule], { description: 'All pagerules that apply to this pagetree.' })
   async pagerules (@Ctx() ctx: Context, @Root() pagetree: PageTree, @Arg('filter', { nullable: true }) filter?: PageRuleFilter) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [Template], { description: 'All templates that are approved for use in this pagetree.' })
+  async templates (@Ctx() ctx: Context, @Root() pagetree: PageTree, @Arg('filter', { nullable: true }) filter?: TemplateFilter) {
     throw new UnimplementedError()
   }
 
