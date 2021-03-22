@@ -15,3 +15,6 @@ export class RoleFilter {
   @Field(type => [Int])
   ids?: number[]
 }
+
+@ObjectType()
+export class RolePermissions {}

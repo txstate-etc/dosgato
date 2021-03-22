@@ -42,13 +42,18 @@ export class SitePermissionsResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Boolean, { description: 'Current user has permission to create a new pagetree such as a sandbox or archive in this site.' })
-  async createPagetree (@Ctx() ctx: Context, @Root() site: Site) {
+  @FieldResolver(returns => Boolean, { description: 'Current user has permission to create, edit, delete, and undelete pagetrees (such as a sandbox or archive) in this site.' })
+  async managePagetrees (@Ctx() ctx: Context, @Root() site: Site) {
     throw new UnimplementedError()
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to promote a pagetree (e.g. a sandbox) to be the live pagetree for this site.' })
   async promotePagetree (@Ctx() ctx: Context, @Root() site: Site) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => Boolean, { description: 'Current user may add authorization rules that target this site.' })
+  async createRules (@Ctx() ctx: Context, @Root() site: Site) {
     throw new UnimplementedError()
   }
 

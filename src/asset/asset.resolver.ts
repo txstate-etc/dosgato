@@ -20,7 +20,7 @@ export class AssetResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Folder)
+  @FieldResolver(returns => Folder, { description: 'Returns parent folder.' })
   async folder (@Ctx() ctx: Context, @Root() asset: Asset) {
     throw new UnimplementedError()
   }

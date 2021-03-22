@@ -5,19 +5,29 @@ import { RulePathMode } from '../pagerule'
 @InputType()
 export class AssetRuleGrants {
   @Field({ description: 'Grants ability to create or move assets and folders into folders impacted by this rule.' })
-  create: boolean = false
+  create!: boolean
 
   @Field({ description: 'Grants ability to update assets and folders but not necessarily move them.' })
-  update: boolean = false
+  update!: boolean
 
   @Field({ description: 'Grants ability to move assets and folders impacted by this rule. Note that user must have the `create` permission for the target folder.' })
-  move: boolean = false
+  move!: boolean
 
   @Field({ description: 'Grants ability to soft-delete assets and folders.' })
-  delete: boolean = false
+  delete!: boolean
 
   @Field({ description: 'Grants ability to undelete assets and folders.' })
-  undelete: boolean = false
+  undelete!: boolean
+
+  constructor (row?: any) {
+    if (row) {
+      this.create = !!row.create
+      this.update = !!row.update
+      this.move = !!row.move
+      this.delete = !!row.delete
+      this.undelete = !!row.undelete
+    }
+  }
 }
 
 @ObjectType({ description: 'A rule that grants asset-related privileges.' })
@@ -39,13 +49,7 @@ export class AssetRule {
     this.siteId = row.site_id
     this.path = row.path
     this.mode = row.mode
-    this.grants = {
-      create: !!row.create,
-      update: !!row.update,
-      move: !!row.move,
-      delete: !!row.delete,
-      undelete: !!row.undelete
-    }
+    this.grants = new AssetRuleGrants(row)
   }
 }
 

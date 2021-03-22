@@ -40,10 +40,7 @@ export class UserFilter {
 }
 
 @ObjectType()
-export class UserPermissions {
-  @Field({ description: 'Current user may update this user\'s name or email.' })
-  update: boolean = false
+export class UserPermissions {}
 
-  @Field({ description: 'Current user may disable this account and remove all role and group memberships it has. The user row itself may stay in the database for referential integrity.' })
-  delete: boolean = false
-}
+@ObjectType()
+export class UserAccess {}

@@ -1,7 +1,7 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { PageTree } from '../pagetree'
-import { Role, RoleFilter } from './role.model'
+import { Role, RoleFilter, RolePermissions } from './role.model'
 
 @Resolver(of => Role)
 export class RoleResolver {
@@ -12,6 +12,23 @@ export class RoleResolver {
 
   @FieldResolver(returns => [PageTree])
   async pagetrees (@Ctx() ctx: Context, @Root() role: Role) {
+    throw new UnimplementedError()
+  }
+}
+
+@Resolver(of => RolePermissions)
+export class RolePermissionsResolver {
+  @FieldResolver(type => Boolean, { description: '' })
+  async write (@Ctx() ctx: Context, @Root() role: Role) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(type => Boolean, {
+    description: `Current user is able to create rules for this role. Note that the target of
+each rule must also be checked for a permission of its own. A user must have both permissions
+before creating a rule relating a role to a target.`
+  })
+  async createRules (@Ctx() ctx: Context, @Root() role: Role) {
     throw new UnimplementedError()
   }
 }

@@ -3,7 +3,7 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Asset, AssetFilter } from '../asset'
 import { AssetRule, AssetRuleFilter } from '../assetrule'
 import { User } from '../user'
-import { Folder, FolderFilter, FolderPermissions } from './folder.model'
+import { Folder, FolderFilter, FolderOrAsset, FolderPermissions } from './folder.model'
 
 @Resolver(of => Folder)
 export class FolderResolver {
@@ -17,7 +17,7 @@ export class FolderResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Folder)
+  @FieldResolver(returns => Folder, { nullable: true, description: 'Returns parent folder, or null if this folder is the site root.' })
   async folder (@Ctx() ctx: Context, @Root() folder: Folder) {
     throw new UnimplementedError()
   }
@@ -30,6 +30,13 @@ export class FolderResolver {
   @FieldResolver(returns => [Asset])
   async assets (@Ctx() ctx: Context, @Root() folder: Folder,
     @Arg('filter', { nullable: true }) filter: AssetFilter,
+    @Arg('recursive', { nullable: true }) recursive: boolean
+  ) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [FolderOrAsset])
+  async children (@Ctx() ctx: Context, @Root() folder: Folder,
     @Arg('recursive', { nullable: true }) recursive: boolean
   ) {
     throw new UnimplementedError()

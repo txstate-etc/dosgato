@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
-import { Field, InputType, Int, ObjectType } from 'type-graphql'
+import { createUnionType, Field, InputType, Int, ObjectType } from 'type-graphql'
+import { Asset } from '../asset'
 import { UrlSafeString } from '../scalars/urlsafestring'
 
 @ObjectType()
@@ -53,3 +54,8 @@ export class FolderFilter {
 
 @ObjectType()
 export class FolderPermissions {}
+
+export const FolderOrAsset = createUnionType({
+  name: 'FolderOrAsset',
+  types: () => [Folder, Asset] as const
+})

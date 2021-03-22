@@ -19,28 +19,41 @@ registerEnumType(RulePathMode, {
 @InputType()
 export class PageRuleGrants {
   @Field({ description: 'Grants ability to view the latest unpublished version of pages. Published pages are completely public.' })
-  viewlatest: boolean = false
+  viewlatest!: boolean
 
   @Field({ description: 'Grants ability to update pages but not necessarily move or publish them.' })
-  update: boolean = false
+  update!: boolean
 
   @Field({ description: 'Grants ability to move the pages impacted by this rule. Note that user must have the `create` permission for the target page.' })
-  move: boolean = false
+  move!: boolean
 
   @Field({ description: 'Grants ability to create or move pages beneath the pages impacted by this rule.' })
-  create: boolean = false
+  create!: boolean
 
   @Field({ description: 'Grants ability to publish pages either for the first time or to the latest version.' })
-  publish: boolean = false
+  publish!: boolean
 
   @Field({ description: 'Grants ability to unpublish pages.' })
-  unpublish: boolean = false
+  unpublish!: boolean
 
   @Field({ description: 'Grants ability to soft-delete pages.' })
-  delete: boolean = false
+  delete!: boolean
 
   @Field({ description: 'Grants ability to undelete pages.' })
-  undelete: boolean = false
+  undelete!: boolean
+
+  constructor (row?: any) {
+    if (row) {
+      this.viewlatest = row.viewlatest
+      this.create = row.create
+      this.update = row.update
+      this.move = row.move
+      this.delete = row.delete
+      this.undelete = row.undelete
+      this.publish = row.publish
+      this.unpublish = row.unpublish
+    }
+  }
 }
 
 @ObjectType({ description: 'A rule that grants page-related privileges.' })
@@ -64,16 +77,7 @@ export class PageRule {
     this.pagetreeId = row.pagetree_id
     this.path = row.path
     this.mode = row.mode
-    this.grants = {
-      viewlatest: !!row.viewlatest,
-      create: !!row.create,
-      update: !!row.update,
-      move: !!row.move,
-      delete: !!row.delete,
-      undelete: !!row.undelete,
-      publish: !!row.publish,
-      unpublish: !!row.unpublish
-    }
+    this.grants = new PageRuleGrants(row)
   }
 }
 
@@ -103,17 +107,17 @@ export class PageRuleFilter {
   @Field({ nullable: true, description: 'Return rules that grant the move permission.' })
   move?: boolean
 
-  @Field({ nullable: true, description: 'Return rules that grant the delete permission.' })
-  delete?: boolean
-
-  @Field({ nullable: true, description: 'Return rules that grant the undelete permission.' })
-  undelete?: boolean
-
   @Field({ nullable: true, description: 'Return rules that grant the publish permission.' })
   publish?: boolean
 
   @Field({ nullable: true, description: 'Return rules that grant the unpublish permission.' })
   unpublish?: boolean
+
+  @Field({ nullable: true, description: 'Return rules that grant the delete permission.' })
+  delete?: boolean
+
+  @Field({ nullable: true, description: 'Return rules that grant the undelete permission.' })
+  undelete?: boolean
 }
 
 @ObjectType()

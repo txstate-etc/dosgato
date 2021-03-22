@@ -2,15 +2,18 @@ import { GQLServer } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { AssetPermissionsResolver, AssetResolver } from './asset'
 import { AssetRuleResolver, AssetRulePermissionsResolver } from './assetrule'
+import { DataPermissionsResolver, DataResolver } from './data'
+import { DataRuleResolver, DataRulePermissionsResolver } from './datarule'
 import { FolderResolver, FolderPermissionsResolver } from './folder'
 import { PagePermissionsResolver, PageResolver } from './page'
 import { PageRulePermissionsResolver, PageRuleResolver } from './pagerule'
 import { PageTreePermissionsResolver, PageTreeResolver } from './pagetree'
-import { RoleResolver } from './role'
+import { RolePermissionsResolver, RoleResolver } from './role'
 import { DateTimeScalar } from './scalars/datetime'
 import { UrlSafeString, UrlSafeStringScalar } from './scalars/urlsafestring'
 import { SitePermissionsResolver, SiteResolver } from './site'
-import { UserResolver } from './user'
+import { SiteRulePermissionsResolver, SiteRuleResolver } from './siterule'
+import { UserAccessResolver, UserPermissionsResolver, UserResolver } from './user'
 
 async function main () {
   const server = new GQLServer()
@@ -20,6 +23,10 @@ async function main () {
       AssetPermissionsResolver,
       AssetRuleResolver,
       AssetRulePermissionsResolver,
+      DataResolver,
+      DataPermissionsResolver,
+      DataRuleResolver,
+      DataRulePermissionsResolver,
       FolderResolver,
       FolderPermissionsResolver,
       PageResolver,
@@ -29,9 +36,14 @@ async function main () {
       PageTreeResolver,
       PageTreePermissionsResolver,
       RoleResolver,
+      RolePermissionsResolver,
       SiteResolver,
       SitePermissionsResolver,
-      UserResolver
+      SiteRuleResolver,
+      SiteRulePermissionsResolver,
+      UserResolver,
+      UserAccessResolver,
+      UserPermissionsResolver
     ],
     scalarsMap: [
       { type: UrlSafeString, scalar: UrlSafeStringScalar },
