@@ -386,9 +386,11 @@ export class VersionedService extends BaseService<Versioned> {
       const deletebinds = [id, version]
       await db.execute(`DELETE FROM indexes WHERE id=? AND version=? AND (name, value_id) IN (${db.in(deletebinds, eliminate)})`, deletebinds)
     }
+    const alreadyhave = new Set(currentEntries.map(r => `${r.name}.${r.value_id}`))
+    const tobeadded = indexEntries.filter(e => !alreadyhave.has(`${e[2]}.${e[3]}`))
     const binds: (string|number)[] = []
     await db.insert(`
-      INSERT INTO indexes (id, version, name, value_id) VALUES ${db.in(binds, indexEntries)}
+      INSERT INTO indexes (id, version, name, value_id) VALUES ${db.in(binds, tobeadded)}
     `, binds)
   }
 
