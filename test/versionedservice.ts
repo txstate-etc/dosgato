@@ -249,12 +249,12 @@ describe('versionedservice', () => {
     await versionedService.update(id, { ...data, count: 5 }, indexes)
     await versionedService.delete(id)
     try {
-      await versionedService.get(id, { version: 2} )
+      await versionedService.get(id, { version: 2 })
     } catch (err) {
       expect(err).to.be.instanceOf(NotFoundError)
     }
     try {
-      await versionedService.get(id, { version: 1} )
+      await versionedService.get(id, { version: 1 })
     } catch (err) {
       expect(err).to.be.instanceOf(NotFoundError)
     }

@@ -179,21 +179,22 @@ export class VersionedService extends BaseService<Versioned> {
         [id, version, sindex.name])
       const currentSet = new Set(existing)
       const nextSet = new Set(sindex.values)
-      const eliminate = existing.filter(v => nextSet.has(v))
+      const eliminate = existing.filter(v => !nextSet.has(v))
       if (eliminate.length) {
         const deletebinds = [id, version, sindex.name]
-        await db.execute(`
+        await db.delete(`
           DELETE i FROM indexes i
           INNER JOIN indexvalues v ON v.id=i.value_id
           WHERE i.id=? AND i.version=? AND i.name=?
           AND v.value IN (${db.in(deletebinds, eliminate)})
         `, deletebinds)
       }
-      const valuehash = await this.getIndexValueIds(sindex.values, db)
-      const indexEntries = sindex.values.filter(v => !currentSet.has(v)).map(value => [id, version, index.name, valuehash[value]])
+      const tobeadded = sindex.values.filter(v => !currentSet.has(v))
+      const valuehash = await this.getIndexValueIds(tobeadded, db)
+      const indexEntries = tobeadded.map(value => [id, version, index.name, valuehash[value]])
       const binds: (string|number)[] = []
       await db.insert(`
-        INSERT INTO indexes (id, version, name, value_id) VALUES (${db.in(binds, indexEntries)})
+        INSERT INTO indexes (id, version, name, value_id) VALUES ${db.in(binds, indexEntries)}
       `, binds)
     })
   }
@@ -278,10 +279,10 @@ export class VersionedService extends BaseService<Versioned> {
    */
   async delete (id: string) {
     await db.transaction(async db => {
-      await db.execute('DELETE FROM storage WHERE id=?', [id])
-      await db.execute('DELETE FROM versions WHERE id=?', [id])
-      await db.execute('DELETE FROM tags WHERE id=?', [id])
       await db.execute('DELETE FROM indexes WHERE id=?', [id])
+      await db.execute('DELETE FROM tags WHERE id=?', [id])
+      await db.execute('DELETE FROM versions WHERE id=?', [id])
+      await db.execute('DELETE FROM storage WHERE id=?', [id])
     })
     VersionedService.cleanIndexValues().catch((e: Error) => console.error(e))
     this.loader.get(storageLoader).clear(id)
