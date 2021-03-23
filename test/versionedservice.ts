@@ -1,6 +1,7 @@
 import { Context } from '@txstate-mws/graphql-server'
 import { expect } from 'chai'
 import { compare } from 'fast-json-patch'
+import db from 'mysql2-async/db'
 import { VersionedService, NotFoundError } from '../src/versionedservice'
 
 const homePage: any = {
@@ -34,6 +35,7 @@ const homePage: any = {
 
 before(async () => {
   try {
+    await db.wait()
     await VersionedService.init()
   } catch (err) {
     console.log(err)

@@ -523,7 +523,7 @@ export class VersionedService extends BaseService<Versioned> {
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `value` VARCHAR(255) NOT NULL, \
       PRIMARY KEY (`id`), \
-      INDEX `value` (`value`) \
+      UNIQUE `value` (`value`) \
     ) \
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
