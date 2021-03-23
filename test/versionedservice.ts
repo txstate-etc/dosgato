@@ -2,7 +2,8 @@ import { Context } from '@txstate-mws/graphql-server'
 import { expect } from 'chai'
 import { compare } from 'fast-json-patch'
 import db from 'mysql2-async/db'
-import { VersionedService, NotFoundError } from '../src/versionedservice'
+import { DateTime } from 'luxon'
+import { VersionedService, NotFoundError, UpdateConflictError } from '../src/versionedservice'
 
 const homePage: any = {
   title: 'Texas State University',
@@ -33,7 +34,8 @@ const homePage: any = {
   ]
 }
 
-before(async () => {
+before(async function () {
+  this.timeout(0)
   try {
     await db.wait()
     await VersionedService.init()
@@ -308,13 +310,107 @@ describe('versionedservice', () => {
     }
   })
 
-  it.skip('should test update concurrency check', async () => { })
+  it('should throw an error when trying to update an old version of an object', async () => {
+    const data = { name: 'Anne', favoriteSeason: 'fall', favoriteCookie: 'oreo' }
+    const indexes = [{ name: 'favorites', values: ['one', 'two'] }]
+    const id = await versionedService.create('favorites', data, indexes)
+    await versionedService.update(id, { ...data, favoriteCookie: 'sugar cookie' }, indexes)
+    try {
+      await versionedService.update(id, { ...data, favoriteCookie: 'chocolate chip' }, indexes, { version: 1 })
+    } catch (err) {
+      expect(err).to.be.instanceOf(UpdateConflictError)
+    }
+  })
 
-  it.skip('should test removeTag', async () => { })
+  it('should remove a tag from an object', async () => {
+    const data = { id: 6, stories: 2, bedrooms: 4, bathrooms: 2.5 }
+    const indexes = [{ name: 'houses', values: ['construction', 'for sale'] }]
+    const id = await versionedService.create('houses', data, indexes)
+    await versionedService.tag(id, 'published', 1)
+    await versionedService.removeTag(id, 'published')
+    const tagged = await versionedService.getTag(id, 'published')
+    expect(tagged).to.equal(undefined)
+  })
 
-  it.skip('should test globalRemoveTag', async () => { })
+  it('should remove a tag from the system', async () => {
+    const data = { name: 'some object', count: 4 }
+    const data2 = { name: 'another object', count: 7 }
+    const data3 = { name: 'last object', count: 2 }
+    const indexes = [{ name: 'testindex', values: ['does', 'not', 'matter', 'here'] }]
+    const [id, id2, id3] = await Promise.all([
+      versionedService.create('test', data, indexes),
+      versionedService.create('test', data2, indexes),
+      versionedService.create('test', data3, indexes)
+    ])
+    await Promise.all([
+      versionedService.tag(id, 'reviewed'),
+      versionedService.tag(id2, 'reviewed'),
+      versionedService.tag(id3, 'reviewed')
+    ])
+    await versionedService.globalRemoveTag('reviewed')
+    const tagged = await Promise.all([
+      versionedService.getTag(id, 'reviewed'),
+      versionedService.getTag(id2, 'reviewed'),
+      versionedService.getTag(id3, 'reviewed')
+    ])
+    for (const obj of tagged) {
+      expect(obj).to.equal(undefined)
+    }
+  })
 
-  it.skip('should test listVersions', async () => { })
+  it('should list versions of an object', async () => {
+    const data = { id: 7, candy: 'M&Ms', count: 25 }
+    const indexes = [{ name: 'test', values: ['chocolate', 'green', 'red', 'yellow', 'orange'] }]
+    const id = await versionedService.create('candy', data, indexes, 'listversionsuser')
+    await versionedService.update(id, { ...data, count: 20 }, indexes, { user: 'listversionsuser', comment: 'ate 5' })
+    await versionedService.update(id, { ...data, count: 18 }, indexes, { user: 'listversionsuser', comment: 'ate 2 more' })
+    await versionedService.update(id, { ...data, count: 11 }, indexes, { user: 'listversionsuser', comment: 'ate 7 more' })
+    await versionedService.update(id, { ...data, count: 0 }, indexes, { user: 'listversionsuser', comment: 'ate the rest' })
+    const versions = await versionedService.listVersions(id)
+    expect(versions.length).to.equal(4)
+    for (const v of versions) {
+      expect(v.user).to.equal('listversionuser') // make sure versions of this particular object are being returned
+    }
+  })
 
-  it.skip('should test deleteOldVersions', async () => { })
+  it('should delete old versions', async () => {
+    const data = { id: 8, title: 'Site Map', hideInNav: false }
+    const indexes = [{ name: 'components', values: ['onecolumnsection', 'onecolumnlayout'] }]
+    const id = await versionedService.create('page', data, indexes)
+    await versionedService.update(id, { ...data, hideInNav: true, currency: 'inherit' }, indexes)
+    await versionedService.update(id, { ...data, title: 'Old Site Map' }, indexes)
+    // set the date of the oldest version to be 1 week ago
+    await db.execute('UPDATE versions SET `date`=`date`-INTERVAL 7 DAY WHERE id=? AND version=?', [id, 1])
+    await VersionedService.deleteOldVersions(DateTime.now().plus({ days: -1 }).toJSDate())
+    const versions = await versionedService.listVersions(id)
+    expect(versions.length).to.equal(1)
+    const obj = await versionedService.get(id, { version: 1 })
+    expect(obj).to.equal(undefined) // version 1 was deleted because it was old
+    const oldIndexes = await versionedService.getIndexes(id, 1)
+    expect(oldIndexes.length).to.equal(0)
+  })
+
+  it('should not delete old versions that have tags', async () => {
+    const data = { id: 9, title: 'About Us', hideTitle: false, sections: [] }
+    const indexes = [{ name: 'components', values: ['about'] }]
+    const id = await versionedService.create('page', data, indexes)
+    await versionedService.update(id, { ...data, sections: [{ title: 'First Section', layouts: [] }] }, [{ name: 'components', values: ['about', 'onecolumnsection'] }])
+    await versionedService.tag(id, 'published', 2)
+    await versionedService.update(id, { ...data, hideTitle: true, hideInNav: true }, [{ name: 'components', values: ['about', 'onecolumnsection'] }]) // version 3
+    await versionedService.update(id, { ...data, hideInNav: false }, [{ name: 'components', values: ['about', 'onecolumnsection'] }]) // version 4
+    await versionedService.update(id, { ...data, sections: [{ title: 'First Section', layouts: [{ title: 'First Layout', content: [] }] }] }, [{ name: 'components', values: ['about', 'onecolumnsection', 'onecolumnlayout'] }]) // version 5
+    // version 2 has a tag. change dates on versions 1-3 to be older
+    await Promise.all([
+      db.execute('UPDATE versions SET `date`=`date`-INTERVAL 10 DAY WHERE id=? AND version=?', [id, 1]),
+      db.execute('UPDATE versions SET `date`=`date`-INTERVAL 7 DAY WHERE id=? AND version=?', [id, 2]),
+      db.execute('UPDATE versions SET `date`=`date`-INTERVAL 5 DAY WHERE id=? AND version=?', [id, 3])
+    ])
+    await VersionedService.deleteOldVersions(DateTime.now().plus({ days: -1 }).toJSDate())
+    const versions = await versionedService.listVersions(id)
+    expect(versions.length).to.equal(3)
+    const deletedObj = await versionedService.get(id, { version: 1 })
+    expect(deletedObj).to.equal(undefined) // version 1 was deleted
+    const taggedObj = await versionedService.get(id, { tag: 'published' })
+    expect(taggedObj?.version).to.equal(2) // version 2 was older than the olderThan date, but it has a tag so it was should not be deleted
+  })
 })
