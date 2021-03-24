@@ -69,7 +69,7 @@ export class VersionedService extends BaseService<Versioned> {
    */
   async get (id: string, { version, tag }: { version?: number, tag?: string } = {}) {
     let versioned = await this.loader.get(storageLoader).load(id)
-    if (!versioned) throw new NotFoundError()
+    if (!versioned) return undefined
     if (tag && tag !== 'latest') {
       const verNum = (await this.loader.get(tagLoader).load({ id, tag }))?.version
       if (typeof verNum === 'undefined') return undefined
@@ -86,6 +86,7 @@ export class VersionedService extends BaseService<Versioned> {
       versioned.modifiedBy = lastEntry.user
       versioned.comment = lastEntry.comment
       versioned.version = lastEntry.version
+      if (versioned.version !== version) return undefined
     }
     return versioned
   }
@@ -345,7 +346,8 @@ export class VersionedService extends BaseService<Versioned> {
     const versions = await db.getall(`
       SELECT v.version, v.date, v.user, v.comment, t.tag
       FROM versions v LEFT JOIN tags t ON t.id=v.id AND t.version=v.version
-    `)
+      WHERE v.id=?
+    `, [id])
     const versionhash: Record<number, Version> = {}
     for (const { version, date, user, comment, tag } of versions) {
       versionhash[version] ??= { id, version, date, user, comment, tags: [] }

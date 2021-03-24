@@ -369,7 +369,7 @@ describe('versionedservice', () => {
     const versions = await versionedService.listVersions(id)
     expect(versions.length).to.equal(4)
     for (const v of versions) {
-      expect(v.user).to.equal('listversionuser') // make sure versions of this particular object are being returned
+      expect(v.user).to.equal('listversionsuser') // make sure versions of this particular object are being returned
     }
   })
 
