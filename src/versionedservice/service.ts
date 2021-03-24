@@ -119,7 +119,7 @@ export class VersionedService extends BaseService<Versioned> {
         where.push(`v.value >${rule.orEqual ? '=' : ''} ?`)
         binds.push(zerofill(rule.greaterThan))
       } else if ('lessThan' in rule) {
-        where.push(`v.value >${rule.orEqual ? '=' : ''} ?`)
+        where.push(`v.value <${rule.orEqual ? '=' : ''} ?`)
         binds.push(zerofill(rule.lessThan))
       } else if ('equal' in rule) {
         where.push('v.value = ?')

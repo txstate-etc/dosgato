@@ -413,4 +413,93 @@ describe('versionedservice', () => {
     const taggedObj = await versionedService.get(id, { tag: 'published' })
     expect(taggedObj?.version).to.equal(2) // version 2 was older than the olderThan date, but it has a tag so it was should not be deleted
   })
+
+  it('should find objects IN', async () => {
+    const data = { id: 1, type: 'find in' }
+    const indexes = [{ name: 'testfind', values: ['find in', 1] }]
+    const id = await versionedService.create('findobj', data, indexes)
+    const results = await versionedService.find([{ indexName: 'testfind', in: ['find in', 'notinindexvalues', 'alsoneverused'] }], 'latest')
+    expect(results).to.contain(id)
+  })
+
+  it('should find objects NOT IN', async () => {
+    const data = { id: 2, type: 'find not in' }
+    const indexes = [{ name: 'testfind', values: ['find not in', 2] }]
+    const id = await versionedService.create('findobj', data, indexes)
+    const results = await versionedService.find([{ indexName: 'testfind', notIn: ['apple', 'orange', 'banana'] }], 'latest')
+    expect(results).to.contain(id)
+  })
+
+  it('should find objects GREATER THAN', async () => {
+    const data = { id: 3, type: 'find greater than' }
+    const indexes = [{ name: 'testfind', values: ['moon', 3] }]
+    const id = await versionedService.create('findobj', data, indexes)
+    const results = await versionedService.find([{ indexName: 'testfind', greaterThan: 'apple', orEqual: false }], 'latest')
+    expect(results).to.contain(id)
+    const results2 = await versionedService.find([{ indexName: 'testfind', greaterThan: 'moon', orEqual: false }], 'latest')
+    expect(results2).to.not.contain(id)
+    const resultsEqual = await versionedService.find([{ indexName: 'testfind', greaterThan: 'moon', orEqual: true }], 'latest')
+    expect(resultsEqual).to.contain(id)
+  })
+
+  it('should find objects LESS THAN', async () => {
+    const data = { id: 4, type: 'find less than' }
+    const indexes = [{ name: 'testfind', values: ['pizza'] }]
+    const id = await versionedService.create('findobj', data, indexes)
+    const results = await versionedService.find([{ indexName: 'testfind', lessThan: 'zebra', orEqual: false }], 'latest')
+    expect(results).to.contain(id)
+    const results2 = await versionedService.find([{ indexName: 'testfind', lessThan: 'pizza', orEqual: false }], 'latest')
+    expect(results2).to.not.contain(id)
+    const resultsEqual = await versionedService.find([{ indexName: 'testfind', lessThan: 'pizza', orEqual: true }], 'latest')
+    expect(resultsEqual).to.contain(id)
+  })
+
+  it('should find objects EQUAL', async () => {
+    const data = { id: 5, type: 'find equal to' }
+    const indexes = [{ name: 'testfind', values: ['equal'] }]
+    const id = await versionedService.create('findobj', data, indexes)
+    const results = await versionedService.find([{ indexName: 'testfind', equal: 'equal' }], 'latest')
+    expect(results).to.contain(id)
+    const results2 = await versionedService.find([{ indexName: 'testfind', equal: 'tree' }], 'latest')
+    expect(results2).to.not.contain(id)
+  })
+
+  it('should find objects NOT EQUAL', async () => {
+    const data = { id: 6, type: 'find not equal to' }
+    const indexes = [{ name: 'testfind', values: ['notequal'] }]
+    const id = await versionedService.create('findobj', data, indexes)
+    const results = await versionedService.find([{ indexName: 'testfind', notEqual: 'cupcakes' }], 'latest')
+    expect(results).to.contain(id)
+    const results2 = await versionedService.find([{ indexName: 'testfind', notEqual: 'notequal' }], 'latest')
+    expect(results2).to.not.contain(id)
+  })
+
+  it('should find objects STARTS WITH', async () => {
+    const data = { id: 7, type: 'find starts with' }
+    const indexes = [{ name: 'testfind', values: ['playground'] }]
+    const id = await versionedService.create('findobj', data, indexes)
+    const results = await versionedService.find([{ indexName: 'testfind', startsWith: 'play' }], 'latest')
+    expect(results).to.contain(id)
+    const results2 = await versionedService.find([{ indexName: 'testfind', startsWith: 'duck' }], 'latest')
+    expect(results2).to.not.contain(id)
+  })
+
+  it('should find objects with type specified', async () => {
+    const data = { id: 8, day: 'Wednesday', month: 'March' }
+    const indexes = [{ name: 'testfind', values: ['winter', 'spring'] }]
+    const id = await versionedService.create('findobj', data, indexes)
+    const results = await versionedService.find([{ indexName: 'testfind', equal: 'winter' }], 'latest', 'findobj')
+    expect(results).to.contain(id)
+    const results2 = await versionedService.find([{ indexName: 'testfind', equal: 'winter' }], 'latest', 'notfindobj')
+    expect(results2).to.not.contain(id)
+  })
+
+  it('should find objects with a tag other than latest specified', async () => {
+    const data = { id: 9, holiday: 'Halloween', month: 'October', season: 'Fall' }
+    const indexes = [{ name: 'testfind', values: ['pumpkin', 'costumes', 'candy'] }]
+    const id = await versionedService.create('findobj', data, indexes)
+    await versionedService.tag(id, 'mycustomtag', 1, 'me')
+    const results = await versionedService.find([{ indexName: 'testfind', equal: 'pumpkin' }], 'mycustomtag')
+    expect(results).to.contain(id)
+  })
 })
