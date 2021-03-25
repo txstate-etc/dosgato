@@ -1,6 +1,10 @@
 import { Field, InputType, Int, ObjectType } from 'type-graphql'
 
-@ObjectType()
+@ObjectType({
+  description: 'A pagetree represents the page hierarchy in a site. A site may ' +
+    'have multiple pagetrees, but only one active pagetree. Inactive pagetrees ' +
+    'would be archives or sandboxes.'
+})
 export class PageTree {
   @Field(type => Int)
   id: number

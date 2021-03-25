@@ -25,7 +25,7 @@ export class AssetResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [Folder])
+  @FieldResolver(returns => [Folder], { description: 'Starts with the parent folder and proceeds upward. Last element will be the site\'s root folder.' })
   async ancestors (@Ctx() ctx: Context, @Root() asset: Asset) {
     throw new UnimplementedError()
   }

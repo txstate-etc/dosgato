@@ -2,7 +2,9 @@ import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphql'
 import { PageRule, PageRuleFilter } from '../pagerule'
+import { PageTree } from '../pagetree'
 import { JsonData } from '../scalars/jsondata'
+import { Site } from '../site'
 import { Template, TemplateFilter } from '../template'
 import { User } from '../user'
 import { VersionedService } from '../versionedservice'
@@ -24,6 +26,26 @@ export class PageResolver {
   async children (@Ctx() ctx: Context, @Root() page: Page,
     @Arg('recursive', { nullable: true }) recursive?: boolean
   ) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => Page, { nullable: true, description: 'Returns null when current page is the root page of a pagetree.' })
+  async parent (@Ctx() ctx: Context, @Root() page: Page) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [Page], { description: 'Starts with the parent page and proceeds upward. Last element will be the pagetree\'s root page. Empty array if current page is the root page of a pagetree.' })
+  async ancestors (@Ctx() ctx: Context, @Root() page: Page) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => PageTree)
+  async pagetree (@Ctx() ctx: Context, @Root() page: Page) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => Site)
+  async site (@Ctx() ctx: Context, @Root() page: Page) {
     throw new UnimplementedError()
   }
 
@@ -56,7 +78,7 @@ export class PageResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => DateTime)
+  @FieldResolver(returns => DateTime, { description: 'Date page was last modified. May be used to determine whether page has been modified since being published: (page.published && page.modifiedAt > page.publishedAt).' })
   async modifiedAt (@Ctx() ctx: Context, @Root() page: Page) {
     throw new UnimplementedError()
   }
@@ -66,7 +88,7 @@ export class PageResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Boolean)
+  @FieldResolver(returns => Boolean, { description: 'True if the page has a version marked as published AND the page is in the currently active pagetree.' })
   async published (@Ctx() ctx: Context, @Root() page: Page) {
     throw new UnimplementedError()
   }

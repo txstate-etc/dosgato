@@ -11,7 +11,17 @@ export class Page {
   @Field({ description: 'Page names are used to construct the URL path to each page.' })
   name: UrlSafeString
 
-  @Field({ description: 'Use this id for internal links. These links do not break upon promoting a pagetree to live.' })
+  @Field({
+    description: 'Use linkId to construct an internal link. When a page is ' +
+      'copied from one pagetree to another, the linkId remains the same, preventing ' +
+      'other site\'s links from breaking upon promoting a pagetree to live.\n\n' +
+      'When resolving a link, the page containing the link must be considered. If the ' +
+      'containing page and the linkId are in the same site, following the link should ' +
+      'stay within that pagetree (or be a broken link if the linkId does not exist in ' +
+      'the SAME pagetree). Otherwise, following the link should go to the active pagetree.\n\n' +
+      'When copying a page from one site to another, the linkId should be scrambled ' +
+      'instead of retained, so that no linkId exists in more than one site at a time.'
+  })
   linkId: string
 
   @Field({ description: 'Page has been soft-deleted but is still recoverable.' })
@@ -50,10 +60,10 @@ export class PageFilter {
   @Field(type => [Int], { nullable: true })
   parentPageIds?: number[]
 
-  @Field(type => [String], { nullable: true })
+  @Field(type => [String], { nullable: true, description: 'Return pages containing at least one component using one of the given templates.' })
   componentTemplates?: string[]
 
-  @Field(type => [String], { nullable: true })
+  @Field(type => [String], { nullable: true, description: 'Return pages using one of the given page templates.' })
   pageTemplates?: string[]
 
   @Field(type => [String], { nullable: true, description: 'Return pages that contain a link to any of the given link ids.' })
@@ -65,7 +75,10 @@ export class PageFilter {
   @Field(type => [Int], { nullable: true, description: 'Return pages that contain a link to any of the given asset ids.' })
   assetIdsReferenced?: number[]
 
-  @Field(type => Boolean, { nullable: false, description: 'Only return pages that have been published.' })
+  @Field(type => Boolean, { nullable: true, description: 'Only return pages in the active pagetree of their site.' })
+  activePagetree?: boolean
+
+  @Field(type => Boolean, { nullable: false, description: 'Only return pages that have been published. Implies filter activePagetree -> true.' })
   published?: boolean
 
   @Field(type => Boolean, { nullable: false, description: 'true -> return only deleted pages, false -> return only nondeleted pages, undefined -> return all pages' })
