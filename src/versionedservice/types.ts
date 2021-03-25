@@ -64,11 +64,11 @@ export interface SearchBaseRule {
 }
 export interface SearchGreaterRule extends SearchBaseRule {
   greaterThan: string|number
-  orEqual: boolean
+  orEqual?: boolean
 }
 export interface SearchLessRule extends SearchBaseRule {
   lessThan: string|number
-  orEqual: boolean
+  orEqual?: boolean
 }
 export interface SearchEqualRule extends SearchBaseRule {
   equal: string|number
