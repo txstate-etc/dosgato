@@ -55,7 +55,7 @@ function zerofillIndexes (indexes: Index[]) {
   return indexes as IndexStringified[]
 }
 
-export class VersionedService extends BaseService<Versioned> {
+export class VersionedService extends BaseService {
   protected static cleaningIndexValues: boolean
   protected static optimizingTables: boolean
 
