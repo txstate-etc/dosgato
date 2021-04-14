@@ -65,3 +65,4 @@ typings/
 .DS_Store
 node_modules
 *.mwb.bak
+package-lock.json
