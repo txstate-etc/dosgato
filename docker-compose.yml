@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile.dev
     ports:
       - 80:80
+      - 9229:9229
     environment:
       NODE_ENV: development
       MYSQL_USER: dosgato

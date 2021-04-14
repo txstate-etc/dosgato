@@ -60,7 +60,8 @@ typings/
 # next.js build output
 .next
 
-.vscode
+.vscode/*
+!.vscode/launch.json
 .DS_Store
 node_modules
 *.mwb.bak
