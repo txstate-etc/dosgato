@@ -68,16 +68,16 @@ export class VersionedService extends BaseService {
    * If you ask for a specific tag that doesn't exist, you'll receive undefined.
    */
   async get (id: string, { version, tag }: { version?: number, tag?: string } = {}) {
-    let versioned = await this.loader.get(storageLoader).load(id)
+    let versioned = await this.loaders.get(storageLoader).load(id)
     if (!versioned) return undefined
     if (tag && tag !== 'latest') {
-      const verNum = (await this.loader.get(tagLoader).load({ id, tag }))?.version
+      const verNum = (await this.loaders.get(tagLoader).load({ id, tag }))?.version
       if (typeof verNum === 'undefined') return undefined
       version = verNum
     }
     if (version && versioned.version !== version) {
       versioned = clone(versioned)
-      const versionEntries = await this.loader.get(versionsByNumberLoader).load({ id, version, current: versioned.version })
+      const versionEntries = await this.loaders.get(versionsByNumberLoader).load({ id, version, current: versioned.version })
       for (const entry of versionEntries) {
         applyPatch(versioned.data, entry.undo)
       }
@@ -256,7 +256,7 @@ export class VersionedService extends BaseService {
         VALUES (?, ?, ?, ?, ?, ?)
       `, [current.id, current.version, current.modified, current.modifiedBy, current.comment, JSON.stringify(undo)])
       await this._setIndexes(current.id, newversion, indexes, db)
-      this.loader.get(storageLoader).clear(id)
+      this.loaders.get(storageLoader).clear(id)
     })
   }
 
@@ -286,7 +286,7 @@ export class VersionedService extends BaseService {
       await db.execute('DELETE FROM storage WHERE id=?', [id])
     })
     VersionedService.cleanIndexValues().catch((e: Error) => console.error(e))
-    this.loader.get(storageLoader).clear(id)
+    this.loaders.get(storageLoader).clear(id)
   }
 
   /**
@@ -305,7 +305,7 @@ export class VersionedService extends BaseService {
     if (typeof version === 'undefined') throw new NotFoundError('Unable to tag non-existing object with id ' + id)
     if (tag === 'latest') throw new Error('Object versions may not be manually tagged as latest. That tag is managed automatically.')
     await db.insert('INSERT INTO tags (id, tag, version, date, user) VALUES (?, ?, ?, NOW(), ?) ON DUPLICATE KEY UPDATE version=VALUES(version), user=VALUES(user), date=VALUES(date)', [id, tag, version, user ?? ''])
-    this.loader.get(tagLoader).clear({ id, tag })
+    this.loaders.get(tagLoader).clear({ id, tag })
   }
 
   /**
@@ -316,7 +316,7 @@ export class VersionedService extends BaseService {
    * If the object does not have the given tag, returns undefined.
    */
   async getTag (id: string, tag: string) {
-    return await this.loader.get(tagLoader).load({ id, tag })
+    return await this.loaders.get(tagLoader).load({ id, tag })
   }
 
   /**
@@ -324,7 +324,7 @@ export class VersionedService extends BaseService {
    */
   async removeTag (id: string, tag: string) {
     await db.execute('DELETE FROM tags WHERE id=? AND tag=?', [id, tag])
-    this.loader.get(tagLoader).clear({ id, tag })
+    this.loaders.get(tagLoader).clear({ id, tag })
   }
 
   /**
@@ -336,7 +336,7 @@ export class VersionedService extends BaseService {
    */
   async globalRemoveTag (tag: string) {
     await db.execute('DELETE FROM tags WHERE tag=?', [tag])
-    this.loader.get(tagLoader).clearAll()
+    this.loaders.get(tagLoader).clearAll()
   }
 
   /**
