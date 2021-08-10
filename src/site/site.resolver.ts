@@ -6,6 +6,7 @@ import { Data, DataFilter, DataPermission } from '../data'
 import { DataFolder } from '../datafolder'
 import { PagePermission } from '../page'
 import { PageTree } from '../pagetree'
+import { Role } from '../role'
 import { Template, TemplateFilter } from '../template'
 import { User } from '../user'
 import { Site, SiteFilter, SitePermission, SitePermissions } from './site.model'
@@ -42,18 +43,8 @@ export class SiteResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [User], { description: 'Returns a list of all users with at least one of the specified permissions anywhere on this site.' })
-  async users (@Ctx() ctx: Context, @Root() site: Site,
-    @Arg('withSitePermission', type => [SitePermission]) withSitePermission: SitePermission[],
-    @Arg('withAssetPermission', type => [AssetPermission]) withAssetPermission: AssetPermission[],
-    @Arg('withDataPermission', type => [DataPermission]) withDataPermission: DataPermission[],
-    @Arg('withPagePermission', type => [PagePermission]) withPagePermission: PagePermission[]
-  ) {
-    throw new UnimplementedError()
-  }
-
-  @FieldResolver(returns => [User], { description: 'Returns a list of all groups with at least one of the specified permissions anywhere on this site.' })
-  async groups (@Ctx() ctx: Context, @Root() site: Site,
+  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions anywhere on this site.' })
+  async roles (@Ctx() ctx: Context, @Root() site: Site,
     @Arg('withSitePermission', type => [SitePermission]) withSitePermission: SitePermission[],
     @Arg('withAssetPermission', type => [AssetPermission]) withAssetPermission: AssetPermission[],
     @Arg('withDataPermission', type => [DataPermission]) withDataPermission: DataPermission[],

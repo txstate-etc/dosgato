@@ -1,4 +1,4 @@
-import { Field, InputType, Int, ObjectType } from 'type-graphql'
+import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 
 @ObjectType({
   description: 'A pagetree represents the page hierarchy in a site. A site may ' +
@@ -27,3 +27,14 @@ export class PageTreeFilter {
 @ObjectType()
 export class PageTreePermissions {
 }
+
+export enum PageTreePermission {
+  RENAME = 'rename',
+  PROMOTE = 'promote',
+  DELETE = 'delete',
+  UNDELETE = 'undelete'
+}
+registerEnumType(PageTreePermission, {
+  name: 'PageTreePermission',
+  description: 'All the action types that can be individually permissioned on a pagetree.'
+})

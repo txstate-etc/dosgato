@@ -1,6 +1,6 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
-import { Data, DataFilter, DataPermission } from '../data'
+import { Data, DataFilter } from '../data'
 import { User } from '../user'
 import { DataFolder, DataFolderPermission, DataFolderPermissions } from './datafolder.model'
 
@@ -18,23 +18,10 @@ export class DataFolderResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [Data])
-  async children (@Ctx() ctx: Context, @Root() folder: DataFolder,
-    @Arg('recursive', { nullable: true }) recursive: boolean
+  @FieldResolver(returns => [User], { description: 'Returns a list of all roles with at least one of the specified permissions on this folder.' })
+  async roles (@Ctx() ctx: Context, @Root() folder: DataFolder,
+    @Arg('withPermission', type => [DataFolderPermission]) withPermission: DataFolderPermission[]
   ) {
-    throw new UnimplementedError()
-  }
-
-  @FieldResolver(returns => [User], { description: 'Returns a list of all users with at least one of the specified permissions anywhere in this folder.' })
-  async users (@Ctx() ctx: Context, @Root() folder: DataFolder,
-    @Arg('withFolderPermission', type => [DataFolderPermission]) withFolderPermission: DataFolderPermission[],
-    @Arg('withDataPermission', type => [DataPermission]) withDataPermission: DataPermission[]
-  ) {
-    throw new UnimplementedError()
-  }
-
-  @FieldResolver(returns => [User], { description: 'Returns a list of all groups with at least one of the specified permissions on this folder.' })
-  async groups (@Ctx() ctx: Context, @Root() folder: DataFolder, @Arg('withPermission', type => [DataFolderPermission]) withPermission: DataFolderPermission[]) {
     throw new UnimplementedError()
   }
 

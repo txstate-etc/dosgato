@@ -1,5 +1,6 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Arg, Ctx, FieldResolver, Query, Resolver, Root } from 'type-graphql'
+import { Role } from '../role'
 import { User } from '../user'
 import { Group, GroupPermissions } from './group.model'
 
@@ -11,12 +12,17 @@ export class GroupResolver {
   }
 
   @FieldResolver(returns => [User], { description: 'Users that are members of this group, either directly or through a subgroup.' })
-  async users (@Ctx() ctx: Context, @Root() group: Group, @Arg('direct', { nullable: true, description: 'true -> only direct members, false -> only indirect members, null -> all members' }) direct: Boolean) {
+  async users (@Ctx() ctx: Context, @Root() group: Group, @Arg('direct', { nullable: true, description: 'true -> only direct members, false -> only indirect members, null -> all members' }) direct?: boolean) {
     throw new UnimplementedError()
   }
 
   @FieldResolver(returns => [Group], { description: 'Groups that have been added to this group so that all their members are also members of this group.' })
-  async subgroups (@Ctx() ctx: Context, @Root() group: Group, @Arg('direct', { nullable: true, description: 'true -> only subgroups added directly, false -> only indirect subgroups, null -> all subgroups' }) direct: Boolean) {
+  async subgroups (@Ctx() ctx: Context, @Root() group: Group, @Arg('recursive', { nullable: true }) recursive?: boolean) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [Role], { description: 'Roles this group has either directly or through a parent group.' })
+  async roles (@Ctx() ctx: Context, @Root() group: Group, @Arg('direct', { nullable: true, description: 'true -> only roles added directly, false -> only indirect roles, null -> all roles' }) direct?: boolean) {
     throw new UnimplementedError()
   }
 

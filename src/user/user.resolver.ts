@@ -1,8 +1,8 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Group } from '../group'
+import { Role } from '../role'
 import { UrlSafeString } from '../scalars/urlsafestring'
-import { Site } from '../site'
 import { User, UserAccess, UserFilter, UserPermissions } from './user.model'
 
 @Resolver(of => User)
@@ -13,12 +13,12 @@ export class UserResolver {
   }
 
   @FieldResolver(returns => [Group], { description: 'Groups related to the user, either directly or through a subgroup membership.' })
-  async groups (@Ctx() ctx: Context, @Root() user: User, @Arg('direct', { nullable: true, description: 'true -> groups where user is direct member, false -> groups where the user is an indirect member but not a direct member, null -> all groups where the user is a member.' }) direct: Boolean) {
+  async groups (@Ctx() ctx: Context, @Root() user: User, @Arg('direct', { nullable: true, description: 'true -> groups where user is direct member, false -> groups where the user is an indirect member but not a direct member, null -> all groups where the user is a member.' }) direct: boolean) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [Site], { description: 'Roles related to the user, either directly or through a group.' })
-  async roles (@Ctx() ctx: Context, @Root() user: User, @Arg('direct', { nullable: true, description: 'true -> only roles the user has directly, false -> only roles the user has indirectly and not directly, null -> all roles the user has.' }) direct: Boolean) {
+  @FieldResolver(returns => [Role], { description: 'Roles related to the user, either directly or through a group.' })
+  async roles (@Ctx() ctx: Context, @Root() user: User, @Arg('direct', { nullable: true, description: 'true -> only roles the user has directly, false -> only roles the user has indirectly and not directly, null -> all roles the user has.' }) direct: boolean) {
     throw new UnimplementedError()
   }
 

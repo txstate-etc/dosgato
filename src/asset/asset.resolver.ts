@@ -2,7 +2,7 @@ import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphql'
 import { AssetFolder } from '../assetfolder'
-import { Group } from '../group'
+import { Role } from '../role'
 import { JsonData } from '../scalars/jsondata'
 import { User } from '../user'
 import { VersionedService } from '../versionedservice'
@@ -66,13 +66,8 @@ export class AssetResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [User], { description: 'Returns a list of all users with at least one of the specified permissions on this asset.' })
-  async users (@Ctx() ctx: Context, @Root() data: Asset, @Arg('withPermission', type => [AssetPermission]) withPermission: AssetPermission[]) {
-    throw new UnimplementedError()
-  }
-
-  @FieldResolver(returns => [Group], { description: 'Returns a list of all groups with at least one of the specified permissions on this asset.' })
-  async groups (@Ctx() ctx: Context, @Root() data: Asset, @Arg('withPermission', type => [AssetPermission]) withPermission: AssetPermission[]) {
+  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this asset.' })
+  async roles (@Ctx() ctx: Context, @Root() data: Asset, @Arg('withPermission', type => [AssetPermission]) withPermission: AssetPermission[]) {
     throw new UnimplementedError()
   }
 

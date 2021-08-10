@@ -1,7 +1,6 @@
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
-import { createUnionType, Field, InputType, Int, ObjectType } from 'type-graphql'
-import { Asset } from '../asset'
+import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
 
 @ObjectType()
@@ -55,7 +54,13 @@ export class AssetFolderFilter {
 @ObjectType()
 export class AssetFolderPermissions {}
 
-export const FolderOrAsset = createUnionType({
-  name: 'FolderOrAsset',
-  types: () => [AssetFolder, Asset] as const
+export enum AssetFolderPermission {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  UNDELETE = 'undelete'
+}
+registerEnumType(AssetFolderPermission, {
+  name: 'AssetFolderPermission',
+  description: 'All the action types that can be individually permissioned on a data entry.'
 })

@@ -2,9 +2,9 @@ import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Page } from '../page'
 import { PageFilter } from '../page/page.model'
-import { PageRule, PageRuleFilter } from '../pagerule'
+import { Role } from '../role'
 import { Template, TemplateFilter } from '../template'
-import { PageTree, PageTreePermissions } from './pagetree.model'
+import { PageTree, PageTreePermission, PageTreePermissions } from './pagetree.model'
 
 @Resolver(of => PageTree)
 export class PageTreeResolver {
@@ -18,13 +18,13 @@ export class PageTreeResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [PageRule], { description: 'All pagerules that apply to this pagetree.' })
-  async pagerules (@Ctx() ctx: Context, @Root() pagetree: PageTree, @Arg('filter', { nullable: true }) filter?: PageRuleFilter) {
+  @FieldResolver(returns => [Template], { description: 'All templates that are approved for use in this pagetree.' })
+  async templates (@Ctx() ctx: Context, @Root() pagetree: PageTree, @Arg('filter', { nullable: true }) filter?: TemplateFilter) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [Template], { description: 'All templates that are approved for use in this pagetree.' })
-  async templates (@Ctx() ctx: Context, @Root() pagetree: PageTree, @Arg('filter', { nullable: true }) filter?: TemplateFilter) {
+  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this page.' })
+  async roles (@Ctx() ctx: Context, @Root() page: Page, @Arg('withPermission', type => [PageTreePermission]) withPermission: PageTreePermission[]) {
     throw new UnimplementedError()
   }
 

@@ -1,9 +1,9 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Asset, AssetFilter } from '../asset'
-import { AssetRule, AssetRuleFilter } from '../assetrule'
+import { Role } from '../role'
 import { User } from '../user'
-import { AssetFolder, FolderOrAsset, AssetFolderPermissions } from './assetfolder.model'
+import { AssetFolder, AssetFolderFilter, AssetFolderPermission, AssetFolderPermissions } from './assetfolder.model'
 
 @Resolver(of => AssetFolder)
 export class AssetFolderResolver {
@@ -24,21 +24,22 @@ export class AssetFolderResolver {
 
   @FieldResolver(returns => [Asset])
   async assets (@Ctx() ctx: Context, @Root() folder: AssetFolder,
-    @Arg('filter', { nullable: true }) filter: AssetFilter,
-    @Arg('recursive', { nullable: true }) recursive: boolean
+    @Arg('filter', { nullable: true }) filter?: AssetFilter,
+    @Arg('recursive', { nullable: true }) recursive?: boolean
   ) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [FolderOrAsset])
-  async children (@Ctx() ctx: Context, @Root() folder: AssetFolder,
-    @Arg('recursive', { nullable: true }) recursive: boolean
+  @FieldResolver(returns => [AssetFolder])
+  async folders (@Ctx() ctx: Context, @Root() folder: AssetFolder,
+    @Arg('filter', { nullable: true }) filter?: AssetFolderFilter,
+    @Arg('recursive', { nullable: true }) recursive?: boolean
   ) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [AssetRule], { description: 'All assetrules that apply to this folder.' })
-  async assetrules (@Ctx() ctx: Context, @Root() folder: AssetFolder, @Arg('filter', type => AssetRuleFilter, { nullable: true }) filter?: AssetRuleFilter) {
+  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this folder.' })
+  async roles (@Ctx() ctx: Context, @Root() data: Asset, @Arg('withPermission', type => [AssetFolderPermission]) withPermission: AssetFolderPermission[]) {
     throw new UnimplementedError()
   }
 
@@ -46,7 +47,6 @@ export class AssetFolderResolver {
     description: `Reveal the simplified results after all authorization rules are taken into account
       for the current user. Makes it easy to light up, disable, or hide buttons in the UI.`
   })
-
   permissions (@Root() folder: AssetFolder) {
     return folder
   }

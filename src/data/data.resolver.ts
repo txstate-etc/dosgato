@@ -2,6 +2,7 @@ import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphql'
 import { DataFolder } from '../datafolder'
+import { Role } from '../role'
 import { JsonData } from '../scalars/jsondata'
 import { Site } from '../site'
 import { Template } from '../template'
@@ -70,13 +71,8 @@ export class DataResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [User], { description: 'Returns a list of all users with at least one of the specified permissions on this page.' })
-  async users (@Ctx() ctx: Context, @Root() data: Data, @Arg('withPermission', type => [DataPermission]) withPermission: DataPermission[]) {
-    throw new UnimplementedError()
-  }
-
-  @FieldResolver(returns => [User], { description: 'Returns a list of all groups with at least one of the specified permissions on this page.' })
-  async groups (@Ctx() ctx: Context, @Root() data: Data, @Arg('withPermission', type => [DataPermission]) withPermission: DataPermission[]) {
+  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this page.' })
+  async roles (@Ctx() ctx: Context, @Root() data: Data, @Arg('withPermission', type => [DataPermission]) withPermission: DataPermission[]) {
     throw new UnimplementedError()
   }
 
