@@ -1,14 +1,14 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphql'
-import { PageRule, PageRuleFilter } from '../pagerule'
+import { Group } from '../group'
 import { PageTree } from '../pagetree'
 import { JsonData } from '../scalars/jsondata'
 import { Site } from '../site'
 import { Template, TemplateFilter } from '../template'
 import { User } from '../user'
 import { VersionedService } from '../versionedservice'
-import { Page, PageFilter, PagePermissions } from './page.model'
+import { Page, PageFilter, PagePermission, PagePermissions } from './page.model'
 
 @Resolver(of => Page)
 export class PageResolver {
@@ -58,12 +58,7 @@ export class PageResolver {
     return versioned!.data
   }
 
-  @FieldResolver(returns => [PageRule], { description: 'All pagerules that apply to this page.' })
-  async pagerules (@Ctx() ctx: Context, @Root() page: Page, @Arg('filter', { nullable: true }) filter?: PageRuleFilter) {
-    throw new UnimplementedError()
-  }
-
-  @FieldResolver(returns => [Template], { description: 'All templates that are approved for use in this page.' })
+  @FieldResolver(returns => [Template], { description: 'All templates that are approved for use on this page.' })
   async templates (@Ctx() ctx: Context, @Root() page: Page, @Arg('filter', { nullable: true }) filter?: TemplateFilter) {
     throw new UnimplementedError()
   }
@@ -103,6 +98,16 @@ export class PageResolver {
     throw new UnimplementedError()
   }
 
+  @FieldResolver(returns => [User], { description: 'Returns a list of all users with at least one of the specified permissions on this page.' })
+  async users (@Ctx() ctx: Context, @Root() page: Page, @Arg('withPermission', type => [PagePermission]) withPermission: PagePermission[]) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [Group], { description: 'Returns a list of all groups with at least one of the specified permissions on this page.' })
+  async groups (@Ctx() ctx: Context, @Root() page: Page, @Arg('withPermission', type => [PagePermission]) withPermission: PagePermission[]) {
+    throw new UnimplementedError()
+  }
+
   @FieldResolver(returns => PagePermissions, {
     description: `Reveal the simplified results after all authorization rules are taken into account
       for the current user. Makes it easy to light up, disable, or hide buttons in the UI.`
@@ -115,7 +120,7 @@ export class PageResolver {
 @Resolver(of => PagePermissions)
 export class PagePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may view the latest unpublished version of this page. Published pages are completely public.' })
-  async viewlatest (@Ctx() ctx: Context, @Root() page: Page) {
+  async viewLatest (@Ctx() ctx: Context, @Root() page: Page) {
     throw new UnimplementedError()
   }
 

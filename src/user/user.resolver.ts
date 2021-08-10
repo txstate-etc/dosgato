@@ -1,5 +1,6 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Group } from '../group'
 import { UrlSafeString } from '../scalars/urlsafestring'
 import { Site } from '../site'
 import { User, UserAccess, UserFilter, UserPermissions } from './user.model'
@@ -11,8 +12,13 @@ export class UserResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [Site], { description: 'Sites the user is able to see.' })
-  async sites (@Ctx() ctx: Context, @Root() user: User) {
+  @FieldResolver(returns => [Group], { description: 'Groups related to the user, either directly or through a subgroup membership.' })
+  async groups (@Ctx() ctx: Context, @Root() user: User, @Arg('direct', { nullable: true, description: 'true -> groups where user is direct member, false -> groups where the user is an indirect member but not a direct member, null -> all groups where the user is a member.' }) direct: Boolean) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [Site], { description: 'Roles related to the user, either directly or through a group.' })
+  async roles (@Ctx() ctx: Context, @Root() user: User, @Arg('direct', { nullable: true, description: 'true -> only roles the user has directly, false -> only roles the user has indirectly and not directly, null -> all roles the user has.' }) direct: Boolean) {
     throw new UnimplementedError()
   }
 
@@ -87,8 +93,8 @@ export class UserAccessResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Boolean, { description: 'User is able to create data entries of the specified type.' })
-  async createData (@Ctx() ctx: Context, @Root() user: User, @Arg('type') type: UrlSafeString) {
+  @FieldResolver(returns => Boolean, { description: 'User is able to create global data entries of the specified type.' })
+  async createGlobalData (@Ctx() ctx: Context, @Root() user: User, @Arg('type') type: UrlSafeString) {
     throw new UnimplementedError()
   }
 }

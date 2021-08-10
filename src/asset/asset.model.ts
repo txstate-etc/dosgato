@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
-import { Field, InputType, Int, ObjectType } from 'type-graphql'
+import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 
 @ObjectType()
 export class Asset {
@@ -46,12 +46,23 @@ export class AssetFilter {
   @Field(type => [Int], { nullable: true })
   folderIds?: number[]
 
-  @Field(type => [Int], { nullable: true, description: 'Return assets referenced (linked to) by any of the given assets.' })
-  referencedByPageIds?: number[]
+  @Field({ nullable: true, description: 'true -> return assets referenced by any page, false -> return assets not referenced by any page, null -> return all assets' })
+  referenced?: boolean
 
-  @Field(type => Boolean, { nullable: false, description: 'true -> return only deleted assets, false -> return only nondeleted assets, undefined -> return all assets' })
+  @Field(type => Boolean, { nullable: false, description: 'true -> return only deleted assets, false -> return only nondeleted assets, null -> return all assets' })
   deleted?: boolean
 }
 
 @ObjectType()
 export class AssetPermissions {}
+
+export enum AssetPermission {
+  UPDATE = 'update',
+  MOVE = 'move',
+  DELETE = 'delete',
+  UNDELETE = 'undelete'
+}
+registerEnumType(AssetPermission, {
+  name: 'AssetPermission',
+  description: 'All the action types that can be individually permissioned on an asset.'
+})

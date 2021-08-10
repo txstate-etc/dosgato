@@ -1,7 +1,8 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
-import { PageTree } from '../pagetree'
-import { Role, RoleFilter, RolePermissions } from './role.model'
+import { Group } from '../group'
+import { User } from '../user'
+import { Role, RoleFilter, RolePermissions, Rule } from './role.model'
 
 @Resolver(of => Role)
 export class RoleResolver {
@@ -10,8 +11,18 @@ export class RoleResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [PageTree])
-  async pagetrees (@Ctx() ctx: Context, @Root() role: Role) {
+  @FieldResolver(returns => [Rule])
+  async rules (@Ctx() ctx: Context, @Root() role: Role) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [User], { description: 'Returns a list of all users related to the role, either directly or through a group.' })
+  async users (@Ctx() ctx: Context, @Root() role: Role, @Arg('direct', { nullable: true, description: 'true -> only users that have the role directly, false -> only users that have the role indirectly and not directly, null -> all users that have the role.' }) direct: Boolean) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [Group], { description: 'Returns a list of all groups related to the role, either directly or through a parent group.' })
+  async groups (@Ctx() ctx: Context, @Root() role: Role, @Arg('direct', { nullable: true, description: 'true -> only groups that have the role directly, false -> only groups that have the role indirectly and not directly, null -> all groups that have the role.' }) direct: Boolean) {
     throw new UnimplementedError()
   }
 

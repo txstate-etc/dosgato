@@ -15,7 +15,7 @@ export class User {
   @Field()
   email: string
 
-  valid: boolean
+  enabled: boolean
   lastlogin: DateTime
   lastlogout: DateTime
 
@@ -24,7 +24,7 @@ export class User {
     this.login = row.login
     this.name = row.name
     this.email = row.email
-    this.valid = row.valid
+    this.enabled = row.enabled
     this.lastlogin = DateTime.fromJSDate(row.lastlogin)
     this.lastlogout = DateTime.fromJSDate(row.lastlogout)
   }
@@ -37,6 +37,9 @@ export class UserFilter {
 
   @Field(type => [Int], { nullable: true })
   ids?: number[]
+
+  @Field({ nullable: true, description: 'true -> enabled users, false -> disabled users, null -> all users' })
+  enabled?: boolean
 }
 
 @ObjectType()

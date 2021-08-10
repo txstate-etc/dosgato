@@ -1,4 +1,4 @@
-import { Field, InputType, Int, ObjectType } from 'type-graphql'
+import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 
 @ObjectType()
 export class Site {
@@ -22,3 +22,17 @@ export class SiteFilter {
 
 @ObjectType()
 export class SitePermissions {}
+
+export enum SitePermission {
+  LAUNCH = 'launch',
+  RENAME = 'rename',
+  MANAGE_PAGETREES = 'managePagetrees',
+  PROMOTE_PAGETREE = 'promotePagetree',
+  CREATE_RULES = 'createRules',
+  DELETE = 'delete',
+  UNDELETE = 'undelete'
+}
+registerEnumType(SitePermission, {
+  name: 'SitePermission',
+  description: 'All the action types that can be individually permissioned on a site.'
+})

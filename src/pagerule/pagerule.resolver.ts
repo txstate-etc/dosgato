@@ -1,17 +1,12 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
 import { PageTree } from '../pagetree'
 import { Role } from '../role'
 import { Site } from '../site'
-import { PageRule, PageRuleFilter, PageRulePermissions } from './pagerule.model'
+import { PageRule, PageRulePermissions } from './pagerule.model'
 
 @Resolver(of => PageRule)
 export class PageRuleResolver {
-  @Query(returns => [PageRule])
-  async pagerules (@Ctx() ctx: Context, @Arg('filter') filter: PageRuleFilter) {
-    throw new UnimplementedError()
-  }
-
   @FieldResolver(returns => Site, { nullable: true })
   async site (@Ctx() ctx: Context, @Root() pagerule: PageRule) {
     throw new UnimplementedError()

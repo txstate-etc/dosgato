@@ -1,12 +1,12 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphql'
-import { AssetRule, AssetRuleFilter } from '../assetrule'
-import { Folder } from '../folder'
+import { AssetFolder } from '../assetfolder'
+import { Group } from '../group'
 import { JsonData } from '../scalars/jsondata'
 import { User } from '../user'
 import { VersionedService } from '../versionedservice'
-import { Asset, AssetFilter, AssetPermissions } from './asset.model'
+import { Asset, AssetFilter, AssetPermission, AssetPermissions } from './asset.model'
 
 @Resolver(of => Asset)
 export class AssetResolver {
@@ -20,28 +20,22 @@ export class AssetResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Folder, { description: 'Returns parent folder.' })
+  @FieldResolver(returns => AssetFolder, { description: 'Returns parent folder.' })
   async folder (@Ctx() ctx: Context, @Root() asset: Asset) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [Folder], { description: 'Starts with the parent folder and proceeds upward. Last element will be the site\'s root folder.' })
+  @FieldResolver(returns => [AssetFolder], { description: 'Starts with the parent folder and proceeds upward. Last element will be the site\'s root folder.' })
   async ancestors (@Ctx() ctx: Context, @Root() asset: Asset) {
     throw new UnimplementedError()
   }
 
   @FieldResolver(returns => JsonData)
   async data (@Ctx() ctx: Context, @Root() asset: Asset,
-    @Arg('published', { nullable: true, description: 'Return the published version of the data.' }) published?: boolean,
     @Arg('version', type => Int, { nullable: true }) version?: number
   ) {
     const versioned = await ctx.svc(VersionedService).get(asset.dataId)
     return versioned!.data
-  }
-
-  @FieldResolver(returns => [AssetRule], { description: 'All assetrules that apply to this asset.' })
-  async assetrules (@Ctx() ctx: Context, @Root() asset: Asset, @Arg('filter', { nullable: true }) filter?: AssetRuleFilter) {
-    throw new UnimplementedError()
   }
 
   @FieldResolver(returns => DateTime)
@@ -69,6 +63,16 @@ export class AssetResolver {
     description: 'The last time this asset or one of its resizes was downloaded by an anonymous user.'
   })
   async downloadedAt (@Ctx() ctx: Context, @Root() asset: Asset) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [User], { description: 'Returns a list of all users with at least one of the specified permissions on this asset.' })
+  async users (@Ctx() ctx: Context, @Root() data: Asset, @Arg('withPermission', type => [AssetPermission]) withPermission: AssetPermission[]) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [Group], { description: 'Returns a list of all groups with at least one of the specified permissions on this asset.' })
+  async groups (@Ctx() ctx: Context, @Root() data: Asset, @Arg('withPermission', type => [AssetPermission]) withPermission: AssetPermission[]) {
     throw new UnimplementedError()
   }
 

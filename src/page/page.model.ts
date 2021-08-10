@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
-import { Field, InputType, Int, ObjectType } from 'type-graphql'
+import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
 
 @ObjectType()
@@ -54,17 +54,14 @@ export class PageFilter {
   @Field(type => [String], { nullable: true, description: 'Return pages with the given link ids.' })
   linkIds?: string[]
 
-  @Field(type => [Int], { nullable: true })
+  @Field(type => [Int], { nullable: true, description: 'Return pages that belong to any of the given siteTree ids.' })
   siteTreeIds?: number[]
 
-  @Field(type => [Int], { nullable: true })
+  @Field(type => [Int], { nullable: true, description: 'Return pages whose parent page is any of the given page ids.' })
   parentPageIds?: number[]
 
-  @Field(type => [String], { nullable: true, description: 'Return pages containing at least one component using one of the given templates.' })
-  componentTemplates?: string[]
-
-  @Field(type => [String], { nullable: true, description: 'Return pages using one of the given page templates.' })
-  pageTemplates?: string[]
+  @Field(type => [Int], { nullable: true, description: 'Return pages using any of the given templates.' })
+  templateIds?: string[]
 
   @Field(type => [String], { nullable: true, description: 'Return pages that contain a link to any of the given link ids.' })
   linkIdsReferenced?: string[]
@@ -87,3 +84,18 @@ export class PageFilter {
 
 @ObjectType()
 export class PagePermissions {}
+
+export enum PagePermission {
+  VIEWLATEST = 'viewlatest',
+  UPDATE = 'update',
+  MOVE = 'move',
+  CREATE = 'create',
+  PUBLISH = 'publish',
+  UNPUBLISH = 'unpublish',
+  DELETE = 'delete',
+  UNDELETE = 'undelete'
+}
+registerEnumType(PagePermission, {
+  name: 'PagePermission',
+  description: 'All the action types that can be individually permissioned on a page.'
+})

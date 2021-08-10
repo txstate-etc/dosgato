@@ -1,18 +1,13 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Page } from '../page'
 import { PageFilter } from '../page/page.model'
 import { PageRule, PageRuleFilter } from '../pagerule'
 import { Template, TemplateFilter } from '../template'
-import { PageTree, PageTreeFilter, PageTreePermissions } from './pagetree.model'
+import { PageTree, PageTreePermissions } from './pagetree.model'
 
 @Resolver(of => PageTree)
 export class PageTreeResolver {
-  @Query(returns => [PageTree])
-  async pagetrees (@Ctx() ctx: Context, @Arg('filter') filter: PageTreeFilter) {
-    throw new UnimplementedError()
-  }
-
   @FieldResolver(returns => [Page])
   async pages (@Ctx() ctx: Context, @Root() pagetree: PageTree, @Arg('filter', { nullable: true }) filter: PageFilter) {
     throw new UnimplementedError()

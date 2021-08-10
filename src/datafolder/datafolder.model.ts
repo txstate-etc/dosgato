@@ -1,11 +1,10 @@
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
-import { createUnionType, Field, InputType, Int, ObjectType } from 'type-graphql'
-import { Asset } from '../asset'
+import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
 
 @ObjectType()
-export class Folder {
+export class DataFolder {
   @Field(type => Int)
   id: number
 
@@ -19,31 +18,25 @@ export class Folder {
   deletedAt?: DateTime
 
   deletedBy: number|null
-  parentId: number
+  type: string
 
   constructor (row: any) {
     this.id = row.id
     this.name = row.name
-    this.parentId = row.parent_id
+    this.type = row.type
     this.deleted = isNotNull(row.deleted)
     this.deletedAt = DateTime.fromJSDate(row.deleted)
-    this.deletedBy = row.deleted_by
+    this.deletedBy = row.deletedBy
   }
 }
 
 @InputType()
-export class FolderFilter {
+export class DataFolderFilter {
   @Field(type => [Int], { nullable: true })
   ids?: number[]
 
-  @Field(type => [Int], { nullable: true })
+  @Field(type => [Int], { nullable: true, description: 'Return folders that are associated with one of the given sites.' })
   siteIds?: number[]
-
-  @Field(type => [Int], { nullable: true, description: 'Return folders that are parents of the given folder ids.' })
-  parentOfFolderIds?: number[]
-
-  @Field(type => [Int], { nullable: true, description: 'Return folders that are children of the given folder ids.' })
-  childOfFolderIds?: number[]
 
   @Field(type => Boolean, { nullable: true, description: 'Return folders that are the root folder of a site.' })
   root?: boolean
@@ -53,9 +46,15 @@ export class FolderFilter {
 }
 
 @ObjectType()
-export class FolderPermissions {}
+export class DataFolderPermissions {}
 
-export const FolderOrAsset = createUnionType({
-  name: 'FolderOrAsset',
-  types: () => [Folder, Asset] as const
+export enum DataFolderPermission {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  UNDELETE = 'undelete'
+}
+registerEnumType(DataFolderPermission, {
+  name: 'DataFolderPermission',
+  description: 'All the action types that can be individually permissioned on a data entry.'
 })

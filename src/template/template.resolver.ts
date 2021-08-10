@@ -1,5 +1,6 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Data, DataFilter } from '../data'
 import { PageFilter } from '../page'
 import { PageTree } from '../pagetree'
 import { Template, TemplateFilter, TemplatePermissions } from './template.model'
@@ -35,6 +36,11 @@ export class TemplateResolver {
       description: 'A template may be linked to a whole site or an individual pagetree. By default this resolver only returns sites where the whole site is able to use the template. Use this toggle to also return any sites where one or more pagetrees are able to use the template.'
     }) atLeastOneTree?: boolean
   ) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [Data], { description: 'All data entries that use this template.' })
+  async data (@Ctx() ctx: Context, @Root() template: Template, @Arg('filter', { nullable: true }) filter?: DataFilter) {
     throw new UnimplementedError()
   }
 

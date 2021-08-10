@@ -2,15 +2,17 @@ import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphq
 import { UrlSafeString } from '../scalars/urlsafestring'
 
 export enum TemplateType {
-  PAGE,
-  COMPONENT
+  PAGE = 'page',
+  COMPONENT = 'component',
+  DATA = 'data'
 }
 registerEnumType(TemplateType, {
   name: 'TemplateType',
-  description: 'Determine whether a template is a page template or a component template.',
+  description: 'Determine whether a template is a page, component, or data template.',
   valuesConfig: {
     PAGE: { description: 'Template is appropriate for pages.' },
-    COMPONENT: { description: 'Template is appropriate for components.' }
+    COMPONENT: { description: 'Template is appropriate for components.' },
+    DATA: { description: 'Template defines a type of data.' }
   }
 })
 

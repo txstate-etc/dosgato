@@ -1,16 +1,11 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Role } from '../role'
 import { Site } from '../site'
-import { SiteRule, SiteRuleFilter, SiteRulePermissions } from './siterule.model'
+import { SiteRule, SiteRulePermissions } from './siterule.model'
 
 @Resolver(of => SiteRule)
 export class SiteRuleResolver {
-  @Query(returns => [SiteRule])
-  async siterules (@Ctx() ctx: Context, @Arg('filter') filter: SiteRuleFilter) {
-    throw new UnimplementedError()
-  }
-
   @FieldResolver(returns => Role)
   async role (@Ctx() ctx: Context, @Root() siterule: SiteRule) {
     throw new UnimplementedError()

@@ -1,4 +1,14 @@
-import { Field, InputType, Int, ObjectType } from 'type-graphql'
+import { createUnionType, Field, InputType, Int, ObjectType } from 'type-graphql'
+import { AssetRule } from '../assetrule'
+import { DataRule } from '../datarule'
+import { GlobalRule } from '../globalrule/globalrule.model'
+import { PageRule } from '../pagerule'
+import { SiteRule } from '../siterule'
+
+export const Rule = createUnionType({
+  name: 'Rule',
+  types: () => [GlobalRule, SiteRule, PageRule, AssetRule, DataRule]
+})
 
 @ObjectType()
 export class Role {
@@ -8,13 +18,9 @@ export class Role {
   @Field()
   name: string
 
-  @Field({ description: 'When true, any user with this role will be considered a superadmin.' })
-  admin: boolean
-
   constructor (row: any) {
     this.id = row.id
     this.name = row.name
-    this.admin = row.admin
   }
 }
 

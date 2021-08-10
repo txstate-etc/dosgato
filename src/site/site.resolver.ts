@@ -1,9 +1,14 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
-import { PageRule, PageRuleFilter } from '../pagerule'
+import { Asset, AssetFilter, AssetPermission } from '../asset'
+import { AssetFolder } from '../assetfolder'
+import { Data, DataFilter, DataPermission } from '../data'
+import { DataFolder } from '../datafolder'
+import { PagePermission } from '../page'
 import { PageTree } from '../pagetree'
 import { Template, TemplateFilter } from '../template'
-import { Site, SiteFilter, SitePermissions } from './site.model'
+import { User } from '../user'
+import { Site, SiteFilter, SitePermission, SitePermissions } from './site.model'
 
 @Resolver(of => Site)
 export class SiteResolver {
@@ -17,8 +22,53 @@ export class SiteResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [PageRule], { description: 'All pagerules that apply to pages in this site.' })
-  async pagerules (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: PageRuleFilter) {
+  @FieldResolver(returns => [Asset])
+  async assets (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: AssetFilter) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => AssetFolder)
+  async assetroot (@Ctx() ctx: Context, @Root() site: Site) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [Data])
+  async data (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: DataFilter) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [DataFolder], { description: 'Data folders that belong to this site. There is no root folder since data folders are a single-depth concept.' })
+  async datafolders (@Ctx() ctx: Context, @Root() site: Site) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [User], { description: 'Returns a list of all users with at least one of the specified permissions anywhere on this site.' })
+  async users (@Ctx() ctx: Context, @Root() site: Site,
+    @Arg('withSitePermission', type => [SitePermission]) withSitePermission: SitePermission[],
+    @Arg('withAssetPermission', type => [AssetPermission]) withAssetPermission: AssetPermission[],
+    @Arg('withDataPermission', type => [DataPermission]) withDataPermission: DataPermission[],
+    @Arg('withPagePermission', type => [PagePermission]) withPagePermission: PagePermission[]
+  ) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [User], { description: 'Returns a list of all groups with at least one of the specified permissions anywhere on this site.' })
+  async groups (@Ctx() ctx: Context, @Root() site: Site,
+    @Arg('withSitePermission', type => [SitePermission]) withSitePermission: SitePermission[],
+    @Arg('withAssetPermission', type => [AssetPermission]) withAssetPermission: AssetPermission[],
+    @Arg('withDataPermission', type => [DataPermission]) withDataPermission: DataPermission[],
+    @Arg('withPagePermission', type => [PagePermission]) withPagePermission: PagePermission[]
+  ) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [User])
+  async owners (@Ctx() ctx: Context, @Root() site: Site) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [User])
+  async managers (@Ctx() ctx: Context, @Root() site: Site) {
     throw new UnimplementedError()
   }
 

@@ -1,9 +1,9 @@
 import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 
 export enum RulePathMode {
-  SELF,
-  SUB,
-  SELFANDSUB
+  SELF = 0,
+  SUB = 1,
+  SELFANDSUB = 2
 }
 registerEnumType(RulePathMode, {
   name: 'RulePathMode',
@@ -64,7 +64,7 @@ export class PageRule {
   @Field({ description: 'The path for which this rule grants privileges. Use `mode` to control inheritance behavior.' })
   path: string
 
-  @Field({ description: 'Control whether this rule should apply to the page at `path`, its descendants, or both.' })
+  @Field(type => RulePathMode, { description: 'Control whether this rule should apply to the page at `path`, its descendants, or both.' })
   mode: RulePathMode
 
   @Field({ description: 'Permissions granted by this rule.' })
@@ -76,9 +76,9 @@ export class PageRule {
 
   constructor (row: any) {
     this.id = row.id
-    this.roleId = row.role_id
-    this.siteId = row.site_id
-    this.pagetreeId = row.pagetree_id
+    this.roleId = row.roleId
+    this.siteId = row.siteId
+    this.pagetreeId = row.pagetreeId
     this.path = row.path
     this.mode = row.mode
     this.grants = new PageRuleGrants(row)

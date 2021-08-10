@@ -1,17 +1,18 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Role } from '../role'
-import { DataRule, DataRuleFilter, DataRulePermissions } from './datarule.model'
+import { Site } from '../site'
+import { DataRule, DataRulePermissions } from './datarule.model'
 
 @Resolver(of => DataRule)
 export class DataRuleResolver {
-  @Query(returns => [DataRule])
-  async datarules (@Ctx() ctx: Context, @Arg('filter') filter: DataRuleFilter) {
+  @FieldResolver(returns => Role)
+  async role (@Ctx() ctx: Context, @Root() datarule: DataRule) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Role)
-  async role (@Ctx() ctx: Context, @Root() datarule: DataRule) {
+  @FieldResolver(returns => Site, { nullable: true })
+  async site (@Ctx() ctx: Context, @Root() datarule: DataRule) {
     throw new UnimplementedError()
   }
 
