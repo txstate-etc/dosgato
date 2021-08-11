@@ -1,4 +1,4 @@
-import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
+import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
 
 export enum TemplateType {
@@ -18,19 +18,27 @@ registerEnumType(TemplateType, {
 
 @ObjectType()
 export class Template {
-  @Field(type => Int)
+  @Field(type => Int, { description: 'An auto_increment id for the template. This should only be used when granting permissions for templates. The template for a piece of content should be recorded by key so that it can migrate easily to other instances.' })
   id: number
 
-  @Field()
-  name: UrlSafeString
+  @Field(type => ID, { description: 'This is a globally unique identifier that matches specific pieces of supporting source code. Upon startup, any new template keys detected in the source code will be automatically added to the database. When a piece of content is tagged with a template, it should be by key, NOT id, as id could differ from instance to instance and we want content to be easily migratable.' })
+  key: string
+
+  @Field({ description: 'A human readable name describing this template.' })
+  name: string
 
   @Field()
   type: TemplateType
 
+  @Field({ description: 'Any template not found in the currently running source code will be marked as deleted upon startup.' })
+  deleted: boolean
+
   constructor (row: any) {
     this.id = row.id
+    this.key = row.key
     this.name = row.name
     this.type = row.type
+    this.deleted = row.deleted
   }
 }
 

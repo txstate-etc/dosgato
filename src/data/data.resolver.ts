@@ -12,8 +12,8 @@ import { Data, DataFilter, DataPermission, DataPermissions } from './data.model'
 
 @Resolver(of => Data)
 export class DataResolver {
-  @Query(returns => [Data], { description: 'Only returns data entries that are global (site and folder properties will be null). For site-related data, select the data property from a site.' })
-  async globaldata (@Ctx() ctx: Context, @Arg('filter') filter: DataFilter) {
+  @Query(returns => [Data], { name: 'data', description: 'Data are pieces of shareable versioned content with a template and a dialog but not rendering code. The data will be consumed by component templates, each of which will do its own rendering of the data. For example, an Article data type could be displayed by an Article List component or an Article Detail component. In addition, outside services could access the article data directly from GraphQL.' })
+  async dataquery (@Ctx() ctx: Context, @Arg('filter') filter: DataFilter) {
     throw new UnimplementedError()
   }
 
@@ -31,17 +31,17 @@ export class DataResolver {
     return versioned!.data
   }
 
-  @FieldResolver(returns => Template)
+  @FieldResolver(returns => Template, { description: 'Data are created with a template that defines the schema and provides an editing dialog. The template never changes (except as part of an upgrade task).' })
   async template (@Ctx() ctx: Context, @Root() data: Data) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => DataFolder, { nullable: true })
+  @FieldResolver(returns => DataFolder, { nullable: true, description: 'Parent folder containing the data entry. Null if the data exists at the global or site root. In the data area, there is only one level of folders for organization - folders do not contain more folders.' })
   async folder (@Ctx() ctx: Context, @Root() data: Data) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Site, { nullable: true })
+  @FieldResolver(returns => Site, { nullable: true, description: 'The site to which this data entry belongs. Data can be shared across sites, but one site is still the owner. Null if the data is global (not associated with any site).' })
   async site (@Ctx() ctx: Context, @Root() data: Data) {
     throw new UnimplementedError()
   }

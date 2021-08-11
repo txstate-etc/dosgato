@@ -1,24 +1,24 @@
 import { Field, InputType, Int, ObjectType } from 'type-graphql'
 
-@ObjectType()
+@ObjectType({ description: 'A site rule grants permissions applicable to a site itself, like the ability to launch the site on a particular subdomain. It can also grant permissions on all sites by leaving the siteId null. Granting access to multiple sites requires multiple rules, one per site.' })
 @InputType()
 export class SiteRuleGrants {
   @Field({ description: 'Grants ability to set or update the public URL for affected sites.' })
   launch!: boolean
 
-  @Field({ description: 'Grants ability to rename affected sites.' })
+  @Field({ description: 'Grants ability to rename the site.' })
   rename!: boolean
 
   @Field({ description: 'Grants ability to create, edit, delete, and undelete new pagetrees in affected sites.' })
   managePagetrees!: boolean
 
-  @Field({ description: 'Grants ability to promotePagetree sites.' })
+  @Field({ description: 'Grants ability to promote a pagetree to be the active pagetree for the site; i.e. promote the sandbox to be live.' })
   promotePagetree!: boolean
 
-  @Field({ description: 'Grants ability to delete sites.' })
+  @Field({ description: 'Grants ability to delete the site.' })
   delete!: boolean
 
-  @Field({ description: 'Grants ability to undelete entries of this type.' })
+  @Field({ description: 'Grants ability to undelete the site.' })
   undelete!: boolean
 
   constructor (row?: any) {

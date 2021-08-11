@@ -24,22 +24,22 @@ export class TemplateResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [PageTree], { description: 'All pages using this template.' })
+  @FieldResolver(returns => [PageTree], { description: 'All pages using this template. Empty array for data templates.' })
   async pages (@Ctx() ctx: Context, @Root() template: Template, @Arg('filter', { nullable: true }) filter?: PageFilter) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [PageTree], { description: 'All sites that may use this template.' })
+  @FieldResolver(returns => [PageTree], { description: 'All sites that are permitted to use this template.' })
   async sites (@Ctx() ctx: Context, @Root() template: Template,
     @Arg('atLeastOneTree', {
       nullable: true,
-      description: 'A template may be linked to a whole site or an individual pagetree. By default this resolver only returns sites where the whole site is able to use the template. Use this toggle to also return any sites where one or more pagetrees are able to use the template.'
+      description: 'A template may be linked to a whole site or an individual pagetree. By default this resolver only returns sites where the whole site is able to use the template. Use this toggle to also return any sites where one or more pagetrees are able to use the template. Ignored for data templates.'
     }) atLeastOneTree?: boolean
   ) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [Data], { description: 'All data entries that use this template.' })
+  @FieldResolver(returns => [Data], { description: 'All data entries that use this template. Empty array for page or component templates.' })
   async data (@Ctx() ctx: Context, @Root() template: Template, @Arg('filter', { nullable: true }) filter?: DataFilter) {
     throw new UnimplementedError()
   }
