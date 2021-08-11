@@ -18,6 +18,7 @@ import { UserAccessResolver, UserPermissionsResolver, UserResolver } from './use
 import { DataFolderPermissionsResolver, DataFolderResolver } from './datafolder'
 import { GroupPermissionsResolver, GroupResolver } from './group'
 import { GlobalRulePermissionsResolver, GlobalRuleResolver } from './globalrule/globalrule.resolver'
+import { VersionResolver } from './version'
 
 async function main () {
   const server = new GQLServer()
@@ -55,7 +56,8 @@ async function main () {
       TemplatePermissionsResolver,
       UserResolver,
       UserAccessResolver,
-      UserPermissionsResolver
+      UserPermissionsResolver,
+      VersionResolver
     ],
     scalarsMap: [
       { type: UrlSafeString, scalar: UrlSafeStringScalar },

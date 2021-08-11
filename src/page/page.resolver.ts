@@ -7,6 +7,7 @@ import { JsonData } from '../scalars/jsondata'
 import { Site } from '../site'
 import { Template, TemplateFilter } from '../template'
 import { User } from '../user'
+import { ObjectVersion } from '../version'
 import { VersionedService } from '../versionedservice'
 import { Page, PageFilter, PagePermission, PagePermissions } from './page.model'
 
@@ -51,10 +52,10 @@ export class PageResolver {
 
   @FieldResolver(returns => JsonData)
   async data (@Ctx() ctx: Context, @Root() page: Page,
-    @Arg('published', { nullable: true, description: 'Return the published version of the data.' }) published?: boolean,
-    @Arg('version', type => Int, { nullable: true }) version?: number
+    @Arg('published', { nullable: true, description: 'Return the published version of the data. When true, version arg is ignored.' }) published?: boolean,
+    @Arg('version', type => Int, { nullable: true, description: 'Return the specified version of the data. Ignored when published arg is true.' }) version?: number
   ) {
-    const versioned = await ctx.svc(VersionedService).get(page.dataId)
+    const versioned = await ctx.svc(VersionedService).get(page.dataId, { tag: published ? 'published' : undefined, version })
     return versioned!.data
   }
 
@@ -100,6 +101,11 @@ export class PageResolver {
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this page.' })
   async roles (@Ctx() ctx: Context, @Root() page: Page, @Arg('withPermission', type => [PagePermission]) withPermission: PagePermission[]) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all versions of this page. One of the version numbers can be passed to the data property in order to retrieve that version of the data.' })
+  async versions (@Ctx() ctx: Context, @Root() page: Page) {
     throw new UnimplementedError()
   }
 

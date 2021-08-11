@@ -7,6 +7,7 @@ import { JsonData } from '../scalars/jsondata'
 import { Site } from '../site'
 import { Template } from '../template'
 import { User } from '../user'
+import { ObjectVersion } from '../version'
 import { VersionedService } from '../versionedservice'
 import { Data, DataFilter, DataPermission, DataPermissions } from './data.model'
 
@@ -27,7 +28,7 @@ export class DataResolver {
     @Arg('published', { nullable: true, description: 'Return the published version of the data.' }) published?: boolean,
     @Arg('version', type => Int, { nullable: true }) version?: number
   ) {
-    const versioned = await ctx.svc(VersionedService).get(data.dataId)
+    const versioned = await ctx.svc(VersionedService).get(data.dataId, { version })
     return versioned!.data
   }
 
@@ -73,6 +74,11 @@ export class DataResolver {
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this page.' })
   async roles (@Ctx() ctx: Context, @Root() data: Data, @Arg('withPermission', type => [DataPermission]) withPermission: DataPermission[]) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all versions of this data entry. One of the version numbers can be passed to the data property in order to retrieve that version.' })
+  async versions (@Ctx() ctx: Context, @Root() data: Data) {
     throw new UnimplementedError()
   }
 
