@@ -2,7 +2,7 @@ import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Group, GroupFilter } from '../group'
 import { User, UserFilter } from '../user'
-import { Role, RoleFilter, RolePermissions, Rule } from './role.model'
+import { Role, RoleFilter, RolePermissions, Rule, RuleTypes } from './role.model'
 
 @Resolver(of => Role)
 export class RoleResolver {
@@ -12,7 +12,7 @@ export class RoleResolver {
   }
 
   @FieldResolver(returns => [Rule])
-  async rules (@Ctx() ctx: Context, @Root() role: Role) {
+  async rules (@Ctx() ctx: Context, @Root() role: Role, @Arg('types', type => [RuleTypes]) types: RuleTypes[]) {
     throw new UnimplementedError()
   }
 
@@ -32,7 +32,10 @@ export class RoleResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => RolePermissions)
+  @FieldResolver(returns => RolePermissions, {
+    description: `Reveal the simplified results after all authorization rules are taken into account
+      for the current user. Makes it easy to light up, disable, or hide buttons in the UI.`
+  })
   permissions (@Root() role: Role) {
     return role
   }

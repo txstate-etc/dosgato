@@ -1,9 +1,20 @@
-import { createUnionType, Field, InputType, Int, ObjectType } from 'type-graphql'
+import { createUnionType, Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { AssetRule } from '../assetrule'
 import { DataRule } from '../datarule'
 import { GlobalRule } from '../globalrule/globalrule.model'
 import { PageRule } from '../pagerule'
 import { SiteRule } from '../siterule'
+
+export enum RuleTypes {
+  GLOBAL = 'global',
+  SITE = 'site',
+  PAGE = 'page',
+  ASSET = 'asset',
+  DATA = 'data'
+}
+registerEnumType(RuleTypes, {
+  name: 'RuleTypes'
+})
 
 export const Rule = createUnionType({
   name: 'Rule',

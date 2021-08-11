@@ -1,5 +1,6 @@
 import { Field, InputType, Int, ObjectType } from 'type-graphql'
 import { RulePathMode } from '../pagerule'
+import { RuleTypes } from '../role'
 
 @ObjectType()
 @InputType()
@@ -32,6 +33,12 @@ export class AssetRuleGrants {
 
 @ObjectType({ description: 'A rule that grants asset-related privileges.' })
 export class AssetRule {
+  @Field(type => Int)
+  id: number
+
+  @Field(type => RuleTypes, { description: 'The rule type as needed by the Role.rules types argument.' })
+  type: string = RuleTypes.ASSET
+
   @Field({ description: 'The path for which this rule grants privileges. Use `mode` to control inheritance behavior.' })
   path: string
 
@@ -45,8 +52,9 @@ export class AssetRule {
   siteId?: number
 
   constructor (row: any) {
-    this.roleId = row.role_id
-    this.siteId = row.site_id
+    this.id = row.id
+    this.roleId = row.roleId
+    this.siteId = row.siteId
     this.path = row.path
     this.mode = row.mode
     this.grants = new AssetRuleGrants(row)

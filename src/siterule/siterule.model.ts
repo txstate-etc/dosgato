@@ -1,4 +1,5 @@
 import { Field, InputType, Int, ObjectType } from 'type-graphql'
+import { RuleTypes } from '../role'
 
 @ObjectType({ description: 'A site rule grants permissions applicable to a site itself, like the ability to launch the site on a particular subdomain. It can also grant permissions on all sites by leaving the siteId null. Granting access to multiple sites requires multiple rules, one per site.' })
 @InputType()
@@ -35,6 +36,12 @@ export class SiteRuleGrants {
 
 @ObjectType({ description: 'A rule that grants site-related privileges.' })
 export class SiteRule {
+  @Field(type => Int)
+  id: number
+
+  @Field(type => RuleTypes, { description: 'The rule type as needed by the Role.rules types argument.' })
+  type: string = RuleTypes.SITE
+
   @Field({ description: 'Permissions granted by this rule.' })
   grants: SiteRuleGrants
 
@@ -42,8 +49,9 @@ export class SiteRule {
   siteId?: number
 
   constructor (row: any) {
-    this.roleId = row.role_id
-    this.siteId = row.site_id
+    this.id = row.id
+    this.roleId = row.roleId
+    this.siteId = row.siteId
     this.grants = new SiteRuleGrants(row)
   }
 }

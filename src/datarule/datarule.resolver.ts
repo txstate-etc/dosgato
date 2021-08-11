@@ -2,6 +2,7 @@ import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Role } from '../role'
 import { Site } from '../site'
+import { Template } from '../template'
 import { DataRule, DataRulePermissions } from './datarule.model'
 
 @Resolver(of => DataRule)
@@ -13,6 +14,11 @@ export class DataRuleResolver {
 
   @FieldResolver(returns => Site, { nullable: true })
   async site (@Ctx() ctx: Context, @Root() datarule: DataRule) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => Template, { nullable: true })
+  async template (@Ctx() ctx: Context, @Root() datarule: DataRule) {
     throw new UnimplementedError()
   }
 

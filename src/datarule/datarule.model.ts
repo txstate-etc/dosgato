@@ -1,5 +1,5 @@
 import { Field, InputType, Int, ObjectType } from 'type-graphql'
-import { UrlSafeString } from '../scalars/urlsafestring'
+import { RuleTypes } from '../role'
 
 @ObjectType()
 @InputType()
@@ -38,20 +38,21 @@ export class DataRuleGrants {
   }
 }
 
-@ObjectType({ description: 'A rule that grants asset-related privileges.' })
+@ObjectType({ description: 'A rule that grants data-related privileges.' })
 export class DataRule {
   @Field(type => Int)
   id: number
 
-  @Field({ nullable: true, description: 'The data type this rule grants privileges for. Null means it applies to all data types.' })
-  type?: UrlSafeString
+  @Field(type => RuleTypes, { description: 'The rule type as needed by the Role.rules types argument.' })
+  type: string = RuleTypes.DATA
 
   @Field({ description: 'Permissions granted by this rule.' })
   grants: DataRuleGrants
 
-  @Field({ nullable: true, description: 'Folder to which this rule should apply. We take a path so that it could apply to the same folder name in multiple sites if site is left null.' })
+  @Field({ nullable: true, description: 'Folder to which this rule should apply. We take a path so that it could apply to the same folder name in multiple sites or multiple template types, if site or template is left null.' })
   path?: string
 
+  templateId?: number
   roleId: number
   siteId?: number
 
