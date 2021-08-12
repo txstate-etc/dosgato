@@ -3,7 +3,7 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Asset, AssetFilter, AssetPermission } from '../asset'
 import { AssetFolder } from '../assetfolder'
 import { Data, DataFilter, DataPermission } from '../data'
-import { DataFolder } from '../datafolder'
+import { DataFolder, DataFolderFilter } from '../datafolder'
 import { PagePermission } from '../page'
 import { PageTree } from '../pagetree'
 import { Role } from '../role'
@@ -38,17 +38,17 @@ export class SiteResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [DataFolder], { description: 'Data folders that belong to this site. There is no root folder since data folders are a single-depth concept.' })
-  async datafolders (@Ctx() ctx: Context, @Root() site: Site) {
+  @FieldResolver(returns => [DataFolder], { description: 'Data folders that belong to this site. There is no root folder since data folders are single-depth.' })
+  async datafolders (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter') filter: DataFolderFilter) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions anywhere on this site.' })
+  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions anywhere on this site, or any permission if null.' })
   async roles (@Ctx() ctx: Context, @Root() site: Site,
-    @Arg('withSitePermission', type => [SitePermission]) withSitePermission: SitePermission[],
-    @Arg('withAssetPermission', type => [AssetPermission]) withAssetPermission: AssetPermission[],
-    @Arg('withDataPermission', type => [DataPermission]) withDataPermission: DataPermission[],
-    @Arg('withPagePermission', type => [PagePermission]) withPagePermission: PagePermission[]
+    @Arg('withSitePermission', type => [SitePermission], { nullable: true }) withSitePermission?: SitePermission[],
+    @Arg('withAssetPermission', type => [AssetPermission], { nullable: true }) withAssetPermission?: AssetPermission[],
+    @Arg('withDataPermission', type => [DataPermission], { nullable: true }) withDataPermission?: DataPermission[],
+    @Arg('withPagePermission', type => [PagePermission], { nullable: true }) withPagePermission?: PagePermission[]
   ) {
     throw new UnimplementedError()
   }

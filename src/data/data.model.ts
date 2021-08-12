@@ -1,11 +1,13 @@
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
-import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
 @ObjectType()
 export class Data {
-  @Field(type => Int)
-  id: number
+  internalId: number
+
+  @Field(type => ID, { description: 'A globally unique identifier for this data. Should be used any time content links to data, so that content can migrate to new instances and point at the same thing.' })
+  id: string
 
   @Field({ description: 'Data has been soft-deleted but is still recoverable.' })
   deleted: boolean
@@ -13,15 +15,17 @@ export class Data {
   @Field({ nullable: true, description: 'Date this data was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
-  deletedBy: number|null
-  templateId: number
+  deletedBy: string|null
   dataId: string
-  folderId: number|null
-  siteId: number|null
+  folderId: string|null
+  siteId: string|null
+
+  // template identifier is NOT a property because it's part of the upgradeable data,
+  // we'll have to use the versionedservice indexing to look up data by template id
 
   constructor (row: any) {
-    this.id = row.id
-    this.templateId = row.templateId
+    this.internalId = row.id
+    this.id = row.dataId
     this.dataId = row.dataId
     this.folderId = row.folderId
     this.siteId = row.siteId
@@ -33,17 +37,25 @@ export class Data {
 
 @InputType()
 export class DataFilter {
-  @Field(type => [Int], { nullable: true })
-  ids?: number[]
+  // auto-increment ids are for internal use only
+  internalIds?: number[]
+
+  @Field(type => [ID], { nullable: true })
+  guids?: string[]
 
   @Field({ nullable: true, description: 'true -> return only global data, false -> return only data that belongs to some site, null -> return all data' })
   global?: boolean
 
-  @Field(type => [Int], { nullable: true, description: 'Return data belonging to one of the specified sites.' })
-  siteIds?: number[]
+  @Field(type => [String], { nullable: true })
+  folderIds?: string[]
 
-  @Field(type => [Int], { nullable: true, description: 'Return data using one of the specified templates.' })
-  templateIds?: number[]
+  folderInternalIds?: number[]
+
+  @Field(type => [ID], { nullable: true, description: 'Return data belonging to one of the specified sites.' })
+  siteIds?: string[]
+
+  @Field(type => [ID], { nullable: true, description: 'Return data using one of the specified templates.' })
+  templateKeys?: string[]
 
   @Field(type => Boolean, { nullable: false, description: 'true -> return only deleted data, false -> return only nondeleted data, undefined -> return all data' })
   deleted?: boolean

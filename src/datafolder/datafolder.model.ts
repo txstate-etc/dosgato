@@ -1,12 +1,14 @@
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
-import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
 
 @ObjectType()
 export class DataFolder {
-  @Field(type => Int)
-  id: number
+  internalId: number
+
+  @Field(type => ID)
+  id: string
 
   @Field({ description: 'Name for the folder. Will be used when constructing the path.' })
   name: UrlSafeString
@@ -17,13 +19,14 @@ export class DataFolder {
   @Field({ nullable: true, description: 'Date this folder was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
-  deletedBy: number|null
-  type: string
+  templateKey: string
+  deletedBy: string|null
 
   constructor (row: any) {
-    this.id = row.id
+    this.internalId = row.id
+    this.id = row.guid
     this.name = row.name
-    this.type = row.type
+    this.templateKey = row.templateKey
     this.deleted = isNotNull(row.deleted)
     this.deletedAt = DateTime.fromJSDate(row.deleted)
     this.deletedBy = row.deletedBy
@@ -32,14 +35,18 @@ export class DataFolder {
 
 @InputType()
 export class DataFolderFilter {
-  @Field(type => [Int], { nullable: true })
-  ids?: number[]
+  internalIds?: number[]
 
-  @Field(type => [Int], { nullable: true, description: 'Return folders that are associated with one of the given sites.' })
-  siteIds?: number[]
+  @Field(type => [ID])
+  ids?: string[]
 
-  @Field(type => Boolean, { nullable: true, description: 'Return folders that are the root folder of a site.' })
-  root?: boolean
+  @Field(type => [ID], { nullable: true, description: 'Return folders designated for data of one of the given templates.' })
+  templateKeys?: string[]
+
+  templateIds?: number[]
+
+  @Field(type => [ID], { nullable: true, description: 'Return folders that are associated with one of the given sites.' })
+  siteIds?: string[]
 
   @Field(type => Boolean, { nullable: false, description: 'true -> return only deleted folders, false -> return only nondeleted folders, undefined -> return all folders' })
   deleted?: boolean

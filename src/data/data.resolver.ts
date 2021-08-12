@@ -72,8 +72,8 @@ export class DataResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this page.' })
-  async roles (@Ctx() ctx: Context, @Root() data: Data, @Arg('withPermission', type => [DataPermission]) withPermission: DataPermission[]) {
+  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this page, or any permission if null.' })
+  async roles (@Ctx() ctx: Context, @Root() data: Data, @Arg('withPermission', type => [DataPermission], { nullable: true }) withPermission?: DataPermission[]) {
     throw new UnimplementedError()
   }
 

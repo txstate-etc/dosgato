@@ -1,4 +1,4 @@
-import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
 @ObjectType({
   description: 'A pagetree represents the page hierarchy in a site. A site may ' +
@@ -6,22 +6,22 @@ import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphq
     'would be archives or sandboxes.'
 })
 export class PageTree {
-  @Field(type => Int)
-  id: number
+  @Field(type => ID)
+  id: string
 
   @Field()
   name: string
 
   constructor (row: any) {
-    this.id = row.id
+    this.id = String(row.id)
     this.name = row.name
   }
 }
 
 @InputType()
 export class PageTreeFilter {
-  @Field(type => [Int])
-  ids?: number[]
+  @Field(type => [ID])
+  ids?: string[]
 }
 
 @ObjectType()

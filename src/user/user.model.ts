@@ -1,10 +1,10 @@
 import { DateTime } from 'luxon'
-import { Field, InputType, Int, ObjectType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType } from 'type-graphql'
 
 @ObjectType()
 export class User {
-  @Field(type => Int)
-  id: number
+  @Field(type => ID)
+  id: string
 
   @Field()
   login: string
@@ -20,7 +20,7 @@ export class User {
   lastlogout: DateTime
 
   constructor (row: any) {
-    this.id = row.id
+    this.id = String(row.id)
     this.login = row.login
     this.name = row.name
     this.email = row.email
@@ -35,8 +35,8 @@ export class UserFilter {
   @Field({ nullable: true })
   self?: boolean
 
-  @Field(type => [Int], { nullable: true })
-  ids?: number[]
+  @Field(type => [ID], { nullable: true })
+  ids?: string[]
 
   @Field({ nullable: true, description: 'true -> enabled users, false -> disabled users, null -> all users' })
   enabled?: boolean

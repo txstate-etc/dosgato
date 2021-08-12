@@ -99,8 +99,8 @@ export class PageResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this page.' })
-  async roles (@Ctx() ctx: Context, @Root() page: Page, @Arg('withPermission', type => [PagePermission]) withPermission: PagePermission[]) {
+  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this page, or any permission if null.' })
+  async roles (@Ctx() ctx: Context, @Root() page: Page, @Arg('withPermission', type => [PagePermission], { nullable: true }) withPermission?: PagePermission[]) {
     throw new UnimplementedError()
   }
 

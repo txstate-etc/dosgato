@@ -1,4 +1,4 @@
-import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { RuleTypes } from '../role'
 
 export enum RulePathMode {
@@ -59,8 +59,8 @@ export class PageRuleGrants {
 
 @ObjectType({ description: 'A rule that grants page-related privileges.' })
 export class PageRule {
-  @Field(type => Int)
-  id: number
+  @Field(type => ID)
+  id: string
 
   @Field(type => RuleTypes, { description: 'The rule type as needed by the Role.rules types argument.' })
   type: string = RuleTypes.PAGE
@@ -74,15 +74,15 @@ export class PageRule {
   @Field({ description: 'Permissions granted by this rule.' })
   grants: PageRuleGrants
 
-  roleId: number
-  siteId?: number
-  pagetreeId?: number
+  roleId: string
+  siteId?: string
+  pagetreeId?: string
 
   constructor (row: any) {
-    this.id = row.id
-    this.roleId = row.roleId
-    this.siteId = row.siteId
-    this.pagetreeId = row.pagetreeId
+    this.id = String(row.id)
+    this.roleId = String(row.roleId)
+    this.siteId = String(row.siteId)
+    this.pagetreeId = String(row.pagetreeId)
     this.path = row.path
     this.mode = row.mode
     this.grants = new PageRuleGrants(row)
@@ -91,14 +91,14 @@ export class PageRule {
 
 @InputType()
 export class PageRuleFilter {
-  @Field(type => [Int], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that apply to all sites.' })
-  siteIds?: (number|null)[]
+  @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that apply to all sites.' })
+  siteIds?: (string|null)[]
 
-  @Field(type => [Int], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that apply to all pagetrees, or 0 to return rules that apply only to the active pagetree.' })
-  pagetreeIds?: (number|null)[]
+  @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that apply to all pagetrees, or 0 to return rules that apply only to the active pagetree.' })
+  pagetreeIds?: (string|null)[]
 
-  @Field(type => [Int], { nullable: true })
-  roleIds?: number[]
+  @Field(type => [ID], { nullable: true })
+  roleIds?: string[]
 
   @Field(type => [String], { nullable: true, description: 'Return rules that apply to any of the given paths.' })
   paths?: string[]

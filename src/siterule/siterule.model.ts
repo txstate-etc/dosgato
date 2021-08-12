@@ -1,4 +1,4 @@
-import { Field, InputType, Int, ObjectType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleTypes } from '../role'
 
 @ObjectType({ description: 'A site rule grants permissions applicable to a site itself, like the ability to launch the site on a particular subdomain. It can also grant permissions on all sites by leaving the siteId null. Granting access to multiple sites requires multiple rules, one per site.' })
@@ -36,8 +36,8 @@ export class SiteRuleGrants {
 
 @ObjectType({ description: 'A rule that grants site-related privileges.' })
 export class SiteRule {
-  @Field(type => Int)
-  id: number
+  @Field(type => ID)
+  id: string
 
   @Field(type => RuleTypes, { description: 'The rule type as needed by the Role.rules types argument.' })
   type: string = RuleTypes.SITE
@@ -45,24 +45,24 @@ export class SiteRule {
   @Field({ description: 'Permissions granted by this rule.' })
   grants: SiteRuleGrants
 
-  roleId: number
-  siteId?: number
+  roleId: string
+  siteId?: string
 
   constructor (row: any) {
-    this.id = row.id
-    this.roleId = row.roleId
-    this.siteId = row.siteId
+    this.id = String(row.id)
+    this.roleId = String(row.roleId)
+    this.siteId = row.siteId ? String(row.siteId) : undefined
     this.grants = new SiteRuleGrants(row)
   }
 }
 
 @InputType()
 export class SiteRuleFilter {
-  @Field(type => [Int], { nullable: true })
-  roleIds?: number[]
+  @Field(type => [ID], { nullable: true })
+  roleIds?: string[]
 
-  @Field(type => [Int], { nullable: true })
-  siteIds?: number[]
+  @Field(type => [ID], { nullable: true })
+  siteIds?: string[]
 
   @Field({ nullable: true, description: 'Return rules that grant the launch permission.' })
   launch?: boolean

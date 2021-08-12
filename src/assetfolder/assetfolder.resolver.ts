@@ -38,8 +38,8 @@ export class AssetFolderResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this folder.' })
-  async roles (@Ctx() ctx: Context, @Root() data: Asset, @Arg('withPermission', type => [AssetFolderPermission]) withPermission: AssetFolderPermission[]) {
+  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this folder, or any permission if null.' })
+  async roles (@Ctx() ctx: Context, @Root() data: Asset, @Arg('withPermission', type => [AssetFolderPermission], { nullable: true }) withPermission?: AssetFolderPermission[]) {
     throw new UnimplementedError()
   }
 

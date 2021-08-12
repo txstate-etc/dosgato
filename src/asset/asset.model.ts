@@ -1,11 +1,13 @@
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
-import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
 @ObjectType()
 export class Asset {
-  @Field(type => Int)
-  id: number
+  internalId: number // auto_increment id for internal use only
+
+  @Field(type => ID, { description: 'A globally unique identifier for this asset. Should be used any time content links to an asset, so that content can migrate to new instances and point at the same asset.' })
+  id: string
 
   @Field({ description: 'Filename that will be used when downloading the asset. May be different than the filename of the original upload.' })
   name: string
@@ -24,27 +26,32 @@ export class Asset {
   dataId: string
 
   constructor (row: any) {
-    this.id = row.id
+    this.internalId = row.id
+    this.id = row.dataId
     this.name = row.name
-    this.folderId = row.folder_id
-    this.dataId = row.data_id
-    this.lastRawDownload = row.lastdownload
+    this.folderId = row.folderId
+    this.dataId = row.dataId
+    this.lastRawDownload = row.lastDownload
     this.deleted = isNotNull(row.deleted)
     this.deletedAt = DateTime.fromJSDate(row.deleted)
-    this.deletedBy = row.deleted_by
+    this.deletedBy = row.deletedBy
   }
 }
 
 @InputType()
 export class AssetFilter {
-  @Field(type => [Int], { nullable: true })
-  ids?: number[]
+  internalIds?: number[]
 
-  @Field(type => [Int], { nullable: true })
-  siteIds?: number[]
+  @Field(type => [ID], { nullable: true })
+  ids?: string[]
 
-  @Field(type => [Int], { nullable: true })
-  folderIds?: number[]
+  @Field(type => [ID], { nullable: true })
+  siteIds?: string[]
+
+  @Field(type => [ID], { nullable: true })
+  folderIds?: string[]
+
+  folderInternalIds?: number[]
 
   @Field({ nullable: true, description: 'true -> return assets referenced by any page, false -> return assets not referenced by any page, null -> return all assets' })
   referenced?: boolean

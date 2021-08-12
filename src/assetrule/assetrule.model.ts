@@ -1,4 +1,4 @@
-import { Field, InputType, Int, ObjectType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RulePathMode } from '../pagerule'
 import { RuleTypes } from '../role'
 
@@ -33,8 +33,8 @@ export class AssetRuleGrants {
 
 @ObjectType({ description: 'A rule that grants asset-related privileges.' })
 export class AssetRule {
-  @Field(type => Int)
-  id: number
+  @Field(type => ID)
+  id: string
 
   @Field(type => RuleTypes, { description: 'The rule type as needed by the Role.rules types argument.' })
   type: string = RuleTypes.ASSET
@@ -48,13 +48,13 @@ export class AssetRule {
   @Field({ description: 'Permissions granted by this rule.' })
   grants: AssetRuleGrants
 
-  roleId: number
-  siteId?: number
+  roleId: string
+  siteId?: string
 
   constructor (row: any) {
-    this.id = row.id
-    this.roleId = row.roleId
-    this.siteId = row.siteId
+    this.id = String(row.id)
+    this.roleId = String(row.roleId)
+    this.siteId = String(row.siteId)
     this.path = row.path
     this.mode = row.mode
     this.grants = new AssetRuleGrants(row)
@@ -63,11 +63,11 @@ export class AssetRule {
 
 @InputType()
 export class AssetRuleFilter {
-  @Field(type => [Int], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that apply to all sites.' })
-  siteIds?: (number|null)[]
+  @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that are NOT limited to a site.' })
+  siteIds?: (string|null)[]
 
-  @Field(type => [Int], { nullable: true })
-  roleIds?: number[]
+  @Field(type => [ID], { nullable: true })
+  roleIds?: string[]
 
   @Field(type => [String], { nullable: true, description: 'Return rules that apply to any of the given paths.' })
   paths?: string[]

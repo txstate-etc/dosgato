@@ -1,12 +1,12 @@
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
-import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
 
 @ObjectType()
 export class Page {
-  @Field(type => Int)
-  id: number
+  @Field(type => ID)
+  id: string
 
   @Field({ description: 'Page names are used to construct the URL path to each page.' })
   name: UrlSafeString
@@ -30,47 +30,47 @@ export class Page {
   @Field({ nullable: true, description: 'Date this page was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
-  deletedBy: number|null
-  pageTreeId: number
+  deletedBy: string|null
+  pageTreeId: string
   dataId: string
 
   constructor (row: any) {
-    this.id = row.id
+    this.id = String(row.id)
     this.name = row.name
-    this.pageTreeId = row.pagetree_id
-    this.dataId = row.data_id
-    this.linkId = row.link_id
+    this.pageTreeId = String(row.pagetreeId)
+    this.dataId = row.dataId
+    this.linkId = row.linkId
     this.deleted = isNotNull(row.deleted)
     this.deletedAt = DateTime.fromJSDate(row.deleted)
-    this.deletedBy = row.deleted_by
+    this.deletedBy = String(row.deletedBy)
   }
 }
 
 @InputType()
 export class PageFilter {
-  @Field(type => [Int], { nullable: true })
-  ids?: number[]
+  @Field(type => [ID], { nullable: true })
+  ids?: string[]
 
   @Field(type => [String], { nullable: true, description: 'Return pages with the given link ids.' })
   linkIds?: string[]
 
-  @Field(type => [Int], { nullable: true, description: 'Return pages that belong to any of the given siteTree ids.' })
-  siteTreeIds?: number[]
+  @Field(type => [ID], { nullable: true, description: 'Return pages that belong to any of the given siteTree ids.' })
+  siteTreeIds?: string[]
 
-  @Field(type => [Int], { nullable: true, description: 'Return pages whose parent page is any of the given page ids.' })
-  parentPageIds?: number[]
+  @Field(type => [ID], { nullable: true, description: 'Return pages whose parent page is any of the given page ids.' })
+  parentPageIds?: string[]
 
-  @Field(type => [Int], { nullable: true, description: 'Return pages using any of the given templates.' })
-  templateIds?: string[]
+  @Field(type => [ID], { nullable: true, description: 'Return pages using any of the given templates.' })
+  templateKeys?: string[]
 
   @Field(type => [String], { nullable: true, description: 'Return pages that contain a link to any of the given link ids.' })
   linkIdsReferenced?: string[]
 
-  @Field(type => [Int], { nullable: true, description: 'Return pages referenced (linked to) by any of the given pages.' })
-  referencedByPageIds?: number[]
+  @Field(type => [ID], { nullable: true, description: 'Return pages referenced (linked to) by any of the given pages.' })
+  referencedByPageIds?: string[]
 
-  @Field(type => [Int], { nullable: true, description: 'Return pages that contain a link to any of the given asset ids.' })
-  assetIdsReferenced?: number[]
+  @Field(type => [ID], { nullable: true, description: 'Return pages that contain a link to any of the given assets.' })
+  assetKeysReferenced?: string[]
 
   @Field(type => Boolean, { nullable: true, description: 'Only return pages in the active pagetree of their site.' })
   activePagetree?: boolean

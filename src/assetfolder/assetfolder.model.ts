@@ -1,12 +1,14 @@
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
-import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
 
 @ObjectType()
 export class AssetFolder {
-  @Field(type => Int)
-  id: number
+  internalId: number
+
+  @Field(type => ID)
+  id: string
 
   @Field({ description: 'Name for the folder. Will be used when constructing the path.' })
   name: UrlSafeString
@@ -21,28 +23,35 @@ export class AssetFolder {
   parentId: number
 
   constructor (row: any) {
-    this.id = row.id
+    this.internalId = row.id
+    this.id = row.guid
     this.name = row.name
-    this.parentId = row.parent_id
+    this.parentId = row.parentId
     this.deleted = isNotNull(row.deleted)
     this.deletedAt = DateTime.fromJSDate(row.deleted)
-    this.deletedBy = row.deleted_by
+    this.deletedBy = row.deletedBy
   }
 }
 
 @InputType()
 export class AssetFolderFilter {
-  @Field(type => [Int], { nullable: true })
-  ids?: number[]
+  internalIds?: number[]
 
-  @Field(type => [Int], { nullable: true })
-  siteIds?: number[]
+  @Field(type => [ID], { nullable: true })
+  ids?: string[]
 
-  @Field(type => [Int], { nullable: true, description: 'Return folders that are parents of the given folder ids.' })
-  parentOfFolderIds?: number[]
+  @Field(type => [ID], { nullable: true })
+  siteIds?: string[]
 
-  @Field(type => [Int], { nullable: true, description: 'Return folders that are children of the given folder ids.' })
-  childOfFolderIds?: number[]
+  @Field(type => [ID], { nullable: true, description: 'Return folders that are parents of the given folder ids.' })
+  parentOfFolderIds?: string[]
+
+  parentOfFolderInternalIds?: number[]
+
+  @Field(type => [ID], { nullable: true, description: 'Return folders that are children of the given folder ids.' })
+  childOfFolderIds?: string[]
+
+  childOfFolderInternalIds?: number[]
 
   @Field(type => Boolean, { nullable: true, description: 'Return folders that are the root folder of a site.' })
   root?: boolean

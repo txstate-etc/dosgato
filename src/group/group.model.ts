@@ -1,26 +1,26 @@
-import { Field, InputType, Int, ObjectType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType } from 'type-graphql'
 
 @ObjectType()
 export class Group {
-  @Field()
-  id: number
+  @Field(type => ID)
+  id: string
 
   @Field()
   name: string
 
   constructor (row: any) {
-    this.id = row.id
+    this.id = String(row.id)
     this.name = row.name
   }
 }
 
 @InputType()
 export class GroupFilter {
-  @Field(type => [Int], { nullable: true })
-  ids?: number[]
+  @Field(type => [ID], { nullable: true })
+  ids?: string[]
 
-  @Field(type => [Int], { nullable: true, description: 'Return groups managed by any of the specified manager ids.' })
-  managerIds?: number[]
+  @Field(type => [ID], { nullable: true, description: 'Return groups managed by any of the specified manager ids.' })
+  managerIds?: string[]
 }
 
 @ObjectType()

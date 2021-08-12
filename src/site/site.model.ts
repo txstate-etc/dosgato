@@ -1,23 +1,23 @@
-import { Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
 @ObjectType()
 export class Site {
-  @Field(type => Int)
-  id: number
+  @Field(type => ID)
+  id: string
 
   @Field()
   name: string
 
   constructor (row: any) {
-    this.id = row.id
+    this.id = String(row.id)
     this.name = row.name
   }
 }
 
 @InputType()
 export class SiteFilter {
-  @Field(type => [Int])
-  ids?: number[]
+  @Field(type => [ID])
+  ids?: string[]
 }
 
 @ObjectType()

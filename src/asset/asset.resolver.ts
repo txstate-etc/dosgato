@@ -67,8 +67,8 @@ export class AssetResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this asset.' })
-  async roles (@Ctx() ctx: Context, @Root() data: Asset, @Arg('withPermission', type => [AssetPermission]) withPermission: AssetPermission[]) {
+  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this asset, or any permission if null.' })
+  async roles (@Ctx() ctx: Context, @Root() data: Asset, @Arg('withPermission', type => [AssetPermission], { nullable: true }) withPermission?: AssetPermission[]) {
     throw new UnimplementedError()
   }
 

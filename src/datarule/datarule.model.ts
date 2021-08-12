@@ -1,4 +1,4 @@
-import { Field, InputType, Int, ObjectType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleTypes } from '../role'
 
 @ObjectType()
@@ -40,8 +40,8 @@ export class DataRuleGrants {
 
 @ObjectType({ description: 'A rule that grants data-related privileges.' })
 export class DataRule {
-  @Field(type => Int)
-  id: number
+  @Field(type => ID)
+  id: string
 
   @Field(type => RuleTypes, { description: 'The rule type as needed by the Role.rules types argument.' })
   type: string = RuleTypes.DATA
@@ -53,13 +53,14 @@ export class DataRule {
   path?: string
 
   templateId?: number
-  roleId: number
-  siteId?: number
+  roleId: string
+  siteId?: string
 
   constructor (row: any) {
-    this.id = row.id
-    this.roleId = row.roleId
-    this.siteId = row.siteId
+    this.id = String(row.id)
+    this.roleId = String(row.roleId)
+    this.siteId = String(row.siteId)
+    this.templateId = row.templateId
     this.type = row.type
     this.grants = new DataRuleGrants(row)
     this.path = row.path

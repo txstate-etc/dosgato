@@ -1,6 +1,7 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Data, DataFilter } from '../data'
+import { Template } from '../template'
 import { User } from '../user'
 import { DataFolder, DataFolderPermission, DataFolderPermissions } from './datafolder.model'
 
@@ -11,6 +12,11 @@ export class DataFolderResolver {
     throw new UnimplementedError()
   }
 
+  @FieldResolver(returns => Template, { description: 'This folder may only contain data with this template.' })
+  async template (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    throw new UnimplementedError()
+  }
+
   @FieldResolver(returns => [Data])
   async data (@Ctx() ctx: Context, @Root() folder: DataFolder,
     @Arg('filter', { nullable: true }) filter: DataFilter
@@ -18,9 +24,9 @@ export class DataFolderResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [User], { description: 'Returns a list of all roles with at least one of the specified permissions on this folder.' })
+  @FieldResolver(returns => [User], { description: 'Returns a list of all roles with at least one of the specified permissions on this folder, or any permission if null.' })
   async roles (@Ctx() ctx: Context, @Root() folder: DataFolder,
-    @Arg('withPermission', type => [DataFolderPermission]) withPermission: DataFolderPermission[]
+    @Arg('withPermission', type => [DataFolderPermission], { nullable: true }) withPermission?: DataFolderPermission[]
   ) {
     throw new UnimplementedError()
   }

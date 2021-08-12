@@ -16,13 +16,13 @@ export class ObjectVersion {
   @Field(type => [String])
   tags: string[]
 
-  userId: number
+  userId: string
 
   constructor (row: Version) {
     this.version = row.version
     this.date = DateTime.fromJSDate(row.date)
     this.comment = row.comment
     this.tags = row.tags
-    this.userId = parseInt(row.user)
+    this.userId = row.user
   }
 }

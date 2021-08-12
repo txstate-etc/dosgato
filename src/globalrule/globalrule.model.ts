@@ -1,4 +1,4 @@
-import { Field, InputType, Int, ObjectType } from 'type-graphql'
+import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleTypes } from '../role'
 
 @ObjectType()
@@ -16,8 +16,8 @@ export class GlobalRuleGrants {
 
 @ObjectType()
 export class GlobalRule {
-  @Field(type => Int)
-  id: number
+  @Field(type => ID)
+  id: string
 
   @Field(type => RuleTypes, { description: 'The rule type as needed by the Role.rules types argument.' })
   type: string = RuleTypes.GLOBAL
@@ -26,7 +26,7 @@ export class GlobalRule {
   grants: GlobalRuleGrants
 
   constructor (row: any) {
-    this.id = row.id
+    this.id = String(row.id)
     this.grants = new GlobalRuleGrants(row)
   }
 }

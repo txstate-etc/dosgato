@@ -1,4 +1,4 @@
-import { createUnionType, Field, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
+import { createUnionType, Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { AssetRule } from '../assetrule'
 import { DataRule } from '../datarule'
 import { GlobalRule } from '../globalrule/globalrule.model'
@@ -23,22 +23,22 @@ export const Rule = createUnionType({
 
 @ObjectType()
 export class Role {
-  @Field(type => Int)
-  id: number
+  @Field(type => ID)
+  id: string
 
   @Field()
   name: string
 
   constructor (row: any) {
-    this.id = row.id
+    this.id = String(row.id)
     this.name = row.name
   }
 }
 
 @InputType()
 export class RoleFilter {
-  @Field(type => [Int])
-  ids?: number[]
+  @Field(type => [ID], { nullable: true })
+  ids?: string[]
 }
 
 @ObjectType()
