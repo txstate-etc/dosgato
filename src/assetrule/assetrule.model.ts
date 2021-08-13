@@ -1,6 +1,6 @@
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RulePathMode } from '../pagerule'
-import { RuleTypes } from '../role'
+import { RuleType } from '../role'
 
 @ObjectType()
 @InputType()
@@ -36,13 +36,13 @@ export class AssetRule {
   @Field(type => ID)
   id: string
 
-  @Field(type => RuleTypes, { description: 'The rule type as needed by the Role.rules types argument.' })
-  type: string = RuleTypes.ASSET
+  @Field(type => RuleType, { description: 'The rule type as needed by the Role.rules types argument.' })
+  type: string = RuleType.ASSET
 
   @Field({ description: 'The path for which this rule grants privileges. Use `mode` to control inheritance behavior.' })
   path: string
 
-  @Field({ description: 'Control whether this rule should apply to the folder or asset at `path`, its descendants, or both. Modes that include descendants have no effect if the path specifies an asset.' })
+  @Field(type => RulePathMode, { description: 'Control whether this rule should apply to the folder or asset at `path`, its descendants, or both. Modes that include descendants have no effect if the path specifies an asset.' })
   mode: RulePathMode
 
   @Field({ description: 'Permissions granted by this rule.' })

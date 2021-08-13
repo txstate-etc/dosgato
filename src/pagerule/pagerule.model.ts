@@ -1,5 +1,5 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { RuleTypes } from '../role'
+import { RuleType } from '../role'
 
 export enum RulePathMode {
   SELF = 0,
@@ -62,8 +62,8 @@ export class PageRule {
   @Field(type => ID)
   id: string
 
-  @Field(type => RuleTypes, { description: 'The rule type as needed by the Role.rules types argument.' })
-  type: string = RuleTypes.PAGE
+  @Field(type => RuleType, { description: 'The rule type as needed by the Role.rules types argument.' })
+  type: string = RuleType.PAGE
 
   @Field({ description: 'The path for which this rule grants privileges. Use `mode` to control inheritance behavior.' })
   path: string

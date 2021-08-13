@@ -5,15 +5,15 @@ import { GlobalRule } from '../globalrule/globalrule.model'
 import { PageRule } from '../pagerule'
 import { SiteRule } from '../siterule'
 
-export enum RuleTypes {
+export enum RuleType {
   GLOBAL = 'global',
   SITE = 'site',
   PAGE = 'page',
   ASSET = 'asset',
   DATA = 'data'
 }
-registerEnumType(RuleTypes, {
-  name: 'RuleTypes'
+registerEnumType(RuleType, {
+  name: 'RuleType'
 })
 
 export const Rule = createUnionType({

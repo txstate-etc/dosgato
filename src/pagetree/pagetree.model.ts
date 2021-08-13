@@ -20,8 +20,11 @@ export class PageTree {
 
 @InputType()
 export class PageTreeFilter {
-  @Field(type => [ID])
+  @Field(type => [ID], { nullable: true })
   ids?: string[]
+
+  @Field({ nullable: true, description: 'true -> primary pagetree for its site, false -> additional pagetree for its site, null -> all pagetrees' })
+  primary?: boolean
 }
 
 @ObjectType()

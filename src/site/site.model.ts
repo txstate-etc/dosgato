@@ -8,9 +8,12 @@ export class Site {
   @Field()
   name: string
 
+  primaryPagetreeId: string
+
   constructor (row: any) {
     this.id = String(row.id)
     this.name = row.name
+    this.primaryPagetreeId = String(row.primaryPagetreeId)
   }
 }
 

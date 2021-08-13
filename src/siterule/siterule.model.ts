@@ -1,5 +1,5 @@
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
-import { RuleTypes } from '../role'
+import { RuleType } from '../role'
 
 @ObjectType({ description: 'A site rule grants permissions applicable to a site itself, like the ability to launch the site on a particular subdomain. It can also grant permissions on all sites by leaving the siteId null. Granting access to multiple sites requires multiple rules, one per site.' })
 @InputType()
@@ -39,8 +39,8 @@ export class SiteRule {
   @Field(type => ID)
   id: string
 
-  @Field(type => RuleTypes, { description: 'The rule type as needed by the Role.rules types argument.' })
-  type: string = RuleTypes.SITE
+  @Field(type => RuleType, { description: 'The rule type as needed by the Role.rules types argument.' })
+  type: string = RuleType.SITE
 
   @Field({ description: 'Permissions granted by this rule.' })
   grants: SiteRuleGrants

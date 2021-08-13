@@ -1,5 +1,5 @@
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
-import { RuleTypes } from '../role'
+import { RuleType } from '../role'
 
 @ObjectType()
 @InputType()
@@ -19,8 +19,8 @@ export class GlobalRule {
   @Field(type => ID)
   id: string
 
-  @Field(type => RuleTypes, { description: 'The rule type as needed by the Role.rules types argument.' })
-  type: string = RuleTypes.GLOBAL
+  @Field(type => RuleType, { description: 'The rule type as needed by the Role.rules types argument.' })
+  type: string = RuleType.GLOBAL
 
   @Field({ description: 'Permissions granted by this rule.' })
   grants: GlobalRuleGrants

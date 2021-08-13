@@ -1,11 +1,11 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
-import { Asset, AssetFilter, AssetPermission } from '../asset'
+import { AssetPermission } from '../asset'
 import { AssetFolder } from '../assetfolder'
 import { Data, DataFilter, DataPermission } from '../data'
 import { DataFolder, DataFolderFilter } from '../datafolder'
-import { PagePermission } from '../page'
-import { PageTree } from '../pagetree'
+import { Page, PagePermission } from '../page'
+import { PageTree, PageTreeFilter } from '../pagetree'
 import { Role } from '../role'
 import { Template, TemplateFilter } from '../template'
 import { User } from '../user'
@@ -19,12 +19,12 @@ export class SiteResolver {
   }
 
   @FieldResolver(returns => [PageTree])
-  async pagetrees (@Ctx() ctx: Context, @Root() site: Site) {
+  async pagetrees (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: PageTreeFilter) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [Asset])
-  async assets (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: AssetFilter) {
+  @FieldResolver(returns => Page)
+  async pageroot (@Ctx() ctx: Context, @Root() site: Site) {
     throw new UnimplementedError()
   }
 

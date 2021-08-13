@@ -35,6 +35,11 @@ export class PageResolver {
     throw new UnimplementedError()
   }
 
+  @FieldResolver(returns => Page)
+  async rootpage (@Ctx() ctx: Context, @Root() page: Page) {
+    throw new UnimplementedError()
+  }
+
   @FieldResolver(returns => [Page], { description: 'Starts with the parent page and proceeds upward. Last element will be the pagetree\'s root page. Empty array if current page is the root page of a pagetree.' })
   async ancestors (@Ctx() ctx: Context, @Root() page: Page) {
     throw new UnimplementedError()

@@ -2,7 +2,7 @@ import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Group, GroupFilter } from '../group'
 import { User, UserFilter } from '../user'
-import { Role, RoleFilter, RolePermissions, Rule, RuleTypes } from './role.model'
+import { Role, RoleFilter, RolePermissions, Rule, RuleType } from './role.model'
 
 @Resolver(of => Role)
 export class RoleResolver {
@@ -12,7 +12,7 @@ export class RoleResolver {
   }
 
   @FieldResolver(returns => [Rule])
-  async rules (@Ctx() ctx: Context, @Root() role: Role, @Arg('types', type => [RuleTypes]) types: RuleTypes[]) {
+  async rules (@Ctx() ctx: Context, @Root() role: Role, @Arg('types', type => [RuleType]) types: RuleType[]) {
     throw new UnimplementedError()
   }
 
