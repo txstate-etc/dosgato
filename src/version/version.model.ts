@@ -2,7 +2,10 @@ import { DateTime } from 'luxon'
 import { ObjectType, Field, Int } from 'type-graphql'
 import { Version } from '../versionedservice'
 
-@ObjectType('Version')
+@ObjectType('Version', {
+  description: `This is metadata pertaining to a historical version of something versionable
+  like a page or data entry.`
+})
 export class ObjectVersion {
   @Field(type => Int)
   version: number
@@ -16,9 +19,11 @@ export class ObjectVersion {
   @Field(type => [String])
   tags: string[]
 
+  id: string
   userId: string
 
   constructor (row: Version) {
+    this.id = row.id
     this.version = row.version
     this.date = DateTime.fromJSDate(row.date)
     this.comment = row.comment

@@ -7,17 +7,17 @@ import { DataRule, DataRulePermissions } from './datarule.model'
 
 @Resolver(of => DataRule)
 export class DataRuleResolver {
-  @FieldResolver(returns => Role)
+  @FieldResolver(returns => Role, { description: 'The role to which this rule belongs.' })
   async role (@Ctx() ctx: Context, @Root() datarule: DataRule) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Site, { nullable: true })
+  @FieldResolver(returns => Site, { nullable: true, description: 'The site to which this rule applies. Null if it applies to all sites.' })
   async site (@Ctx() ctx: Context, @Root() datarule: DataRule) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Template, { nullable: true })
+  @FieldResolver(returns => Template, { nullable: true, description: 'The data template to which this rule applies. Null if it applies to all data templates.' })
   async template (@Ctx() ctx: Context, @Root() datarule: DataRule) {
     throw new UnimplementedError()
   }

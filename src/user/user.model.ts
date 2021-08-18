@@ -7,21 +7,19 @@ export class User {
   id: string
 
   @Field()
-  login: string
-
-  @Field()
   name: string
 
   @Field()
   email: string
 
+  internalId: number
   enabled: boolean
   lastlogin: DateTime
   lastlogout: DateTime
 
   constructor (row: any) {
-    this.id = String(row.id)
-    this.login = row.login
+    this.internalId = row.id
+    this.id = row.login
     this.name = row.name
     this.email = row.email
     this.enabled = row.enabled
@@ -32,7 +30,9 @@ export class User {
 
 @InputType()
 export class UserFilter {
-  @Field({ nullable: true })
+  internalIds?: number[]
+
+  @Field({ nullable: true, description: 'Filter down to only include the authenticated user. Combinations with other filters may not make a lot of sense.' })
   self?: boolean
 
   @Field(type => [ID], { nullable: true })

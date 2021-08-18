@@ -3,11 +3,17 @@ import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Page } from '../page'
 import { PageFilter } from '../page/page.model'
 import { Role } from '../role'
+import { Site } from '../site'
 import { Template, TemplateFilter } from '../template'
 import { PageTree, PageTreePermission, PageTreePermissions } from './pagetree.model'
 
 @Resolver(of => PageTree)
 export class PageTreeResolver {
+  @FieldResolver(returns => Site)
+  async site (@Ctx() ctx: Context, @Root() pagetree: PageTree) {
+    throw new UnimplementedError()
+  }
+
   @FieldResolver(returns => [Page])
   async pages (@Ctx() ctx: Context, @Root() pagetree: PageTree, @Arg('filter', { nullable: true }) filter: PageFilter) {
     throw new UnimplementedError()

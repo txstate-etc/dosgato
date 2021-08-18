@@ -6,7 +6,7 @@ import { Group, GroupPermissions } from './group.model'
 
 @Resolver(of => Group)
 export class GroupResolver {
-  @Query(returns => [Group], { description: 'Groups of users so that groups can be assigned roles instead of individual users. Groups may also be synced to an external system like Active Directory.' })
+  @Query(returns => [Group])
   async groups (@Ctx() ctx: Context) {
     throw new UnimplementedError()
   }

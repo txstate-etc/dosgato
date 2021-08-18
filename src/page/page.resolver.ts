@@ -35,7 +35,7 @@ export class PageResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Page)
+  @FieldResolver(returns => Page, { description: 'May return itself when page is already the root page.' })
   async rootpage (@Ctx() ctx: Context, @Root() page: Page) {
     throw new UnimplementedError()
   }
@@ -89,12 +89,17 @@ export class PageResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Boolean, { description: 'True if the page has a version marked as published AND the page is in the currently active pagetree.' })
+  @FieldResolver(returns => Boolean, { description: 'True if the page has a version marked as published. Note that the page could be published but not in the currently active pagetree.' })
   async published (@Ctx() ctx: Context, @Root() page: Page) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => DateTime, { nullable: true })
+  @FieldResolver(returns => Boolean, { description: 'True if the page is published, part of the active pagetree, and on a site that is currently launched.' })
+  async live (@Ctx() ctx: Context, @Root() page: Page) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => DateTime, { nullable: true, description: 'Null if the page has never been published, but could have a value. ' })
   async publishedAt (@Ctx() ctx: Context, @Root() page: Page) {
     throw new UnimplementedError()
   }

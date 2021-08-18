@@ -1,9 +1,9 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
 @ObjectType({
-  description: 'A pagetree represents the page hierarchy in a site. A site may ' +
-    'have multiple pagetrees, but only one active pagetree. Inactive pagetrees ' +
-    'would be archives or sandboxes.'
+  description: `A pagetree represents the page hierarchy in a site. Each pagetree begins
+    with a single root page. A site may have multiple pagetrees, but only one active pagetree.
+    Inactive pagetrees would be archives or sandboxes.`
 })
 export class PageTree {
   @Field(type => ID)

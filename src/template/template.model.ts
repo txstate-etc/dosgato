@@ -16,7 +16,14 @@ registerEnumType(TemplateType, {
   }
 })
 
-@ObjectType()
+@ObjectType({
+  description: `Each page, component, and data entry has a template that defines its
+  schema and other configuration. Most of that configuration lives in source code instead
+  of the database and is not available in this API. What IS controlled in the database
+  and included in this API is the authorization of each template per site (or pagetree),
+  so that certain page, component, and data templates can be added to sites as the site's
+  editors receive training or demonstrate a need.`
+})
 export class Template {
   id: number
 

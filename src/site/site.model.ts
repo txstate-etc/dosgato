@@ -21,6 +21,9 @@ export class Site {
 export class SiteFilter {
   @Field(type => [ID])
   ids?: string[]
+
+  @Field({ description: 'Return sites that are currently launched (i.e. they are publicly available at a specified URL other than the editing host).' })
+  launched?: boolean
 }
 
 @ObjectType()
@@ -39,3 +42,12 @@ registerEnumType(SitePermission, {
   name: 'SitePermission',
   description: 'All the action types that can be individually permissioned on a site.'
 })
+
+@ObjectType()
+export class LaunchURL {
+  @Field({ description: 'No protocol. Example: www.txstate.edu' })
+  host!: string
+
+  @Field({ description: 'Should begin and end with a slash. Example: /history/' })
+  path!: string
+}

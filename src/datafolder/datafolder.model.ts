@@ -3,7 +3,7 @@ import { isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
 
-@ObjectType()
+@ObjectType({ description: 'A folder that contains data objects. Each folder can only accept data objects with one particular template. Data folders are a single level organizational tool (folders do not contain more folders) and optional (data may not belong to any folder at all).' })
 export class DataFolder {
   internalId: number
 
@@ -37,7 +37,7 @@ export class DataFolder {
 export class DataFolderFilter {
   internalIds?: number[]
 
-  @Field(type => [ID])
+  @Field(type => [ID], { nullable: true })
   ids?: string[]
 
   @Field(type => [ID], { nullable: true, description: 'Return folders designated for data of one of the given templates.' })

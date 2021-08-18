@@ -31,7 +31,7 @@ export class AssetRuleGrants {
   }
 }
 
-@ObjectType({ description: 'A rule that grants asset-related privileges.' })
+@ObjectType({ description: 'A rule that grants asset-related privileges. Each role has multiple rules, each rule belonging only to that role.' })
 export class AssetRule {
   @Field(type => ID)
   id: string

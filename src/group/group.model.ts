@@ -1,6 +1,6 @@
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
 
-@ObjectType()
+@ObjectType({ description: 'Groups of users so that groups can be assigned roles instead of individual users. Groups may also be synced to an external system like Active Directory.' })
 export class Group {
   @Field(type => ID)
   id: string

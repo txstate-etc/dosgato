@@ -13,7 +13,7 @@ import { Data, DataFilter, DataPermission, DataPermissions } from './data.model'
 
 @Resolver(of => Data)
 export class DataResolver {
-  @Query(returns => [Data], { name: 'data', description: 'Data are pieces of shareable versioned content with a template and a dialog but not rendering code. The data will be consumed by component templates, each of which will do its own rendering of the data. For example, an Article data type could be displayed by an Article List component or an Article Detail component. In addition, outside services could access the article data directly from GraphQL.' })
+  @Query(returns => [Data], { name: 'data' })
   async dataquery (@Ctx() ctx: Context, @Arg('filter') filter: DataFilter) {
     throw new UnimplementedError()
   }

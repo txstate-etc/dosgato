@@ -14,7 +14,7 @@ export class GlobalRuleGrants {
   }
 }
 
-@ObjectType()
+@ObjectType({ description: 'A global rule grants access that is unrelated to the site tree. For instance, the ability to manage users and roles. They are generally only useful for creating various levels of system administrator.' })
 export class GlobalRule {
   @Field(type => ID)
   id: string

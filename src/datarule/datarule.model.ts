@@ -38,7 +38,7 @@ export class DataRuleGrants {
   }
 }
 
-@ObjectType({ description: 'A rule that grants data-related privileges.' })
+@ObjectType({ description: 'A rule that grants data-related privileges. Each role has multiple rules, each rule belonging only to that role.' })
 export class DataRule {
   @Field(type => ID)
   id: string

@@ -2,7 +2,7 @@ import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
-@ObjectType()
+@ObjectType({ description: 'Assets are binary files like images or word documents that will be included or linked on pages. Assets do not get published and unpublished - the latest version is always considered to be the public version and there is no such thing as a private unpublished asset.' })
 export class Asset {
   internalId: number // auto_increment id for internal use only
 

@@ -7,12 +7,12 @@ import { PageRule, PageRulePermissions } from './pagerule.model'
 
 @Resolver(of => PageRule)
 export class PageRuleResolver {
-  @FieldResolver(returns => Site, { nullable: true })
+  @FieldResolver(returns => Site, { nullable: true, description: 'The site to which this rule applies. Null if it applies to all sites. For multiple sites, make multiple rules.' })
   async site (@Ctx() ctx: Context, @Root() pagerule: PageRule) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => PageTree, { nullable: true })
+  @FieldResolver(returns => PageTree, { nullable: true, description: 'The pagetree to which this rule applies. Null if it applies to all pagetrees. Note that specifying a pagetree also implies specifying a site. For multiple pagetrees, make multiple rules.' })
   async pagetree (@Ctx() ctx: Context, @Root() pagerule: PageRule) {
     throw new UnimplementedError()
   }

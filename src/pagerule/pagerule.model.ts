@@ -57,7 +57,7 @@ export class PageRuleGrants {
   }
 }
 
-@ObjectType({ description: 'A rule that grants page-related privileges.' })
+@ObjectType({ description: 'A rule that grants page-related privileges. Each role has multiple rules, each rule belonging only to that role.' })
 export class PageRule {
   @Field(type => ID)
   id: string
@@ -87,45 +87,6 @@ export class PageRule {
     this.mode = row.mode
     this.grants = new PageRuleGrants(row)
   }
-}
-
-@InputType()
-export class PageRuleFilter {
-  @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that apply to all sites.' })
-  siteIds?: (string|null)[]
-
-  @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that apply to all pagetrees, or 0 to return rules that apply only to the active pagetree.' })
-  pagetreeIds?: (string|null)[]
-
-  @Field(type => [ID], { nullable: true })
-  roleIds?: string[]
-
-  @Field(type => [String], { nullable: true, description: 'Return rules that apply to any of the given paths.' })
-  paths?: string[]
-
-  @Field({ nullable: true, description: 'Return rules that grant the viewlatest permission.' })
-  viewlatest?: boolean
-
-  @Field({ nullable: true, description: 'Return rules that grant the create permission.' })
-  create?: boolean
-
-  @Field({ nullable: true, description: 'Return rules that grant the update permission.' })
-  update?: boolean
-
-  @Field({ nullable: true, description: 'Return rules that grant the move permission.' })
-  move?: boolean
-
-  @Field({ nullable: true, description: 'Return rules that grant the publish permission.' })
-  publish?: boolean
-
-  @Field({ nullable: true, description: 'Return rules that grant the unpublish permission.' })
-  unpublish?: boolean
-
-  @Field({ nullable: true, description: 'Return rules that grant the delete permission.' })
-  delete?: boolean
-
-  @Field({ nullable: true, description: 'Return rules that grant the undelete permission.' })
-  undelete?: boolean
 }
 
 @ObjectType()

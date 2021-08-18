@@ -6,12 +6,12 @@ import { AssetRule, AssetRulePermissions } from './assetrule.model'
 
 @Resolver(of => AssetRule)
 export class AssetRuleResolver {
-  @FieldResolver(returns => Site, { nullable: true })
+  @FieldResolver(returns => Site, { nullable: true, description: 'The site to which this rule applies. Null if it applies to all sites.' })
   async site (@Ctx() ctx: Context, @Root() assetrule: AssetRule) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Role)
+  @FieldResolver(returns => Role, { description: 'The role to which this rule belongs.' })
   async role (@Ctx() ctx: Context, @Root() assetrule: AssetRule) {
     throw new UnimplementedError()
   }
