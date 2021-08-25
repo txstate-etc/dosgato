@@ -9,7 +9,7 @@ import { PageTree, PageTreeFilter } from '../pagetree'
 import { Role } from '../role'
 import { Template, TemplateFilter } from '../template'
 import { User } from '../user'
-import { LaunchURL, Site, SiteFilter, SitePermission, SitePermissions } from './site.model'
+import { Site, SiteFilter, SitePermission, SitePermissions } from './site.model'
 
 @Resolver(of => Site)
 export class SiteResolver {
@@ -70,11 +70,6 @@ export class SiteResolver {
 
   @FieldResolver(returns => Boolean, { description: 'True if the site has been launched (i.e. is available on a specified URL outside the editing host.' })
   async launched (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
-  }
-
-  @FieldResolver(returns => LaunchURL, { nullable: true, description: 'URL outside the editing host that points to this site. Null if the site is not launched.' })
-  async url (@Ctx() ctx: Context, @Root() site: Site) {
     throw new UnimplementedError()
   }
 

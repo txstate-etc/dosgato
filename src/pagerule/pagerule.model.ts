@@ -2,9 +2,9 @@ import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql
 import { RuleType } from '../role'
 
 export enum RulePathMode {
-  SELF = 0,
-  SUB = 1,
-  SELFANDSUB = 2
+  SELF = 'self',
+  SUB = 'sub',
+  SELFANDSUB = 'selfsub'
 }
 registerEnumType(RulePathMode, {
   name: 'RulePathMode',

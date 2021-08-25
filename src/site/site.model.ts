@@ -1,6 +1,15 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
 @ObjectType()
+export class LaunchURL {
+  @Field({ description: 'No protocol. Example: www.txstate.edu' })
+  host!: string
+
+  @Field({ description: 'Should begin and end with a slash. Example: /history/. Should be a single slash if there is no path.' })
+  path!: string
+}
+
+@ObjectType()
 export class Site {
   @Field(type => ID)
   id: string
@@ -10,9 +19,18 @@ export class Site {
 
   primaryPagetreeId: string
 
+  @Field({ nullable: true, description: 'URL outside the editing host that points to this site. Null if the site is not launched.' })
+  url?: LaunchURL
+
   constructor (row: any) {
     this.id = String(row.id)
     this.name = row.name
+    if (row.launchHost) {
+      this.url = {
+        host: row.launchHost,
+        path: row.launchPath || '/'
+      }
+    }
     this.primaryPagetreeId = String(row.primaryPagetreeId)
   }
 }
@@ -42,12 +60,3 @@ registerEnumType(SitePermission, {
   name: 'SitePermission',
   description: 'All the action types that can be individually permissioned on a site.'
 })
-
-@ObjectType()
-export class LaunchURL {
-  @Field({ description: 'No protocol. Example: www.txstate.edu' })
-  host!: string
-
-  @Field({ description: 'Should begin and end with a slash. Example: /history/' })
-  path!: string
-}
