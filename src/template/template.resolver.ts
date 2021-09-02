@@ -16,9 +16,10 @@ export class TemplateResolver {
   async pagetrees (@Ctx() ctx: Context, @Root() template: Template,
     @Arg('direct', {
       nullable: true,
-      description: 'Since a template can be linked to a whole site or directly to a single pagetree in a site, this argument ' +
-      'allows you to specify whether you only want to see the pagetrees linked to this template directly or all pagetrees that ' +
-      'would be permitted to use the template.'
+      description: `
+        Since a template can be authorized for a whole site or directly for a single pagetree in a site,
+        this argument allows you to specify whether you only want to see the pagetrees authorized directly
+        or all pagetrees that would be authorized to use the template.`
     }) direct?: boolean
   ) {
     throw new UnimplementedError()

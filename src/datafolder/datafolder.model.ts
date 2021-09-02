@@ -19,14 +19,16 @@ export class DataFolder {
   @Field({ nullable: true, description: 'Date this folder was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
-  templateKey: string
+  templateId: number
+  siteId: number
   deletedBy: string|null
 
   constructor (row: any) {
     this.internalId = row.id
     this.id = row.guid
     this.name = row.name
-    this.templateKey = row.templateKey
+    this.templateId = row.templateId
+    this.siteId = row.siteId
     this.deleted = isNotNull(row.deleted)
     this.deletedAt = DateTime.fromJSDate(row.deleted)
     this.deletedBy = row.deletedBy

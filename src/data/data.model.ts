@@ -29,8 +29,8 @@ export class Data {
     this.dataId = row.dataId
     this.folderId = row.folderId
     this.siteId = row.siteId
-    this.deleted = isNotNull(row.deleted)
-    this.deletedAt = DateTime.fromJSDate(row.deleted)
+    this.deleted = isNotNull(row.deletedAt)
+    this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
   }
 }
@@ -41,7 +41,7 @@ export class DataFilter {
   internalIds?: number[]
 
   @Field(type => [ID], { nullable: true })
-  guids?: string[]
+  ids?: string[]
 
   @Field({ nullable: true, description: 'true -> return only global data, false -> return only data that belongs to some site, null -> return all data' })
   global?: boolean

@@ -61,7 +61,6 @@ export class DataRule {
     this.roleId = String(row.roleId)
     this.siteId = String(row.siteId)
     this.templateId = row.templateId
-    this.type = row.type
     this.grants = new DataRuleGrants(row)
     this.path = row.path
   }

@@ -7,7 +7,7 @@ import { JsonData } from '../scalars/jsondata'
 import { User } from '../user'
 import { ObjectVersion } from '../version'
 import { VersionedService } from '../versionedservice'
-import { Asset, AssetFilter, AssetPermission, AssetPermissions } from './asset.model'
+import { Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize } from './asset.model'
 
 @Resolver(of => Asset)
 export class AssetResolver {
@@ -37,6 +37,11 @@ export class AssetResolver {
   ) {
     const versioned = await ctx.svc(VersionedService).get(asset.dataId, { version })
     return versioned!.data
+  }
+
+  @FieldResolver(returns => [AssetResize], { nullable: true, description: 'List of available resized versions of this asset.' })
+  async resizes (@Ctx() ctx: Context, @Root() asset: Asset) {
+    throw new UnimplementedError()
   }
 
   @FieldResolver(returns => DateTime)

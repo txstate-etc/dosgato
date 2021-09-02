@@ -1,6 +1,7 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Data, DataFilter } from '../data'
+import { Site } from '../site'
 import { Template } from '../template'
 import { User } from '../user'
 import { DataFolder, DataFolderPermission, DataFolderPermissions } from './datafolder.model'
@@ -14,6 +15,11 @@ export class DataFolderResolver {
 
   @FieldResolver(returns => Template, { description: 'This folder may only contain data with this template.' })
   async template (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => Site, { nullable: true, description: 'The site this folder belongs to. Null if it is a folder for global data.' })
+  async site (@Ctx() ctx: Context, @Root() folder: DataFolder) {
     throw new UnimplementedError()
   }
 

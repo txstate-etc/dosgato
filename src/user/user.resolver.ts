@@ -40,8 +40,8 @@ export class UserPermissionsResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Boolean, { description: 'Current user may disable this account and remove all role and group memberships it has. The user row itself may stay in the database for referential integrity.' })
-  async delete (@Ctx() ctx: Context, @Root() user: User) {
+  @FieldResolver(returns => Boolean, { description: 'Current user may disable this account and remove all role and group memberships it has. The user row itself will stay in the database for referential integrity.' })
+  async disable (@Ctx() ctx: Context, @Root() user: User) {
     throw new UnimplementedError()
   }
 }

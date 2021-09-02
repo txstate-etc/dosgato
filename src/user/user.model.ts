@@ -12,19 +12,25 @@ export class User {
   @Field()
   email: string
 
+  @Field()
+  disabled: boolean
+
+  @Field({ description: 'When the user was disabled. The UI may want to do something to hide these users.' })
+  disabledAt?: DateTime
+
   internalId: number
-  enabled: boolean
-  lastlogin: DateTime
-  lastlogout: DateTime
+  lastlogin?: DateTime
+  lastlogout?: DateTime
 
   constructor (row: any) {
     this.internalId = row.id
     this.id = row.login
     this.name = row.name
     this.email = row.email
-    this.enabled = row.enabled
-    this.lastlogin = DateTime.fromJSDate(row.lastlogin)
-    this.lastlogout = DateTime.fromJSDate(row.lastlogout)
+    this.disabledAt = row.disabledAt ? DateTime.fromJSDate(row.disabledAt) : undefined
+    this.disabled = this.disabledAt != null
+    this.lastlogin = row.lastlogin ? DateTime.fromJSDate(row.lastlogin) : undefined
+    this.lastlogout = row.lastlogout ? DateTime.fromJSDate(row.lastlogout) : undefined
   }
 }
 
@@ -32,14 +38,14 @@ export class User {
 export class UserFilter {
   internalIds?: number[]
 
-  @Field({ nullable: true, description: 'Filter down to only include the authenticated user. Combinations with other filters may not make a lot of sense.' })
-  self?: boolean
-
-  @Field(type => [ID], { nullable: true })
+  @Field(type => [ID], { nullable: true, description: 'Accepts a special value \'self\' to represent the currently authenticated user.' })
   ids?: string[]
 
   @Field({ nullable: true, description: 'true -> enabled users, false -> disabled users, null -> all users' })
   enabled?: boolean
+
+  @Field({ nullable: true, description: 'When specified, get rid of any users that became disabled before the given date. Typically used to hide long-disabled users.' })
+  hideDisabledBefore?: DateTime
 }
 
 @ObjectType()
