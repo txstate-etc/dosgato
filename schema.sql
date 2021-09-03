@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS `sites` (
   `rootAssetFolderId` MEDIUMINT UNSIGNED NOT NULL,
   `launchHost` VARCHAR(255) NOT NULL,
   `launchPath` VARCHAR(255) NOT NULL DEFAULT '/',
+  `organizationId` SMALLINT UNSIGNED,
+  `ownerId` MEDIUMINT UNSIGNED,
   PRIMARY KEY (`id`),
   UNIQUE INDEX `name_UNIQUE` (`name`),
   UNIQUE INDEX `primary_pagetree_id_UNIQUE` (`primaryPagetreeId`),
@@ -61,6 +63,12 @@ CREATE TABLE IF NOT EXISTS `sites` (
   CONSTRAINT `pagetree`
     FOREIGN KEY (`primaryPagetreeId`)
     REFERENCES `pagetrees` (`id`),
+  CONSTRAINT `owner`
+    FOREIGN KEY (`ownerId`)
+    REFERENCES `users` (`id`),
+  CONSTRAINT `organization`
+    FOREIGN KEY (`organizationId`)
+    REFERENCES `organizations` (`id`),
   CONSTRAINT `rootAssetFolder`
     FOREIGN KEY (`rootAssetFolderId`)
     REFERENCES `assetfolders` (`id`))
@@ -68,19 +76,15 @@ ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4
 DEFAULT COLLATE = utf8mb4_general_ci;
 
+
 -- -----------------------------------------------------
--- Table `sites_owners`
+-- Table `organizations`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `sites_owners` (
-  `siteId` SMALLINT UNSIGNED NOT NULL,
-  `userId` MEDIUMINT UNSIGNED NOT NULL,
-  PRIMARY KEY (`siteId`,`userId`),
-  CONSTRAINT `site`
-    FOREIGN KEY (`siteId`)
-    REFERENCES `sites` (`id`),
-  CONSTRAINT `user`
-    FOREIGN KEY (`userId`)
-    REFERENCES `users` (`id`))
+CREATE TABLE IF NOT EXISTS `organizations` (
+  `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `name_UNIQUE` (`name`))
 ENGINE = InnoDB
 DEFAULT CHARACTER SET = utf8mb4
 DEFAULT COLLATE = utf8mb4_general_ci;
