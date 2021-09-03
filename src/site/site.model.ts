@@ -28,6 +28,8 @@ export class Site {
 
   primaryPagetreeId: number
   rootAssetFolderId: number
+  organizationId?: number
+  ownerId?: number
 
   @Field({ nullable: true, description: 'URL outside the editing host that points to this site. Null if the site is not launched.' })
   url?: LaunchURL
@@ -38,6 +40,8 @@ export class Site {
     if (row.launchHost) this.url = new LaunchURL(row)
     this.primaryPagetreeId = row.primaryPagetreeId
     this.rootAssetFolderId = row.rootAssetFolderId
+    this.organizationId = row.organizationId
+    this.ownerId = row.ownerId
   }
 }
 

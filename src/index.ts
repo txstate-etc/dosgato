@@ -19,6 +19,7 @@ import { DataFolderPermissionsResolver, DataFolderResolver } from './datafolder'
 import { GroupPermissionsResolver, GroupResolver } from './group'
 import { GlobalRulePermissionsResolver, GlobalRuleResolver } from './globalrule/globalrule.resolver'
 import { VersionResolver } from './version'
+import { OrganizationResolver } from './organization/organization.resolver'
 
 async function main () {
   const server = new GQLServer()
@@ -40,6 +41,7 @@ async function main () {
       GlobalRulePermissionsResolver,
       GroupResolver,
       GroupPermissionsResolver,
+      OrganizationResolver,
       PageResolver,
       PagePermissionsResolver,
       PageRuleResolver,

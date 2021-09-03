@@ -4,6 +4,7 @@ import { AssetPermission } from '../asset'
 import { AssetFolder } from '../assetfolder'
 import { Data, DataFilter, DataPermission } from '../data'
 import { DataFolder, DataFolderFilter } from '../datafolder'
+import { Organization } from '../organization/organization.model'
 import { Page, PagePermission } from '../page'
 import { PageTree, PageTreeFilter } from '../pagetree'
 import { Role } from '../role'
@@ -58,7 +59,7 @@ export class SiteResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => String)
+  @FieldResolver(returns => Organization)
   async organization (@Ctx() ctx: Context, @Root() site: Site) {
     throw new UnimplementedError()
   }
