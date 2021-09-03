@@ -223,7 +223,7 @@ export class VersionedService extends BaseService {
       if (tdb) await action(tdb)
       else await db.transaction(action)
       return id
-    } catch (e) {
+    } catch (e: any) {
       if (e.errno === 1062) return await this.create(type, data, indexes, user, tdb)
       throw e
     }

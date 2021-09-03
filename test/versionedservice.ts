@@ -39,7 +39,7 @@ before(async function () {
   try {
     await db.wait()
     await VersionedService.init()
-  } catch (err) {
+  } catch (err: any) {
     console.log(err)
   }
 })
@@ -64,7 +64,7 @@ describe('versionedservice', () => {
   it('should return a NotFoundError for an object that does not exist', async () => {
     try {
       await versionedService.get('invalid')
-    } catch (err) {
+    } catch (err: any) {
       expect(err).to.be.instanceOf(NotFoundError)
     }
   })
@@ -163,7 +163,7 @@ describe('versionedservice', () => {
     const id = await versionedService.create('cookie', data, indexes)
     try {
       await versionedService.tag(id, 'latest', 1, 'username')
-    } catch (err) {
+    } catch (err: any) {
       // check for specific error message?
       expect(err.message.length).to.be.greaterThan(0)
     }
@@ -180,7 +180,7 @@ describe('versionedservice', () => {
   it('should return a NotFoundError when trying to update an object that does not exist', async () => {
     try {
       await versionedService.update('doesnotexist', { name: 'blueberry', isFruit: true, color: 'purple' }, [{ name: 'index8', values: ['anything'] }])
-    } catch (err) {
+    } catch (err: any) {
       expect(err).to.be.instanceOf(NotFoundError)
     }
   })
@@ -205,7 +205,7 @@ describe('versionedservice', () => {
   it('should return a NotFoundError when trying to restore an object that does not exist', async () => {
     try {
       await versionedService.restore('doesnotexist', { version: 5 }, { comment: 'This will not work', user: 'username' })
-    } catch (err) {
+    } catch (err: any) {
       expect(err).to.be.instanceOf(NotFoundError)
     }
   })
@@ -254,12 +254,12 @@ describe('versionedservice', () => {
     await versionedService.delete(id)
     try {
       await versionedService.get(id, { version: 2 })
-    } catch (err) {
+    } catch (err: any) {
       expect(err).to.be.instanceOf(NotFoundError)
     }
     try {
       await versionedService.get(id, { version: 1 })
-    } catch (err) {
+    } catch (err: any) {
       expect(err).to.be.instanceOf(NotFoundError)
     }
   })
@@ -267,7 +267,7 @@ describe('versionedservice', () => {
   it('should return a NotFoundError when trying to tag an object that does not exist', async () => {
     try {
       await versionedService.tag('doesnotexist', 'published')
-    } catch (err) {
+    } catch (err: any) {
       expect(err).to.be.instanceOf(NotFoundError)
     }
   })
@@ -317,7 +317,7 @@ describe('versionedservice', () => {
     await versionedService.update(id, { ...data, favoriteCookie: 'sugar cookie' }, indexes)
     try {
       await versionedService.update(id, { ...data, favoriteCookie: 'chocolate chip' }, indexes, { version: 1 })
-    } catch (err) {
+    } catch (err: any) {
       expect(err).to.be.instanceOf(UpdateConflictError)
     }
   })

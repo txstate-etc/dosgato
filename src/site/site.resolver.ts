@@ -53,8 +53,13 @@ export class SiteResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [User])
-  async owners (@Ctx() ctx: Context, @Root() site: Site) {
+  @FieldResolver(returns => User)
+  async owner (@Ctx() ctx: Context, @Root() site: Site) {
+    throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => String)
+  async organization (@Ctx() ctx: Context, @Root() site: Site) {
     throw new UnimplementedError()
   }
 
