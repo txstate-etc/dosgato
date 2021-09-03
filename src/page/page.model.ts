@@ -54,13 +54,16 @@ export class PageFilter {
   @Field(type => [String], { nullable: true, description: 'Return pages with the given link ids.' })
   linkIds?: string[]
 
-  @Field(type => [ID], { nullable: true, description: 'Return pages that belong to any of the given siteTree ids.' })
-  siteTreeIds?: string[]
+  @Field(type => [ID], { nullable: true, description: 'Return pages that belong to any of the given pagetree ids.' })
+  pageTreeIds?: string[]
+
+  @Field(type => [ID], { nullable: true, description: 'Return pages that belong to any of the given sites.' })
+  siteIds?: string[]
 
   @Field(type => [ID], { nullable: true, description: 'Return pages whose parent page is any of the given page ids.' })
   parentPageIds?: string[]
 
-  @Field(type => [ID], { nullable: true, description: 'Return pages using any of the given templates.' })
+  @Field(type => [ID], { nullable: true, description: 'Return pages using any of the given templates. These could be page templates or component templates.' })
   templateKeys?: string[]
 
   @Field(type => [String], { nullable: true, description: 'Return pages that contain a link to any of the given link ids.' })
@@ -75,10 +78,13 @@ export class PageFilter {
   @Field(type => Boolean, { nullable: true, description: 'Only return pages in the active pagetree of their site.' })
   activePagetree?: boolean
 
-  @Field(type => Boolean, { nullable: false, description: 'Only return pages that have been published. Implies filter activePagetree -> true.' })
+  @Field(type => Boolean, { nullable: true, description: 'Only return pages that have been published. Implies filter activePagetree -> true.' })
   published?: boolean
 
-  @Field(type => Boolean, { nullable: false, description: 'true -> return only deleted pages, false -> return only nondeleted pages, undefined -> return all pages' })
+  @Field(type => Boolean, { nullable: true, description: 'Only return pages that are published, in the active page tree, and on a launched site.' })
+  live?: boolean
+
+  @Field(type => Boolean, { nullable: true, description: 'true -> return only deleted pages, false -> return only nondeleted pages, undefined -> return all pages' })
   deleted?: boolean
 }
 

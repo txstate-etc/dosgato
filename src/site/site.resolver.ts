@@ -100,6 +100,11 @@ export class SitePermissionsResolver {
     throw new UnimplementedError()
   }
 
+  @FieldResolver(returns => Boolean, { description: 'Current user has permission to set owner, managers, and organization for this site.' })
+  async manageOwners (@Ctx() ctx: Context, @Root() site: Site) {
+    throw new UnimplementedError()
+  }
+
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to create, edit, delete, and undelete pagetrees (such as a sandbox or archive) in this site.' })
   async managePagetrees (@Ctx() ctx: Context, @Root() site: Site) {
     throw new UnimplementedError()

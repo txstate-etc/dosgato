@@ -10,7 +10,10 @@ export class SiteRuleGrants {
   @Field({ description: 'Grants ability to rename the site.' })
   rename!: boolean
 
-  @Field({ description: 'Grants ability to create, edit, delete, and undelete new pagetrees in affected sites.' })
+  @Field({ description: 'Grants ability to set owner, managers, and organization for affected sites.' })
+  manageOwners!: boolean
+
+  @Field({ description: 'Grants ability to create, rename, delete, and undelete pagetrees in affected sites.' })
   managePagetrees!: boolean
 
   @Field({ description: 'Grants ability to promote a pagetree to be the active pagetree for the site; i.e. promote the sandbox to be live.' })
@@ -69,6 +72,9 @@ export class SiteRuleFilter {
 
   @Field({ nullable: true, description: 'Return rules that grant the rename permission.' })
   rename?: boolean
+
+  @Field({ nullable: true, description: 'Return rules that grant the manageOwners permission.' })
+  manageOwners?: boolean
 
   @Field({ nullable: true, description: 'Return rules that grant the managePagetrees permission.' })
   managePagetrees?: boolean

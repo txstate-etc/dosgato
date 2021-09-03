@@ -55,7 +55,7 @@ export class PageResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => JsonData)
+  @FieldResolver(returns => JsonData, { description: 'This is a JSON object that represents everything the editor has created on this page. It is up to the rendering code of the page template and all the component templates to turn this data into an HTML page.' })
   async data (@Ctx() ctx: Context, @Root() page: Page,
     @Arg('published', { nullable: true, description: 'Return the published version of the data. When true, version arg is ignored.' }) published?: boolean,
     @Arg('version', type => Int, { nullable: true, description: 'Return the specified version of the data. Ignored when published arg is true.' }) version?: number

@@ -47,10 +47,10 @@ export class Site {
 
 @InputType()
 export class SiteFilter {
-  @Field(type => [ID])
+  @Field(type => [ID], { nullable: true })
   ids?: string[]
 
-  @Field({ description: 'Return sites that are currently launched (i.e. they are publicly available at a specified URL other than the editing host).' })
+  @Field({ nullable: true, description: 'Return sites that are currently launched (i.e. they are publicly available at a specified URL other than the editing host).' })
   launched?: boolean
 }
 
@@ -60,6 +60,7 @@ export class SitePermissions {}
 export enum SitePermission {
   LAUNCH = 'launch',
   RENAME = 'rename',
+  MANAGE_OWNERS = 'manageOwners',
   MANAGE_PAGETREES = 'managePagetrees',
   PROMOTE_PAGETREE = 'promotePagetree',
   CREATE_RULES = 'createRules',
