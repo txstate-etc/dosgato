@@ -1,5 +1,6 @@
 import { GQLServer } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
+import { migrations } from './migrations'
 import { AssetPermissionsResolver, AssetResolver } from './asset'
 import { AssetRuleResolver, AssetRulePermissionsResolver } from './assetrule'
 import { DataPermissionsResolver, DataResolver } from './data'
@@ -22,6 +23,7 @@ import { VersionResolver } from './version'
 import { OrganizationResolver } from './organization/organization.resolver'
 
 async function main () {
+  // await migrations()
   const server = new GQLServer()
   await server.start({
     resolvers: [
