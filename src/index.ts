@@ -23,7 +23,7 @@ import { VersionResolver } from './version'
 import { OrganizationResolver } from './organization/organization.resolver'
 
 async function main () {
-  // await migrations()
+  await migrations()
   const server = new GQLServer()
   await server.start({
     resolvers: [

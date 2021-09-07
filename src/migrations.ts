@@ -1,10 +1,13 @@
 import db from 'mysql2-async/db'
 import { init } from './createdb'
+import { VersionedService } from './versionedservice'
+import { fixtures } from './fixtures'
 
 export async function migrations () {
   await db.wait()
   const tables = await db.getvals('show tables')
-  if (tables.length < 27) {
+  if (tables.length < 32) {
+    await VersionedService.init()
     await init()
   }
   if (!tables.includes('dbversion')) {
@@ -13,6 +16,9 @@ export async function migrations () {
         id INT NOT NULL
       ) ENGINE InnoDB
     `)
-    await db.insert('INSERT INTO version values (1)')
+    await db.insert('INSERT INTO dbversion values (1)')
+  }
+  if (process.env.RESET_DB_ON_STARTUP === 'true') {
+    await fixtures()
   }
 }

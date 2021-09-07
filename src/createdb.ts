@@ -16,6 +16,60 @@ export async function init () {
       ENGINE = InnoDB \
       DEFAULT CHARACTER SET = utf8mb4 \
       DEFAULT COLLATE = utf8mb4_general_ci;")
+  await db.execute('\
+      CREATE TABLE IF NOT EXISTS `organizations` ( \
+        `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, \
+        `name` VARCHAR(255) NOT NULL, \
+        PRIMARY KEY (`id`), \
+        UNIQUE INDEX `name_UNIQUE` (`name`)) \
+      ENGINE = InnoDB \
+      DEFAULT CHARACTER SET = utf8mb4 \
+      DEFAULT COLLATE = utf8mb4_general_ci;')
+  await db.execute("\
+      CREATE TABLE IF NOT EXISTS `assetfolders` ( \
+        `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \
+        `siteId` SMALLINT UNSIGNED NOT NULL COMMENT 'for lookup convenience, not canonical', \
+        `parentId` MEDIUMINT UNSIGNED, \
+        `name` VARCHAR(255) NOT NULL, \
+        `deletedAt` DATETIME, \
+        `deletedBy` MEDIUMINT UNSIGNED NOT NULL, \
+        PRIMARY KEY (`id`), \
+        CONSTRAINT `FK_assetfolders_assetfolders` \
+          FOREIGN KEY (`parentId`) \
+          REFERENCES `assetfolders` (`id`), \
+        CONSTRAINT `FK_assetfolders_users` \
+          FOREIGN KEY (`deletedBy`) \
+          REFERENCES `users` (`id`)) \
+      ENGINE = InnoDB \
+      DEFAULT CHARACTER SET = utf8mb4 \
+      DEFAULT COLLATE = utf8mb4_general_ci;")
+  await db.execute("\
+      CREATE TABLE IF NOT EXISTS `sites` ( \
+        `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, \
+        `name` VARCHAR(255) NOT NULL, \
+        `primaryPagetreeId` MEDIUMINT UNSIGNED NOT NULL, \
+        `rootAssetFolderId` MEDIUMINT UNSIGNED NOT NULL, \
+        `launchHost` VARCHAR(255) NOT NULL, \
+        `launchPath` VARCHAR(255) NOT NULL DEFAULT '/', \
+        `organizationId` SMALLINT UNSIGNED, \
+        `ownerId` MEDIUMINT UNSIGNED, \
+        PRIMARY KEY (`id`), \
+        UNIQUE INDEX `name_UNIQUE` (`name`), \
+        UNIQUE INDEX `primary_pagetree_id_UNIQUE` (`primaryPagetreeId`), \
+        UNIQUE INDEX `asset_root_id_UNIQUE` (`rootAssetFolderId`), \
+        INDEX `launchUrl` (`launchHost`, `launchPath`), \
+        CONSTRAINT `FK_sites_users` \
+          FOREIGN KEY (`ownerId`) \
+          REFERENCES `users` (`id`), \
+        CONSTRAINT `FK_sites_organizations` \
+          FOREIGN KEY (`organizationId`) \
+          REFERENCES `organizations` (`id`), \
+        CONSTRAINT `FK_sites_assetfolders` \
+          FOREIGN KEY (`rootAssetFolderId`) \
+          REFERENCES `assetfolders` (`id`)) \
+      ENGINE = InnoDB \
+      DEFAULT CHARACTER SET = utf8mb4 \
+      DEFAULT COLLATE = utf8mb4_general_ci;")
   await db.execute("\
     CREATE TABLE IF NOT EXISTS `pagetrees` ( \
       `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \
@@ -30,89 +84,29 @@ export async function init () {
       PRIMARY KEY (`id`), \
       UNIQUE INDEX `nameinsite` (`siteId`, `name`), \
       INDEX `site_idx` (`siteId`, `type`), \
-      CONSTRAINT `deletedBy` \
+      CONSTRAINT `FK_pagetrees_users` \
         FOREIGN KEY (`deletedBy`) \
         REFERENCES `users` (`id`), \
-      CONSTRAINT `siteId` \
+      CONSTRAINT `FK_pagetrees_sites` \
         FOREIGN KEY (`siteId`) \
         REFERENCES `sites` (`id`)) \
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;")
-  await db.execute("\
-    CREATE TABLE IF NOT EXISTS `sites` ( \
-      `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, \
-      `name` VARCHAR(255) NOT NULL, \
-      `primaryPagetreeId` MEDIUMINT UNSIGNED NOT NULL, \
-      `rootAssetFolderId` MEDIUMINT UNSIGNED NOT NULL, \
-      `launchHost` VARCHAR(255) NOT NULL, \
-      `launchPath` VARCHAR(255) NOT NULL DEFAULT '/', \
-      `organizationId` SMALLINT UNSIGNED, \
-      `ownerId` MEDIUMINT UNSIGNED, \
-      PRIMARY KEY (`id`), \
-      UNIQUE INDEX `name_UNIQUE` (`name`), \
-      UNIQUE INDEX `primary_pagetree_id_UNIQUE` (`primaryPagetreeId`), \
-      UNIQUE INDEX `asset_root_id_UNIQUE` (`rootAssetFolderId`), \
-      INDEX `launchUrl` (`launchHost`, `launchPath`), \
-      CONSTRAINT `pagetree` \
-        FOREIGN KEY (`primaryPagetreeId`) \
-        REFERENCES `pagetrees` (`id`), \
-      CONSTRAINT `owner` \
-        FOREIGN KEY (`ownerId`) \
-        REFERENCES `users` (`id`), \
-      CONSTRAINT `organization` \
-        FOREIGN KEY (`organizationId`) \
-        REFERENCES `organizations` (`id`), \
-      CONSTRAINT `rootAssetFolder` \
-        FOREIGN KEY (`rootAssetFolderId`) \
-        REFERENCES `assetfolders` (`id`)) \
-    ENGINE = InnoDB \
-    DEFAULT CHARACTER SET = utf8mb4 \
-    DEFAULT COLLATE = utf8mb4_general_ci;")
-  await db.execute('\
-    CREATE TABLE IF NOT EXISTS `organizations` ( \
-      `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, \
-      `name` VARCHAR(255) NOT NULL, \
-      PRIMARY KEY (`id`), \
-      UNIQUE INDEX `name_UNIQUE` (`name`)) \
-    ENGINE = InnoDB \
-    DEFAULT CHARACTER SET = utf8mb4 \
-    DEFAULT COLLATE = utf8mb4_general_ci;')
   await db.execute('\
     CREATE TABLE IF NOT EXISTS `sites_managers` ( \
       `siteId` SMALLINT UNSIGNED NOT NULL, \
       `userId` MEDIUMINT UNSIGNED NOT NULL, \
       PRIMARY KEY (`siteId`,`userId`), \
-      CONSTRAINT `site` \
+      CONSTRAINT `FK_sites_managers_sites` \
         FOREIGN KEY (`siteId`) \
         REFERENCES `sites` (`id`), \
-      CONSTRAINT `user` \
+      CONSTRAINT `FK_sites_managers_users` \
         FOREIGN KEY (`userId`) \
         REFERENCES `users` (`id`)) \
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;')
-  await db.execute("\
-    CREATE TABLE IF NOT EXISTS `assetfolders` ( \
-      `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \
-      `siteId` SMALLINT UNSIGNED NOT NULL COMMENT 'for lookup convenience, not canonical', \
-      `parentId` MEDIUMINT UNSIGNED, \
-      `name` VARCHAR(255) NOT NULL, \
-      `deletedAt` DATETIME, \
-      `deletedBy` MEDIUMINT UNSIGNED NOT NULL, \
-      PRIMARY KEY (`id`), \
-      CONSTRAINT `site` \
-        FOREIGN KEY (`siteId`) \
-        REFERENCES `sites` (`id`), \
-      CONSTRAINT `folder` \
-        FOREIGN KEY (`parentId`) \
-        REFERENCES `assetfolders` (`id`), \
-      CONSTRAINT `deletedBy` \
-        FOREIGN KEY (`deletedBy`) \
-        REFERENCES `users` (`id`)) \
-    ENGINE = InnoDB \
-    DEFAULT CHARACTER SET = utf8mb4 \
-    DEFAULT COLLATE = utf8mb4_general_ci;")
   await db.execute("\
     CREATE TABLE IF NOT EXISTS `assets` ( \
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
@@ -124,10 +118,10 @@ export async function init () {
       `deletedBy` MEDIUMINT UNSIGNED, \
       PRIMARY KEY (`id`), \
       INDEX `path_idx` (`path`, `name`), \
-      CONSTRAINT `folder` \
+      CONSTRAINT `FK_assets_assetfolders` \
         FOREIGN KEY (`folderId`) \
         REFERENCES `assetfolders` (`id`), \
-      CONSTRAINT `deletedBy` \
+      CONSTRAINT `FK_assets_users` \
         FOREIGN KEY (`deletedBy`) \
         REFERENCES `users` (`id`)) \
     ENGINE = InnoDB \
@@ -164,10 +158,10 @@ export async function init () {
       `delete` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `undelete` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       PRIMARY KEY (`id`), \
-      CONSTRAINT `role` \
+      CONSTRAINT `FK_siterules_roles` \
         FOREIGN KEY (`roleId`) \
         REFERENCES `roles` (`id`), \
-      CONSTRAINT `site` \
+      CONSTRAINT `FK_siterules_sites` \
         FOREIGN KEY (`siteId`) \
         REFERENCES `sites` (`id`)) \
     ENGINE = InnoDB \
@@ -178,10 +172,10 @@ export async function init () {
       `userId` MEDIUMINT UNSIGNED NOT NULL, \
       `groupId` MEDIUMINT UNSIGNED NOT NULL, \
       PRIMARY KEY (`userId`, `groupId`), \
-      CONSTRAINT `user` \
+      CONSTRAINT `FK_user_groups_users` \
         FOREIGN KEY (`userId`) \
         REFERENCES `users` (`id`), \
-      CONSTRAINT `group` \
+      CONSTRAINT `FK_users_groups_groups` \
         FOREIGN KEY (`groupId`) \
         REFERENCES `groups` (`id`)) \
     ENGINE = InnoDB \
@@ -200,17 +194,17 @@ export async function init () {
       PRIMARY KEY (`id`), \
       UNIQUE INDEX `data_UNIQUE` (`dataId`), \
       UNIQUE INDEX `linkId_in_pagetree` (`pagetreeId`, `linkId`), \
-      INDEX `linkId_idx` (`linkId`) \
-      CONSTRAINT `pagetree` \
+      INDEX `linkId_idx` (`linkId`), \
+      CONSTRAINT `FK_pages_pagetrees` \
         FOREIGN KEY (`pagetreeId`) \
         REFERENCES `pagetrees` (`id`), \
-      CONSTRAINT `parent` \
+      CONSTRAINT `FK_pages_pages` \
         FOREIGN KEY (`parentId`) \
         REFERENCES `pages` (`id`), \
-      CONSTRAINT `data` \
+      CONSTRAINT `FK_pages_storage` \
         FOREIGN KEY (`dataId`) \
         REFERENCES `storage` (`id`), \
-      CONSTRAINT `deletedBy` \
+      CONSTRAINT `FK_pages_users` \
         FOREIGN KEY (`deletedBy`) \
         REFERENCES `users` (`id`)) \
     ENGINE = InnoDB \
@@ -233,10 +227,10 @@ export async function init () {
       `groupId` MEDIUMINT UNSIGNED NOT NULL, \
       `roleId` MEDIUMINT UNSIGNED NOT NULL, \
       PRIMARY KEY (`roleId`, `groupId`), \
-      CONSTRAINT `group` \
+      CONSTRAINT `FK_groups_roles_groups` \
         FOREIGN KEY (`groupId`) \
         REFERENCES `groups` (`id`), \
-      CONSTRAINT `role` \
+      CONSTRAINT `FK_groups_roles_roles` \
         FOREIGN KEY (`roleId`) \
         REFERENCES `roles` (`id`)) \
     ENGINE = InnoDB \
@@ -247,10 +241,10 @@ export async function init () {
       `userId` MEDIUMINT UNSIGNED NOT NULL, \
       `roleId` MEDIUMINT UNSIGNED NOT NULL, \
       PRIMARY KEY (`userId`, `roleId`), \
-      CONSTRAINT `user` \
+      CONSTRAINT `FK_users_roles_users` \
         FOREIGN KEY (`userId`) \
         REFERENCES `users` (`id`), \
-      CONSTRAINT `role` \
+      CONSTRAINT `FK_user_roles_roles` \
         FOREIGN KEY (`roleId`) \
         REFERENCES `roles` (`id`)) \
     ENGINE = InnoDB \
@@ -266,10 +260,10 @@ export async function init () {
       `othersettings` JSON NOT NULL, \
       PRIMARY KEY (`binaryId`), \
       INDEX `resize_idx` (`originalBinaryId`, `width`, `height`, `quality`), \
-      CONSTRAINT `binary` \
+      CONSTRAINT `FK_resizes_binaries_id` \
         FOREIGN KEY (`binaryId`) \
         REFERENCES `binaries` (`id`), \
-      CONSTRAINT `originalBinary` \
+      CONSTRAINT `FK_resizes_binaries_original` \
         FOREIGN KEY (`originalBinaryId`) \
         REFERENCES `binaries` (`id`)) \
     ENGINE = InnoDB \
@@ -293,10 +287,10 @@ export async function init () {
       `siteId` SMALLINT UNSIGNED NOT NULL, \
       `templateId` SMALLINT UNSIGNED NOT NULL, \
       PRIMARY KEY (`siteId`, `templateId`), \
-      CONSTRAINT `site` \
+      CONSTRAINT `FK_sites_templates_sites` \
         FOREIGN KEY (`siteId`) \
         REFERENCES `sites` (`id`), \
-      CONSTRAINT `template` \
+      CONSTRAINT `FK_sites_templates_templates` \
         FOREIGN KEY (`templateId`) \
         REFERENCES `templates` (`id`)) \
     ENGINE = InnoDB \
@@ -320,10 +314,10 @@ export async function init () {
       `undelete` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       PRIMARY KEY (`id`), \
       INDEX `path` (`path`), \
-      CONSTRAINT `role` \
+      CONSTRAINT `FK_pagerules_roles` \
         FOREIGN KEY (`roleId`) \
         REFERENCES `roles` (`id`), \
-      CONSTRAINT `pagetree` \
+      CONSTRAINT `FK_pagerules_pagetrees` \
         FOREIGN KEY (`pagetreeId`) \
         REFERENCES `pagetrees` (`id`)) \
     ENGINE = InnoDB \
@@ -343,10 +337,10 @@ export async function init () {
       `undelete` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       PRIMARY KEY (`id`), \
       INDEX `path` (`path`), \
-      CONSTRAINT `siteId` \
+      CONSTRAINT `FK_assetrules_sites` \
         FOREIGN KEY (`siteId`) \
         REFERENCES `sites` (`id`), \
-      CONSTRAINT `roleId` \
+      CONSTRAINT `FK_assetrules_roles` \
         FOREIGN KEY (`roleId`) \
         REFERENCES `roles` (`id`)) \
     ENGINE = InnoDB \
@@ -357,10 +351,10 @@ export async function init () {
       `pagetreeId` MEDIUMINT UNSIGNED NOT NULL, \
       `templateId` SMALLINT UNSIGNED NOT NULL, \
       PRIMARY KEY (`pagetreeId`, `templateId`), \
-      CONSTRAINT `pagetree` \
+      CONSTRAINT `FK_pagetrees_templates_pagetrees` \
         FOREIGN KEY (`pagetreeId`) \
         REFERENCES `pagetrees` (`id`), \
-      CONSTRAINT `template` \
+      CONSTRAINT `FK_pagetrees_templates_templates` \
         FOREIGN KEY (`templateId`) \
         REFERENCES `templates` (`id`)) \
     ENGINE = InnoDB \
@@ -373,10 +367,10 @@ export async function init () {
       `siteId` SMALLINT UNSIGNED, \
       `templateId` SMALLINT UNSIGNED NOT NULL, \
       PRIMARY KEY (`id`), \
-      CONSTRAINT `siteId` \
+      CONSTRAINT `FK_datafolders_sites` \
         FOREIGN KEY (`siteId`) \
         REFERENCES `sites` (`id`), \
-      CONSTRAINT `templateId` \
+      CONSTRAINT `FK_datafolders_templates` \
         FOREIGN KEY (`templateId`) \
         REFERENCES `templates` (`id`)) \
     ENGINE = InnoDB \
@@ -392,16 +386,16 @@ export async function init () {
       `deletedBy` MEDIUMINT UNSIGNED, \
       PRIMARY KEY (`id`), \
       UNIQUE INDEX `data_UNIQUE` (`dataId`), \
-      CONSTRAINT `deletedBy` \
+      CONSTRAINT `FK_data_users` \
         FOREIGN KEY (`deletedBy`) \
         REFERENCES `users` (`id`), \
-      CONSTRAINT `data` \
+      CONSTRAINT `FK_data_storage` \
         FOREIGN KEY (`dataId`) \
         REFERENCES `storage` (`id`), \
-      CONSTRAINT `siteId` \
+      CONSTRAINT `FK_data_sites` \
         FOREIGN KEY (`siteId`) \
         REFERENCES `sites` (`id`), \
-      CONSTRAINT `folderId` \
+      CONSTRAINT `FK_data_datafolders` \
         FOREIGN KEY (`folderId`) \
         REFERENCES `datafolders` (`id`)) \
     ENGINE = InnoDB \
@@ -422,13 +416,13 @@ export async function init () {
       `delete` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `undelete` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       PRIMARY KEY (`id`), \
-      CONSTRAINT `role` \
+      CONSTRAINT `FK_datarules_roles` \
         FOREIGN KEY (`roleId`) \
         REFERENCES `roles` (`id`), \
-      CONSTRAINT `site` \
+      CONSTRAINT `FK_datarules_sites` \
         FOREIGN KEY (`siteId`) \
         REFERENCES `sites` (`id`), \
-      CONSTRAINT `template` \
+      CONSTRAINT `FK_datarules_templates` \
         FOREIGN KEY (`templateId`) \
         REFERENCES `templates` (`id`)) \
     ENGINE = InnoDB \
@@ -443,7 +437,7 @@ export async function init () {
       `variables` JSON NOT NULL, \
       INDEX `createdAt_idx` (`createdAt`), \
       INDEX `mutation_idx` (`mutation`), \
-      CONSTRAINT `user` \
+      CONSTRAINT `FK_mutationlog_users` \
         FOREIGN KEY (`userId`) \
         REFERENCES `users` (`id`)) \
     ENGINE = InnoDB \
@@ -455,7 +449,7 @@ export async function init () {
       `roleId` MEDIUMINT UNSIGNED NOT NULL, \
       `manageUsers` TINYINT UNSIGNED NOT NULL, \
       PRIMARY KEY (`id`), \
-      CONSTRAINT `roleId` \
+      CONSTRAINT `FK_globalrules_roles` \
         FOREIGN KEY (`roleId`) \
         REFERENCES `roles` (`id`)) \
     ENGINE = InnoDB \
@@ -469,7 +463,7 @@ export async function init () {
       `day` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `downloads` INT UNSIGNED NOT NULL DEFAULT 0, \
       PRIMARY KEY (`binaryId`, `year`, `month`, `day`), \
-      CONSTRAINT `binaryId` \
+      CONSTRAINT `FK_downloads_binaries` \
         FOREIGN KEY (`binaryId`) \
         REFERENCES `binaries` (`id`)) \
     ENGINE = InnoDB \

@@ -1,6 +1,6 @@
 version: '3'
 services:
-  dosgato:
+  dosgato-test:
     build:
       context: .
       dockerfile: Dockerfile.test
@@ -20,3 +20,7 @@ services:
       MYSQL_DATABASE: dosgatotest
       MYSQL_USER: dosgato
       MYSQL_PASSWORD: password
+    volumes:
+      - dosgatotestdb:/var/lib/mysql
+volumes:
+  dosgatotestdb: {}

@@ -11,8 +11,9 @@ services:
       NODE_ENV: development
       MYSQL_USER: dosgato
       MYSQL_PASS: password
-      MYSQL_DATABASE: dosgatotest
+      MYSQL_DATABASE: dosgatodev
       MYSQL_HOST: mysql
+      RESET_DB_ON_STARTUP: 'false'
     volumes:
       - ./src:/usr/app/src
     depends_on:
@@ -23,7 +24,7 @@ services:
       - 3306:3306
     environment:
       MYSQL_ROOT_PASSWORD: secret
-      MYSQL_DATABASE: dosgatotest
+      MYSQL_DATABASE: dosgatodev
       MYSQL_USER: dosgato
       MYSQL_PASSWORD: password
     volumes:
