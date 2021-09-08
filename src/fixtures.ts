@@ -31,5 +31,13 @@ export async function fixtures () {
     db.execute('DELETE FROM organizations'),
     db.execute('DELETE FROM users')
   ])
-  // Insert Statements Go Here
+  await Promise.all([
+    db.execute(`INSERT INTO users (login, name, email, lastlogin, lastlogout, disabledAt) VALUES
+      ("su01", "Michael Scott", "su01@example.com", null, null, null),
+      ("su02", "Elizabeth Bennet", "su02@example.com", null, null, null),
+      ("su03", "Marge Simpson", "su03@example.com", "2021-09-01 12:43:00", "2021-09-01 16:28:00", null),
+      ("ed01", "Draco Malfoy", "ed01@example.com", "2021-07-15 11:15:00", "2021-07-15 13:07:00", null),
+      ("ed02", "Forrest Gump", "ed02@example.com", "2021-02-01 08:23:00", "2021-02-01 11:33:00", "2021-08-22 15:02:00" )
+    `)
+  ])
 }

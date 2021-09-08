@@ -2,15 +2,24 @@ version: '3'
 services:
   dosgato-test:
     build:
-      context: .
-      dockerfile: Dockerfile.test
+      context: test
     environment:
-      MYSQL_USER: dosgato
+      MYSQL_USER: dosgato # might not need these environment variables. Does test need to connect to DB?
       MYSQL_PASS: password
       MYSQL_DATABASE: dosgatotest
       MYSQL_HOST: mysql
     depends_on:
       - mysql
+  dosgato-api:
+    build:
+      context: .
+    environment:
+      NODE_ENV: development
+      MYSQL_USER: dosgato
+      MYSQL_PASS: password
+      MYSQL_DATABASE: dosgatotest
+      MYSQL_HOST: mysql
+      RESET_DB_ON_STARTUP: 'true'
   mysql:
     image: percona:5
     logging:

@@ -1,0 +1,27 @@
+{
+  "name": "dosgato-test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha -r ts-node/register src/**/*.ts"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@txstate-mws/graphql-server": "^1.2.2",
+    "@types/chai": "^4.2.21",
+    "@types/luxon": "^2.0.3",
+    "@types/mocha": "^9.0.0",
+    "agentkeepalive": "^4.1.4",
+    "axios": "^0.21.4",
+    "chai": "^4.3.4",
+    "fast-json-patch": "^3.1.0",
+    "luxon": "^2.0.2",
+    "mocha": "^9.1.1",
+    "mysql2-async": "^1.0.16",
+    "ts-node": "^10.2.1",
+    "txstate-utils": "^1.4.6",
+    "typescript": "^4.4.2"
+  }
+}
