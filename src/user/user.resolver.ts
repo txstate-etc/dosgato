@@ -5,11 +5,13 @@ import { Role } from '../role'
 import { UrlSafeString } from '../scalars/urlsafestring'
 import { User, UserAccess, UserFilter, UserPermissions } from './user.model'
 
+import { UserService } from './user.service'
+
 @Resolver(of => User)
 export class UserResolver {
   @Query(returns => [User])
   async users (@Ctx() ctx: Context, @Arg('filter') filter: UserFilter) {
-    throw new UnimplementedError()
+    return await ctx.svc(UserService).find(filter)
   }
 
   @FieldResolver(returns => [Group], { description: 'Groups related to the user, either directly or through a subgroup membership.' })
