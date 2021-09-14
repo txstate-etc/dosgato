@@ -137,6 +137,20 @@ export async function init () {
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;')
   await db.execute('\
+    CREATE TABLE IF NOT EXISTS `groups_groups` ( \
+      `parentId` MEDIUMINT UNSIGNED NOT NULL, \
+      `childId` MEDIUMINT UNSIGNED NOT NULL, \
+      PRIMARY KEY (`parentId`, `childId`), \
+      CONSTRAINT `FK_groups_groups_parent` \
+        FOREIGN KEY (`parentId`) \
+        REFERENCES `groups` (`id`), \
+      CONSTRAINT `FK_groups_groups_child` \
+        FOREIGN KEY (`childId`) \
+        REFERENCES `groups` (`id`)) \
+    ENGINE = InnoDB \
+    DEFAULT CHARACTER SET = utf8mb4 \
+    DEFAULT COLLATE = utf8mb4_general_ci;')
+  await db.execute('\
     CREATE TABLE IF NOT EXISTS `roles` ( \
       `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `name` VARCHAR(255) NOT NULL, \

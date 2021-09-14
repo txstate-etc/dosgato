@@ -6,7 +6,7 @@ import { fixtures } from './fixtures'
 export async function migrations () {
   await db.wait()
   const tables = await db.getvals('show tables')
-  if (tables.length < 32) {
+  if (tables.length < 33) {
     await VersionedService.init()
     await init()
   }

@@ -3,12 +3,13 @@ import { Arg, Ctx, FieldResolver, Query, Resolver, Root } from 'type-graphql'
 import { Role } from '../role'
 import { User } from '../user'
 import { Group, GroupPermissions } from './group.model'
+import { GroupService } from './group.service'
 
 @Resolver(of => Group)
 export class GroupResolver {
   @Query(returns => [Group])
   async groups (@Ctx() ctx: Context) {
-    throw new UnimplementedError()
+    return await ctx.svc(GroupService).find()
   }
 
   @FieldResolver(returns => [User], { description: 'Users that are members of this group, either directly or through a subgroup.' })

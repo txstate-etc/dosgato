@@ -11,7 +11,7 @@ describe('users', () => {
     const resp = await query('{ users(filter: { ids: ["su01", "ed01"] }) { id, name, email } }')
     expect(resp.data.users.length).to.equal(2)
   })
-  it('should retrieve users who are diabled in the system', async () => {
+  it('should retrieve users who are disabled in the system', async () => {
     const resp = await query('{ users(filter: { enabled: false }) { id, name, email } }')
     const found = resp.data.users.some((user: any) => {
       return user.id === 'ed02'
