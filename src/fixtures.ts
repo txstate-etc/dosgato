@@ -39,10 +39,12 @@ export async function fixtures () {
     db.insert('INSERT INTO users (login, name, email, lastlogin, lastlogout, disabledAt) VALUES ("ed01", "Draco Malfoy", "ed01@example.com", "2021-07-15 11:15:00", "2021-07-15 13:07:00", null)'),
     db.insert('INSERT INTO users (login, name, email, lastlogin, lastlogout, disabledAt) VALUES ("ed02", "Forrest Gump", "ed02@example.com", "2021-02-01 08:23:00", "2021-02-01 11:33:00", "2021-08-22 15:02:00")')
   ])
-  const [group1, group2, group3] = await Promise.all([
+  const [group1, group2, group3, group4, group5] = await Promise.all([
     db.insert('INSERT INTO groups (name) VALUES ("group1")'),
     db.insert('INSERT INTO groups (name) VALUES ("group2")'),
-    db.insert('INSERT INTO groups (name) VALUES ("group3")')
+    db.insert('INSERT INTO groups (name) VALUES ("group3")'),
+    db.insert('INSERT INTO groups (name) VALUES ("group4")'),
+    db.insert('INSERT INTO groups (name) VALUES ("group5")')
   ])
   const [superuserRole, editorRole, site1editorRole] = await Promise.all([
     db.insert('INSERT INTO roles (name) VALUES ("superuser")'),
@@ -55,9 +57,13 @@ export async function fixtures () {
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group3]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su02, group2]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed01, group1]),
-    db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed02, group2]),
+    db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed02, group3]),
+    db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed02, group4]),
+    db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su03, group4]),
+    db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su03, group1]),
     db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [group1, group2]),
-    db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [group1, group3])
+    db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [group1, group3]),
+    db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [group2, group4])
   ])
   console.log('finished fixtures()')
 }
