@@ -38,8 +38,12 @@ export class GroupService extends AuthorizedService<Group> {
     }
   }
 
-  async getSubgroups (groupId: string) {
-    return await getRelatives([groupId], 'children')
+  async getSubgroups (groupId: string, recursive: boolean = true) {
+    if (recursive) return await getRelatives([groupId], 'children')
+    else {
+      const groupCache = await parentGroupCache.get()
+      return groupCache.filter(relationship => relationship.parentId === groupId).map(g => new Group({ id: g.childId, name: g.childName }))
+    }
   }
 
   async mayView (): Promise<boolean> {

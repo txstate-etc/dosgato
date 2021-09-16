@@ -14,13 +14,12 @@ export class GroupResolver {
 
   @FieldResolver(returns => [User], { description: 'Users that are members of this group, either directly or through a subgroup.' })
   async users (@Ctx() ctx: Context, @Root() group: Group, @Arg('direct', { nullable: true, description: 'true -> only direct members, false -> only indirect members, null -> all members' }) direct?: boolean) {
-    // throw new UnimplementedError()
     return await ctx.svc(UserService).findByGroupId(group.id, direct)
   }
 
   @FieldResolver(returns => [Group], { description: 'Groups that have been added to this group so that all their members are also members of this group.' })
   async subgroups (@Ctx() ctx: Context, @Root() group: Group, @Arg('recursive', { nullable: true }) recursive?: boolean) {
-    throw new UnimplementedError()
+    return await ctx.svc(GroupService).getSubgroups(group.id, recursive)
   }
 
   @FieldResolver(returns => [Role], { description: 'Roles this group has either directly or through a parent group.' })
