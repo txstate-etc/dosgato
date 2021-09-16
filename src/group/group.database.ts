@@ -18,7 +18,9 @@ export async function getGroupsWithUser (userIds: string[]) {
   return directGroups.map(row => ({ key: row.login, value: new Group(row) }))
 }
 
-export async function getAllGroupsWithChildren () {
-  return await db.getall(`SELECT gg.*, g.name AS parentName FROM groups_groups gg
-                                                 INNER JOIN groups g ON gg.parentId = g.id`)
+export async function getGroupRelationships () {
+  return await db.getall(`SELECT gg.*, g.name AS parentName, g2.name AS childName
+                          FROM groups_groups gg
+                          INNER JOIN groups g ON gg.parentId = g.id
+                          INNER JOIN groups g2 ON gg.childId = g2.id`)
 }

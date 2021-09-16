@@ -23,3 +23,16 @@ export async function getUsers (filter: UserFilter) {
   const users = await db.getall(`SELECT * FROM users WHERE (${where.join(') AND (')})`, binds)
   return users.map(u => new User(u))
 }
+
+export async function getUsersInGroup (groupIds: string[]) {
+  const binds: string[] = []
+  const where: string[] = []
+
+  where.push(`groups.id IN (${db.in(binds, groupIds)})`)
+
+  const users = await db.getall(`SELECT users.*, groups.id AS groupId FROM users
+                                  INNER JOIN users_groups ON users.id = users_groups.userId
+                                  INNER JOIN groups on users_groups.groupId = groups.id
+                                  WHERE (${where.join(') AND (')})`, binds)
+  return users.map(row => ({ key: String(row.groupId), value: new User(row) }))
+}

@@ -16,7 +16,6 @@ export class UserResolver {
 
   @FieldResolver(returns => [Group], { description: 'Groups related to the user, either directly or through a subgroup membership.' })
   async groups (@Ctx() ctx: Context, @Root() user: User, @Arg('direct', { nullable: true, description: 'true -> groups where user is direct member, false -> groups where the user is an indirect member but not a direct member, null -> all groups where the user is a member.' }) direct: boolean) {
-    // throw new UnimplementedError()
     return await ctx.svc(GroupService).findByUserId(user.id, direct)
   }
 

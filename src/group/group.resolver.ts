@@ -1,7 +1,7 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Arg, Ctx, FieldResolver, Query, Resolver, Root } from 'type-graphql'
 import { Role } from '../role'
-import { User } from '../user'
+import { User, UserService } from '../user'
 import { Group, GroupPermissions } from './group.model'
 import { GroupService } from './group.service'
 
@@ -14,7 +14,8 @@ export class GroupResolver {
 
   @FieldResolver(returns => [User], { description: 'Users that are members of this group, either directly or through a subgroup.' })
   async users (@Ctx() ctx: Context, @Root() group: Group, @Arg('direct', { nullable: true, description: 'true -> only direct members, false -> only indirect members, null -> all members' }) direct?: boolean) {
-    throw new UnimplementedError()
+    // throw new UnimplementedError()
+    return await ctx.svc(UserService).findByGroupId(group.id, direct)
   }
 
   @FieldResolver(returns => [Group], { description: 'Groups that have been added to this group so that all their members are also members of this group.' })
