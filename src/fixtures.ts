@@ -63,7 +63,13 @@ export async function fixtures () {
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su03, group1]),
     db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [group1, group2]),
     db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [group1, group3]),
-    db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [group2, group4])
+    db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [group2, group4]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [su01, superuserRole]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [su02, superuserRole]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [su03, superuserRole]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [su03, editorRole]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed01, editorRole]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed02, site1editorRole])
   ])
   console.log('finished fixtures()')
 }

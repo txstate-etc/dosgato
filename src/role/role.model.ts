@@ -47,7 +47,7 @@ export class RoleFilter {
   ids?: string[]
 
   @Field(type => [ID], { nullable: true, description: 'Return roles that are associated with any of the given users.' })
-  users?: string
+  users?: string[]
 }
 
 @ObjectType()

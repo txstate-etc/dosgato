@@ -3,12 +3,13 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Group, GroupFilter } from '../group'
 import { User, UserFilter } from '../user'
 import { Role, RoleFilter, RolePermissions, Rule, RuleType } from './role.model'
+import { RoleService } from './role.service'
 
 @Resolver(of => Role)
 export class RoleResolver {
   @Query(returns => [Role])
   async roles (@Ctx() ctx: Context, @Arg('filter') filter: RoleFilter) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).find(filter)
   }
 
   @FieldResolver(returns => [Rule])
