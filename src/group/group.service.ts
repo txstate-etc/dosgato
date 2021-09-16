@@ -46,6 +46,10 @@ export class GroupService extends AuthorizedService<Group> {
     }
   }
 
+  async getSuperGroups (groupId: string) {
+    return await getRelatives([groupId], 'parents')
+  }
+
   async mayView (): Promise<boolean> {
     return true
   }

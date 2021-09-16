@@ -1,7 +1,7 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Group, GroupService } from '../group'
-import { Role } from '../role'
+import { Role, RoleService } from '../role'
 import { UrlSafeString } from '../scalars/urlsafestring'
 import { User, UserAccess, UserFilter, UserPermissions } from './user.model'
 

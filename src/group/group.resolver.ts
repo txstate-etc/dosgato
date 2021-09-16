@@ -1,6 +1,6 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Arg, Ctx, FieldResolver, Query, Resolver, Root } from 'type-graphql'
-import { Role } from '../role'
+import { Role, RoleService } from '../role'
 import { User, UserService } from '../user'
 import { Group, GroupPermissions } from './group.model'
 import { GroupService } from './group.service'
@@ -24,7 +24,7 @@ export class GroupResolver {
 
   @FieldResolver(returns => [Role], { description: 'Roles this group has either directly or through a parent group.' })
   async roles (@Ctx() ctx: Context, @Root() group: Group, @Arg('direct', { nullable: true, description: 'true -> only roles added directly, false -> only indirect roles, null -> all roles' }) direct?: boolean) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).getRolesByGroup(group.id, direct)
   }
 
   @FieldResolver(returns => [User], { description: 'People who are authorized to add and remove members from the group.' })

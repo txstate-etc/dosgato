@@ -46,10 +46,12 @@ export async function fixtures () {
     db.insert('INSERT INTO groups (name) VALUES ("group4")'),
     db.insert('INSERT INTO groups (name) VALUES ("group5")')
   ])
-  const [superuserRole, editorRole, site1editorRole] = await Promise.all([
+  const [superuserRole, editorRole, site1editorRole, site2editorRole, site3editorRole] = await Promise.all([
     db.insert('INSERT INTO roles (name) VALUES ("superuser")'),
     db.insert('INSERT INTO roles (name) VALUES ("editor")'),
-    db.insert('INSERT INTO roles (name) VALUES ("site1-editor")')
+    db.insert('INSERT INTO roles (name) VALUES ("site1-editor")'),
+    db.insert('INSERT INTO roles (name) VALUES ("site2-editor")'),
+    db.insert('INSERT INTO roles (name) VALUES ("site3-editor")')
   ])
   await Promise.all([
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group1]),
@@ -69,7 +71,9 @@ export async function fixtures () {
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [su03, superuserRole]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [su03, editorRole]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed01, editorRole]),
-    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed02, site1editorRole])
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed02, site1editorRole]),
+    db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group3, site2editorRole]),
+    db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group1, site3editorRole])
   ])
   console.log('finished fixtures()')
 }
