@@ -21,7 +21,7 @@ export class UserResolver {
 
   @FieldResolver(returns => [Role], { description: 'Roles related to the user, either directly or through a group.' })
   async roles (@Ctx() ctx: Context, @Root() user: User, @Arg('direct', { nullable: true, description: 'true -> only roles the user has directly, false -> only roles the user has indirectly and not directly, null -> all roles the user has.' }) direct: boolean) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).findByUserId(user.id, direct)
   }
 
   @FieldResolver(returns => UserPermissions)

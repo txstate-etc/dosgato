@@ -30,3 +30,15 @@ export async function getRolesWithGroup (groupIds: string[]) {
                                  WHERE (${where.join(') AND (')})`, binds)
   return roles.map(row => ({ key: String(row.groupId), value: new Role(row) }))
 }
+
+export async function getRolesForUsers (userIds: string[]) {
+  const binds: string[] = []
+  const where: string[] = []
+
+  where.push(`users.login IN (${db.in(binds, userIds)})`)
+  const roles = await db.getall(`SELECT roles.*, users.login AS userId FROM roles
+                                 INNER JOIN users_roles ON roles.id = users_roles.roleId
+                                 INNER JOIN users ON users_roles.userId = users.id
+                                 WHERE (${where.join(') AND (')})`, binds)
+  return roles.map(row => ({ key: String(row.userId), value: new Role(row) }))
+}

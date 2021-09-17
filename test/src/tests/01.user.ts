@@ -44,4 +44,21 @@ describe('users', () => {
     expect(groups).to.include('group2')
     expect(groups).to.include('group1')
   })
+  it('should retrieve a user\'s roles, both direct and through their groups', async () => {
+    const resp = await query('{ users(filter: { ids: ["su02"] }) { id name roles { id name } } }')
+    expect(resp.data.users[0].roles.length).to.equal(2)
+    const roles = resp.data.users[0].roles.map((role: any) => role.name)
+    expect(roles).to.include('superuser')
+    expect(roles).to.include('site3-editor')
+  })
+  it('should retrieve a user\'s direct roles', async () => {
+    const resp = await query('{ users(filter: { ids: ["su02"] }) { id name roles(direct: true) { id name } } }')
+    expect(resp.data.users[0].roles.length).to.equal(1)
+    expect(resp.data.users[0].roles[0].name).to.equal('superuser')
+  })
+  it('should retrieve a user\'s indirect roles', async () => {
+    const resp = await query('{ users(filter: { ids: ["su02"] }) { id name roles(direct: false) { id name } } }')
+    expect(resp.data.users[0].roles.length).to.equal(1)
+    expect(resp.data.users[0].roles[0].name).to.equal('site3-editor')
+  })
 })
