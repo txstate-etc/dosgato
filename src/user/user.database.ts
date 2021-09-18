@@ -2,37 +2,52 @@ import db from 'mysql2-async/db'
 import { User, UserFilter } from './user.model'
 import { isNotNull } from 'txstate-utils'
 
-export async function getUsers (filter: UserFilter) {
+function processFilters (filter?: UserFilter) {
   const binds: string[] = []
   const where: string[] = []
-  if (filter.ids?.length) {
-    where.push(`login IN (${db.in(binds, filter.ids)})`)
-  }
-  if (isNotNull(filter.enabled)) {
-    if (filter.enabled) {
-      where.push('disabledAt IS NULL')
-    } else {
-      where.push('disabledAt IS NOT NULL')
+
+  if (typeof filter !== 'undefined') {
+    if (filter.ids?.length) {
+      where.push(`users.login IN (${db.in(binds, filter.ids)})`)
+    }
+    if (isNotNull(filter.enabled)) {
+      if (filter.enabled) {
+        where.push('users.disabledAt IS NULL')
+      } else {
+        where.push('users.disabledAt IS NOT NULL')
+      }
+    }
+    if (isNotNull(filter.hideDisabledBefore)) {
+      where.push('users.disabledAt > ?')
+      binds.push(filter.hideDisabledBefore.toISO())
     }
   }
-  if (isNotNull(filter.hideDisabledBefore)) {
-    where.push('disabledAt > ?')
-    binds.push(filter.hideDisabledBefore.toISO())
-  }
+  return { binds, where }
+}
+
+export async function getUsers (filter: UserFilter) {
+  const { binds, where } = processFilters(filter)
   if (!where.length) { throw new Error('Must include filters') }
   const users = await db.getall(`SELECT * FROM users WHERE (${where.join(') AND (')})`, binds)
   return users.map(u => new User(u))
 }
 
-export async function getUsersInGroup (groupIds: string[]) {
-  const binds: string[] = []
-  const where: string[] = []
-
+export async function getUsersInGroup (groupIds: string[], filter?: UserFilter) {
+  const { binds, where } = processFilters(filter)
   where.push(`groups.id IN (${db.in(binds, groupIds)})`)
-
   const users = await db.getall(`SELECT users.*, groups.id AS groupId FROM users
                                   INNER JOIN users_groups ON users.id = users_groups.userId
                                   INNER JOIN groups on users_groups.groupId = groups.id
                                   WHERE (${where.join(') AND (')})`, binds)
   return users.map(row => ({ key: String(row.groupId), value: new User(row) }))
+}
+
+export async function getUsersWithRole (roleIds: string[], filter?: UserFilter) {
+  const { binds, where } = processFilters(filter)
+  where.push(`roles.id IN (${db.in(binds, roleIds)})`)
+  const users = await db.getall(`SELECT users.*, roles.id as roleId
+                                 FROM users INNER JOIN users_roles ON users.id = users_roles.userId
+                                 INNER JOIN roles ON users_roles.roleId = roles.id
+                                 WHERE (${where.join(') AND (')})`, binds)
+  return users.map(row => ({ key: String(row.roleId), value: new User(row) }))
 }

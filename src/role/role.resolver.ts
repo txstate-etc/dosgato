@@ -1,7 +1,7 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Group, GroupFilter } from '../group'
-import { User, UserFilter } from '../user'
+import { User, UserFilter, UserService } from '../user'
 import { Role, RoleFilter, RolePermissions, Rule, RuleType } from './role.model'
 import { RoleService } from './role.service'
 
@@ -20,9 +20,8 @@ export class RoleResolver {
   @FieldResolver(returns => [User], { description: 'Returns a list of all users related to the role, either directly or through a group.' })
   async users (@Ctx() ctx: Context, @Root() role: Role,
     @Arg('direct', { nullable: true, description: 'true -> only users that have the role directly, false -> only users that have the role indirectly and not directly, null -> all users that have the role.' }) direct?: boolean,
-    @Arg('filter', { nullable: true }) filter?: UserFilter
-  ) {
-    throw new UnimplementedError()
+    @Arg('filter', { nullable: true }) filter?: UserFilter) {
+    return await ctx.svc(UserService).findByRoleId(role.id, direct, filter)
   }
 
   @FieldResolver(returns => [Group], { description: 'Returns a list of all groups related to the role, either directly or through a parent group.' })

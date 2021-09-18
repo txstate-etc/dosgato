@@ -1,7 +1,7 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader } from 'dataloader-factory'
 import { Group } from './group.model'
-import { getGroups, getGroupsWithUser, getGroupRelationships } from './group.database'
+import { getGroups, getGroupsWithUser, getGroupRelationships, getGroupsWithRole } from './group.database'
 import { Cache, unique } from 'txstate-utils'
 
 const parentGroupCache = new Cache(async () => {
@@ -15,6 +15,12 @@ const parentGroupCache = new Cache(async () => {
 const groupsByUserIdLoader = new ManyJoinedLoader({
   fetch: async (userIds: string[]) => {
     return await getGroupsWithUser(userIds)
+  }
+})
+
+const groupsByRoleIdLoader = new ManyJoinedLoader({
+  fetch: async (roleIds: string[]) => {
+    return await getGroupsWithRole(roleIds)
   }
 })
 
@@ -48,6 +54,15 @@ export class GroupService extends AuthorizedService<Group> {
 
   async getSuperGroups (groupId: string) {
     return await getRelatives([groupId], 'parents')
+  }
+
+  async findByRoleId (roleId: string) {
+    const groups = await this.loaders.get(groupsByRoleIdLoader).load(roleId)
+    return groups
+    // **** Not sure about this ***
+    // const groupIds = groups.map(g => g.id)
+    // const results = await getRelatives(groupIds, 'children')
+    // return unique([...groups, ...results])
   }
 
   async mayView (): Promise<boolean> {

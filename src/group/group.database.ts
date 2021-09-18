@@ -24,3 +24,16 @@ export async function getGroupRelationships () {
                           INNER JOIN groups g ON gg.parentId = g.id
                           INNER JOIN groups g2 ON gg.childId = g2.id`)
 }
+
+export async function getGroupsWithRole (roleIds: string[]) {
+  const binds: string[] = []
+  const where: string[] = []
+
+  where.push(`roles.id IN (${db.in(binds, roleIds)})`)
+  const groups = await db.getall(`SELECT groups.*, roles.id as roleId
+                                  FROM groups INNER JOIN groups_roles ON groups.id = groups_roles.groupId
+                                  INNER JOIN roles ON groups_roles.roleId = roles.id
+                                  WHERE (${where.join(') AND (')})`, binds)
+
+  return groups.map(row => ({ key: String(row.roleId), value: new Group(row) }))
+}
