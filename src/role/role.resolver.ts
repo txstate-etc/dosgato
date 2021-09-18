@@ -1,6 +1,6 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
-import { Group, GroupFilter } from '../group'
+import { Group, GroupFilter, GroupService } from '../group'
 import { User, UserFilter, UserService } from '../user'
 import { Role, RoleFilter, RolePermissions, Rule, RuleType } from './role.model'
 import { RoleService } from './role.service'
@@ -29,7 +29,7 @@ export class RoleResolver {
     @Arg('direct', { nullable: true, description: 'true -> only groups that have the role directly, false -> only groups that have the role indirectly and not directly, null -> all groups that have the role.' }) direct?: boolean,
     @Arg('filter', { nullable: true }) filter?: GroupFilter
   ) {
-    throw new UnimplementedError()
+    return await ctx.svc(GroupService).findByRoleId(role.id, direct, filter)
   }
 
   @FieldResolver(returns => RolePermissions, {

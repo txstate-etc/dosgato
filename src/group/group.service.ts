@@ -1,6 +1,6 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader } from 'dataloader-factory'
-import { Group } from './group.model'
+import { Group, GroupFilter } from './group.model'
 import { getGroups, getGroupsWithUser, getGroupRelationships, getGroupsWithRole } from './group.database'
 import { Cache, unique } from 'txstate-utils'
 
@@ -19,8 +19,8 @@ const groupsByUserIdLoader = new ManyJoinedLoader({
 })
 
 const groupsByRoleIdLoader = new ManyJoinedLoader({
-  fetch: async (roleIds: string[]) => {
-    return await getGroupsWithRole(roleIds)
+  fetch: async (roleIds: string[], filter?: GroupFilter) => {
+    return await getGroupsWithRole(roleIds, filter)
   }
 })
 
@@ -56,13 +56,19 @@ export class GroupService extends AuthorizedService<Group> {
     return await getRelatives([groupId], 'parents')
   }
 
-  async findByRoleId (roleId: string) {
-    const groups = await this.loaders.get(groupsByRoleIdLoader).load(roleId)
-    return groups
-    // **** Not sure about this ***
-    // const groupIds = groups.map(g => g.id)
-    // const results = await getRelatives(groupIds, 'children')
-    // return unique([...groups, ...results])
+  async findByRoleId (roleId: string, direct?: boolean, filter?: GroupFilter) {
+    const groups = await this.loaders.get(groupsByRoleIdLoader, filter).load(roleId)
+    if (typeof direct !== 'undefined' && direct) {
+      return groups
+    } else {
+      const groupIds = groups.map(g => g.id)
+      const subgroups = await getRelatives(groupIds, 'children')
+      if (typeof direct === 'undefined') {
+        return unique([...groups, ...subgroups])
+      } else {
+        return subgroups
+      }
+    }
   }
 
   async mayView (): Promise<boolean> {

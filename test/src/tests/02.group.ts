@@ -4,7 +4,7 @@ import { query } from '../common'
 describe('groups', () => {
   it('should retrieve all groups', async () => {
     const resp = await query('{ groups { id name } }')
-    expect(resp.data.groups.length).to.equal(5)
+    expect(resp.data.groups.length).to.equal(7)
   })
   it('should retrieve direct members of all groups', async () => {
     const resp = await query('{ groups { id name users(direct: true) { id name } } }')

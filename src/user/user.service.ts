@@ -54,7 +54,7 @@ export class UserService extends AuthorizedService<User> {
     } else {
       // get the users who have this role indirectly through a group
       // need the groups that have this role
-      const groupsWithThisRole = await this.svc(GroupService).findByRoleId(roleId)
+      const groupsWithThisRole = await this.svc(GroupService).findByRoleId(roleId, true)
       // then, the users in those groups and their subgroups (which also have this role)
       const result = await Promise.all(
         groupsWithThisRole.map(async g => {

@@ -1,5 +1,19 @@
 import db from 'mysql2-async/db'
-import { Group } from './group.model'
+import { Group, GroupFilter } from './group.model'
+
+function processFilters (filter?: GroupFilter) {
+  const binds: string[] = []
+  const where: string[] = []
+
+  if (typeof filter !== 'undefined') {
+    if (filter.ids?.length) {
+      where.push(`groups.id IN (${db.in(binds, filter.ids)})`)
+    }
+    // TODO: Handle managerIds filter
+    // if (filter.managerIds?.length) {}
+  }
+  return { binds, where }
+}
 
 export async function getGroups () {
   const groups = await db.getall('SELECT * FROM groups')
@@ -25,10 +39,8 @@ export async function getGroupRelationships () {
                           INNER JOIN groups g2 ON gg.childId = g2.id`)
 }
 
-export async function getGroupsWithRole (roleIds: string[]) {
-  const binds: string[] = []
-  const where: string[] = []
-
+export async function getGroupsWithRole (roleIds: string[], filter?: GroupFilter) {
+  const { binds, where } = processFilters(filter)
   where.push(`roles.id IN (${db.in(binds, roleIds)})`)
   const groups = await db.getall(`SELECT groups.*, roles.id as roleId
                                   FROM groups INNER JOIN groups_roles ON groups.id = groups_roles.groupId

@@ -42,4 +42,21 @@ describe('roles', () => {
     expect(users).to.include('ed01')
     expect(users).to.not.include('ed02')
   })
+  it('should retrieve a list of groups related to a role, both directly and indirectly through a parent group', async () => {
+    const resp = await query('{ roles(filter: { users:["ed05"] }) { id name groups { id name } } }')
+    const role = resp.data.roles[0]
+    expect(role.groups.length).to.equal(2)
+  })
+  it('should retrieve a list of groups directly related to a role', async () => {
+    const resp = await query('{ roles(filter: { users:["ed05"] }) { id name groups(direct: true) { id name } } }')
+    const role = resp.data.roles[0]
+    expect(role.groups.length).to.equal(1)
+    expect(role.groups[0].name).to.equal('group6')
+  })
+  it('should retrieve a list of groups indirectly related to a role through a parent group', async () => {
+    const resp = await query('{ roles(filter: { users:["ed05"] }) { id name groups(direct: false) { id name } } }')
+    const role = resp.data.roles[0]
+    expect(role.groups.length).to.equal(1)
+    expect(role.groups[0].name).to.equal('group7')
+  })
 })
