@@ -66,3 +66,5 @@ typings/
 node_modules
 *.mwb.bak
 package-lock.json
+dist
+
