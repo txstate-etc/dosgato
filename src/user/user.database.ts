@@ -51,3 +51,16 @@ export async function getUsersWithRole (roleIds: string[], filter?: UserFilter) 
                                  WHERE (${where.join(') AND (')})`, binds)
   return users.map(row => ({ key: String(row.roleId), value: new User(row) }))
 }
+
+export async function getUsersBySite (siteIds: string[]) {
+  const binds: string[] = []
+  const where: string[] = []
+  if (siteIds.length) {
+    where.push(`sites.id IN (${db.in(binds, siteIds)})`)
+  }
+  const users = await db.getall(`SELECT users.*, sites.id AS siteId FROM users
+                  INNER JOIN sites_managers ON users.id = sites_managers.userId
+                  INNER JOIN sites ON sites_managers.siteId = sites.id
+                  WHERE (${where.join(') AND (')})`, binds)
+  return users.map(row => ({ key: String(row.siteId), value: new User(row) }))
+}

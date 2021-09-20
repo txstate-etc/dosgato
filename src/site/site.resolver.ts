@@ -4,12 +4,12 @@ import { AssetPermission } from '../asset'
 import { AssetFolder } from '../assetfolder'
 import { Data, DataFilter, DataPermission } from '../data'
 import { DataFolder, DataFolderFilter } from '../datafolder'
-import { Organization } from '../organization/organization.model'
+import { Organization, OrganizationService } from '../organization'
 import { Page, PagePermission } from '../page'
 import { PageTree, PageTreeFilter } from '../pagetree'
 import { Role } from '../role'
 import { Template, TemplateFilter } from '../template'
-import { User } from '../user'
+import { User, UserService } from '../user'
 import { Site, SiteFilter, SitePermission, SitePermissions } from './site.model'
 import { SiteService } from './site.service'
 
@@ -57,17 +57,21 @@ export class SiteResolver {
 
   @FieldResolver(returns => User)
   async owner (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    if (typeof site.ownerId !== 'undefined') {
+      return await ctx.svc(UserService).find({ ids: [String(site.ownerId)] })
+    }
   }
 
   @FieldResolver(returns => Organization)
   async organization (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    if (typeof site.organizationId !== 'undefined') {
+      return await ctx.svc(OrganizationService).find([String(site.organizationId)])
+    }
   }
 
   @FieldResolver(returns => [User])
   async managers (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    return await ctx.svc(UserService).findSiteManagers(site.id)
   }
 
   @FieldResolver(returns => [Template], { description: 'All templates that are approved for use in this site.' })

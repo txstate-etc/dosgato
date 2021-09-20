@@ -1,7 +1,7 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader } from 'dataloader-factory'
 import { User, UserFilter } from './user.model'
-import { getUsers, getUsersInGroup, getUsersWithRole } from './user.database'
+import { getUsers, getUsersInGroup, getUsersWithRole, getUsersBySite } from './user.database'
 import { GroupService } from '../group'
 import { unique } from 'txstate-utils'
 
@@ -14,6 +14,12 @@ const usersByGroupIdLoader = new ManyJoinedLoader({
 const usersByRoleIdLoader = new ManyJoinedLoader({
   fetch: async (roleIds: string[], filter?: UserFilter) => {
     return await getUsersWithRole(roleIds, filter)
+  }
+})
+
+const usersBySiteIdLoader = new ManyJoinedLoader({
+  fetch: async (siteIds: string[]) => {
+    return await getUsersBySite(siteIds)
   }
 })
 
@@ -68,6 +74,10 @@ export class UserService extends AuthorizedService<User> {
         return usersFromGroups
       }
     }
+  }
+
+  async findSiteManagers (siteId: string) {
+    return await this.loaders.get(usersBySiteIdLoader).load(siteId)
   }
 
   async mayView (): Promise<boolean> {
