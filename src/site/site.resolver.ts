@@ -11,12 +11,13 @@ import { Role } from '../role'
 import { Template, TemplateFilter } from '../template'
 import { User } from '../user'
 import { Site, SiteFilter, SitePermission, SitePermissions } from './site.model'
+import { SiteService } from './site.service'
 
 @Resolver(of => Site)
 export class SiteResolver {
   @Query(returns => [Site])
   async sites (@Ctx() ctx: Context, @Arg('filter', { nullable: true }) filter?: SiteFilter) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).find(filter)
   }
 
   @FieldResolver(returns => [PageTree])
