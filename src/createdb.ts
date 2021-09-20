@@ -49,8 +49,8 @@ export async function init () {
         `name` VARCHAR(255) NOT NULL, \
         `primaryPagetreeId` MEDIUMINT UNSIGNED NOT NULL, \
         `rootAssetFolderId` MEDIUMINT UNSIGNED NOT NULL, \
-        `launchHost` VARCHAR(255) NOT NULL, \
-        `launchPath` VARCHAR(255) NOT NULL DEFAULT '/', \
+        `launchHost` VARCHAR(255), \
+        `launchPath` VARCHAR(255) DEFAULT '/', \
         `organizationId` SMALLINT UNSIGNED, \
         `ownerId` MEDIUMINT UNSIGNED, \
         PRIMARY KEY (`id`), \

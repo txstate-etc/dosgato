@@ -12,6 +12,7 @@ import { Template, TemplateFilter } from '../template'
 import { User, UserService } from '../user'
 import { Site, SiteFilter, SitePermission, SitePermissions } from './site.model'
 import { SiteService } from './site.service'
+import { isNotNull } from 'txstate-utils'
 
 @Resolver(of => Site)
 export class SiteResolver {
@@ -81,7 +82,7 @@ export class SiteResolver {
 
   @FieldResolver(returns => Boolean, { description: 'True if the site has been launched (i.e. is available on a specified URL outside the editing host.' })
   async launched (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    return isNotNull(site.url)
   }
 
   @FieldResolver(returns => SitePermissions, {

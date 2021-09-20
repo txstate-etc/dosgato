@@ -1,5 +1,6 @@
 import db from 'mysql2-async/db'
 import { Site, SiteFilter } from './site.model'
+import { isNotNull } from 'txstate-utils'
 
 function processFilters (filter?: SiteFilter) {
   const binds: string[] = []
@@ -8,7 +9,13 @@ function processFilters (filter?: SiteFilter) {
     if (filter.ids?.length) {
       where.push(`sites.id IN (${db.in(binds, filter.ids)})`)
     }
-    // TODO: Handle 'launched' filter
+    if (isNotNull(filter.launched)) {
+      if (filter.launched) {
+        where.push('sites.launchHost IS NOT NULL')
+      } else {
+        where.push('sites.launchHost IS NULL')
+      }
+    }
   }
   return { where, binds }
 }
