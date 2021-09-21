@@ -47,8 +47,8 @@ export async function init () {
       CREATE TABLE IF NOT EXISTS `sites` ( \
         `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, \
         `name` VARCHAR(255) NOT NULL, \
-        `primaryPagetreeId` MEDIUMINT UNSIGNED NOT NULL, \
-        `rootAssetFolderId` MEDIUMINT UNSIGNED NOT NULL, \
+        `primaryPagetreeId` MEDIUMINT UNSIGNED, \
+        `rootAssetFolderId` MEDIUMINT UNSIGNED, \
         `launchHost` VARCHAR(255), \
         `launchPath` VARCHAR(255) DEFAULT '/', \
         `organizationId` SMALLINT UNSIGNED, \
