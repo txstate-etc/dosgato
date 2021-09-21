@@ -60,6 +60,18 @@ export async function fixtures () {
     db.insert('INSERT INTO roles (name) VALUES ("group6role")'),
     db.insert('INSERT INTO roles (name) VALUES ("group7role")')
   ])
+
+  const [artCollegeOrg, mathDeptOrg, officeOrg] = await Promise.all([
+    db.insert('INSERT INTO organizations (name) VALUES ("College of Arts and Crafts")'),
+    db.insert('INSERT INTO organizations (name) VALUES ("Department of Mathematics")'),
+    db.insert('INSERT INTO organizations (name) VALUES ("The Office")')
+  ])
+
+  const [site1, site2, site3] = await Promise.all([
+    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site1', artCollegeOrg, ed02]),
+    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site2', mathDeptOrg, su01]),
+    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site3', officeOrg, su03])
+  ])
   await Promise.all([
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group1]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group2]),
@@ -87,7 +99,12 @@ export async function fixtures () {
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group1, site3editorRole]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group3, editorRole]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group6, group6Role]),
-    db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group7, group7Role])
+    db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group7, group7Role]),
+    db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site1, ed04]),
+    db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site1, ed05]),
+    db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site2, su02]),
+    db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site3, ed01]),
+    db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site3, ed03])
   ])
   console.log('finished fixtures()')
 }
