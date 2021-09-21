@@ -32,6 +32,14 @@ export async function getUsers (filter: UserFilter) {
   return users.map(u => new User(u))
 }
 
+export async function getUsersByInternalId (ids: number[]) {
+  const binds: string[] = []
+  const where: string[] = []
+  where.push(`users.id IN (${db.in(binds, ids)})`)
+  const users = await db.getall(`SELECT users.* FROM users WHERE (${where.join(') AND (')})`, binds)
+  return users.map(u => new User(u))
+}
+
 export async function getUsersInGroup (groupIds: string[], filter?: UserFilter) {
   const { binds, where } = processFilters(filter)
   where.push(`groups.id IN (${db.in(binds, groupIds)})`)

@@ -22,19 +22,21 @@ function processFilters (filter?: SiteFilter) {
 
 export async function getSites (filter?: SiteFilter) {
   const { binds, where } = processFilters(filter)
-  const sites = await db.getall(`SELECT sites.id, sites.name, sites.url, sites.primaryPagetreeId, sites.rootAssetFolderId, sites.organizationId, sites.ownerId
-                 FROM sites
-                 WHERE (${where.join(') AND (')})`, binds)
+  let query = 'SELECT sites.id, sites.name, sites.launchHost, sites.primaryPagetreeId, sites.rootAssetFolderId, sites.organizationId, sites.ownerId FROM sites'
+  if (where.length) {
+    query += ` WHERE (${where.join(') AND (')})`
+  }
+  const sites = await db.getall(query, binds)
   return sites.map(s => new Site(s))
 }
 
-export async function getSitesByOrganization (orgIds: string[]) {
+export async function getSitesByOrganization (orgIds: number[]) {
   const binds: string[] = []
   const where: string[] = []
 
   where.push(`sites.organizationId IN (${db.in(binds, orgIds)})`)
 
-  const sites = await db.getall(`SELECT sites.id, sites.name, sites.url, sites.primaryPagetreeId, sites.rootAssetFolderId, sites.organizationId, sites.ownerId
+  const sites = await db.getall(`SELECT sites.id, sites.name, sites.launchHost, sites.primaryPagetreeId, sites.rootAssetFolderId, sites.organizationId, sites.ownerId
                                  FROM sites
                                  WHERE (${where.join(') AND (')})`, binds)
   return sites.map(s => new Site(s))

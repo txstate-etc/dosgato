@@ -59,7 +59,7 @@ export class SiteResolver {
   @FieldResolver(returns => User)
   async owner (@Ctx() ctx: Context, @Root() site: Site) {
     if (typeof site.ownerId !== 'undefined') {
-      return await ctx.svc(UserService).find({ ids: [String(site.ownerId)] })
+      return await ctx.svc(UserService).findByInternalId(site.ownerId)
     }
   }
 
