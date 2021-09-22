@@ -80,7 +80,7 @@ export async function init () {
       `promotedAt` DATETIME, \
       `archivedAt` DATETIME, \
       `deletedAt` DATETIME, \
-      `deletedBy` MEDIUMINT UNSIGNED NOT NULL, \
+      `deletedBy` MEDIUMINT UNSIGNED, \
       PRIMARY KEY (`id`), \
       UNIQUE INDEX `nameinsite` (`siteId`, `name`), \
       INDEX `site_idx` (`siteId`, `type`), \
