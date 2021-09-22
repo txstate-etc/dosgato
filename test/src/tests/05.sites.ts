@@ -25,4 +25,18 @@ describe('sites', () => {
     const managerNames = site3.managers.map((m: any) => m.name)
     expect(managerNames).to.include('Draco Malfoy')
   })
+  it('should get pagetrees for sites', async () => {
+    const resp = await query('{ sites { id name pagetrees { id name type } } }')
+    const site3 = resp.data.sites.find((s: any) => s.name === 'site3')
+    const pagetreeNames = site3.pagetrees.map((p: any) => p.name)
+    expect(pagetreeNames).to.include('pagetree3primary')
+    expect(pagetreeNames).to.include('pagetree3')
+  })
+  it('should get filtered pagetrees for sites', async () => {
+    const resp = await query('{ sites { id name pagetrees(filter: {types: [PRIMARY]}) { id name type } } }')
+    const site3 = resp.data.sites.find((s: any) => s.name === 'site3')
+    const pagetreeNames = site3.pagetrees.map((p: any) => p.name)
+    expect(pagetreeNames).to.include('pagetree3primary')
+    expect(pagetreeNames).to.not.include('pagetree3')
+  })
 })

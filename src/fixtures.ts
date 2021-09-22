@@ -72,6 +72,20 @@ export async function fixtures () {
     db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site2', mathDeptOrg, su01]),
     db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site3', officeOrg, su03])
   ])
+
+  const [pagetree1, pagetree2, pagetree3, pagetree3primary] = await Promise.all([
+    db.insert('INSERT INTO pagetrees (name, siteId) VALUES (?,?)', ['pagetree1', site1]),
+    db.insert('INSERT INTO pagetrees (name, siteId) VALUES (?,?)', ['pagetree2', site2]),
+    db.insert('INSERT INTO pagetrees (name, siteId) VALUES (?,?)', ['pagetree3', site3]),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES(?,?,?)', ['pagetree3primary', site3, 'primary'])
+  ])
+
+  await Promise.all([
+    db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetree1, site1]),
+    db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetree2, site2]),
+    db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetree3primary, site3])
+  ])
+
   await Promise.all([
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group1]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group2]),
