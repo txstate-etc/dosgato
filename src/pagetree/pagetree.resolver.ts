@@ -3,7 +3,7 @@ import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Page } from '../page'
 import { PageFilter } from '../page/page.model'
 import { Role } from '../role'
-import { Site } from '../site'
+import { Site, SiteService } from '../site'
 import { Template, TemplateFilter } from '../template'
 import { PageTree, PageTreePermission, PageTreePermissions } from './pagetree.model'
 
@@ -11,7 +11,7 @@ import { PageTree, PageTreePermission, PageTreePermissions } from './pagetree.mo
 export class PageTreeResolver {
   @FieldResolver(returns => Site)
   async site (@Ctx() ctx: Context, @Root() pagetree: PageTree) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).findById(String(pagetree.siteId))
   }
 
   @FieldResolver(returns => [Page])
