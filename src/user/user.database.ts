@@ -42,20 +42,18 @@ export async function getUsersByInternalId (ids: number[]) {
 
 export async function getUsersInGroup (groupIds: string[], filter?: UserFilter) {
   const { binds, where } = processFilters(filter)
-  where.push(`groups.id IN (${db.in(binds, groupIds)})`)
-  const users = await db.getall(`SELECT users.*, groups.id AS groupId FROM users
-                                  INNER JOIN users_groups ON users.id = users_groups.userId
-                                  INNER JOIN groups on users_groups.groupId = groups.id
-                                  WHERE (${where.join(') AND (')})`, binds)
+  where.push(`users_groups.groupId IN (${db.in(binds, groupIds)})`)
+  const users = await db.getall(`SELECT users.*, users_groups.groupId AS groupId FROM users
+                                 INNER JOIN users_groups ON users.id = users_groups.userId
+                                 WHERE (${where.join(') AND (')})`, binds)
   return users.map(row => ({ key: String(row.groupId), value: new User(row) }))
 }
 
 export async function getUsersWithRole (roleIds: string[], filter?: UserFilter) {
   const { binds, where } = processFilters(filter)
-  where.push(`roles.id IN (${db.in(binds, roleIds)})`)
-  const users = await db.getall(`SELECT users.*, roles.id as roleId
+  where.push(`users_roles.roleId IN (${db.in(binds, roleIds)})`)
+  const users = await db.getall(`SELECT users.*, users_roles.roleId AS roleId
                                  FROM users INNER JOIN users_roles ON users.id = users_roles.userId
-                                 INNER JOIN roles ON users_roles.roleId = roles.id
                                  WHERE (${where.join(') AND (')})`, binds)
   return users.map(row => ({ key: String(row.roleId), value: new User(row) }))
 }
@@ -64,11 +62,10 @@ export async function getUsersBySite (siteIds: string[]) {
   const binds: string[] = []
   const where: string[] = []
   if (siteIds.length) {
-    where.push(`sites.id IN (${db.in(binds, siteIds)})`)
+    where.push(`sites_managers.siteId IN (${db.in(binds, siteIds)})`)
   }
-  const users = await db.getall(`SELECT users.*, sites.id AS siteId FROM users
-                  INNER JOIN sites_managers ON users.id = sites_managers.userId
-                  INNER JOIN sites ON sites_managers.siteId = sites.id
-                  WHERE (${where.join(') AND (')})`, binds)
+  const users = await db.getall(`SELECT users.*, sites_managers.siteId AS siteId
+                                 FROM users INNER JOIN sites_managers ON users.id = sites_managers.userId
+                                 WHERE (${where.join(') AND (')})`, binds)
   return users.map(row => ({ key: String(row.siteId), value: new User(row) }))
 }

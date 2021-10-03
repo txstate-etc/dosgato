@@ -41,11 +41,9 @@ export async function getGroupRelationships () {
 
 export async function getGroupsWithRole (roleIds: string[], filter?: GroupFilter) {
   const { binds, where } = processFilters(filter)
-  where.push(`roles.id IN (${db.in(binds, roleIds)})`)
-  const groups = await db.getall(`SELECT groups.*, roles.id as roleId
-                                  FROM groups INNER JOIN groups_roles ON groups.id = groups_roles.groupId
-                                  INNER JOIN roles ON groups_roles.roleId = roles.id
+  where.push(`groups_roles.roleId IN (${db.in(binds, roleIds)})`)
+  const groups = await db.getall(`SELECT groups.*, groups_roles.roleId as roleId
+                                  FROM groups INNER JOIN groups_roles on groups.id = groups_roles.groupId
                                   WHERE (${where.join(') AND (')})`, binds)
-
   return groups.map(row => ({ key: String(row.roleId), value: new Group(row) }))
 }
