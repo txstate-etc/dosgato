@@ -4,12 +4,13 @@ import { Data, DataFilter } from '../data'
 import { PageFilter } from '../page'
 import { PageTree } from '../pagetree'
 import { Template, TemplateFilter, TemplatePermissions } from './template.model'
+import { TemplateService } from './template.service'
 
 @Resolver(of => Template)
 export class TemplateResolver {
   @Query(returns => [Template])
   async templates (@Ctx() ctx: Context, @Arg('filter', { nullable: true }) filter?: TemplateFilter) {
-    throw new UnimplementedError()
+    return await ctx.svc(TemplateService).find(filter)
   }
 
   @FieldResolver(returns => [PageTree])
