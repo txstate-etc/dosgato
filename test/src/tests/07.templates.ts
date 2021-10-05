@@ -29,4 +29,20 @@ describe('templates', () => {
     expect(keys).to.include('keyc2')
     expect(keys).to.include('keyc3')
   })
+  it('should retrieve pagetrees authorized directly for a template', async () => {
+    const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name pagetrees(direct: true) { id name } } }')
+    const pagetreeNames = resp.data.templates[0].pagetrees.map((p: any) => p.name)
+    expect(pagetreeNames).to.include('pagetree2')
+  })
+  it('should retrieve pagetrees authorized for a template through a site', async () => {
+    const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name pagetrees(direct: false) { id name } } }')
+    const pagetreeNames = resp.data.templates[0].pagetrees.map((p: any) => p.name)
+    expect(pagetreeNames).to.include('pagetree1')
+  })
+  it('should retrieve pagetrees authorized for a template directly or through a site', async () => {
+    const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name pagetrees { id name } } }')
+    const pagetreeNames = resp.data.templates[0].pagetrees.map((p: any) => p.name)
+    expect(pagetreeNames).to.include('pagetree3')
+    expect(pagetreeNames).to.include('pagetree1')
+  })
 })
