@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { TemplateFilter, Template } from './template.model'
 
-const columns = ['templates.key', 'templates.name', 'templates.type', 'templates.deleted']
+const columns = ['templates.id', 'templates.key', 'templates.name', 'templates.type', 'templates.deleted']
 
 function processFilters (filter?: TemplateFilter) {
   const where: string[] = []
@@ -26,7 +26,6 @@ export async function getTemplates (filter?: TemplateFilter) {
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`
   }
-  console.log(query)
   const templates = await db.getall(query, binds)
   return templates.map(t => new Template(t))
 }

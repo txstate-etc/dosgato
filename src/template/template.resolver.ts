@@ -1,8 +1,9 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Data, DataFilter } from '../data'
-import { PageFilter } from '../page'
-import { PageTree } from '../pagetree'
+import { Page, PageFilter } from '../page'
+import { PageTree, PageTreeService } from '../pagetree'
+import { Site } from '../site'
 import { Template, TemplateFilter, TemplatePermissions } from './template.model'
 import { TemplateService } from './template.service'
 
@@ -23,15 +24,15 @@ export class TemplateResolver {
         or all pagetrees that would be authorized to use the template.`
     }) direct?: boolean
   ) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageTreeService).findByTemplateId(template.id, direct)
   }
 
-  @FieldResolver(returns => [PageTree], { description: 'All pages using this template. Empty array for data templates.' })
+  @FieldResolver(returns => [Page], { description: 'All pages using this template. Empty array for data templates.' })
   async pages (@Ctx() ctx: Context, @Root() template: Template, @Arg('filter', { nullable: true }) filter?: PageFilter) {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => [PageTree], { description: 'All sites that are permitted to use this template.' })
+  @FieldResolver(returns => [Site], { description: 'All sites that are permitted to use this template.' })
   async sites (@Ctx() ctx: Context, @Root() template: Template,
     @Arg('atLeastOneTree', {
       nullable: true,

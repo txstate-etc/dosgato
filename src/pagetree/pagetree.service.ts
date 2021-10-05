@@ -1,7 +1,7 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
-import { OneToManyLoader } from 'dataloader-factory'
+import { OneToManyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import { PageTree, PageTreeFilter } from './pagetree.model'
-import { getPagetreesBySite } from './pagetree.database'
+import { getPagetreesBySite, getPagetreesByTemplate } from './pagetree.database'
 
 const PagetreesBySiteIdLoader = new OneToManyLoader({
   fetch: async (siteIds: number[], filter?: PageTreeFilter) => {
@@ -10,9 +10,20 @@ const PagetreesBySiteIdLoader = new OneToManyLoader({
   extractKey: (p: PageTree) => p.siteId
 })
 
+const PagetreesByTemplateIdLoader = new ManyJoinedLoader({
+  fetch: async (templateIds: number[], direct?: boolean) => {
+    return await getPagetreesByTemplate(templateIds, direct)
+  }
+})
+
 export class PageTreeService extends AuthorizedService {
   async findBySiteId (siteId: string, filter?: PageTreeFilter) {
     return await this.loaders.get(PagetreesBySiteIdLoader, filter).load(Number(siteId))
+  }
+
+  async findByTemplateId (templateId: number, direct?: boolean) {
+    console.log(templateId)
+    return await this.loaders.get(PagetreesByTemplateIdLoader, direct).load(templateId)
   }
 
   async mayView (): Promise<boolean> {
