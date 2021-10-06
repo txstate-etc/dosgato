@@ -1,7 +1,7 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
-import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import { Site, SiteFilter } from './site.model'
-import { getSites, getSitesByOrganization } from './site.database'
+import { getSites, getSitesByOrganization, getSitesByTemplate } from './site.database'
 
 const siteByOrganizationIdLoader = new OneToManyLoader({
   fetch: async (orgIds: number[]) => {
@@ -13,6 +13,12 @@ const siteByOrganizationIdLoader = new OneToManyLoader({
 const sitesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
     return await getSites({ ids })
+  }
+})
+
+const sitesByTemplateIdLoader = new ManyJoinedLoader({
+  fetch: async (templateIds: number[], atLeastOneTree?: boolean) => {
+    return await getSitesByTemplate(templateIds, atLeastOneTree)
   }
 })
 
@@ -31,6 +37,10 @@ export class SiteService extends AuthorizedService<Site> {
 
   async findByOrganization (orgId: string) {
     return await this.loaders.get(siteByOrganizationIdLoader).load(Number(orgId))
+  }
+
+  async findByTemplateId (templateId: number, atLeastOneTree?: boolean) {
+    return await this.loaders.get(sitesByTemplateIdLoader, atLeastOneTree).load(templateId)
   }
 
   async mayView (): Promise<boolean> {

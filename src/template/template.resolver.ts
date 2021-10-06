@@ -3,7 +3,7 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Data, DataFilter } from '../data'
 import { Page, PageFilter } from '../page'
 import { PageTree, PageTreeService } from '../pagetree'
-import { Site } from '../site'
+import { Site, SiteService } from '../site'
 import { Template, TemplateFilter, TemplatePermissions } from './template.model'
 import { TemplateService } from './template.service'
 
@@ -39,7 +39,7 @@ export class TemplateResolver {
       description: 'A template may be linked to a whole site or an individual pagetree. By default this resolver only returns sites where the whole site is able to use the template. Use this toggle to also return any sites where one or more pagetrees are able to use the template. Ignored for data templates.'
     }) atLeastOneTree?: boolean
   ) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).findByTemplateId(template.id, atLeastOneTree)
   }
 
   @FieldResolver(returns => [Data], { description: 'All data entries that use this template. Empty array for page or component templates.' })

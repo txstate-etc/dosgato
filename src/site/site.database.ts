@@ -1,6 +1,8 @@
 import db from 'mysql2-async/db'
 import { Site, SiteFilter } from './site.model'
-import { isNotNull } from 'txstate-utils'
+import { isNotNull, unique } from 'txstate-utils'
+
+const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId']
 
 function processFilters (filter?: SiteFilter) {
   const binds: string[] = []
@@ -22,7 +24,7 @@ function processFilters (filter?: SiteFilter) {
 
 export async function getSites (filter?: SiteFilter) {
   const { binds, where } = processFilters(filter)
-  let query = 'SELECT sites.id, sites.name, sites.launchHost, sites.primaryPagetreeId, sites.rootAssetFolderId, sites.organizationId, sites.ownerId FROM sites'
+  let query = `SELECT ${columns.join(', ')} FROM sites`
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`
   }
@@ -36,8 +38,27 @@ export async function getSitesByOrganization (orgIds: number[]) {
 
   where.push(`sites.organizationId IN (${db.in(binds, orgIds)})`)
 
-  const sites = await db.getall(`SELECT sites.id, sites.name, sites.launchHost, sites.primaryPagetreeId, sites.rootAssetFolderId, sites.organizationId, sites.ownerId
-                                 FROM sites
+  const sites = await db.getall(`SELECT ${columns.join(', ')} FROM sites
                                  WHERE (${where.join(') AND (')})`, binds)
   return sites.map(s => new Site(s))
+}
+
+export async function getSitesByTemplate (templateIds: number[], atLeastOneTree?: boolean) {
+  const binds: string[] = []
+
+  const wholeSites = await db.getall(`SELECT ${columns.join(', ')}, sites_templates.templateId as templateId FROM sites
+                                 INNER JOIN sites_templates ON sites.id = sites_templates.siteId
+                                 WHERE sites_templates.templateId IN (${db.in(binds, templateIds)})`, binds)
+  if (!atLeastOneTree) {
+    return wholeSites.map(s => ({ key: s.templateId, value: new Site(s) }))
+  } else {
+    // also return any sites where one or more pagetrees are able to use the template
+    const binds2: string[] = []
+    const sitesWithPagetreesWithTemplate = await db.getall(`SELECT ${columns.join(', ')}, pagetrees_templates.templateId as templateId FROM sites
+                                            INNER JOIN pagetrees ON pagetrees.siteId = sites.id
+                                            INNER JOIN pagetrees_templates ON pagetrees_templates.pagetreeId = pagetrees.id
+                                            WHERE pagetrees_templates.templateId IN (${db.in(binds2, templateIds)})`, binds2)
+    const sites = unique([...wholeSites, ...sitesWithPagetreesWithTemplate])
+    return sites.map(s => ({ key: s.templateId, value: new Site(s) }))
+  }
 }
