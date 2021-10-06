@@ -29,3 +29,12 @@ export async function getTemplates (filter?: TemplateFilter) {
   const templates = await db.getall(query, binds)
   return templates.map(t => new Template(t))
 }
+
+export async function getTemplatesBySite (siteIds: string[], filter?: TemplateFilter) {
+  const { where, binds } = processFilters(filter)
+  where.push(`sites_templates.siteId IN (${db.in(binds, siteIds)})`)
+  const sites = await db.getall(`SELECT ${columns.join(', ')}, sites_templates.siteId as siteId FROM templates
+                           INNER JOIN sites_templates ON templates.id = sites_templates.templateId
+                           WHERE (${where.join(') AND (')})`, binds)
+  return sites.map(row => ({ key: String(row.siteId), value: new Template(row) }))
+}

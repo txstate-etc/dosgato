@@ -8,7 +8,7 @@ import { Organization, OrganizationService } from '../organization'
 import { Page, PagePermission } from '../page'
 import { PageTree, PageTreeFilter, PageTreeService } from '../pagetree'
 import { Role } from '../role'
-import { Template, TemplateFilter } from '../template'
+import { Template, TemplateFilter, TemplateService } from '../template'
 import { User, UserService } from '../user'
 import { Site, SiteFilter, SitePermission, SitePermissions } from './site.model'
 import { SiteService } from './site.service'
@@ -77,7 +77,7 @@ export class SiteResolver {
 
   @FieldResolver(returns => [Template], { description: 'All templates that are approved for use in this site.' })
   async templates (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: TemplateFilter) {
-    throw new UnimplementedError()
+    return await ctx.svc(TemplateService).findBySiteId(site.id, filter)
   }
 
   @FieldResolver(returns => Boolean, { description: 'True if the site has been launched (i.e. is available on a specified URL outside the editing host.' })

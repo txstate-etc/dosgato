@@ -39,4 +39,18 @@ describe('sites', () => {
     expect(pagetreeNames).to.include('pagetree3primary')
     expect(pagetreeNames).to.not.include('pagetree3')
   })
+  it('should get templates for sites', async () => {
+    const resp = await query('{ sites { id name templates { key name } } }')
+    const site2 = resp.data.sites.find((s: any) => s.name === 'site2')
+    const templateNames = site2.templates.map((t: any) => t.key)
+    expect(templateNames).to.include('keyp1')
+  })
+  it('should get filtered templates for sites', async () => {
+    const resp = await query('{ sites { id name templates(filter: { keys: ["keyp3"] }) { key name } } }')
+    const site2 = resp.data.sites.find((s: any) => s.name === 'site2')
+    expect(site2.templates.length).to.equal(0)
+    const site1 = resp.data.sites.find((s: any) => s.name === 'site1')
+    const templateNames = site1.templates.map((t: any) => t.key)
+    expect(templateNames).to.include('keyp3')
+  })
 })
