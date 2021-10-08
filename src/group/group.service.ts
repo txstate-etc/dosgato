@@ -1,7 +1,7 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
-import { ManyJoinedLoader } from 'dataloader-factory'
-import { Group, GroupFilter } from './group.model'
-import { getGroups, getGroupsWithUser, getGroupRelationships, getGroupsWithRole } from './group.database'
+import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { Group, GroupFilter, GroupResponse } from './group.model'
+import { getGroups, getGroupsWithUser, getGroupRelationships, getGroupsWithRole, createGroup } from './group.database'
 import { Cache, unique } from 'txstate-utils'
 
 const parentGroupCache = new Cache(async () => {
@@ -10,6 +10,12 @@ const parentGroupCache = new Cache(async () => {
 }, {
   freshseconds: 60 * 60,
   staleseconds: 24 * 60 * 60
+})
+
+const groupsByIdLoader = new PrimaryKeyLoader({
+  fetch: async (ids: string[]) => {
+    return await getGroups({ ids })
+  }
 })
 
 const groupsByUserIdLoader = new ManyJoinedLoader({
@@ -69,6 +75,24 @@ export class GroupService extends AuthorizedService<Group> {
         return subgroups
       }
     }
+  }
+
+  async create (name: string) {
+    // TODO: make sure the logged in user has permission to create a group
+    const response = new GroupResponse({})
+    try {
+      const groupId = await createGroup(name)
+      const newGroup = await this.loaders.get(groupsByIdLoader).load(String(groupId))
+      response.success = true
+      response.group = newGroup
+    } catch (err: any) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        response.addMessage(`Group ${name} already exists.`, 'name')
+        return response
+      }
+      throw new Error('An unknown error occurred while creating the group.')
+    }
+    return response
   }
 
   async mayView (): Promise<boolean> {

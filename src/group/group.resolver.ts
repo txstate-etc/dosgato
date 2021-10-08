@@ -1,8 +1,8 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Arg, Ctx, FieldResolver, Query, Resolver, Root } from 'type-graphql'
+import { Arg, Ctx, FieldResolver, Mutation, Query, Resolver, Root } from 'type-graphql'
 import { Role, RoleService } from '../role'
 import { User, UserService } from '../user'
-import { Group, GroupPermissions } from './group.model'
+import { Group, GroupPermissions, GroupResponse } from './group.model'
 import { GroupService } from './group.service'
 
 @Resolver(of => Group)
@@ -38,6 +38,11 @@ export class GroupResolver {
   })
   permissions (@Root() group: Group) {
     return group
+  }
+
+  @Mutation(returns => GroupResponse)
+  async addGroup (@Ctx() ctx: Context, @Arg('name', { description: 'name of the group being created' }) name: string): Promise<GroupResponse> {
+    return await ctx.svc(GroupService).create(name)
   }
 }
 

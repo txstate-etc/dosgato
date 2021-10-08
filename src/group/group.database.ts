@@ -15,8 +15,13 @@ function processFilters (filter?: GroupFilter) {
   return { binds, where }
 }
 
-export async function getGroups () {
-  const groups = await db.getall('SELECT * FROM groups')
+export async function getGroups (filter?: GroupFilter) {
+  const { binds, where } = processFilters(filter)
+  let query = 'SELECT * FROM groups'
+  if (where.length) {
+    query += ` WHERE (${where.join(') AND (')})`
+  }
+  const groups = await db.getall(query, binds)
   return groups.map(g => new Group(g))
 }
 
@@ -46,4 +51,9 @@ export async function getGroupsWithRole (roleIds: string[], filter?: GroupFilter
                                   FROM groups INNER JOIN groups_roles on groups.id = groups_roles.groupId
                                   WHERE (${where.join(') AND (')})`, binds)
   return groups.map(row => ({ key: String(row.roleId), value: new Group(row) }))
+}
+
+export async function createGroup (name: string) {
+  const groupId = await db.insert('INSERT INTO groups (name) VALUES (?)', [name])
+  return groupId
 }

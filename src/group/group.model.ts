@@ -1,4 +1,5 @@
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 
 @ObjectType({ description: 'Groups of users so that groups can be assigned roles instead of individual users. Groups may also be synced to an external system like Active Directory.' })
 export class Group {
@@ -21,6 +22,17 @@ export class GroupFilter {
 
   @Field(type => [ID], { nullable: true, description: 'Return groups managed by any of the specified manager ids.' })
   managerIds?: string[]
+}
+
+@ObjectType()
+export class GroupResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  group?: Group
+
+  constructor (config: ValidatedResponseArgs & { group?: Group }) {
+    super(config)
+    this.group = config.group
+  }
 }
 
 @ObjectType()
