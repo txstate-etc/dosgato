@@ -5,29 +5,32 @@ import { getUsers, getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersBy
 import { GroupService } from '../group'
 import { unique } from 'txstate-utils'
 
-const usersByGroupIdLoader = new ManyJoinedLoader({
-  fetch: async (groupIds: string[], filter?: UserFilter) => {
-    return await getUsersInGroup(groupIds, filter)
-  }
-})
-
-const usersByRoleIdLoader = new ManyJoinedLoader({
-  fetch: async (roleIds: string[], filter?: UserFilter) => {
-    return await getUsersWithRole(roleIds, filter)
-  }
-})
-
-const usersBySiteIdLoader = new ManyJoinedLoader({
-  fetch: async (siteIds: string[]) => {
-    return await getUsersBySite(siteIds)
-  }
-})
-
 const usersByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => {
     return await getUsersByInternalId(ids)
   },
   extractId: (item: User) => item.internalId
+})
+
+const usersByGroupIdLoader = new ManyJoinedLoader({
+  fetch: async (groupIds: string[], filter?: UserFilter) => {
+    return await getUsersInGroup(groupIds, filter)
+  },
+  idLoader: usersByInternalIdLoader
+})
+
+const usersByRoleIdLoader = new ManyJoinedLoader({
+  fetch: async (roleIds: string[], filter?: UserFilter) => {
+    return await getUsersWithRole(roleIds, filter)
+  },
+  idLoader: usersByInternalIdLoader
+})
+
+const usersBySiteIdLoader = new ManyJoinedLoader({
+  fetch: async (siteIds: string[]) => {
+    return await getUsersBySite(siteIds)
+  },
+  idLoader: usersByInternalIdLoader
 })
 
 export class UserService extends AuthorizedService<User> {

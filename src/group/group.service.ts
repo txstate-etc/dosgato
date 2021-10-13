@@ -21,13 +21,15 @@ const groupsByIdLoader = new PrimaryKeyLoader({
 const groupsByUserIdLoader = new ManyJoinedLoader({
   fetch: async (userIds: string[]) => {
     return await getGroupsWithUser(userIds)
-  }
+  },
+  idLoader: groupsByIdLoader
 })
 
 const groupsByRoleIdLoader = new ManyJoinedLoader({
   fetch: async (roleIds: string[], filter?: GroupFilter) => {
     return await getGroupsWithRole(roleIds, filter)
-  }
+  },
+  idLoader: groupsByIdLoader
 })
 
 export class GroupService extends AuthorizedService<Group> {
