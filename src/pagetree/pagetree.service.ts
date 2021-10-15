@@ -26,7 +26,7 @@ export class PageTreeService extends AuthorizedService {
     return await this.loaders.get(PagetreesByTemplateIdLoader, direct).load(templateId)
   }
 
-  async mayView (pageTree: PageTree) {
+  async mayView (): Promise<boolean> {
     return true
   }
 }
