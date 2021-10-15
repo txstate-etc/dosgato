@@ -52,8 +52,8 @@ export class Asset {
   // does not include downloads of resized versions, but the fieldresolver will
   lastRawDownload?: DateTime
 
-  deletedBy: number|null
-  folderId: number
+  deletedBy?: number
+  folderInternalId: number
   dataId: string
 
   constructor (row: any) {
@@ -64,7 +64,7 @@ export class Asset {
     this.mime = row.mime // should be detected upon upload
     this.extension = row.extension // prefer to use a library here that takes this.mime as input
     this.box = BoxAttributes.hasBox(row) ? new BoxAttributes(row) : undefined
-    this.folderId = row.folderId
+    this.folderInternalId = row.folderId
     this.dataId = row.dataId
     this.lastRawDownload = row.lastDownload
     this.deleted = isNotNull(row.deleted)

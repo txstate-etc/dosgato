@@ -19,14 +19,14 @@ export class AssetFolder {
   @Field({ nullable: true, description: 'Date this folder was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
-  deletedBy: number|null
-  parentId: number
+  deletedBy?: number
+  parentInternalId: number
 
   constructor (row: any) {
     this.internalId = row.id
     this.id = row.guid
     this.name = row.name
-    this.parentId = row.parentId
+    this.parentInternalId = row.parentId
     this.deleted = isNotNull(row.deleted)
     this.deletedAt = DateTime.fromJSDate(row.deleted)
     this.deletedBy = row.deletedBy

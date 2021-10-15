@@ -1,3 +1,4 @@
+import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleType } from '../role'
 
@@ -54,7 +55,7 @@ export class SiteRule {
   constructor (row: any) {
     this.id = String(row.id)
     this.roleId = String(row.roleId)
-    this.siteId = row.siteId ? String(row.siteId) : undefined
+    this.siteId = optionalString(row.siteId)
     this.grants = new SiteRuleGrants(row)
   }
 }

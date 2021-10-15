@@ -4,7 +4,7 @@ import { PageTree, PageTreeFilter } from './pagetree.model'
 import { getPagetreesBySite, getPagetreesByTemplate } from './pagetree.database'
 
 const PagetreesBySiteIdLoader = new OneToManyLoader({
-  fetch: async (siteIds: number[], filter?: PageTreeFilter) => {
+  fetch: async (siteIds: string[], filter?: PageTreeFilter) => {
     return await getPagetreesBySite(siteIds, filter)
   },
   extractKey: (p: PageTree) => p.siteId
@@ -18,7 +18,7 @@ const PagetreesByTemplateIdLoader = new ManyJoinedLoader({
 
 export class PageTreeService extends AuthorizedService {
   async findBySiteId (siteId: string, filter?: PageTreeFilter) {
-    return await this.loaders.get(PagetreesBySiteIdLoader, filter).load(Number(siteId))
+    return await this.loaders.get(PagetreesBySiteIdLoader, filter).load(siteId)
   }
 
   async findByTemplateId (templateId: number, direct?: boolean) {
@@ -26,7 +26,7 @@ export class PageTreeService extends AuthorizedService {
     return await this.loaders.get(PagetreesByTemplateIdLoader, direct).load(templateId)
   }
 
-  async mayView (): Promise<boolean> {
+  async mayView (pageTree: PageTree) {
     return true
   }
 }

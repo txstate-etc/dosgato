@@ -1,3 +1,4 @@
+import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RulePathMode } from '../pagerule'
 import { RuleType } from '../role'
@@ -54,7 +55,7 @@ export class AssetRule {
   constructor (row: any) {
     this.id = String(row.id)
     this.roleId = String(row.roleId)
-    this.siteId = String(row.siteId)
+    this.siteId = optionalString(row.siteId)
     this.path = row.path
     this.mode = row.mode
     this.grants = new AssetRuleGrants(row)

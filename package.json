@@ -11,7 +11,7 @@
     "mysql2-async": "^1.0.12",
     "nanoid": "^3.1.20",
     "rfdc": "^1.2.0",
-    "txstate-utils": "^1.4.4",
+    "txstate-utils": "^1.5.0",
     "type-graphql": "^1.1.1"
   },
   "devDependencies": {

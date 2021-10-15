@@ -43,14 +43,14 @@ export class PageTree {
   @Field({ nullable: true, description: 'Date this page tree was archived. If an archive is promoted to primary and re-archived, only the last move to archive status is recorded.' })
   archived?: DateTime
 
-  siteId: number
-  deletedBy: number
+  siteId: string
+  deletedBy?: number
 
   constructor (row: any) {
     this.id = String(row.id)
     this.type = row.type
     this.name = row.name
-    this.siteId = row.siteId
+    this.siteId = String(row.siteId)
     this.created = DateTime.fromJSDate(row.created)
     this.archived = row.archived ? DateTime.fromJSDate(row.archived) : undefined
     this.deleted = row.deleted === 1

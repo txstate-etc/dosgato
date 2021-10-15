@@ -14,7 +14,7 @@ export class Organization {
   name: string
 
   constructor (row: any) {
-    this.id = row.id
+    this.id = String(row.id)
     this.name = row.name
   }
 }

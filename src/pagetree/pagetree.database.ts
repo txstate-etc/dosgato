@@ -2,7 +2,7 @@ import db from 'mysql2-async/db'
 import { PageTree, PageTreeFilter } from './pagetree.model'
 import { unique } from 'txstate-utils'
 
-export async function getPagetreesBySite (siteIds: number[], filter?: PageTreeFilter) {
+export async function getPagetreesBySite (siteIds: string[], filter?: PageTreeFilter) {
   const binds: string[] = []
   const where: string[] = []
   if (filter?.ids?.length) {

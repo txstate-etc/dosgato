@@ -30,7 +30,7 @@ export class Page {
   @Field({ nullable: true, description: 'Date this page was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
-  deletedBy: string|null
+  deletedBy?: number
   pageTreeId: string
   dataId: string
 
@@ -42,7 +42,7 @@ export class Page {
     this.linkId = row.linkId
     this.deleted = isNotNull(row.deleted)
     this.deletedAt = DateTime.fromJSDate(row.deleted)
-    this.deletedBy = String(row.deletedBy)
+    this.deletedBy = row.deletedBy
   }
 }
 

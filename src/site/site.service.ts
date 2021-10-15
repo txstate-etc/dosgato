@@ -4,7 +4,7 @@ import { Site, SiteFilter } from './site.model'
 import { getSites, getSitesByOrganization, getSitesByTemplate } from './site.database'
 
 const siteByOrganizationIdLoader = new OneToManyLoader({
-  fetch: async (orgIds: number[]) => {
+  fetch: async (orgIds: string[]) => {
     return await getSitesByOrganization(orgIds)
   },
   extractKey: (item: Site) => item.organizationId!
@@ -36,7 +36,7 @@ export class SiteService extends AuthorizedService<Site> {
   }
 
   async findByOrganization (orgId: string) {
-    return await this.loaders.get(siteByOrganizationIdLoader).load(Number(orgId))
+    return await this.loaders.get(siteByOrganizationIdLoader).load(orgId)
   }
 
   async findByTemplateId (templateId: number, atLeastOneTree?: boolean) {

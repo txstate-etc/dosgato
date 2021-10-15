@@ -32,7 +32,7 @@ export async function getSites (filter?: SiteFilter) {
   return sites.map(s => new Site(s))
 }
 
-export async function getSitesByOrganization (orgIds: number[]) {
+export async function getSitesByOrganization (orgIds: string[]) {
   const binds: string[] = []
   const where: string[] = []
 

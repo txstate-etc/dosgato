@@ -1,3 +1,4 @@
+import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
 @ObjectType()
@@ -26,9 +27,9 @@ export class Site {
   @Field()
   name: string
 
-  primaryPagetreeId: number
-  rootAssetFolderId: number
-  organizationId?: number
+  primaryPagetreeId: string
+  rootAssetFolderInternalId: number
+  organizationId?: string
   ownerId?: number
 
   @Field({ nullable: true, description: 'URL outside the editing host that points to this site. Null if the site is not launched.' })
@@ -38,9 +39,9 @@ export class Site {
     this.id = String(row.id)
     this.name = row.name
     if (row.launchHost) this.url = new LaunchURL(row)
-    this.primaryPagetreeId = row.primaryPagetreeId
-    this.rootAssetFolderId = row.rootAssetFolderId
-    this.organizationId = row.organizationId
+    this.primaryPagetreeId = String(row.primaryPagetreeId)
+    this.rootAssetFolderInternalId = row.rootAssetFolderId
+    this.organizationId = optionalString(row.organizationId)
     this.ownerId = row.ownerId
   }
 }

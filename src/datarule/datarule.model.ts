@@ -1,3 +1,4 @@
+import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleType } from '../role'
 
@@ -59,7 +60,7 @@ export class DataRule {
   constructor (row: any) {
     this.id = String(row.id)
     this.roleId = String(row.roleId)
-    this.siteId = String(row.siteId)
+    this.siteId = optionalString(row.siteId)
     this.templateId = row.templateId
     this.grants = new DataRuleGrants(row)
     this.path = row.path

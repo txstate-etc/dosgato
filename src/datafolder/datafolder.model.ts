@@ -20,15 +20,15 @@ export class DataFolder {
   deletedAt?: DateTime
 
   templateId: number
-  siteId: number
-  deletedBy: string|null
+  siteId: string
+  deletedBy?: number
 
   constructor (row: any) {
     this.internalId = row.id
     this.id = row.guid
     this.name = row.name
     this.templateId = row.templateId
-    this.siteId = row.siteId
+    this.siteId = String(row.siteId)
     this.deleted = isNotNull(row.deleted)
     this.deletedAt = DateTime.fromJSDate(row.deleted)
     this.deletedBy = row.deletedBy

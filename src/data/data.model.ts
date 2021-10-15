@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { isNotNull } from 'txstate-utils'
+import { isNotNull, optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
 @ObjectType({ description: 'Data are pieces of shareable versioned content with a template and a dialog but not rendering code. The data will be consumed by component templates, each of which will do its own rendering of the data. For example, an Article data type could be displayed by an Article List component or an Article Detail component. In addition, outside services could access the article data directly from GraphQL.' })
@@ -15,10 +15,10 @@ export class Data {
   @Field({ nullable: true, description: 'Date this data was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
-  deletedBy: string|null
+  deletedBy?: number
   dataId: string
-  folderId: string|null
-  siteId: string|null
+  folderInternalId?: number
+  siteId?: string
 
   // template identifier is NOT a property because it's part of the upgradeable data,
   // we'll have to use the versionedservice indexing to look up data by template id
@@ -27,8 +27,8 @@ export class Data {
     this.internalId = row.id
     this.id = row.dataId
     this.dataId = row.dataId
-    this.folderId = row.folderId
-    this.siteId = row.siteId
+    this.folderInternalId = row.folderId
+    this.siteId = optionalString(row.siteId)
     this.deleted = isNotNull(row.deletedAt)
     this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
