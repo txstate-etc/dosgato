@@ -25,8 +25,11 @@ export class GlobalRule {
   @Field({ description: 'Permissions granted by this rule.' })
   grants: GlobalRuleGrants
 
+  roleId: string
+
   constructor (row: any) {
     this.id = String(row.id)
+    this.roleId = String(row.roleId)
     this.grants = new GlobalRuleGrants(row)
   }
 }

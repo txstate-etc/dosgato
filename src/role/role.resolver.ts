@@ -1,8 +1,13 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
+import { AssetRule, AssetRuleService } from '../assetrule'
+import { DataRule, DataRuleService } from '../datarule'
+import { GlobalRule, GlobalRuleService } from '../globalrule'
+import { PageRule, PageRuleService } from '../pagerule'
+import { SiteRule, SiteRuleService } from '../siterule'
 import { Group, GroupFilter, GroupService } from '../group'
 import { User, UserFilter, UserService } from '../user'
-import { Role, RoleFilter, RolePermissions, Rule, RuleType } from './role.model'
+import { Role, RoleFilter, RolePermissions } from './role.model'
 import { RoleService } from './role.service'
 
 @Resolver(of => Role)
@@ -12,9 +17,29 @@ export class RoleResolver {
     return await ctx.svc(RoleService).find(filter)
   }
 
-  @FieldResolver(returns => [Rule])
-  async rules (@Ctx() ctx: Context, @Root() role: Role, @Arg('types', type => [RuleType]) types: RuleType[]) {
-    throw new UnimplementedError()
+  @FieldResolver(returns => [GlobalRule])
+  async globalRules (@Ctx() ctx: Context, @Root() role: Role) {
+    return await ctx.svc(GlobalRuleService).getRules(role.id)
+  }
+
+  @FieldResolver(returns => [SiteRule])
+  async siteRules (@Ctx() ctx: Context, @Root() role: Role) {
+    return await ctx.svc(SiteRuleService).getRules(role.id)
+  }
+
+  @FieldResolver(returns => [AssetRule])
+  async assetRules (@Ctx() ctx: Context, @Root() role: Role) {
+    return await ctx.svc(AssetRuleService).getRules(role.id)
+  }
+
+  @FieldResolver(returns => [DataRule])
+  async dataRules (@Ctx() ctx: Context, @Root() role: Role) {
+    return await ctx.svc(DataRuleService).getRules(role.id)
+  }
+
+  @FieldResolver(returns => [PageRule])
+  async pageRules (@Ctx() ctx: Context, @Root() role: Role) {
+    return await ctx.svc(PageRuleService).getRules(role.id)
   }
 
   @FieldResolver(returns => [User], { description: 'Returns a list of all users related to the role, either directly or through a group.' })

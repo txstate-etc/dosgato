@@ -30,6 +30,7 @@ export class SiteRuleGrants {
     if (row) {
       this.launch = !!row.launch
       this.rename = !!row.rename
+      this.manageOwners = !!row.manageOwners
       this.managePagetrees = !!row.managePagetrees
       this.promotePagetree = !!row.promotePagetree
       this.delete = !!row.delete
