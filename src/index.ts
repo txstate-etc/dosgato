@@ -15,18 +15,20 @@ import { UrlSafeString, UrlSafeStringScalar } from './scalars/urlsafestring'
 import { SitePermissionsResolver, SiteResolver } from './site'
 import { SiteRulePermissionsResolver, SiteRuleResolver } from './siterule'
 import { TemplatePermissionsResolver, TemplateResolver } from './template'
-import { UserAccessResolver, UserPermissionsResolver, UserResolver } from './user'
+import { UserPermissionsResolver, UserResolver } from './user'
 import { DataFolderPermissionsResolver, DataFolderResolver } from './datafolder'
 import { GroupPermissionsResolver, GroupResolver } from './group'
 import { GlobalRulePermissionsResolver, GlobalRuleResolver } from './globalrule/globalrule.resolver'
 import { VersionResolver } from './version'
 import { OrganizationResolver } from './organization/organization.resolver'
+import { AccessResolver } from './access'
 
 async function main () {
   await migrations()
   const server = new GQLServer()
   await server.start({
     resolvers: [
+      AccessResolver,
       AssetResolver,
       AssetPermissionsResolver,
       AssetRuleResolver,
@@ -59,7 +61,6 @@ async function main () {
       TemplateResolver,
       TemplatePermissionsResolver,
       UserResolver,
-      UserAccessResolver,
       UserPermissionsResolver,
       VersionResolver
     ],

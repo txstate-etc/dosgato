@@ -50,6 +50,3 @@ export class UserFilter {
 
 @ObjectType()
 export class UserPermissions {}
-
-@ObjectType()
-export class UserAccess {}
