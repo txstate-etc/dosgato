@@ -1,13 +1,13 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
-import { Role } from '../role'
+import { Role, RoleService } from '../role'
 import { GlobalRule, GlobalRulePermissions } from './globalrule.model'
 
 @Resolver(of => GlobalRule)
 export class GlobalRuleResolver {
   @FieldResolver(returns => Role)
   async role (@Ctx() ctx: Context, @Root() globalrule: GlobalRule) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).getRoleForRule(globalrule.roleId)
   }
 
   @FieldResolver(returns => GlobalRulePermissions, {

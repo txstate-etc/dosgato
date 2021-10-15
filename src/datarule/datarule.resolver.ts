@@ -1,6 +1,6 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
-import { Role } from '../role'
+import { Role, RoleService } from '../role'
 import { Site } from '../site'
 import { Template } from '../template'
 import { DataRule, DataRulePermissions } from './datarule.model'
@@ -9,7 +9,7 @@ import { DataRule, DataRulePermissions } from './datarule.model'
 export class DataRuleResolver {
   @FieldResolver(returns => Role, { description: 'The role to which this rule belongs.' })
   async role (@Ctx() ctx: Context, @Root() datarule: DataRule) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).getRoleForRule(datarule.roleId)
   }
 
   @FieldResolver(returns => Site, { nullable: true, description: 'The site to which this rule applies. Null if it applies to all sites.' })

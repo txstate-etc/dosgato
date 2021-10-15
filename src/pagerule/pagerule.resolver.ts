@@ -1,7 +1,7 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
 import { PageTree } from '../pagetree'
-import { Role } from '../role'
+import { Role, RoleService } from '../role'
 import { Site } from '../site'
 import { PageRule, PageRulePermissions } from './pagerule.model'
 
@@ -19,7 +19,7 @@ export class PageRuleResolver {
 
   @FieldResolver(returns => Role)
   async role (@Ctx() ctx: Context, @Root() pagerule: PageRule) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).getRoleForRule(pagerule.roleId)
   }
 
   @FieldResolver(returns => PageRulePermissions, {

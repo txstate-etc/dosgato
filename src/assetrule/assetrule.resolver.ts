@@ -1,6 +1,6 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
-import { Role } from '../role'
+import { Role, RoleService } from '../role'
 import { Site } from '../site'
 import { AssetRule, AssetRulePermissions } from './assetrule.model'
 
@@ -13,7 +13,7 @@ export class AssetRuleResolver {
 
   @FieldResolver(returns => Role, { description: 'The role to which this rule belongs.' })
   async role (@Ctx() ctx: Context, @Root() assetrule: AssetRule) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).getRoleForRule(assetrule.roleId)
   }
 
   @FieldResolver(returns => AssetRulePermissions, {

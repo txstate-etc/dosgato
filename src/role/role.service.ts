@@ -1,25 +1,36 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
-import { ManyJoinedLoader } from 'dataloader-factory'
+import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { RoleFilter } from './role.model'
 import { getRoles, getRolesWithGroup, getRolesForUsers } from './role.database'
 import { unique } from 'txstate-utils'
 import { GroupService } from '../group'
 
+const rolesByIdLoader = new PrimaryKeyLoader({
+  fetch: async (ids: string[]) => {
+    return await getRoles({ ids })
+  }
+})
+
 const rolesByGroupIdLoader = new ManyJoinedLoader({
   fetch: async (groupIds: string[]) => {
     return await getRolesWithGroup(groupIds)
-  }
+  },
+  idLoader: rolesByIdLoader
 })
 
 const rolesByUserIdLoader = new ManyJoinedLoader({
   fetch: async (userIds: string[]) => {
     return await getRolesForUsers(userIds)
-  }
+  },
+  idLoader: rolesByIdLoader
 })
 
 export class RoleService extends AuthorizedService {
   async find (filter: RoleFilter) {
     const roles = await getRoles(filter)
+    for (const role of roles) {
+      this.loaders.get(rolesByIdLoader).prime(role.id, role)
+    }
     return unique(roles)
   }
 
@@ -65,6 +76,10 @@ export class RoleService extends AuthorizedService {
         return indirectRoles
       }
     }
+  }
+
+  async getRoleForRule (roleId: string) {
+    return await this.loaders.get(rolesByIdLoader).load(roleId)
   }
 
   async mayView (): Promise<boolean> {

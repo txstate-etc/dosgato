@@ -1,6 +1,6 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
-import { Role } from '../role'
+import { Role, RoleService } from '../role'
 import { Site } from '../site'
 import { SiteRule, SiteRulePermissions } from './siterule.model'
 
@@ -8,7 +8,7 @@ import { SiteRule, SiteRulePermissions } from './siterule.model'
 export class SiteRuleResolver {
   @FieldResolver(returns => Role)
   async role (@Ctx() ctx: Context, @Root() siterule: SiteRule) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).getRoleForRule(siterule.roleId)
   }
 
   @FieldResolver(returns => Site, { nullable: true, description: 'The site targeted by this rule. Null means it targets all sites.' })
