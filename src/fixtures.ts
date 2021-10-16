@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import db from 'mysql2-async/db'
 
 export async function fixtures () {
@@ -19,7 +20,8 @@ export async function fixtures () {
     db.execute('DELETE FROM siterules'),
     db.execute('DELETE FROM groups_groups'),
     db.execute('DELETE FROM assets'),
-    db.execute('DELETE FROM sites_managers')
+    db.execute('DELETE FROM sites_managers'),
+    db.execute('DELETE FROM templaterules')
   ])
   await Promise.all([
     db.execute('DELETE FROM datafolders'),
@@ -97,6 +99,10 @@ export async function fixtures () {
     db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyc3", "componenttemplate3", "component", 0)'),
     db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyd1", "datatemplate1", "data", 0)'),
     db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyd2", "datatemplate2", "data", 0)')
+  ])
+
+  await Promise.all([
+    db.insert('INSERT INTO templaterules (`roleId`, `templateId`, `use`) VALUES (?, ?, 1)', [superuserRole, pagetemplate1])
   ])
 
   await Promise.all([

@@ -289,6 +289,7 @@ export async function init () {
       `key` VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `name` VARCHAR(255) NOT NULL, \
       `type` ENUM('component', 'page', 'data') NOT NULL, \
+      `universal` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `deleted` TINYINT UNSIGNED NOT NULL, \
       PRIMARY KEY (`id`), \
       UNIQUE INDEX `name_UNIQUE` (`name`), \
@@ -442,6 +443,22 @@ export async function init () {
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;")
+  await db.execute('\
+    CREATE TABLE IF NOT EXISTS `templaterules` ( \
+      `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
+      `roleId` MEDIUMINT UNSIGNED NOT NULL, \
+      `templateId` SMALLINT UNSIGNED NOT NULL, \
+      `use` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
+      PRIMARY KEY (`id`), \
+      CONSTRAINT `FK_templaterules_roles` \
+        FOREIGN KEY (`roleId`) \
+        REFERENCES `roles` (`id`), \
+      CONSTRAINT `FK_templaterules_tmpl` \
+        FOREIGN KEY (`templateId`) \
+        REFERENCES `templates` (`id`)) \
+    ENGINE = InnoDB \
+    DEFAULT CHARACTER SET = utf8mb4 \
+    DEFAULT COLLATE = utf8mb4_general_ci;')
   await db.execute('\
     CREATE TABLE IF NOT EXISTS `mutationlog` ( \
       `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, \

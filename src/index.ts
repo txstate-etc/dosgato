@@ -22,6 +22,7 @@ import { GlobalRulePermissionsResolver, GlobalRuleResolver } from './globalrule/
 import { VersionResolver } from './version'
 import { OrganizationResolver } from './organization/organization.resolver'
 import { AccessResolver } from './access'
+import { TemplateRulePermissionsResolver, TemplateRuleResolver } from './templaterule'
 
 async function main () {
   await migrations()
@@ -60,6 +61,8 @@ async function main () {
       SiteRulePermissionsResolver,
       TemplateResolver,
       TemplatePermissionsResolver,
+      TemplateRuleResolver,
+      TemplateRulePermissionsResolver,
       UserResolver,
       UserPermissionsResolver,
       VersionResolver

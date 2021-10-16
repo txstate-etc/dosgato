@@ -5,7 +5,8 @@ export enum RuleType {
   SITE = 'site',
   PAGE = 'page',
   ASSET = 'asset',
-  DATA = 'data'
+  DATA = 'data',
+  TEMPLATE = 'template'
 }
 registerEnumType(RuleType, {
   name: 'RuleType'

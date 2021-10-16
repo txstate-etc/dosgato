@@ -65,3 +65,10 @@ As you can see, when the API services are partially upgraded, the upgraded servi
 
 ## References
 * https://www.npmjs.com/package/rfc6902
+
+## Notes
+* The rendering server may pass a user token along to the API, or may pass a service token for anonymous access.
+  * The API should ensure that the service token only receives published/launched page data.
+  * Direct asset downloads will also pass through the rendering server.
+  * The API should never allow entirely unauthenticated access.
+* Need to think about first-class support for protected pages. Probably a shared secret with the cache boxes.

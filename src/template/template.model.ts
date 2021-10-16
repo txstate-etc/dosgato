@@ -36,6 +36,9 @@ export class Template {
   @Field(type => TemplateType)
   type: TemplateType
 
+  @Field({ description: 'This template may be used on any site. It does not require site-by-site permission.' })
+  universal: boolean
+
   @Field({ description: 'Any template not found in the currently running source code will be marked as deleted upon startup.' })
   deleted: boolean
 
@@ -44,7 +47,8 @@ export class Template {
     this.key = row.key
     this.name = row.name
     this.type = row.type
-    this.deleted = row.deleted
+    this.deleted = !!row.deleted
+    this.universal = !!row.universal
   }
 }
 
