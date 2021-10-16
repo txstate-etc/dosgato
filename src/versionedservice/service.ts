@@ -41,7 +41,7 @@ const versionsByNumberLoader = new OneToManyLoader({
 })
 
 function zerofill (n: number|string) {
-  return typeof n === 'number' ? String(n).padStart(10, '0') : n
+  return typeof n === 'number' ? String(Math.floor(n)).padStart(12, '0') + (2.3 % 1).toFixed(4).substring(1) : n
 }
 
 function zerofillIndexes (indexes: Index[]) {
