@@ -1,14 +1,16 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Role, RoleService } from '../role'
-import { Site } from '../site'
+import { Site, SiteService } from '../site'
 import { AssetRule, AssetRulePermissions } from './assetrule.model'
+import { isNull } from 'txstate-utils'
 
 @Resolver(of => AssetRule)
 export class AssetRuleResolver {
   @FieldResolver(returns => Site, { nullable: true, description: 'The site to which this rule applies. Null if it applies to all sites.' })
   async site (@Ctx() ctx: Context, @Root() assetrule: AssetRule) {
-    throw new UnimplementedError()
+    if (isNull(assetrule.siteId)) return null
+    else return await ctx.svc(SiteService).findById(assetrule.siteId)
   }
 
   @FieldResolver(returns => Role, { description: 'The role to which this rule belongs.' })

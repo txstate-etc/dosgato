@@ -1,9 +1,10 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Role, RoleService } from '../role'
-import { Site } from '../site'
+import { Site, SiteService } from '../site'
 import { Template } from '../template'
 import { DataRule, DataRulePermissions } from './datarule.model'
+import { isNull } from 'txstate-utils'
 
 @Resolver(of => DataRule)
 export class DataRuleResolver {
@@ -14,7 +15,8 @@ export class DataRuleResolver {
 
   @FieldResolver(returns => Site, { nullable: true, description: 'The site to which this rule applies. Null if it applies to all sites.' })
   async site (@Ctx() ctx: Context, @Root() datarule: DataRule) {
-    throw new UnimplementedError()
+    if (isNull(datarule.siteId)) return null
+    else return await ctx.svc(SiteService).findById(datarule.siteId)
   }
 
   @FieldResolver(returns => Template, { nullable: true, description: 'The data template to which this rule applies. Null if it applies to all data templates.' })

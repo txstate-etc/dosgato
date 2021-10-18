@@ -1,8 +1,9 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Role, RoleService } from '../role'
-import { Site } from '../site'
+import { Site, SiteService } from '../site'
 import { SiteRule, SiteRulePermissions } from './siterule.model'
+import { isNull } from 'txstate-utils'
 
 @Resolver(of => SiteRule)
 export class SiteRuleResolver {
@@ -13,7 +14,8 @@ export class SiteRuleResolver {
 
   @FieldResolver(returns => Site, { nullable: true, description: 'The site targeted by this rule. Null means it targets all sites.' })
   async site (@Ctx() ctx: Context, @Root() siterule: SiteRule) {
-    throw new UnimplementedError()
+    if (isNull(siterule.siteId)) return null
+    else return await ctx.svc(SiteService).findById(siterule.siteId)
   }
 
   @FieldResolver(returns => SiteRulePermissions, {
