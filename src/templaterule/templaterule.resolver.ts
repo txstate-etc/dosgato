@@ -11,8 +11,8 @@ export class TemplateRuleResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => Template, { nullable: true, description: 'The site targeted by this rule. Null means it targets all sites.' })
-  async site (@Ctx() ctx: Context, @Root() templaterule: TemplateRule) {
+  @FieldResolver(returns => Template, { nullable: true, description: 'The template targeted by this rule. Null means it targets all templates.' })
+  async template (@Ctx() ctx: Context, @Root() templaterule: TemplateRule) {
     throw new UnimplementedError()
   }
 
