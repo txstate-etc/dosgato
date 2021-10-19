@@ -1,16 +1,17 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphql'
-import { PageTree } from '../pagetree'
+import { PageTree, PageTreeService } from '../pagetree'
 import { Role } from '../role'
 import { JsonData } from '../scalars/jsondata'
 import { Site } from '../site'
 import { Template, TemplateFilter } from '../template'
-import { User } from '../user'
+import { User, UserService } from '../user'
 import { ObjectVersion } from '../version'
 import { VersionedService } from '../versionedservice'
 import { Page, PageFilter, PagePermission, PagePermissions } from './page.model'
 import { PageService } from './page.service'
+import { isNull } from 'txstate-utils'
 
 @Resolver(of => Page)
 export class PageResolver {
@@ -21,7 +22,8 @@ export class PageResolver {
 
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the page is not in the soft-deleted state.' })
   async deletedBy (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    if (isNull(page.deletedBy)) return null
+    else return await ctx.svc(UserService).findByInternalId(page.deletedBy)
   }
 
   @FieldResolver(returns => [Page])
@@ -48,7 +50,7 @@ export class PageResolver {
 
   @FieldResolver(returns => PageTree)
   async pagetree (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageTreeService).findById(page.pageTreeId)
   }
 
   @FieldResolver(returns => Site)

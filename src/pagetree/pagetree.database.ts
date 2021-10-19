@@ -2,7 +2,7 @@ import db from 'mysql2-async/db'
 import { PageTree, PageTreeFilter } from './pagetree.model'
 import { unique } from 'txstate-utils'
 
-export async function getPagetreesBySite (siteIds: string[], filter?: PageTreeFilter) {
+function processFilters (filter?: PageTreeFilter) {
   const binds: string[] = []
   const where: string[] = []
   if (filter?.ids?.length) {
@@ -11,6 +11,18 @@ export async function getPagetreesBySite (siteIds: string[], filter?: PageTreeFi
   if (filter?.types?.length) {
     where.push(`pagetrees.type IN (${db.in(binds, filter.types)})`)
   }
+  return { binds, where }
+}
+
+export async function getPagetreesById (ids: string[]) {
+  const { binds, where } = processFilters({ ids })
+  const pagetrees = await db.getall(`SELECT * FROM pagetrees
+                                     WHERE (${where.join(') AND (')})`, binds)
+  return pagetrees.map(p => new PageTree(p))
+}
+
+export async function getPagetreesBySite (siteIds: string[], filter?: PageTreeFilter) {
+  const { binds, where } = processFilters(filter)
   where.push(`pagetrees.siteID IN (${db.in(binds, siteIds)})`)
   const pagetrees = await db.getall(`SELECT * from pagetrees
                      WHERE (${where.join(') AND (')})`, binds)
