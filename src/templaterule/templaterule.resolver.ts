@@ -1,19 +1,21 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
-import { Role } from '../role'
-import { Template } from '../template'
+import { Role, RoleService } from '../role'
+import { Template, TemplateService } from '../template'
 import { TemplateRule, TemplateRulePermissions } from './templaterule.model'
+import { isNull } from 'txstate-utils'
 
 @Resolver(of => TemplateRule)
 export class TemplateRuleResolver {
   @FieldResolver(returns => Role)
   async role (@Ctx() ctx: Context, @Root() templaterule: TemplateRule) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).getRoleForRule(templaterule.roleId)
   }
 
   @FieldResolver(returns => Template, { nullable: true, description: 'The template targeted by this rule. Null means it targets all templates.' })
   async template (@Ctx() ctx: Context, @Root() templaterule: TemplateRule) {
-    throw new UnimplementedError()
+    if (isNull(templaterule.templateId)) return null
+    else return await ctx.svc(TemplateService).findById(templaterule.templateId)
   }
 
   @FieldResolver(returns => TemplateRulePermissions, {
