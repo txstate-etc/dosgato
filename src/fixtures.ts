@@ -172,7 +172,7 @@ export async function fixtures () {
   await Promise.all([
     db.insert('INSERT INTO globalrules (roleId, manageUsers) VALUES (?,?)', [superuserRole, 1]),
     db.insert('INSERT INTO globalrules (roleId, manageUsers) VALUES (?,?)', [group6Role, 1]),
-    db.insert('INSERT INTO siterules (roleId, launch) VALUES (?,?)', [siteLauncherRole, ed05]),
+    db.insert('INSERT INTO siterules (roleId, launch) VALUES (?,?)', [siteLauncherRole, 1]),
     db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, manageOwners, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?,?,?,?)', [superuserRole, site1, 1, 1, 1, 1, 1, 1, 1]),
     db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, manageOwners, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?,?,?,?)', [superuserRole, site2, 1, 1, 1, 1, 1, 1, 1]),
     db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, manageOwners, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?,?,?,?)', [superuserRole, site3, 1, 1, 1, 1, 1, 1, 1]),
