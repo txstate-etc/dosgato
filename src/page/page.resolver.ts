@@ -10,12 +10,13 @@ import { User } from '../user'
 import { ObjectVersion } from '../version'
 import { VersionedService } from '../versionedservice'
 import { Page, PageFilter, PagePermission, PagePermissions } from './page.model'
+import { PageService } from './page.service'
 
 @Resolver(of => Page)
 export class PageResolver {
   @Query(returns => [Page])
   async pages (@Ctx() ctx: Context, @Arg('filter') filter: PageFilter) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).find(filter)
   }
 
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the page is not in the soft-deleted state.' })
