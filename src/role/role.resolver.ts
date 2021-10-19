@@ -4,7 +4,7 @@ import { AssetRule, AssetRuleService } from '../assetrule'
 import { DataRule, DataRuleService } from '../datarule'
 import { GlobalRule, GlobalRuleService } from '../globalrule'
 import { PageRule, PageRuleService } from '../pagerule'
-import { SiteRule, SiteRuleService } from '../siterule'
+import { SiteRule, SiteRuleFilter, SiteRuleService } from '../siterule'
 import { Group, GroupFilter, GroupService } from '../group'
 import { User, UserFilter, UserService } from '../user'
 import { Role, RoleFilter, RolePermissions } from './role.model'
@@ -24,8 +24,8 @@ export class RoleResolver {
   }
 
   @FieldResolver(returns => [SiteRule])
-  async siteRules (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(SiteRuleService).getRules(role.id)
+  async siteRules (@Ctx() ctx: Context, @Root() role: Role, @Arg('filter', { nullable: true }) filter?: SiteRuleFilter) {
+    return await ctx.svc(SiteRuleService).getRules(role.id, filter)
   }
 
   @FieldResolver(returns => [AssetRule])

@@ -18,19 +18,127 @@ describe('global rules', () => {
 })
 
 describe('site rules', () => {
-  it.skip('should get the site rules for a role', async () => {})
+  it('should get the site rules for a role', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules { grants { delete launch manageOwners managePagetrees promotePagetree rename undelete } } } }')
+    const testrole1 = resp.data.roles.find((r: any) => r.name === 'site1-siterulestest1')
+    const siteRules = testrole1.siteRules[0]
+    expect(siteRules.grants.delete).to.equal(false)
+    expect(siteRules.grants.launch).to.equal(true)
+    expect(siteRules.grants.manageOwners).to.equal(true)
+    expect(siteRules.grants.managePagetrees).to.equal(false)
+    expect(siteRules.grants.promotePagetree).to.equal(false)
+    expect(siteRules.grants.rename).to.equal(true)
+    expect(siteRules.grants.undelete).to.equal(false)
+  })
   it.skip('should filter site rules by role ID', async () => {})
-  it.skip('should filter site rules by site ID', async () => {})
-  it.skip('should return site rules that grant the "launch" permission', async () => {})
-  it.skip('should return site rules that grant the "rename" permission', async () => {})
-  it.skip('should return site rules that grant the "manageOwners" permission', async () => {})
-  it.skip('should return site rules that grant the "managePagetrees" permission', async () => {})
-  it.skip('should return site rules that grant the "promotePagetrees" permission', async () => {})
-  it.skip('should return site rules that grant the "delete" permission', async () => {})
-  it.skip('should return site rules that grant the "undelete" permission', async () => {})
-  it.skip('should get the role attached to a site rule', async () => {})
-  it.skip('should get the site targeted by a site rule', async () => {})
-  it.skip('should return null for the site of a site rule that targets all sites', async () => {})
+  it('should filter site rules by site ID', async () => {
+    const sitesResp = await query('{ sites { id name } }')
+    const site2 = sitesResp.data.sites.find((s: any) => s.name === 'site2')
+    const resp = await query(`{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { siteIds: [${site2.id}] }) { id site { name } } } }`)
+    for (const role of resp.data.roles) {
+      if (role.name === 'site2-siterulestest1') expect(role.siteRules.length).to.be.greaterThan(0)
+      else expect(role.siteRules.length).to.equal(0)
+    }
+  })
+  it('should return site rules that grant the "launch" permission', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { launch: true }) { id type } } }')
+    const roles = resp.data.roles
+    for (const role of roles) {
+      if (role.name === 'site1-siterulestest1') {
+        expect(role.siteRules.length).to.equal(1)
+      } else if (role.name === 'site1-siterulestest2') {
+        expect(role.siteRules.length).to.equal(0)
+      }
+    }
+  })
+  it('should return site rules that grant the "rename" permission', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { rename: true }) { id type } } }')
+    const roles = resp.data.roles
+    for (const role of roles) {
+      if (role.name === 'site1-siterulestest1') {
+        expect(role.siteRules.length).to.equal(1)
+      } else if (role.name === 'site1-siterulestest2') {
+        expect(role.siteRules.length).to.equal(0)
+      }
+    }
+  })
+  it('should return site rules that grant the "manageOwners" permission', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { manageOwners: true }) { id type } } }')
+    const roles = resp.data.roles
+    for (const role of roles) {
+      if (role.name === 'site1-siterulestest1') {
+        expect(role.siteRules.length).to.equal(1)
+      } else if (role.name === 'site1-siterulestest2') {
+        expect(role.siteRules.length).to.equal(0)
+      }
+    }
+  })
+  it('should return site rules that grant the "managePagetrees" permission', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { managePagetrees: true }) { id type } } }')
+    const roles = resp.data.roles
+    for (const role of roles) {
+      if (role.name === 'site1-siterulestest1') {
+        expect(role.siteRules.length).to.equal(0)
+      } else if (role.name === 'site1-siterulestest2') {
+        expect(role.siteRules.length).to.equal(1)
+      }
+    }
+  })
+  it('should return site rules that grant the "promotePagetree" permission', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { promotePagetree: true }) { id type } } }')
+    const roles = resp.data.roles
+    for (const role of roles) {
+      if (role.name === 'site1-siterulestest1') {
+        expect(role.siteRules.length).to.equal(0)
+      } else if (role.name === 'site1-siterulestest2') {
+        expect(role.siteRules.length).to.equal(1)
+      }
+    }
+  })
+  it('should return site rules that grant the "delete" permission', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { delete: true }) { id type } } }')
+    const roles = resp.data.roles
+    for (const role of roles) {
+      if (role.name === 'site1-siterulestest1') {
+        expect(role.siteRules.length).to.equal(0)
+      } else if (role.name === 'site1-siterulestest2') {
+        expect(role.siteRules.length).to.equal(1)
+      }
+    }
+  })
+  it('should return site rules that grant the "undelete" permission', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { undelete: true }) { id type } } }')
+    const roles = resp.data.roles
+    for (const role of roles) {
+      if (role.name === 'site1-siterulestest1') {
+        expect(role.siteRules.length).to.equal(0)
+      } else if (role.name === 'site1-siterulestest2') {
+        expect(role.siteRules.length).to.equal(1)
+      }
+    }
+  })
+  it('should get the role attached to a site rule', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules { id role { name } } } }')
+    const roles = resp.data.roles
+    for (const role of roles) {
+      const siteRuleRoleNames = role.siteRules.map((r: any) => r.role.name)
+      expect(siteRuleRoleNames).to.contain(role.name)
+    }
+  })
+  it('should get the site targeted by a site rule', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules { id site { name } } } }')
+    const roles = resp.data.roles
+    for (const role of roles) {
+      if (role.name === 'site1-siterulestest1' || role.name === 'site1-siterulestest2') {
+        expect(role.siteRules[0].site.name).to.equal('site1')
+      }
+    }
+  })
+  it('should return null for the site of a site rule that targets all sites', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed05"] }) { name siteRules { id site { name } } } }')
+    const role = resp.data.roles.find((r: any) => r.name === 'siteLauncher')
+    expect(role.siteRules[0].site).to.equal(null)
+  })
 })
 
 describe('asset rules', () => {
