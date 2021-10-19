@@ -176,12 +176,39 @@ describe('data rules', () => {
 })
 
 describe('template rules', () => {
-  it.skip('should get the template rules for a role', async () => {})
+  it('should get the template rules for a role', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules { id template { name } } } }')
+    const test1role = resp.data.roles.find((r: any) => r.name === 'templaterulestest1')
+    const templates = test1role.templateRules.map((r: any) => r.template.name)
+    expect(templates).to.contain('pagetemplate1')
+    expect(templates).to.contain('pagetemplate2')
+    expect(templates).to.contain('pagetemplate3')
+  })
   it.skip('should filter template rules by role ID', async () => {})
-  it.skip('should filter template rules by template key', async () => {})
-  it.skip('should filter template rules by null template key', async () => {})
-  it.skip('should filter template rules on whether they grant the "use" permission', async () => {})
-  it.skip('should get the role attached to a template rule', async () => {})
-  it.skip('should get the template targeted by a template rule', async () => {})
+  it('should filter template rules by template key', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules(filter: {templateKeys: ["keyp1"]}) { id template { name } } } }')
+    const test1role = resp.data.roles.find((r: any) => r.name === 'templaterulestest1')
+    const templates = test1role.templateRules.map((r: any) => r.template.name)
+    expect(templates).to.contain('pagetemplate1')
+    expect(templates).to.not.contain('pagetemplate2')
+    expect(templates).to.not.contain('pagetemplate3')
+  })
+  it.skip('should filter template rules by template key, including null', async () => {
+    // This is supposed to test passing null in as a template key to return rules that
+    // target all templates. But, the templateId field can't be null in the database.
+  })
+  it('should filter template rules on whether they grant the "use" permission', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules(filter: { use: true }) { id template { name } } } }')
+    const test1role = resp.data.roles.find((r: any) => r.name === 'templaterulestest1')
+    const templates = test1role.templateRules.map((r: any) => r.template.name)
+    expect(templates).to.contain('pagetemplate1')
+    expect(templates).to.contain('pagetemplate2')
+    expect(templates).to.not.contain('pagetemplate3')
+  })
+  it('should get the role attached to a template rule', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules { id role { name } } } }')
+    const test1role = resp.data.roles.find((r: any) => r.name === 'templaterulestest1')
+    expect(test1role.templateRules[0].role.name).to.equal(test1role.name)
+  })
   it.skip('should return null for the template of a template rule that targets all templates', async () => {})
 })

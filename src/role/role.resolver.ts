@@ -9,7 +9,7 @@ import { Group, GroupFilter, GroupService } from '../group'
 import { User, UserFilter, UserService } from '../user'
 import { Role, RoleFilter, RolePermissions } from './role.model'
 import { RoleService } from './role.service'
-import { TemplateRule, TemplateRuleService } from '../templaterule'
+import { TemplateRule, TemplateRuleFilter, TemplateRuleService } from '../templaterule'
 
 @Resolver(of => Role)
 export class RoleResolver {
@@ -44,8 +44,8 @@ export class RoleResolver {
   }
 
   @FieldResolver(returns => [TemplateRule])
-  async templateRules (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(TemplateRuleService).getRules(role.id)
+  async templateRules (@Ctx() ctx: Context, @Root() role: Role, @Arg('filter', { nullable: true }) filter?: TemplateRuleFilter) {
+    return await ctx.svc(TemplateRuleService).getRules(role.id, filter)
   }
 
   @FieldResolver(returns => [User], { description: 'Returns a list of all users related to the role, either directly or through a group.' })
