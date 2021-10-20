@@ -447,7 +447,7 @@ export async function init () {
     CREATE TABLE IF NOT EXISTS `templaterules` ( \
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `roleId` MEDIUMINT UNSIGNED NOT NULL, \
-      `templateId` SMALLINT UNSIGNED NOT NULL, \
+      `templateId` SMALLINT UNSIGNED, \
       `use` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       PRIMARY KEY (`id`), \
       CONSTRAINT `FK_templaterules_roles` \
