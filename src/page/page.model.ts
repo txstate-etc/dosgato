@@ -32,12 +32,14 @@ export class Page {
 
   deletedBy?: number
   pageTreeId: string
+  parentId?: string
   dataId: string
 
   constructor (row: any) {
     this.id = String(row.id)
     this.name = row.name
     this.pageTreeId = String(row.pagetreeId)
+    this.parentId = String(row.parentId)
     this.dataId = row.dataId
     this.linkId = row.linkId
     this.deleted = isNotNull(row.deleted)

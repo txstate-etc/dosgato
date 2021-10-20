@@ -30,22 +30,27 @@ export class PageResolver {
   async children (@Ctx() ctx: Context, @Root() page: Page,
     @Arg('recursive', { nullable: true }) recursive?: boolean
   ) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).getPageChildren(page.id, page.pageTreeId, recursive)
   }
 
   @FieldResolver(returns => Page, { nullable: true, description: 'Returns null when current page is the root page of a pagetree.' })
   async parent (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    if (isNull(page.parentId)) return null
+    else return await ctx.svc(PageService).findById(page.parentId)
   }
 
   @FieldResolver(returns => Page, { description: 'May return itself when page is already the root page.' })
   async rootpage (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    if (isNull(page.parentId)) return page
+    else return await ctx.svc(PageService).getRootPage(page.pageTreeId)
   }
 
   @FieldResolver(returns => [Page], { description: 'Starts with the parent page and proceeds upward. Last element will be the pagetree\'s root page. Empty array if current page is the root page of a pagetree.' })
   async ancestors (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    if (isNull(page.parentId)) return []
+    else {
+      return await ctx.svc(PageService).getPageAncestors(page.id, page.pageTreeId)
+    }
   }
 
   @FieldResolver(returns => PageTree)
