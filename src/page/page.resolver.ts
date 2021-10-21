@@ -4,7 +4,7 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphq
 import { PageTree, PageTreeService } from '../pagetree'
 import { Role } from '../role'
 import { JsonData } from '../scalars/jsondata'
-import { Site } from '../site'
+import { Site, SiteService } from '../site'
 import { Template, TemplateFilter } from '../template'
 import { User, UserService } from '../user'
 import { ObjectVersion } from '../version'
@@ -60,7 +60,9 @@ export class PageResolver {
 
   @FieldResolver(returns => Site)
   async site (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    const pagetree = await ctx.svc(PageTreeService).findById(page.pageTreeId)
+    if (pagetree) return await ctx.svc(SiteService).findById(pagetree.siteId)
+    else throw new Error(`Could not get site for page ${String(page.name)}. Pagetree does not exist.`)
   }
 
   @FieldResolver(returns => JsonData, { description: 'This is a JSON object that represents everything the editor has created on this page. It is up to the rendering code of the page template and all the component templates to turn this data into an HTML page.' })
