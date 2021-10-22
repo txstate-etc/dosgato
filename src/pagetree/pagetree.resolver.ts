@@ -16,7 +16,7 @@ export class PageTreeResolver {
 
   @FieldResolver(returns => [Page])
   async pages (@Ctx() ctx: Context, @Root() pagetree: PageTree, @Arg('filter', { nullable: true }) filter: PageFilter) {
-    return await ctx.svc(PageService).findByPageTree(pagetree.id, filter)
+    return await ctx.svc(PageService).findByPagetreeId(pagetree.id, filter)
   }
 
   @FieldResolver(returns => Page)
