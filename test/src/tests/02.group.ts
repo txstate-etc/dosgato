@@ -18,6 +18,13 @@ describe('groups', () => {
     const group3 = resp.data.groups.find((g: any) => g.name === 'group3')
     expect(group3.users.length).to.equal(0)
   })
+  it('should retrieve group managers', async () => {
+    const resp = await query('{ groups { name managers { id name } } }')
+    const group1 = resp.data.groups.find((g: any) => g.name === 'group1')
+    const group1managers = group1.managers.map((m: any) => m.name)
+    expect(group1managers).to.contain('Michael Scott')
+    expect(group1managers).to.contain('Marge Simpson')
+  })
   it('should retrieve group and subgroup users for all groups', async () => {
     const resp = await query('{ groups { id name users { id name } } }')
     const group1 = resp.data.groups.find((g: any) => g.name === 'group1')
