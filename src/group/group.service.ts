@@ -1,8 +1,9 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Group, GroupFilter, GroupResponse } from './group.model'
-import { getGroups, getGroupsWithUser, getGroupRelationships, getGroupsWithRole, createGroup } from './group.database'
+import { getGroups, getGroupsWithUser, getGroupRelationships, getGroupsWithRole, groupManagerCache, createGroup } from './group.database'
 import { Cache, unique } from 'txstate-utils'
+import { UserService } from '../user'
 
 const parentGroupCache = new Cache(async () => {
   const rows = await getGroupRelationships()
@@ -77,6 +78,12 @@ export class GroupService extends AuthorizedService<Group> {
         return subgroups
       }
     }
+  }
+
+  async getGroupManagers (groupId: string) {
+    const managerIds = await groupManagerCache.get(groupId)
+    if (managerIds.length) return await this.svc(UserService).find({ internalIds: managerIds })
+    else return []
   }
 
   async create (name: string) {

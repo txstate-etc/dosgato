@@ -29,7 +29,7 @@ export class GroupResolver {
 
   @FieldResolver(returns => [User], { description: 'People who are authorized to add and remove members from the group.' })
   async managers (@Ctx() ctx: Context, @Root() group: Group) {
-    throw new UnimplementedError()
+    return await ctx.svc(GroupService).getGroupManagers(group.id)
   }
 
   @FieldResolver(returns => GroupPermissions, {

@@ -1,5 +1,11 @@
 import db from 'mysql2-async/db'
 import { Group, GroupFilter } from './group.model'
+import { Cache } from 'txstate-utils'
+
+export const groupManagerCache = new Cache(async (groupId: string) => {
+  const managers = await db.getall('SELECT userId FROM users_groups WHERE groupId = ? AND manager IS TRUE', [groupId])
+  return managers.map(m => m.userId)
+})
 
 function processFilters (filter?: GroupFilter) {
   const binds: string[] = []

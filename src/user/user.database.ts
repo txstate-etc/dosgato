@@ -7,6 +7,9 @@ function processFilters (filter?: UserFilter) {
   const where: string[] = []
 
   if (typeof filter !== 'undefined') {
+    if (filter.internalIds?.length) {
+      where.push(`users.id IN (${db.in(binds, filter.internalIds)})`)
+    }
     if (filter.ids?.length) {
       where.push(`users.login IN (${db.in(binds, filter.ids)})`)
     }
