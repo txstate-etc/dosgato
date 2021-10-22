@@ -27,18 +27,16 @@ export class PageService extends AuthorizedService {
     return await this.loaders.get(pagesByIdLoader).load(id)
   }
 
-  async getPageChildren (pageId: string, pagetreeId: string, recursive?: boolean) {
-    const pagetreePages = await this.loaders.get(pagesInPagetreeLoader).load(pagetreeId)
+  async getPageChildren (pageId: string, recursive?: boolean) {
     if (recursive) {
       const descendents: Page[] = []
-      return getChildren(pageId, pagetreePages, descendents)
+      return await this.#getChildren(pageId, descendents)
     } else {
-      return pagetreePages.filter(p => p.parentId === pageId)
+      return await this.find({ parentPageIds: [pageId] })
     }
   }
 
-  async getPageAncestors (pageId: string, pagetreeId: string) {
-    await this.loaders.get(pagesInPagetreeLoader).load(pagetreeId)
+  async getPageAncestors (pageId: string) {
     const ancestors: Page[] = []
     let page = await this.loaders.get(pagesByIdLoader).load(pageId)
     while (page && isNotNull(page.parentId)) {
@@ -48,20 +46,22 @@ export class PageService extends AuthorizedService {
     return ancestors
   }
 
-  async getRootPage (pagetreeId: string) {
-    const pagetreePages = await this.loaders.get(pagesInPagetreeLoader).load(pagetreeId)
-    return pagetreePages.find(p => isNull(p.parentId))
+  async getRootPage (pageId: string) {
+    const ancestors = await this.getPageAncestors(pageId)
+    return ancestors.find((page: Page) => isNull(page.parentId))
   }
 
   async mayView (): Promise<boolean> {
     return true
   }
-}
 
-const getChildren = function (parentId: string, pagetreePages: Page[], descendents: Page[]) {
-  const children: Page[] = pagetreePages.filter(p => p.parentId === parentId)
-  descendents.push(...children)
-  for (const page of children) {
-    getChildren(page.id, pagetreePages, descendents)
+  async #getChildren (parentId: string, descendents: Page[]) {
+    const children = await this.find({ parentPageIds: [parentId] })
+    descendents.push(...children)
+    const promises: Promise<void>[] = []
+    for (const child of children) {
+      promises.push(this.#getChildren(child.id, descendents))
+    }
+    await Promise.all(promises)
   }
 }
