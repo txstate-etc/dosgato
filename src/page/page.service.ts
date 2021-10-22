@@ -11,10 +11,11 @@ const pagesByIdLoader = new PrimaryKeyLoader({
 })
 
 const pagesInPagetreeLoader = new OneToManyLoader({
-  fetch: async (pageTreeIds: string[]) => {
-    return await getPages({ pageTreeIds })
+  fetch: async (pageTreeIds: string[], filter?: PageFilter) => {
+    return await getPages({ ...filter, pageTreeIds })
   },
   extractKey: (p: Page) => p.pageTreeId,
+  keysFromFilter: (filter: PageFilter | undefined) => filter?.pageTreeIds ?? [],
   idLoader: pagesByIdLoader
 })
 
@@ -25,6 +26,10 @@ export class PageService extends AuthorizedService {
 
   async findById (id: string) {
     return await this.loaders.get(pagesByIdLoader).load(id)
+  }
+
+  async findByPagetreeId (id: string, filter?: PageFilter) {
+    return await this.loaders.get(pagesInPagetreeLoader, filter).load(id)
   }
 
   async getPageChildren (pageId: string, recursive?: boolean) {
