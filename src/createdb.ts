@@ -185,6 +185,7 @@ export async function init () {
     CREATE TABLE IF NOT EXISTS `users_groups` ( \
       `userId` MEDIUMINT UNSIGNED NOT NULL, \
       `groupId` MEDIUMINT UNSIGNED NOT NULL, \
+      `manager` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       PRIMARY KEY (`userId`, `groupId`), \
       CONSTRAINT `FK_user_groups_users` \
         FOREIGN KEY (`userId`) \

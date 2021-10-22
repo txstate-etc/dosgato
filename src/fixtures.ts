@@ -121,15 +121,15 @@ export async function fixtures () {
   ])
 
   await Promise.all([
-    db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group1]),
+    db.insert('INSERT INTO users_groups (userId, groupId, manager) VALUES (?,?,?)', [su01, group1, 1]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group2]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group3]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su02, group2]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed01, group1]),
-    db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed02, group3]),
+    db.insert('INSERT INTO users_groups (userId, groupId, manager) VALUES (?,?,?)', [ed02, group3, 1]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed02, group4]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su03, group4]),
-    db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su03, group1]),
+    db.insert('INSERT INTO users_groups (userId, groupId, manager) VALUES (?,?,?)', [su03, group1, 1]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed03, group6]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed04, group7]),
     db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [group1, group2]),
