@@ -3,6 +3,7 @@ import db from 'mysql2-async/db'
 import { VersionedService, Index } from './versionedservice'
 import { Context } from '@txstate-mws/graphql-server'
 import stringify from 'fast-json-stable-stringify'
+import { nanoid } from 'nanoid'
 
 export async function fixtures () {
   console.log('running fixtures()')
@@ -197,29 +198,40 @@ export async function fixtures () {
     db.insert('INSERT INTO templaterules (`roleId`, `use`) VALUES (?,?)', [templaterulestest2, 1])
   ])
 
-  async function createPage (name: string, pagetreeId: number, parentId: number | null, pageData: string, indexes: Index[]) {
+  async function createPage (name: string, linkId: string, pagetreeId: number, parentId: number | null, pageData: string, indexes: Index[]) {
     const ctx = new Context()
     const versionedService = new VersionedService(ctx)
 
     const pageId = await db.transaction(async db => {
       const dataId = await versionedService.create('testdata', pageData, indexes, 'su01')
-      return await db.insert('INSERT INTO pages (name, pagetreeId, parentId, dataId, linkId) VALUES (?,?,?,?,?)', [name, pagetreeId, parentId, dataId, name])
+      return await db.insert('INSERT INTO pages (name, pagetreeId, parentId, dataId, linkId) VALUES (?,?,?,?,?)', [name, pagetreeId, parentId, dataId, linkId])
     })
     return pageId
   }
 
   /* Site 1, Pagetree 1 Pages */
+  const rootLinkId = nanoid(10)
+  const aboutLinkId = nanoid(10)
+  const programsLinkId = nanoid(10)
+  const contactLinkId = nanoid(10)
+  const locationLinkId = nanoid(10)
+  const peopleLinkId = nanoid(10)
+  const ugradLinkId = nanoid(10)
+  const gradLinkId = nanoid(10)
+  const facultyLinkId = nanoid(10)
+  const staffLinkId = nanoid(10)
+  const eventsLinkId = nanoid(10)
 
   // root page
   let indexes = [
     {
       name: 'link_page',
       values: [
-        stringify({ linkId: 'about' }),
+        stringify({ linkId: aboutLinkId }),
         stringify({ siteId: site1, path: '/root/about' }),
-        stringify({ linkId: 'programs' }),
+        stringify({ linkId: programsLinkId }),
         stringify({ siteId: site1, path: '/root/programs' }),
-        stringify({ linkId: 'contact' }),
+        stringify({ linkId: contactLinkId }),
         stringify({ siteId: site1, path: '/root/contact' })
       ]
     },
@@ -228,7 +240,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc1', 'keyc2']
     }
   ]
-  const site1pagetree1Root = await createPage('root', pagetree1, null, stringify({ title: 'Basketry Home' }), indexes)
+  const site1pagetree1Root = await createPage('root', rootLinkId, pagetree1, null, stringify({ title: 'Basketry Home' }), indexes)
 
   // about page
   indexes = [
@@ -246,14 +258,14 @@ export async function fixtures () {
       values: ['keyp1', 'keyc3']
     }
   ]
-  const site1pagetree1About = await createPage('about', pagetree1, site1pagetree1Root, stringify({ title: 'About' }), indexes)
+  const site1pagetree1About = await createPage('about', aboutLinkId, pagetree1, site1pagetree1Root, stringify({ title: 'About' }), indexes)
 
   // location page
   indexes = [
     {
       name: 'link_page',
       values: [
-        stringify({ linkId: 'contact' }),
+        stringify({ linkId: contactLinkId }),
         stringify({ siteId: site1, path: '/root/contact' })
       ]
     },
@@ -262,16 +274,16 @@ export async function fixtures () {
       values: ['keyp1', 'keyc1']
     }
   ]
-  await createPage('location', pagetree1, site1pagetree1About, stringify({ title: 'Location' }), indexes)
+  await createPage('location', locationLinkId, pagetree1, site1pagetree1About, stringify({ title: 'Location' }), indexes)
 
   // people page
   indexes = [
     {
       name: 'link_page',
       values: [
-        stringify({ linkId: 'faculty' }),
+        stringify({ linkId: facultyLinkId }),
         stringify({ siteId: site1, path: '/root/about/people/faculty' }),
-        stringify({ linkId: 'staff' }),
+        stringify({ linkId: staffLinkId }),
         stringify({ siteId: site1, path: '/root/about/people/staff' })
       ]
     },
@@ -280,7 +292,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc1', 'keyc2']
     }
   ]
-  const site1pagetree1People = await createPage('people', pagetree1, site1pagetree1About, stringify({ title: 'People' }), indexes)
+  const site1pagetree1People = await createPage('people', peopleLinkId, pagetree1, site1pagetree1About, stringify({ title: 'People' }), indexes)
 
   // faculty page
   indexes = [
@@ -289,7 +301,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc3']
     }
   ]
-  await createPage('faculty', pagetree1, site1pagetree1People, stringify({ title: 'Faculty' }), indexes)
+  await createPage('faculty', facultyLinkId, pagetree1, site1pagetree1People, stringify({ title: 'Faculty' }), indexes)
 
   // staff page
   indexes = [
@@ -298,16 +310,16 @@ export async function fixtures () {
       values: ['keyp1', 'keyc3']
     }
   ]
-  await createPage('staff', pagetree1, site1pagetree1People, stringify({ title: 'Staff' }), indexes)
+  await createPage('staff', staffLinkId, pagetree1, site1pagetree1People, stringify({ title: 'Staff' }), indexes)
 
   // programs page
   indexes = [
     {
       name: 'link_page',
       values: [
-        stringify({ linkId: 'undergrad' }),
+        stringify({ linkId: ugradLinkId }),
         stringify({ siteId: site1, path: '/root/programs/undergrad' }),
-        stringify({ linkId: 'grad' }),
+        stringify({ linkId: gradLinkId }),
         stringify({ siteId: site1, path: '/root/programs/grad' })
       ]
     },
@@ -316,14 +328,14 @@ export async function fixtures () {
       values: ['keyp1', 'keyc2']
     }
   ]
-  const site1pagetree1Programs = await createPage('programs', pagetree1, site1pagetree1Root, stringify({ title: 'Programs' }), indexes)
+  const site1pagetree1Programs = await createPage('programs', programsLinkId, pagetree1, site1pagetree1Root, stringify({ title: 'Programs' }), indexes)
 
   // undergrad page
   indexes = [
     {
       name: 'link_page',
       values: [
-        stringify({ linkId: 'grad' }),
+        stringify({ linkId: gradLinkId }),
         stringify({ siteId: site1, path: '/root/programs/grad' })
       ]
     },
@@ -332,14 +344,14 @@ export async function fixtures () {
       values: ['keyp1', 'keyc3']
     }
   ]
-  await createPage('undergrad', pagetree1, site1pagetree1Programs, stringify({ title: 'Undergraduate Programs' }), indexes)
+  await createPage('undergrad', ugradLinkId, pagetree1, site1pagetree1Programs, stringify({ title: 'Undergraduate Programs' }), indexes)
 
   // grad page
   indexes = [
     {
       name: 'link_page',
       values: [
-        stringify({ linkId: 'undergrad' }),
+        stringify({ linkId: ugradLinkId }),
         stringify({ siteId: site1, path: '/root/programs/undergrad' })
       ]
     },
@@ -348,7 +360,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc3']
     }
   ]
-  await createPage('grad', pagetree1, site1pagetree1Programs, stringify({ title: 'Graduate Programs' }), indexes)
+  await createPage('grad', gradLinkId, pagetree1, site1pagetree1Programs, stringify({ title: 'Graduate Programs' }), indexes)
 
   // contact page
   indexes = [
@@ -357,6 +369,16 @@ export async function fixtures () {
       values: ['keyp1', 'keyc2', 'keyc3']
     }
   ]
-  await createPage('contact', pagetree1, site1pagetree1Root, stringify({ title: 'Contact Us' }), indexes)
+  await createPage('contact', contactLinkId, pagetree1, site1pagetree1Root, stringify({ title: 'Contact Us' }), indexes)
+
+  // events page
+  indexes = [
+    {
+      name: 'templateKey',
+      values: ['keyp1', 'keyc1']
+    }
+  ]
+  const site1pagetree1Events = await createPage('events', eventsLinkId, pagetree1, site1pagetree1About, stringify({ title: 'Special Events' }), indexes)
+  await db.update('UPDATE pages SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [su01, site1pagetree1Events])
   console.log('finished fixtures()')
 }
