@@ -1,45 +1,51 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import db from 'mysql2-async/db'
+import { VersionedService, Index } from './versionedservice'
+import { Context } from '@txstate-mws/graphql-server'
+import stringify from 'fast-json-stable-stringify'
 
 export async function fixtures () {
   console.log('running fixtures()')
-  await Promise.all([
-    db.execute('DELETE FROM downloads'),
-    db.execute('DELETE FROM globalrules'),
-    db.execute('DELETE FROM mutationlog'),
-    db.execute('DELETE FROM datarules'),
-    db.execute('DELETE FROM data'),
-    db.execute('DELETE FROM pagetrees_templates'),
-    db.execute('DELETE FROM assetrules'),
-    db.execute('DELETE FROM pagerules'),
-    db.execute('DELETE FROM sites_templates'),
-    db.execute('DELETE FROM resizes'),
-    db.execute('DELETE FROM users_roles'),
-    db.execute('DELETE FROM groups_roles'),
-    db.execute('DELETE FROM users_groups'),
-    db.execute('DELETE FROM siterules'),
-    db.execute('DELETE FROM groups_groups'),
-    db.execute('DELETE FROM assets'),
-    db.execute('DELETE FROM sites_managers'),
-    db.execute('DELETE FROM templaterules')
-  ])
-  await Promise.all([
-    db.execute('DELETE FROM datafolders'),
-    db.execute('DELETE FROM binaries'),
-    db.execute('DELETE FROM pages'),
-    db.execute('DELETE FROM roles'),
-    db.execute('DELETE FROM groups')
-  ])
-  await Promise.all([
-    db.execute('DELETE FROM templates'),
-    db.execute('DELETE FROM pagetrees')
-  ])
-  await db.execute('DELETE FROM sites')
-  await Promise.all([
-    db.execute('DELETE FROM assetfolders'),
-    db.execute('DELETE FROM organizations')
-  ])
-  await db.execute('DELETE FROM users')
+  await db.transaction(async db => {
+    await db.execute('SET FOREIGN_KEY_CHECKS = 0')
+    await Promise.all([
+      db.execute('TRUNCATE TABLE downloads'),
+      db.execute('TRUNCATE TABLE globalrules'),
+      db.execute('TRUNCATE TABLE mutationlog'),
+      db.execute('TRUNCATE TABLE datarules'),
+      db.execute('TRUNCATE TABLE data'),
+      db.execute('TRUNCATE TABLE pagetrees_templates'),
+      db.execute('TRUNCATE TABLE assetrules'),
+      db.execute('TRUNCATE TABLE pagerules'),
+      db.execute('TRUNCATE TABLE sites_templates'),
+      db.execute('TRUNCATE TABLE resizes'),
+      db.execute('TRUNCATE TABLE users_roles'),
+      db.execute('TRUNCATE TABLE groups_roles'),
+      db.execute('TRUNCATE TABLE users_groups'),
+      db.execute('TRUNCATE TABLE siterules'),
+      db.execute('TRUNCATE TABLE groups_groups'),
+      db.execute('TRUNCATE TABLE assets'),
+      db.execute('TRUNCATE TABLE sites_managers'),
+      db.execute('TRUNCATE TABLE templaterules'),
+      db.execute('TRUNCATE TABLE datafolders'),
+      db.execute('TRUNCATE TABLE binaries'),
+      db.execute('TRUNCATE TABLE pages'),
+      db.execute('TRUNCATE TABLE roles'),
+      db.execute('TRUNCATE TABLE groups'),
+      db.execute('TRUNCATE TABLE templates'),
+      db.execute('TRUNCATE TABLE pagetrees'),
+      db.execute('TRUNCATE TABLE assetfolders'),
+      db.execute('TRUNCATE TABLE organizations'),
+      db.execute('TRUNCATE TABLE indexes'),
+      db.execute('TRUNCATE TABLE tags'),
+      db.execute('TRUNCATE TABLE versions'),
+      db.execute('TRUNCATE TABLE sites'),
+      db.execute('TRUNCATE TABLE users'),
+      db.execute('TRUNCATE TABLE indexvalues'),
+      db.execute('TRUNCATE TABLE storage')
+    ])
+    await db.execute('SET FOREIGN_KEY_CHECKS = 1')
+  })
 
   const [su01, su02, su03, ed01, ed02, ed03, ed04, ed05, ed06, ed07] = await Promise.all([
     db.insert('INSERT INTO users (login, name, email, lastlogin, lastlogout, disabledAt) VALUES ("su01", "Michael Scott", "su01@example.com", null, null, null)'),
@@ -190,5 +196,167 @@ export async function fixtures () {
     db.insert('INSERT INTO templaterules (`roleId`, `templateId`, `use`) VALUES (?,?,?)', [templaterulestest1, pagetemplate3, 0]),
     db.insert('INSERT INTO templaterules (`roleId`, `use`) VALUES (?,?)', [templaterulestest2, 1])
   ])
+
+  async function createPage (name: string, pagetreeId: number, parentId: number | null, pageData: string, indexes: Index[]) {
+    const ctx = new Context()
+    const versionedService = new VersionedService(ctx)
+
+    const pageId = await db.transaction(async db => {
+      const dataId = await versionedService.create('testdata', pageData, indexes, 'su01')
+      return await db.insert('INSERT INTO pages (name, pagetreeId, parentId, dataId, linkId) VALUES (?,?,?,?,?)', [name, pagetreeId, parentId, dataId, name])
+    })
+    return pageId
+  }
+
+  /* Site 1, Pagetree 1 Pages */
+
+  // root page
+  let indexes = [
+    {
+      name: 'link_page',
+      values: [
+        stringify({ linkId: 'about' }),
+        stringify({ siteId: site1, path: '/root/about' }),
+        stringify({ linkId: 'programs' }),
+        stringify({ siteId: site1, path: '/root/programs' }),
+        stringify({ linkId: 'contact' }),
+        stringify({ siteId: site1, path: '/root/contact' })
+      ]
+    },
+    {
+      name: 'templateKey',
+      values: ['keyp1', 'keyc1', 'keyc2']
+    }
+  ]
+  const site1pagetree1Root = await createPage('root', pagetree1, null, stringify({ title: 'Basketry Home' }), indexes)
+
+  // about page
+  indexes = [
+    {
+      name: 'link_page',
+      values: [
+        stringify({ linkId: 'location' }),
+        stringify({ siteId: site1, path: '/root/about/location' }),
+        stringify({ linkId: 'people' }),
+        stringify({ siteId: site1, path: '/root/about/people' })
+      ]
+    },
+    {
+      name: 'templateKey',
+      values: ['keyp1', 'keyc3']
+    }
+  ]
+  const site1pagetree1About = await createPage('about', pagetree1, site1pagetree1Root, stringify({ title: 'About' }), indexes)
+
+  // location page
+  indexes = [
+    {
+      name: 'link_page',
+      values: [
+        stringify({ linkId: 'contact' }),
+        stringify({ siteId: site1, path: '/root/contact' })
+      ]
+    },
+    {
+      name: 'templateKey',
+      values: ['keyp1', 'keyc1']
+    }
+  ]
+  await createPage('location', pagetree1, site1pagetree1About, stringify({ title: 'Location' }), indexes)
+
+  // people page
+  indexes = [
+    {
+      name: 'link_page',
+      values: [
+        stringify({ linkId: 'faculty' }),
+        stringify({ siteId: site1, path: '/root/about/people/faculty' }),
+        stringify({ linkId: 'staff' }),
+        stringify({ siteId: site1, path: '/root/about/people/staff' })
+      ]
+    },
+    {
+      name: 'templateKey',
+      values: ['keyp1', 'keyc1', 'keyc2']
+    }
+  ]
+  const site1pagetree1People = await createPage('people', pagetree1, site1pagetree1About, stringify({ title: 'People' }), indexes)
+
+  // faculty page
+  indexes = [
+    {
+      name: 'templateKey',
+      values: ['keyp1', 'keyc3']
+    }
+  ]
+  await createPage('faculty', pagetree1, site1pagetree1People, stringify({ title: 'Faculty' }), indexes)
+
+  // staff page
+  indexes = [
+    {
+      name: 'templateKey',
+      values: ['keyp1', 'keyc3']
+    }
+  ]
+  await createPage('staff', pagetree1, site1pagetree1People, stringify({ title: 'Staff' }), indexes)
+
+  // programs page
+  indexes = [
+    {
+      name: 'link_page',
+      values: [
+        stringify({ linkId: 'undergrad' }),
+        stringify({ siteId: site1, path: '/root/programs/undergrad' }),
+        stringify({ linkId: 'grad' }),
+        stringify({ siteId: site1, path: '/root/programs/grad' })
+      ]
+    },
+    {
+      name: 'templateKey',
+      values: ['keyp1', 'keyc2']
+    }
+  ]
+  const site1pagetree1Programs = await createPage('programs', pagetree1, site1pagetree1Root, stringify({ title: 'Programs' }), indexes)
+
+  // undergrad page
+  indexes = [
+    {
+      name: 'link_page',
+      values: [
+        stringify({ linkId: 'grad' }),
+        stringify({ siteId: site1, path: '/root/programs/grad' })
+      ]
+    },
+    {
+      name: 'templateKey',
+      values: ['keyp1', 'keyc3']
+    }
+  ]
+  await createPage('undergrad', pagetree1, site1pagetree1Programs, stringify({ title: 'Undergraduate Programs' }), indexes)
+
+  // grad page
+  indexes = [
+    {
+      name: 'link_page',
+      values: [
+        stringify({ linkId: 'undergrad' }),
+        stringify({ siteId: site1, path: '/root/programs/undergrad' })
+      ]
+    },
+    {
+      name: 'templateKey',
+      values: ['keyp1', 'keyc3']
+    }
+  ]
+  await createPage('grad', pagetree1, site1pagetree1Programs, stringify({ title: 'Graduate Programs' }), indexes)
+
+  // contact page
+  indexes = [
+    {
+      name: 'templateKey',
+      values: ['keyp1', 'keyc2', 'keyc3']
+    }
+  ]
+  await createPage('contact', pagetree1, site1pagetree1Root, stringify({ title: 'Contact Us' }), indexes)
   console.log('finished fixtures()')
 }
