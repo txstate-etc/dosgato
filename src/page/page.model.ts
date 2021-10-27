@@ -42,8 +42,8 @@ export class Page {
     this.parentId = String(row.parentId)
     this.dataId = row.dataId
     this.linkId = row.linkId
-    this.deleted = isNotNull(row.deleted)
-    this.deletedAt = DateTime.fromJSDate(row.deleted)
+    this.deleted = isNotNull(row.deletedAt)
+    this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
   }
 }

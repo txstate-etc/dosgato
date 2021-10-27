@@ -35,7 +35,8 @@ export class PageService extends AuthorizedService {
   async getPageChildren (pageId: string, recursive?: boolean) {
     if (recursive) {
       const descendents: Page[] = []
-      return await this.#getChildren(pageId, descendents)
+      await this.#getChildren(pageId, descendents)
+      return descendents
     } else {
       return await this.find({ parentPageIds: [pageId] })
     }
