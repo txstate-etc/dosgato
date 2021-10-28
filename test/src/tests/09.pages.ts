@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 import { expect } from 'chai'
 import { query } from '../common'
 
@@ -7,14 +8,14 @@ describe('pages', () => {
   it('should get deleted pages', async () => {
     const resp = await query('{ pages(filter: {deleted: true}) { id name } }')
     const pageNames = resp.data.pages.map((p: any) => p.name)
-    expect(pageNames).to.contain('events')
-    expect(pageNames).to.not.contain('root')
+    expect(pageNames).to.have.members(['events'])
+    expect(pageNames).to.not.have.members(['root'])
   })
   it('should get undeleted pages', async () => {
     const resp = await query('{ pages(filter: {deleted: false}) { id name } }')
     const pageNames = resp.data.pages.map((p: any) => p.name)
-    expect(pageNames).to.not.contain('events')
-    expect(pageNames).to.contain('about')
+    expect(pageNames).to.not.have.members(['events'])
+    expect(pageNames).to.include.members(['about', 'root', 'grad', 'contact'])
   })
   it.skip('should get pages, filtered by ID', async () => {})
   it.skip('should get pages, filtered by linkId', async () => {})
@@ -30,38 +31,32 @@ describe('pages', () => {
     const resp = await query('{ pages(filter: {deleted: false}) { name ancestors { id name } } }')
     const peoplePage = resp.data.pages.find((p: any) => p.name === 'people')
     const peoplePageAncestors = peoplePage.ancestors.map((a: any) => a.name)
-    expect(peoplePageAncestors).to.contain('root')
-    expect(peoplePageAncestors).to.contain('about')
+    expect(peoplePageAncestors).to.have.members(['root', 'about'])
     const gradPage = resp.data.pages.find((p: any) => p.name === 'grad')
     const gradPageAncestors = gradPage.ancestors.map((a: any) => a.name)
-    expect(gradPageAncestors).to.contain('programs')
-    expect(gradPageAncestors).to.contain('root')
+    expect(gradPageAncestors).to.have.members(['programs', 'root'])
   })
   it('should return an empty array for the ancestors of a root page', async () => {
     const resp = await query('{ pages(filter: {deleted: false}) { name ancestors { id name } } }')
     const rootPage = resp.data.pages.find((p: any) => p.name === 'root')
-    expect(rootPage.ancestors.length).to.equal(0)
+    expect(rootPage.ancestors).to.have.lengthOf(0)
   })
   it('should get a page\'s direct children', async () => {
     const resp = await query('{ pages(filter: {deleted: false}) { name children { id name } } }')
     const rootPage = resp.data.pages.find((p: any) => p.name === 'root')
     const rootPageChildren = rootPage.children.map((p: any) => p.name)
-    expect(rootPageChildren).to.contain('about')
-    expect(rootPageChildren).to.contain('programs')
-    expect(rootPageChildren).to.contain('contact')
+    expect(rootPageChildren).to.have.members(['about', 'programs', 'contact'])
   })
   it('should recursively get a page\'s descendents', async () => {
     const resp = await query('{ pages(filter: {deleted: false}) { name children(recursive:true) { id name } } }')
     const rootPage = resp.data.pages.find((p: any) => p.name === 'root')
     const rootPageDescendents = rootPage.children.map((p: any) => p.name)
-    expect(rootPageDescendents).to.contain('about')
-    expect(rootPageDescendents).to.contain('people')
-    expect(rootPageDescendents).to.contain('staff')
+    expect(rootPageDescendents).to.include.members(['about', 'people', 'staff'])
   })
   it('should return a page\'s creation datetime', async () => {
     const resp = await query('{ pages(filter: {deleted: false}) { name createdAt } }')
     const rootPage = resp.data.pages.find((p: any) => p.name === 'root')
-    expect(rootPage.createdAt).to.not.equal(null)
+    expect(rootPage.createdAt).to.not.be.null
   })
   it('should return the user who created a page', async () => {
     const resp = await query('{ pages(filter: {deleted: false}) { name createdBy { id name } } }')
@@ -76,12 +71,12 @@ describe('pages', () => {
   it('should return a deleted page\'s deletion datetime', async () => {
     const resp = await query('{ pages(filter: {deleted: true}) { name deletedAt } }')
     const eventsPage = resp.data.pages.find((p: any) => p.name === 'events')
-    expect(eventsPage.deletedAt).to.not.equal(null)
+    expect(eventsPage.deletedAt).to.not.be.null
   })
   it('should return null for a non-deleted page\'s deletion datetime', async () => {
     const resp = await query('{ pages(filter: {deleted: false}) { name deletedAt } }')
     const staffPage = resp.data.pages.find((p: any) => p.name === 'staff')
-    expect(staffPage.deletedAt).to.equal(null)
+    expect(staffPage.deletedAt).to.be.null
   })
   it('should return the user who deleted a deleted page', async () => {
     const resp = await query('{ pages(filter: {deleted: true}) { name deletedBy { id name } } }')
@@ -91,12 +86,12 @@ describe('pages', () => {
   it('should return null for deletedBy if the page is not deleted', async () => {
     const resp = await query('{ pages(filter: {deleted: false}) { name deletedBy { id name } } }')
     const staffPage = resp.data.pages.find((p: any) => p.name === 'staff')
-    expect(staffPage.deletedBy).to.equal(null)
+    expect(staffPage.deletedBy).to.be.null
   })
   it('should return a page\'s linkId', async () => {
     const resp = await query('{ pages(filter: {deleted: false}) { id name linkId } }')
     const staffPage = resp.data.pages.find((p: any) => p.name === 'staff')
-    expect(staffPage.linkId.length).to.be.greaterThan(0)
+    expect(staffPage.linkId).to.have.length.greaterThan(0)
   })
   it.skip('should return whether or not a page is live', async () => {})
   it.skip('should return the last modified datetime for a page', async () => {})

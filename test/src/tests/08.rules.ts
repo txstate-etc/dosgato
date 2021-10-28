@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 import { expect } from 'chai'
 import { query } from '../common'
 
@@ -6,8 +7,8 @@ describe('global rules', () => {
     const resp = await query('{ roles(filter: { users: ["su01"] }) { name globalRules { grants { manageUsers } } } }')
     const superUserRole = resp.data.roles.find((r: any) => r.name === 'superuser')
     const globalRules = superUserRole.globalRules
-    expect(globalRules.length).to.equal(1)
-    expect(globalRules[0].grants.manageUsers).to.equal(true)
+    expect(globalRules).to.have.lengthOf(1)
+    expect(globalRules[0].grants.manageUsers).to.be.true
   })
   it('should get the role attached to a global rule', async () => {
     const resp = await query('{ roles(filter: { users: ["su01"] }) { name globalRules { role { id name } } } }')
@@ -22,13 +23,13 @@ describe('site rules', () => {
     const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules { grants { delete launch manageOwners managePagetrees promotePagetree rename undelete } } } }')
     const testrole1 = resp.data.roles.find((r: any) => r.name === 'site1-siterulestest1')
     const siteRules = testrole1.siteRules[0]
-    expect(siteRules.grants.delete).to.equal(false)
-    expect(siteRules.grants.launch).to.equal(true)
-    expect(siteRules.grants.manageOwners).to.equal(true)
-    expect(siteRules.grants.managePagetrees).to.equal(false)
-    expect(siteRules.grants.promotePagetree).to.equal(false)
-    expect(siteRules.grants.rename).to.equal(true)
-    expect(siteRules.grants.undelete).to.equal(false)
+    expect(siteRules.grants.delete).to.be.false
+    expect(siteRules.grants.launch).to.be.true
+    expect(siteRules.grants.manageOwners).to.be.true
+    expect(siteRules.grants.managePagetrees).to.be.false
+    expect(siteRules.grants.promotePagetree).to.be.false
+    expect(siteRules.grants.rename).to.be.true
+    expect(siteRules.grants.undelete).to.be.false
   })
   it.skip('should filter site rules by role ID', async () => {})
   it('should filter site rules by site ID', async () => {
@@ -36,8 +37,8 @@ describe('site rules', () => {
     const site2 = sitesResp.data.sites.find((s: any) => s.name === 'site2')
     const resp = await query(`{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { siteIds: [${site2.id}] }) { id site { name } } } }`)
     for (const role of resp.data.roles) {
-      if (role.name === 'site2-siterulestest1') expect(role.siteRules.length).to.be.greaterThan(0)
-      else expect(role.siteRules.length).to.equal(0)
+      if (role.name === 'site2-siterulestest1') expect(role.siteRules).to.have.length.greaterThan(0)
+      else expect(role.siteRules).to.have.lengthOf(0)
     }
   })
   it('should return site rules that grant the "launch" permission', async () => {
@@ -45,9 +46,9 @@ describe('site rules', () => {
     const roles = resp.data.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
-        expect(role.siteRules.length).to.equal(1)
+        expect(role.siteRules).to.have.lengthOf(1)
       } else if (role.name === 'site1-siterulestest2') {
-        expect(role.siteRules.length).to.equal(0)
+        expect(role.siteRules).to.have.lengthOf(0)
       }
     }
   })
@@ -56,9 +57,9 @@ describe('site rules', () => {
     const roles = resp.data.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
-        expect(role.siteRules.length).to.equal(1)
+        expect(role.siteRules).to.have.lengthOf(1)
       } else if (role.name === 'site1-siterulestest2') {
-        expect(role.siteRules.length).to.equal(0)
+        expect(role.siteRules).to.have.lengthOf(0)
       }
     }
   })
@@ -67,9 +68,9 @@ describe('site rules', () => {
     const roles = resp.data.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
-        expect(role.siteRules.length).to.equal(1)
+        expect(role.siteRules).to.have.lengthOf(1)
       } else if (role.name === 'site1-siterulestest2') {
-        expect(role.siteRules.length).to.equal(0)
+        expect(role.siteRules).to.have.lengthOf(0)
       }
     }
   })
@@ -78,9 +79,9 @@ describe('site rules', () => {
     const roles = resp.data.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
-        expect(role.siteRules.length).to.equal(0)
+        expect(role.siteRules).to.have.lengthOf(0)
       } else if (role.name === 'site1-siterulestest2') {
-        expect(role.siteRules.length).to.equal(1)
+        expect(role.siteRules).to.have.lengthOf(1)
       }
     }
   })
@@ -89,9 +90,9 @@ describe('site rules', () => {
     const roles = resp.data.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
-        expect(role.siteRules.length).to.equal(0)
+        expect(role.siteRules).to.have.lengthOf(0)
       } else if (role.name === 'site1-siterulestest2') {
-        expect(role.siteRules.length).to.equal(1)
+        expect(role.siteRules).to.have.lengthOf(1)
       }
     }
   })
@@ -100,9 +101,9 @@ describe('site rules', () => {
     const roles = resp.data.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
-        expect(role.siteRules.length).to.equal(0)
+        expect(role.siteRules).to.have.lengthOf(0)
       } else if (role.name === 'site1-siterulestest2') {
-        expect(role.siteRules.length).to.equal(1)
+        expect(role.siteRules).to.have.lengthOf(1)
       }
     }
   })
@@ -111,9 +112,9 @@ describe('site rules', () => {
     const roles = resp.data.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
-        expect(role.siteRules.length).to.equal(0)
+        expect(role.siteRules).to.have.lengthOf(0)
       } else if (role.name === 'site1-siterulestest2') {
-        expect(role.siteRules.length).to.equal(1)
+        expect(role.siteRules).to.have.lengthOf(1)
       }
     }
   })
@@ -122,7 +123,7 @@ describe('site rules', () => {
     const roles = resp.data.roles
     for (const role of roles) {
       const siteRuleRoleNames = role.siteRules.map((r: any) => r.role.name)
-      expect(siteRuleRoleNames).to.contain(role.name)
+      expect(siteRuleRoleNames).to.have.members([role.name])
     }
   })
   it('should get the site targeted by a site rule', async () => {
@@ -137,7 +138,7 @@ describe('site rules', () => {
   it('should return null for the site of a site rule that targets all sites', async () => {
     const resp = await query('{ roles(filter: { users: ["ed05"] }) { name siteRules { id site { name } } } }')
     const role = resp.data.roles.find((r: any) => r.name === 'siteLauncher')
-    expect(role.siteRules[0].site).to.equal(null)
+    expect(role.siteRules[0].site).to.be.null
   })
 })
 
@@ -180,9 +181,7 @@ describe('template rules', () => {
     const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules { id template { name } } } }')
     const test1role = resp.data.roles.find((r: any) => r.name === 'templaterulestest1')
     const templates = test1role.templateRules.map((r: any) => r.template.name)
-    expect(templates).to.contain('pagetemplate1')
-    expect(templates).to.contain('pagetemplate2')
-    expect(templates).to.contain('pagetemplate3')
+    expect(templates).to.have.members(['pagetemplate1', 'pagetemplate2', 'pagetemplate3'])
   })
   it.skip('should filter template rules by role ID', async () => {})
   it('should filter template rules by template key', async () => {
@@ -190,24 +189,22 @@ describe('template rules', () => {
     const test1role = resp.data.roles.find((r: any) => r.name === 'templaterulestest1')
     const test2role = resp.data.roles.find((r: any) => r.name === 'templaterulestest2')
     const templates = test1role.templateRules.map((r: any) => r.template.name)
-    expect(templates).to.contain('pagetemplate1')
-    expect(templates).to.not.contain('pagetemplate2')
-    expect(templates).to.not.contain('pagetemplate3')
-    expect(test2role.templateRules.length).to.equal(0)
+    expect(templates).to.have.members(['pagetemplate1'])
+    expect(templates).to.not.have.members(['pagetemplate2', 'pagetemplate3'])
+    expect(test2role.templateRules).to.have.lengthOf(0)
   })
   it('should filter template rules by template key, including null', async () => {
     const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules(filter: {templateKeys: ["keyp1", null]}) { id template { name } } } }')
     const test2role = resp.data.roles.find((r: any) => r.name === 'templaterulestest2')
-    expect(test2role.templateRules.length).to.equal(1)
-    expect(test2role.templateRules[0].template).to.equal(null)
+    expect(test2role.templateRules).to.have.lengthOf(1)
+    expect(test2role.templateRules[0].template).to.be.null
   })
   it('should filter template rules on whether they grant the "use" permission', async () => {
     const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules(filter: { use: true }) { id template { name } } } }')
     const test1role = resp.data.roles.find((r: any) => r.name === 'templaterulestest1')
     const templates = test1role.templateRules.map((r: any) => r.template.name)
-    expect(templates).to.contain('pagetemplate1')
-    expect(templates).to.contain('pagetemplate2')
-    expect(templates).to.not.contain('pagetemplate3')
+    expect(templates).to.have.members(['pagetemplate1', 'pagetemplate2'])
+    expect(templates).to.not.have.members(['pagetemplate3'])
   })
   it('should get the role attached to a template rule', async () => {
     const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules { id role { name } } } }')
@@ -217,6 +214,6 @@ describe('template rules', () => {
   it('should return null for the template of a template rule that targets all templates', async () => {
     const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules(filter: {templateKeys: [null]}) { id template { name } } } }')
     const test2role = resp.data.roles.find((r: any) => r.name === 'templaterulestest2')
-    expect(test2role.templateRules[0].template).to.equal(null)
+    expect(test2role.templateRules[0].template).to.be.null
   })
 })
