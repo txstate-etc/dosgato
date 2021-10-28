@@ -58,8 +58,16 @@ describe('pages', () => {
     expect(rootPageDescendents).to.contain('people')
     expect(rootPageDescendents).to.contain('staff')
   })
-  it.skip('should return a page\'s creation datetime', async () => {})
-  it.skip('should return the user who created a page', async () => {})
+  it('should return a page\'s creation datetime', async () => {
+    const resp = await query('{ pages(filter: {deleted: false}) { name createdAt } }')
+    const rootPage = resp.data.pages.find((p: any) => p.name === 'root')
+    expect(rootPage.createdAt).to.not.equal(null)
+  })
+  it('should return the user who created a page', async () => {
+    const resp = await query('{ pages(filter: {deleted: false}) { name createdBy { id name } } }')
+    const rootPage = resp.data.pages.find((p: any) => p.name === 'root')
+    expect(rootPage.createdBy.id).to.equal('su01')
+  })
   it.skip('should return the data for a page (no arguments)', async () => {})
   it.skip('should return the published version of data for a page', async () => {})
   it.skip('should return the data for a page, specifying schema version', async () => {})

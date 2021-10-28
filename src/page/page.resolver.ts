@@ -83,12 +83,23 @@ export class PageResolver {
 
   @FieldResolver(returns => DateTime)
   async createdAt (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    const firstVersion = await ctx.svc(VersionedService).get(page.dataId, { version: 1 })
+    if (firstVersion?.created) {
+      return DateTime.fromJSDate(firstVersion.created)
+    } else {
+      throw new Error('page creation date not found')
+    }
   }
 
   @FieldResolver(returns => User)
   async createdBy (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    const firstVersion = await ctx.svc(VersionedService).get(page.dataId, { version: 1 })
+    if (firstVersion?.createdBy) {
+      const users = await ctx.svc(UserService).find({ ids: [firstVersion.createdBy] })
+      return users[0]
+    } else {
+      throw new Error('page creator not found')
+    }
   }
 
   @FieldResolver(returns => DateTime, { description: 'Date page was last modified. May be used to determine whether page has been modified since being published: (page.published && page.modifiedAt > page.publishedAt).' })
