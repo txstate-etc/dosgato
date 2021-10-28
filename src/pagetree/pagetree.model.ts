@@ -51,7 +51,7 @@ export class PageTree {
     this.type = row.type
     this.name = row.name
     this.siteId = String(row.siteId)
-    this.created = DateTime.fromJSDate(row.created)
+    this.created = DateTime.fromJSDate(row.createdAt)
     this.archived = row.archived ? DateTime.fromJSDate(row.archived) : undefined
     this.deleted = row.deleted === 1
     this.deletedBy = row.deletedBy
