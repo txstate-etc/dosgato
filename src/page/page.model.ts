@@ -5,7 +5,9 @@ import { UrlSafeString } from '../scalars/urlsafestring'
 
 @ObjectType({ description: 'Sites contain pages. Each page can have subpages. Each pagetree has one root page.' })
 export class Page {
-  @Field(type => ID)
+  internalId: number // auto_increment id for internal use only
+
+  @Field(type => ID, { description: 'A globally unique identifier for this page.' })
   id: string
 
   @Field({ description: 'Page names are used to construct the URL path to each page.' })
@@ -32,14 +34,15 @@ export class Page {
 
   deletedBy?: number
   pageTreeId: string
-  parentId?: string
+  parentInternalId?: number
   dataId: string
 
   constructor (row: any) {
-    this.id = String(row.id)
+    this.internalId = row.id
+    this.id = row.dataId
     this.name = row.name
     this.pageTreeId = String(row.pagetreeId)
-    this.parentId = String(row.parentId)
+    this.parentInternalId = row.parentId
     this.dataId = row.dataId
     this.linkId = row.linkId
     this.deleted = isNotNull(row.deletedAt)
@@ -50,6 +53,9 @@ export class Page {
 
 @InputType()
 export class PageFilter {
+  internalIds?: number[]
+  parentInternalIds?: number[]
+
   @Field(type => [ID], { nullable: true })
   ids?: string[]
 
@@ -61,9 +67,6 @@ export class PageFilter {
 
   @Field(type => [ID], { nullable: true, description: 'Return pages that belong to any of the given sites.' })
   siteIds?: string[]
-
-  @Field(type => [ID], { nullable: true, description: 'Return pages whose parent page is any of the given page ids.' })
-  parentPageIds?: string[]
 
   @Field(type => [ID], { nullable: true, description: 'Return pages using any of the given templates. These could be page templates or component templates.' })
   templateKeys?: string[]

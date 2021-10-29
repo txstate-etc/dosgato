@@ -30,26 +30,26 @@ export class PageResolver {
   async children (@Ctx() ctx: Context, @Root() page: Page,
     @Arg('recursive', { nullable: true }) recursive?: boolean
   ) {
-    return await ctx.svc(PageService).getPageChildren(page.id, recursive)
+    return await ctx.svc(PageService).getPageChildren(page.internalId, recursive)
   }
 
   @FieldResolver(returns => Page, { nullable: true, description: 'Returns null when current page is the root page of a pagetree.' })
   async parent (@Ctx() ctx: Context, @Root() page: Page) {
-    if (isNull(page.parentId)) return null
-    else return await ctx.svc(PageService).findById(page.parentId)
+    if (isNull(page.parentInternalId)) return null
+    else return await ctx.svc(PageService).findByInternalId(page.parentInternalId)
   }
 
   @FieldResolver(returns => Page, { description: 'May return itself when page is already the root page.' })
   async rootpage (@Ctx() ctx: Context, @Root() page: Page) {
-    if (isNull(page.parentId)) return page
-    else return await ctx.svc(PageService).getRootPage(page.id)
+    if (isNull(page.parentInternalId)) return page
+    else return await ctx.svc(PageService).getRootPage(page.internalId)
   }
 
   @FieldResolver(returns => [Page], { description: 'Starts with the parent page and proceeds upward. Last element will be the pagetree\'s root page. Empty array if current page is the root page of a pagetree.' })
   async ancestors (@Ctx() ctx: Context, @Root() page: Page) {
-    if (isNull(page.parentId)) return []
+    if (isNull(page.parentInternalId)) return []
     else {
-      return await ctx.svc(PageService).getPageAncestors(page.id)
+      return await ctx.svc(PageService).getPageAncestors(page.internalId)
     }
   }
 
@@ -83,33 +83,26 @@ export class PageResolver {
 
   @FieldResolver(returns => DateTime)
   async createdAt (@Ctx() ctx: Context, @Root() page: Page) {
-    const firstVersion = await ctx.svc(VersionedService).get(page.dataId, { version: 1 })
-    if (firstVersion?.created) {
-      return DateTime.fromJSDate(firstVersion.created)
-    } else {
-      throw new Error('page creation date not found')
-    }
+    const data = await ctx.svc(VersionedService).get(page.dataId)
+    return DateTime.fromJSDate(data!.created)
   }
 
   @FieldResolver(returns => User)
   async createdBy (@Ctx() ctx: Context, @Root() page: Page) {
-    const firstVersion = await ctx.svc(VersionedService).get(page.dataId, { version: 1 })
-    if (firstVersion?.createdBy) {
-      const users = await ctx.svc(UserService).find({ ids: [firstVersion.createdBy] })
-      return users[0]
-    } else {
-      throw new Error('page creator not found')
-    }
+    const data = await ctx.svc(VersionedService).get(page.dataId)
+    return await ctx.svc(UserService).findById(data!.createdBy)
   }
 
   @FieldResolver(returns => DateTime, { description: 'Date page was last modified. May be used to determine whether page has been modified since being published: (page.published && page.modifiedAt > page.publishedAt).' })
   async modifiedAt (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    const data = await ctx.svc(VersionedService).get(page.dataId)
+    return DateTime.fromJSDate(data!.modified)
   }
 
   @FieldResolver(returns => User)
   async modifiedBy (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    const data = await ctx.svc(VersionedService).get(page.dataId)
+    return await ctx.svc(UserService).findById(data!.modifiedBy)
   }
 
   @FieldResolver(returns => Boolean, { description: 'True if the page has a version marked as published. Note that the page could be published but not in the currently active pagetree.' })
