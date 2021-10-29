@@ -12,6 +12,12 @@ const usersByInternalIdLoader = new PrimaryKeyLoader({
   extractId: (item: User) => item.internalId
 })
 
+const usersByIdLoader = new PrimaryKeyLoader({
+  fetch: async (ids: string[]) => {
+    return await getUsers({ ids })
+  }
+})
+
 const usersByGroupIdLoader = new ManyJoinedLoader({
   fetch: async (groupIds: string[], filter?: UserFilter) => {
     return await getUsersInGroup(groupIds, filter)
@@ -92,6 +98,10 @@ export class UserService extends AuthorizedService<User> {
 
   async findByInternalId (id: number) {
     return await this.loaders.get(usersByInternalIdLoader).load(id)
+  }
+
+  async findById (id: string) {
+    return await this.loaders.get(usersByIdLoader).load(id)
   }
 
   async mayView (): Promise<boolean> {
