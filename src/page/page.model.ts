@@ -82,7 +82,7 @@ export class PageFilter {
   assetKeysReferenced?: string[]
 
   @Field(type => [PageTreeType], { nullable: true, description: 'Only return pages in the pagetrees of their site with the types specified' })
-  pagetreeTypes?: PageTreeType[]
+  pageTreeTypes?: PageTreeType[]
 
   @Field(type => Boolean, { nullable: true, description: 'Only return pages that have been published. Implies filter activePagetree -> true.' })
   published?: boolean

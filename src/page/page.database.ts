@@ -7,7 +7,6 @@ function processFilters (filter: PageFilter) {
   const where: string[] = []
   const joins: string[] = []
   const joined = new Map<string, boolean>()
-  // activePagetree
   // assetKeysReferenced
   if (isNotNull(filter.deleted)) {
     if (filter.deleted) {
@@ -25,13 +24,19 @@ function processFilters (filter: PageFilter) {
   if (filter.linkIds?.length) {
     where.push(`pages.linkId IN (${db.in(binds, filter.linkIds)})`)
   }
-  // linkIdsReferenced
   // live
   if (filter.pageTreeIds?.length) {
     where.push(`pages.pagetreeId IN (${db.in(binds, filter.pageTreeIds)})`)
   }
   if (filter.parentInternalIds?.length) {
     where.push(`pages.parentId IN (${db.in(binds, filter.parentInternalIds)})`)
+  }
+  if (filter.pageTreeTypes?.length) {
+    where.push(`pagetrees.type IN (${db.in(binds, filter.pageTreeTypes)})`)
+    if (!joined.has('pagetrees')) {
+      joins.push('INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id')
+      joined.set('pagetrees', true)
+    }
   }
   // published
   // referencedByPageIds
