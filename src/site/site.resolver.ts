@@ -5,14 +5,14 @@ import { AssetFolder } from '../assetfolder'
 import { Data, DataFilter, DataPermission } from '../data'
 import { DataFolder, DataFolderFilter } from '../datafolder'
 import { Organization, OrganizationService } from '../organization'
-import { Page, PagePermission } from '../page'
+import { Page, PagePermission, PageService } from '../page'
 import { PageTree, PageTreeFilter, PageTreeService } from '../pagetree'
 import { Role } from '../role'
 import { Template, TemplateFilter, TemplateService } from '../template'
 import { User, UserService } from '../user'
 import { Site, SiteFilter, SitePermission, SitePermissions } from './site.model'
 import { SiteService } from './site.service'
-import { isNotNull } from 'txstate-utils'
+import { isNotNull, isNull } from 'txstate-utils'
 
 @Resolver(of => Site)
 export class SiteResolver {
@@ -28,7 +28,9 @@ export class SiteResolver {
 
   @FieldResolver(returns => Page)
   async pageroot (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    // TODO: This would be better if there was a page filter for root page
+    const pages = await ctx.svc(PageService).findByPagetreeId(site.primaryPagetreeId)
+    return pages.find(p => isNull(p.parentInternalId))
   }
 
   @FieldResolver(returns => AssetFolder)
