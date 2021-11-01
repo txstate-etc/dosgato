@@ -16,8 +16,8 @@ describe('pagetrees', () => {
       expect(ptree).to.have.property('created')
       expect(ptree).to.have.property('type')
       expect(ptree.created).to.not.be.null
-      if (ptree.name === 'pagetree3') expect(ptree.type).to.equal('SANDBOX')
-      if (ptree.name === 'pagetree3primary') expect(ptree.type).to.equal('PRIMARY')
+      if (ptree.name === 'pagetree3sandbox') expect(ptree.type).to.equal('SANDBOX')
+      if (ptree.name === 'pagetree3') expect(ptree.type).to.equal('PRIMARY')
     }
   })
   it('should retrieve the pages in a pagetree', async () => {

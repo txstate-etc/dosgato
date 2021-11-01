@@ -98,11 +98,11 @@ export async function fixtures () {
     db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site3', officeOrg, su03])
   ])
 
-  const [pagetree1, pagetree2, pagetree3, pagetree3primary] = await Promise.all([
-    db.insert('INSERT INTO pagetrees (name, siteId) VALUES (?,?)', ['pagetree1', site1]),
-    db.insert('INSERT INTO pagetrees (name, siteId) VALUES (?,?)', ['pagetree2', site2]),
-    db.insert('INSERT INTO pagetrees (name, siteId) VALUES (?,?)', ['pagetree3', site3]),
-    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES(?,?,?)', ['pagetree3primary', site3, 'primary'])
+  const [pagetree1, pagetree2, pagetree3sandbox, pagetree3] = await Promise.all([
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree1', site1, 'primary']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree2', site2, 'primary']),
+    db.insert('INSERT INTO pagetrees (name, siteId) VALUES (?,?)', ['pagetree3sandbox', site3]),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES(?,?,?)', ['pagetree3', site3, 'primary'])
   ])
 
   const [pagetemplate1, pagetemplate2, pagetemplate3, pagetemplate4, componenttemplate1, componenttemplate2, componenttemplate3, datatemplate1, datatemplate2] = await Promise.all([
@@ -124,7 +124,7 @@ export async function fixtures () {
   await Promise.all([
     db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetree1, site1]),
     db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetree2, site2]),
-    db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetree3primary, site3])
+    db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetree3, site3])
   ])
 
   await Promise.all([
@@ -168,8 +168,8 @@ export async function fixtures () {
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site3, ed03]),
     db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree1, pagetemplate1]),
     db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree2, pagetemplate2]),
-    db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree3, pagetemplate2]),
-    db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree3primary, pagetemplate3]),
+    db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree3sandbox, pagetemplate2]),
+    db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree3, pagetemplate3]),
     db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site2, pagetemplate1]),
     db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site1, pagetemplate2]),
     db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site3, pagetemplate3]),
@@ -228,11 +228,11 @@ export async function fixtures () {
       name: 'link_page',
       values: [
         stringify({ linkId: aboutLinkId }),
-        stringify({ siteId: site1, path: '/root/about' }),
+        stringify({ siteId: site1, path: '/site1/about' }),
         stringify({ linkId: programsLinkId }),
-        stringify({ siteId: site1, path: '/root/programs' }),
+        stringify({ siteId: site1, path: '/site1/programs' }),
         stringify({ linkId: contactLinkId }),
-        stringify({ siteId: site1, path: '/root/contact' })
+        stringify({ siteId: site1, path: '/site1/contact' })
       ]
     },
     {
@@ -248,9 +248,9 @@ export async function fixtures () {
       name: 'link_page',
       values: [
         stringify({ linkId: 'location' }),
-        stringify({ siteId: site1, path: '/root/about/location' }),
+        stringify({ siteId: site1, path: '/site1/about/location' }),
         stringify({ linkId: 'people' }),
-        stringify({ siteId: site1, path: '/root/about/people' })
+        stringify({ siteId: site1, path: '/site1/about/people' })
       ]
     },
     {
@@ -266,7 +266,7 @@ export async function fixtures () {
       name: 'link_page',
       values: [
         stringify({ linkId: contactLinkId }),
-        stringify({ siteId: site1, path: '/root/contact' })
+        stringify({ siteId: site1, path: '/site1/contact' })
       ]
     },
     {
@@ -282,9 +282,9 @@ export async function fixtures () {
       name: 'link_page',
       values: [
         stringify({ linkId: facultyLinkId }),
-        stringify({ siteId: site1, path: '/root/about/people/faculty' }),
+        stringify({ siteId: site1, path: '/site1/about/people/faculty' }),
         stringify({ linkId: staffLinkId }),
-        stringify({ siteId: site1, path: '/root/about/people/staff' })
+        stringify({ siteId: site1, path: '/site1/about/people/staff' })
       ]
     },
     {
@@ -318,9 +318,9 @@ export async function fixtures () {
       name: 'link_page',
       values: [
         stringify({ linkId: ugradLinkId }),
-        stringify({ siteId: site1, path: '/root/programs/undergrad' }),
+        stringify({ siteId: site1, path: '/site1/programs/undergrad' }),
         stringify({ linkId: gradLinkId }),
-        stringify({ siteId: site1, path: '/root/programs/grad' })
+        stringify({ siteId: site1, path: '/site1/programs/grad' })
       ]
     },
     {
@@ -336,7 +336,7 @@ export async function fixtures () {
       name: 'link_page',
       values: [
         stringify({ linkId: gradLinkId }),
-        stringify({ siteId: site1, path: '/root/programs/grad' })
+        stringify({ siteId: site1, path: '/site1/programs/grad' })
       ]
     },
     {
@@ -352,7 +352,7 @@ export async function fixtures () {
       name: 'link_page',
       values: [
         stringify({ linkId: ugradLinkId }),
-        stringify({ siteId: site1, path: '/root/programs/undergrad' })
+        stringify({ siteId: site1, path: '/site1/programs/undergrad' })
       ]
     },
     {
@@ -381,4 +381,76 @@ export async function fixtures () {
   const site1pagetree1Events = await createPage('events', eventsLinkId, pagetree1, site1pagetree1About, stringify({ title: 'Special Events' }), indexes)
   await db.update('UPDATE pages SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [su01, site1pagetree1Events])
   console.log('finished fixtures()')
+
+  /* Site 2, Pagetree 2 Pages */
+  const site2RootLinkId = nanoid(10)
+  // root
+  indexes = [
+    {
+      name: 'templateKey',
+      values: ['keyp2', 'keyc3']
+    }
+  ]
+  await createPage('Site 2 Home', site2RootLinkId, pagetree2, null, stringify({ title: 'Site 2 Home' }), indexes)
+
+  /* Site 3, Pagetree 3 Pages */
+  const site3RootLinkId = nanoid(10)
+  const site3AboutLinkId = nanoid(10)
+  const site3SiteMapLinkId = nanoid(10)
+  // root
+  indexes = [
+    {
+      name: 'link_page',
+      values: [
+        stringify({ linkId: site3AboutLinkId }),
+        stringify({ siteId: site3, path: '/site3/about' }),
+        stringify({ linkId: site3SiteMapLinkId }),
+        stringify({ siteId: site3, path: '/site3/sitemap' }),
+        stringify({ linkId: rootLinkId }),
+        stringify({ siteId: site1, path: '/site1' })
+      ]
+    },
+    {
+      name: 'templateKey',
+      values: ['keyp3', 'keyc1', 'keyc2']
+    }
+  ]
+  const site3pagetree3Root = await createPage('Site 3 Home', site3RootLinkId, pagetree3, null, stringify({ title: 'Site 3 Home' }), indexes)
+  // about
+  indexes = [
+    {
+      name: 'templateKey',
+      values: ['keyp3', 'keyc2', 'keyc3']
+    }
+  ]
+  await createPage('About', site3AboutLinkId, pagetree3, site3pagetree3Root, stringify({ title: 'About Us' }), indexes)
+  // site map
+  indexes = [
+    {
+      name: 'templateKey',
+      values: ['keyp3']
+    }
+  ]
+  await createPage('Site Map', site3SiteMapLinkId, pagetree3, site3pagetree3Root, stringify({ title: 'Site Map' }), indexes)
+
+  /* Site 3, Sandbox Pages */
+  const site3SandboxRootLinkId = nanoid(10)
+  indexes = [
+    {
+      name: 'link_page',
+      values: [
+        stringify({ linkId: site3AboutLinkId }),
+        stringify({ siteId: site3, path: '/site3/about' }),
+        stringify({ linkId: site3SiteMapLinkId }),
+        stringify({ siteId: site3, path: '/site3/sitemap' }),
+        stringify({ linkId: rootLinkId }),
+        stringify({ siteId: site1, path: '/site1' })
+      ]
+    },
+    {
+      name: 'templateKey',
+      values: ['keyp2', 'keyc1', 'keyc2']
+    }
+  ]
+  await createPage('Site 3 Home', site3SandboxRootLinkId, pagetree3sandbox, null, stringify({ title: 'Site 3 Home' }), indexes)
 }

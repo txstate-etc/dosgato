@@ -30,14 +30,14 @@ describe('sites', () => {
     const resp = await query('{ sites { id name pagetrees { id name type } } }')
     const site3 = resp.data.sites.find((s: any) => s.name === 'site3')
     const pagetreeNames = site3.pagetrees.map((p: any) => p.name)
-    expect(pagetreeNames).to.have.members(['pagetree3primary', 'pagetree3'])
+    expect(pagetreeNames).to.have.members(['pagetree3', 'pagetree3sandbox'])
   })
   it('should get filtered pagetrees for sites', async () => {
     const resp = await query('{ sites { id name pagetrees(filter: {types: [PRIMARY]}) { id name type } } }')
     const site3 = resp.data.sites.find((s: any) => s.name === 'site3')
     const pagetreeNames = site3.pagetrees.map((p: any) => p.name)
-    expect(pagetreeNames).to.have.members(['pagetree3primary'])
-    expect(pagetreeNames).to.not.have.members(['pagetree3'])
+    expect(pagetreeNames).to.have.members(['pagetree3'])
+    expect(pagetreeNames).to.not.have.members(['pagetree3sandbox'])
   })
   it('should get templates for sites', async () => {
     const resp = await query('{ sites { id name templates { key name } } }')
@@ -53,5 +53,9 @@ describe('sites', () => {
     const templateNames = site1.templates.map((t: any) => t.key)
     expect(templateNames).to.have.members(['keyp3'])
   })
-  it.skip('should get the root page for a site', async () => {})
+  it('should get the root page for a site', async () => {
+    const { data: { sites } } = await query('{ sites { id name pageroot { id name } } }')
+    const site2 = sites.find((s: any) => s.name === 'site2')
+    expect(site2.pageroot.name).to.equal('Site 2 Home')
+  })
 })
