@@ -3,7 +3,12 @@ import { expect } from 'chai'
 import { query } from '../common'
 
 describe('pages', () => {
-  it.skip('should get pages, filtered by pagetree type', async () => {})
+  it('should get pages, filtered by pagetree type', async () => {
+    const resp = await query('{ pages(filter: {pageTreeTypes: [SANDBOX]}) { id name pagetree { id type } } }')
+    for (const page of resp.data.pages) {
+      expect(page.pagetree.type).to.equal('SANDBOX')
+    }
+  })
   it.skip('should get pages, filtered by assetKeysReferenced', async () => {})
   it('should get deleted pages', async () => {
     const resp = await query('{ pages(filter: {deleted: true}) { id name } }')
@@ -17,7 +22,6 @@ describe('pages', () => {
     expect(pageNames).to.not.have.members(['events'])
     expect(pageNames).to.include.members(['about', 'root', 'grad', 'contact'])
   })
-  it.skip('should get pages, filtered by ID', async () => {})
   it('should get pages, filtered by linkId', async () => {
     const { data: { pages } } = await query('{ pages(filter: { deleted: false }) { id name linkId } }')
     const linkIds = pages.map((p: any) => p.linkId)
@@ -36,11 +40,27 @@ describe('pages', () => {
     expect(resultPageNames).to.have.members(['root', 'location', 'people'])
   })
   it.skip('should get pages, filtered by "live" property', async () => {})
-  it.skip('should get pages, filtered by pageTreeId', async () => {})
-  it.skip('should get pages, filtered by parentPageId', async () => {})
+  it('should get pages, filtered by pageTreeId', async () => {
+    const resp = await query('{ sites { name pagetrees { id name } } }')
+    const site1 = resp.data.sites.find((s: any) => s.name === 'site1')
+    const pagetree1 = site1.pagetrees.find((p: any) => p.name === 'pagetree1')
+    const site3 = resp.data.sites.find((s: any) => s.name === 'site3')
+    const pagetree3 = site3.pagetrees.find((p: any) => p.name === 'pagetree3')
+    const { data: { pages } } = await query(`{ pages(filter: { pageTreeIds: [${pagetree1.id},${pagetree3.id}]}) { id name pagetree { id name } } }`)
+    for (const page of pages) {
+      expect([pagetree1.id, pagetree3.id]).to.include(page.pagetree.id)
+    }
+  })
   it.skip('should get pages, filtered by "published" property', async () => {})
   it.skip('should get pages, filtered by referencedByPageIds', async () => {})
-  it.skip('should get pages, filtered by site ID', async () => {})
+  it('should get pages, filtered by site ID', async () => {
+    const { data: { sites } } = await query('{ sites { id name } }')
+    const site1 = sites.find((s: any) => s.name === 'site1')
+    const resp = await query(`{ pages(filter: { siteIds: [${site1.id}] }) { id name } }`)
+    const pageNames = resp.data.pages.map((p: any) => p.name)
+    expect(pageNames).to.include.members(['location', 'people', 'contact', 'programs'])
+    expect(pageNames).to.not.have.members(['sitemap', 'Site 3 Home'])
+  })
   it.skip('should get pages using specific templates', async () => {})
   it('should get the ancestors for a page', async () => {
     const resp = await query('{ pages(filter: {deleted: false}) { name ancestors { id name } } }')
@@ -82,7 +102,14 @@ describe('pages', () => {
   it.skip('should return the published version of data for a page', async () => {})
   it.skip('should return the data for a page, specifying schema version', async () => {})
   it.skip('should return the specified version of data for a page', async () => {})
-  it.skip('should return the deleted field for a page', async () => {})
+  it('should return the deleted field for a page', async () => {
+    const { data: { sites } } = await query('{ sites { id name } }')
+    const site1 = sites.find((s: any) => s.name === 'site1')
+    const { data: { pages } } = await query(`{ pages(filter: { siteIds: [${site1.id}] }) { id name deleted } }`)
+    for (const page of pages) {
+      expect([true, false]).to.include(page.deleted)
+    }
+  })
   it('should return a deleted page\'s deletion datetime', async () => {
     const resp = await query('{ pages(filter: {deleted: true}) { name deletedAt } }')
     const eventsPage = resp.data.pages.find((p: any) => p.name === 'events')
