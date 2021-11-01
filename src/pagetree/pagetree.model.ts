@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
-enum PageTreeType {
+export enum PageTreeType {
   PRIMARY = 'primary',
   SANDBOX = 'sandbox',
   ARCHIVE = 'archive'

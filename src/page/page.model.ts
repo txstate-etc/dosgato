@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
+import { PageTreeType } from '../pagetree'
 
 @ObjectType({ description: 'Sites contain pages. Each page can have subpages. Each pagetree has one root page.' })
 export class Page {
@@ -80,8 +81,8 @@ export class PageFilter {
   @Field(type => [ID], { nullable: true, description: 'Return pages that contain a link to any of the given assets.' })
   assetKeysReferenced?: string[]
 
-  @Field(type => Boolean, { nullable: true, description: 'Only return pages in the active pagetree of their site.' })
-  activePagetree?: boolean
+  @Field(type => [PageTreeType], { nullable: true, description: 'Only return pages in the pagetrees of their site with the types specified' })
+  pagetreeTypes?: PageTreeType[]
 
   @Field(type => Boolean, { nullable: true, description: 'Only return pages that have been published. Implies filter activePagetree -> true.' })
   published?: boolean
