@@ -3,7 +3,7 @@ import { expect } from 'chai'
 import { query } from '../common'
 
 describe('pages', () => {
-  it.skip('should get pages, filtered by activePagetree', async () => {})
+  it.skip('should get pages, filtered by pagetree type', async () => {})
   it.skip('should get pages, filtered by assetKeysReferenced', async () => {})
   it('should get deleted pages', async () => {
     const resp = await query('{ pages(filter: {deleted: true}) { id name } }')
@@ -18,8 +18,23 @@ describe('pages', () => {
     expect(pageNames).to.include.members(['about', 'root', 'grad', 'contact'])
   })
   it.skip('should get pages, filtered by ID', async () => {})
-  it.skip('should get pages, filtered by linkId', async () => {})
-  it.skip('should get pages, filtered by linkIdsReferenced', async () => {})
+  it('should get pages, filtered by linkId', async () => {
+    const { data: { pages } } = await query('{ pages(filter: { deleted: false }) { id name linkId } }')
+    const linkIds = pages.map((p: any) => p.linkId)
+    const resp = await query(`{ pages(filter: {linkIds: ["${linkIds[0]}", "${linkIds[1]}", "${linkIds[2]}", "${linkIds[3]}"] }) { id name linkId} }`)
+    expect(resp.data.pages).to.have.lengthOf(4)
+    const filteredLinkIds = resp.data.pages.map((p: any) => p.linkId)
+    expect(filteredLinkIds).to.have.members([linkIds[0], linkIds[1], linkIds[2], linkIds[3]])
+    expect(filteredLinkIds).to.not.have.members([linkIds[4], linkIds[5]])
+  })
+  it('should get pages, filtered by linkIdsReferenced', async () => {
+    const { data: { pages } } = await query('{ pages(filter: { deleted: false }) { id name linkId } }')
+    const contactPage = pages.find((p: any) => p.name === 'contact')
+    const staffPage = pages.find((p: any) => p.name === 'staff')
+    const resp = await query(`{ pages(filter: { linkIdsReferenced: ["${contactPage.linkId}","${staffPage.linkId}"] }) { id name } }`)
+    const resultPageNames = resp.data.pages.map((p: any) => p.name)
+    expect(resultPageNames).to.have.members(['root', 'location', 'people'])
+  })
   it.skip('should get pages, filtered by "live" property', async () => {})
   it.skip('should get pages, filtered by pageTreeId', async () => {})
   it.skip('should get pages, filtered by parentPageId', async () => {})

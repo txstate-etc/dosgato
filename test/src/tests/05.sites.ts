@@ -53,4 +53,5 @@ describe('sites', () => {
     const templateNames = site1.templates.map((t: any) => t.key)
     expect(templateNames).to.have.members(['keyp3'])
   })
+  it.skip('should get the root page for a site', async () => {})
 })
