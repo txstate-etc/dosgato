@@ -1,4 +1,4 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Arg, Ctx, FieldResolver, Mutation, Query, Resolver, Root } from 'type-graphql'
 import { Role, RoleService } from '../role'
 import { User, UserService } from '../user'
@@ -40,9 +40,59 @@ export class GroupResolver {
     return group
   }
 
-  @Mutation(returns => GroupResponse)
+  @Mutation(returns => GroupResponse, { description: 'Add a new group. The group name must be unique.' })
   async addGroup (@Ctx() ctx: Context, @Arg('name', { description: 'name of the group being created' }) name: string): Promise<GroupResponse> {
     return await ctx.svc(GroupService).create(name)
+  }
+
+  @Mutation(returns => GroupResponse, { description: 'Update the name of an existing group' })
+  async updateGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('name') name: string) {
+    throw new UnimplementedError()
+  }
+
+  // TODO: Should this return anything besides what is in ValidatedResponse? Does the UI need anything?
+  // It's not a soft-delete, the table only has an id and name
+  @Mutation(returns => ValidatedResponse, { description: 'Delete a group' })
+  async deleteGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string) {
+    throw new UnimplementedError()
+  }
+
+  // TODO: Is this user ID the internal ID? Or the login?
+  @Mutation(returns => ValidatedResponse, { description: 'Add a user to a group' })
+  async addUserToGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('userId') userId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse, { description: 'Remove a user from a group' })
+  async removeUserFromGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('userId') userId: string) {
+    throw new UnimplementedError()
+  }
+
+  // TODO: If the user is not already in the group, should they be added to it or is that an error?
+  // If they are being removed as manager, should they stay in the group?
+  @Mutation(returns => ValidatedResponse, { description: 'Update a user\'s status as a manager of a group' })
+  async setGroupManager (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('userId') userId: string, @Arg('manager', { description: 'true if this user should be a group manager, false if they should not be a group manager' }) manager: boolean) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse, { description: 'Add a role to a group' })
+  async addRoleToGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('roleId') roleId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse, { description: 'Remove a role from a group' })
+  async removeRoleFromGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('roleId') roleId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse, { description: 'Make one group a subgroup of another' })
+  async addSubgroup (@Ctx() ctx: Context, @Arg('parentgroupId') parentGroupId: string, @Arg('childGroupId') childGroupId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse, { description: 'Remove relationship between a group and subgroup' })
+  async removeSubgroup (@Ctx() ctx: Context, @Arg('parentgroupId') parentGroupId: string, @Arg('childGroupId') childGroupId: string) {
+    throw new UnimplementedError()
   }
 }
 
