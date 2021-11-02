@@ -1,5 +1,5 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import { AssetRule, AssetRuleService } from '../assetrule'
 import { DataRule, DataRuleService } from '../datarule'
 import { GlobalRule, GlobalRuleService } from '../globalrule'
@@ -7,7 +7,7 @@ import { PageRule, PageRuleService } from '../pagerule'
 import { SiteRule, SiteRuleFilter, SiteRuleService } from '../siterule'
 import { Group, GroupFilter, GroupService } from '../group'
 import { User, UserFilter, UserService } from '../user'
-import { Role, RoleFilter, RolePermissions } from './role.model'
+import { Role, RoleFilter, RolePermissions, RoleResponse, RoleRuleArgs } from './role.model'
 import { RoleService } from './role.service'
 import { TemplateRule, TemplateRuleFilter, TemplateRuleService } from '../templaterule'
 
@@ -69,6 +69,47 @@ export class RoleResolver {
   })
   permissions (@Root() role: Role) {
     return role
+  }
+
+  // MUTATIONS
+  @Mutation(returns => RoleResponse)
+  async createRole (@Ctx() ctx: Context, @Arg('name', { description: 'name of the role being created' }) name: string): Promise<RoleResponse> {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => RoleResponse, { description: 'Give a role a new name' })
+  async updateRole (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('name') name: string): Promise<RoleResponse> {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async deleteRole (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string): Promise<RoleResponse> {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async assignRoleToUser (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('userId') userId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async removeRoleFromUser (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('userId') userId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async assignRoleToGroup (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('groupId') groupId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async removeRoleFromGroup (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('groupId') groupId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async updateRoleRules (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => RoleRuleArgs) grants: RoleRuleArgs) {
+    throw new UnimplementedError()
   }
 }
 

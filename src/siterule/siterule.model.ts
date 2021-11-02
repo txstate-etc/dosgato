@@ -3,7 +3,7 @@ import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleType } from '../role'
 
 @ObjectType()
-@InputType()
+@InputType('SiteRuleGrantsInput')
 export class SiteRuleGrants {
   @Field({ description: 'Grants ability to set or update the public URL for affected sites.' })
   launch!: boolean

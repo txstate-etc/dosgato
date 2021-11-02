@@ -3,7 +3,7 @@ import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleType } from '../role'
 
 @ObjectType()
-@InputType()
+@InputType('DataRuleGrantsInput')
 export class DataRuleGrants {
   @Field({ description: 'Grants ability to view the latest version of data entries of this type in the specified site or folder. Published data entries are considered public data.' })
   viewlatest!: boolean

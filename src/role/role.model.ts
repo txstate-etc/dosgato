@@ -1,4 +1,11 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
+import { AssetRuleGrants } from '../assetrule'
+import { DataRuleGrants } from '../datarule'
+import { GlobalRuleGrants } from '../globalrule'
+import { PageRuleGrants } from '../pagerule'
+import { SiteRuleGrants } from '../siterule'
+import { TemplateRuleGrants } from '../templaterule'
 
 export enum RuleType {
   GLOBAL = 'global',
@@ -39,6 +46,38 @@ export class RoleFilter {
 
   @Field(type => [ID], { nullable: true, description: 'Return roles that are associated with any of the given users.' })
   users?: string[]
+}
+
+@ObjectType()
+export class RoleResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  role?: Role
+
+  constructor (config: ValidatedResponseArgs & { role?: Role }) {
+    super(config)
+    this.role = config.role
+  }
+}
+
+@InputType()
+export class RoleRuleArgs {
+  @Field({ nullable: true, description: 'Permissions related to assets' })
+  assetRuleGrants?: AssetRuleGrants
+
+  @Field({ nullable: true, description: 'Permissions related to data' })
+  dataRuleGrants?: DataRuleGrants
+
+  @Field({ nullable: true, description: 'Permissions related to global settings' })
+  globalRuleGrants?: GlobalRuleGrants
+
+  @Field({ nullable: true, description: 'Permissions related to pages' })
+  pageRuleGrants?: PageRuleGrants
+
+  @Field({ nullable: true, description: 'Permissions related to sites' })
+  siteRuleGrants?: SiteRuleGrants
+
+  @Field({ nullable: true, description: 'Permissions related to templates' })
+  templateRuleGrants?: TemplateRuleGrants
 }
 
 @ObjectType()

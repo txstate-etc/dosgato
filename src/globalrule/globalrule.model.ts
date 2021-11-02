@@ -2,7 +2,7 @@ import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleType } from '../role'
 
 @ObjectType()
-@InputType()
+@InputType('GlobalRuleGrantsInput')
 export class GlobalRuleGrants {
   @Field({ description: 'Grants ability to create/read/update/delete all roles, add roles to users and groups, and add users to groups.' })
   manageUsers!: boolean

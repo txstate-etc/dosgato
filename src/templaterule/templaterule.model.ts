@@ -2,7 +2,7 @@ import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleType } from '../role'
 
 @ObjectType()
-@InputType()
+@InputType('TemplateRuleGrantsInput')
 export class TemplateRuleGrants {
   @Field({
     description: `Grants ability to use the template in any site. Normally templates are authorized

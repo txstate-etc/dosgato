@@ -4,7 +4,7 @@ import { RulePathMode } from '../pagerule'
 import { RuleType } from '../role'
 
 @ObjectType()
-@InputType()
+@InputType('AssetRuleGrantsInput')
 export class AssetRuleGrants {
   @Field({ description: 'Grants ability to create or move assets and folders into folders impacted by this rule.' })
   create!: boolean

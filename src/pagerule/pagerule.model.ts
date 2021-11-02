@@ -18,7 +18,7 @@ registerEnumType(RulePathMode, {
 })
 
 @ObjectType()
-@InputType()
+@InputType('PageRuleGrantsInput')
 export class PageRuleGrants {
   @Field({ description: 'Grants ability to view the latest unpublished version of pages. Published pages are completely public.' })
   viewlatest!: boolean
