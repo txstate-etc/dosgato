@@ -32,7 +32,7 @@ export async function init () {
         `parentId` MEDIUMINT UNSIGNED, \
         `name` VARCHAR(255) NOT NULL, \
         `deletedAt` DATETIME, \
-        `deletedBy` MEDIUMINT UNSIGNED NOT NULL, \
+        `deletedBy` MEDIUMINT UNSIGNED, \
         PRIMARY KEY (`id`), \
         CONSTRAINT `FK_assetfolders_assetfolders` \
           FOREIGN KEY (`parentId`) \
