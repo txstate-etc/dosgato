@@ -3,10 +3,14 @@ import { expect } from 'chai'
 import { query } from '../common'
 
 describe('roles', () => {
-  it.skip('should retrieve roles by id', async () => {
-    // TODO: How can we test this if we don't know what the ids will be?
-    const resp = await query('{ roles(filter: { ids: ["1", "2"] }) { id, name } }')
-    expect(resp.data.roles).to.have.lengthOf(2)
+  it('should retrieve roles by id', async () => {
+    const resp1 = await query('{ roles(filter: { users: ["ed06"] }) { id } }')
+    const roleIds = resp1.data.roles.map((r: any) => r.id)
+    const resp = await query(`{ roles(filter: { ids: [${roleIds.map((id: any) => `"${id}"`).join(',')}] }) { id, name } }`)
+    expect(roleIds.length).to.equal(resp.data.roles.length)
+    for (const role of resp.data.roles) {
+      expect(roleIds).to.include(role.id)
+    }
   })
   it('should retrieve roles by user', async () => {
     const resp = await query('{ roles(filter: { users: ["su03"] }) { id name } }')
