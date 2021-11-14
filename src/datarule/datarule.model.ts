@@ -1,3 +1,4 @@
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleType } from '../role'
@@ -64,6 +65,17 @@ export class DataRule {
     this.templateId = row.templateId
     this.grants = new DataRuleGrants(row)
     this.path = row.path
+  }
+}
+
+@ObjectType()
+export class DataRuleResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  dataRule?: DataRule
+
+  constructor (config: ValidatedResponseArgs & { dataRule?: DataRule }) {
+    super(config)
+    this.dataRule = config.dataRule
   }
 }
 

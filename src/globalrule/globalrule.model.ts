@@ -1,3 +1,4 @@
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleType } from '../role'
 
@@ -31,6 +32,17 @@ export class GlobalRule {
     this.id = String(row.id)
     this.roleId = String(row.roleId)
     this.grants = new GlobalRuleGrants(row)
+  }
+}
+
+@ObjectType()
+export class GlobalRuleResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  globalRule?: GlobalRule
+
+  constructor (config: ValidatedResponseArgs & { globalRule?: GlobalRule }) {
+    super(config)
+    this.globalRule = config.globalRule
   }
 }
 

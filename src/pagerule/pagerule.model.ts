@@ -1,3 +1,4 @@
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { RuleType } from '../role'
@@ -87,6 +88,17 @@ export class PageRule {
     this.path = row.path
     this.mode = row.mode
     this.grants = new PageRuleGrants(row)
+  }
+}
+
+@ObjectType()
+export class PageRuleResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  pageRule?: PageRule
+
+  constructor (config: ValidatedResponseArgs & { pageRule?: PageRule }) {
+    super(config)
+    this.pageRule = config.pageRule
   }
 }
 

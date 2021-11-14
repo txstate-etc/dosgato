@@ -7,7 +7,7 @@ import { PageRule, PageRuleService } from '../pagerule'
 import { SiteRule, SiteRuleFilter, SiteRuleService } from '../siterule'
 import { Group, GroupFilter, GroupService } from '../group'
 import { User, UserFilter, UserService } from '../user'
-import { Role, RoleFilter, RolePermissions, RoleResponse, RoleRuleArgs } from './role.model'
+import { Role, RoleFilter, RolePermissions, RoleResponse } from './role.model'
 import { RoleService } from './role.service'
 import { TemplateRule, TemplateRuleFilter, TemplateRuleService } from '../templaterule'
 
@@ -108,7 +108,7 @@ export class RoleResolver {
   }
 
   @Mutation(returns => ValidatedResponse)
-  async updateRoleRules (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => RoleRuleArgs) grants: RoleRuleArgs) {
+  async removeRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string) {
     throw new UnimplementedError()
   }
 }

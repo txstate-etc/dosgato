@@ -1,9 +1,9 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Arg, Resolver, Ctx, Mutation, FieldResolver, Root } from 'type-graphql'
 import { Role, RoleService } from '../role'
 import { Site, SiteService } from '../site'
 import { Template } from '../template'
-import { DataRule, DataRulePermissions } from './datarule.model'
+import { DataRule, DataRuleGrants, DataRulePermissions, DataRuleResponse } from './datarule.model'
 import { isNull } from 'txstate-utils'
 
 @Resolver(of => DataRule)
@@ -30,6 +30,16 @@ export class DataRuleResolver {
   })
   permissions (@Root() datarule: DataRule) {
     return datarule
+  }
+
+  @Mutation(returns => DataRuleResponse)
+  async addDataRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => DataRuleGrants) grants: DataRuleGrants) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => DataRuleResponse)
+  async updateDataRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => DataRuleGrants) grants: DataRuleGrants) {
+    throw new UnimplementedError()
   }
 }
 

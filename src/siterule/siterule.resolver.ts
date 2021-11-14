@@ -1,8 +1,8 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
 import { Role, RoleService } from '../role'
 import { Site, SiteService } from '../site'
-import { SiteRule, SiteRulePermissions } from './siterule.model'
+import { SiteRule, SiteRuleGrants, SiteRulePermissions, SiteRuleResponse } from './siterule.model'
 import { isNull } from 'txstate-utils'
 
 @Resolver(of => SiteRule)
@@ -24,6 +24,16 @@ export class SiteRuleResolver {
   })
   permissions (@Root() siterule: SiteRule) {
     return siterule
+  }
+
+  @Mutation(returns => SiteRuleResponse)
+  async addSiteRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => SiteRuleGrants) grants: SiteRuleGrants) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => SiteRuleResponse)
+  async updateSiteRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => SiteRuleGrants) grants: SiteRuleGrants) {
+    throw new UnimplementedError()
   }
 }
 

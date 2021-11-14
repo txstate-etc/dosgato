@@ -1,3 +1,4 @@
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RulePathMode } from '../pagerule'
@@ -87,6 +88,17 @@ export class AssetRuleFilter {
 
   @Field({ nullable: true, description: 'Return rules that grant the undelete permission.' })
   undelete?: boolean
+}
+
+@ObjectType()
+export class AssetRuleResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  assetRule?: AssetRule
+
+  constructor (config: ValidatedResponseArgs & { assetRule?: AssetRule }) {
+    super(config)
+    this.assetRule = config.assetRule
+  }
 }
 
 @ObjectType()

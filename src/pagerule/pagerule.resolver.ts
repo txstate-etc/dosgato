@@ -1,9 +1,9 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Resolver, Ctx, FieldResolver, Root, Arg, Mutation } from 'type-graphql'
 import { PageTree } from '../pagetree'
 import { Role, RoleService } from '../role'
 import { Site, SiteService } from '../site'
-import { PageRule, PageRulePermissions } from './pagerule.model'
+import { PageRule, PageRuleGrants, PageRulePermissions, PageRuleResponse } from './pagerule.model'
 import { isNull } from 'txstate-utils'
 
 @Resolver(of => PageRule)
@@ -30,6 +30,16 @@ export class PageRuleResolver {
   })
   permissions (@Root() pagerule: PageRule) {
     return pagerule
+  }
+
+  @Mutation(returns => PageRuleResponse)
+  async addPageRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => PageRuleGrants) grants: PageRuleGrants) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => PageRuleResponse)
+  async updatePageRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => PageRuleGrants) grants: PageRuleGrants) {
+    throw new UnimplementedError()
   }
 }
 
