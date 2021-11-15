@@ -32,7 +32,7 @@ export class AssetRuleResolver {
   }
 
   @Mutation(returns => AssetRuleResponse)
-  async updateAssetRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => AssetRuleGrants) grants: AssetRuleGrants) {
+  async updateAssetRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string, @Arg('grants', type => AssetRuleGrants) grants: AssetRuleGrants) {
     throw new UnimplementedError()
   }
 }

@@ -1,3 +1,4 @@
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleType } from '../role'
 
@@ -51,6 +52,17 @@ export class TemplateRuleFilter {
 
   @Field({ nullable: true, description: 'Return rules that grant the use permission.' })
   use?: boolean
+}
+
+@ObjectType()
+export class TemplateRuleResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  templateRule?: TemplateRule
+
+  constructor (config: ValidatedResponseArgs & { templateRule?: TemplateRule }) {
+    super(config)
+    this.templateRule = config.templateRule
+  }
 }
 
 @ObjectType()

@@ -38,7 +38,7 @@ export class DataRuleResolver {
   }
 
   @Mutation(returns => DataRuleResponse)
-  async updateDataRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => DataRuleGrants) grants: DataRuleGrants) {
+  async updateDataRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string, @Arg('grants', type => DataRuleGrants) grants: DataRuleGrants) {
     throw new UnimplementedError()
   }
 }

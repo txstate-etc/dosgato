@@ -32,7 +32,7 @@ export class SiteRuleResolver {
   }
 
   @Mutation(returns => SiteRuleResponse)
-  async updateSiteRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => SiteRuleGrants) grants: SiteRuleGrants) {
+  async updateSiteRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string, @Arg('grants', type => SiteRuleGrants) grants: SiteRuleGrants) {
     throw new UnimplementedError()
   }
 }

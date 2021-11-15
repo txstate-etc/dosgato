@@ -1,8 +1,8 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
 import { Role, RoleService } from '../role'
 import { Template, TemplateService } from '../template'
-import { TemplateRule, TemplateRulePermissions } from './templaterule.model'
+import { TemplateRule, TemplateRuleGrants, TemplateRulePermissions, TemplateRuleResponse } from './templaterule.model'
 import { isNull } from 'txstate-utils'
 
 @Resolver(of => TemplateRule)
@@ -24,6 +24,16 @@ export class TemplateRuleResolver {
   })
   permissions (@Root() templaterule: TemplateRule) {
     return templaterule
+  }
+
+  @Mutation(returns => TemplateRuleResponse)
+  async addTemplateRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => TemplateRuleGrants) grants: TemplateRuleGrants) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => TemplateRuleResponse)
+  async updateTemplateeRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string, @Arg('grants', type => TemplateRuleGrants) grants: TemplateRuleGrants) {
+    throw new UnimplementedError()
   }
 }
 

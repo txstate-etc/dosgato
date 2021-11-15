@@ -38,7 +38,7 @@ export class PageRuleResolver {
   }
 
   @Mutation(returns => PageRuleResponse)
-  async updatePageRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => PageRuleGrants) grants: PageRuleGrants) {
+  async updatePageRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string, @Arg('grants', type => PageRuleGrants) grants: PageRuleGrants) {
     throw new UnimplementedError()
   }
 }
