@@ -1,3 +1,4 @@
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
@@ -65,6 +66,17 @@ export class PageTreeFilter {
 
   @Field(type => [PageTreeType], { nullable: true })
   types?: PageTreeType[]
+}
+
+@ObjectType()
+export class PageTreeResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  pagetree?: PageTree
+
+  constructor (config: ValidatedResponseArgs & { pagetree?: PageTree }) {
+    super(config)
+    this.pagetree = config.pagetree
+  }
 }
 
 @ObjectType()

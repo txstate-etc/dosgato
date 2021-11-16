@@ -1,12 +1,12 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { isNull } from 'txstate-utils'
-import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import { Page, PageService } from '../page'
 import { PageFilter } from '../page/page.model'
 import { Role } from '../role'
 import { Site, SiteService } from '../site'
 import { Template, TemplateFilter } from '../template'
-import { PageTree, PageTreePermission, PageTreePermissions } from './pagetree.model'
+import { PageTree, PageTreePermission, PageTreePermissions, PageTreeResponse, PageTreeType } from './pagetree.model'
 
 @Resolver(of => PageTree)
 export class PageTreeResolver {
@@ -42,6 +42,39 @@ export class PageTreeResolver {
   })
   permissions (@Root() pagetree: PageTree) {
     return pagetree
+  }
+
+  /* Mutations */
+  @Mutation(returns => PageTreeResponse, { description: 'Create a pagetree in an existing site' })
+  async createPagetree (@Ctx() ctx: Context, @Arg('siteId') siteId: string, @Arg('name') name: string, @Arg('type', type => PageTreeType, { nullable: true }) type: PageTreeType) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => PageTreeResponse, { description: 'Update the name of a pagetree' })
+  async updatePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string, @Arg('name') name: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => PageTreeResponse, { description: 'Soft-delete a pagetree' })
+  async deletePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
+    // should not be able to delete the primary pagetree?
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => PageTreeResponse, { description: 'Undo a pagetree delete' })
+  async restorePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
+    throw new UnimplementedError()
+  }
+
+  // TODO: Should these two mutations just be one mutation that updates the pagetree type?
+  @Mutation(returns => PageTreeResponse, { description: 'Promote a pagetree from sandbox to primary' })
+  async promotePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => PageTreeResponse, { description: 'Archive a pagetree' })
+  async archivePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
+    throw new UnimplementedError()
   }
 }
 
