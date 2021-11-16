@@ -41,7 +41,7 @@ export class GroupResolver {
   }
 
   @Mutation(returns => GroupResponse, { description: 'Add a new group. The group name must be unique.' })
-  async addGroup (@Ctx() ctx: Context, @Arg('name', { description: 'name of the group being created' }) name: string): Promise<GroupResponse> {
+  async createGroup (@Ctx() ctx: Context, @Arg('name', { description: 'name of the group being created' }) name: string): Promise<GroupResponse> {
     return await ctx.svc(GroupService).create(name)
   }
 

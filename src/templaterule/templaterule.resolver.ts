@@ -27,7 +27,7 @@ export class TemplateRuleResolver {
   }
 
   @Mutation(returns => TemplateRuleResponse)
-  async addTemplateRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => TemplateRuleGrants) grants: TemplateRuleGrants) {
+  async createTemplateRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => TemplateRuleGrants) grants: TemplateRuleGrants) {
     throw new UnimplementedError()
   }
 

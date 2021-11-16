@@ -19,7 +19,7 @@ export class GlobalRuleResolver {
   }
 
   @Mutation(returns => GlobalRuleResponse)
-  async addGlobalRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => GlobalRuleGrants) grants: GlobalRuleGrants) {
+  async createGlobalRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => GlobalRuleGrants) grants: GlobalRuleGrants) {
     throw new UnimplementedError()
   }
 
