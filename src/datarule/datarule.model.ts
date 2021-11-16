@@ -68,6 +68,42 @@ export class DataRule {
   }
 }
 
+@InputType()
+export class CreateDataRuleInput {
+  @Field()
+  roleId!: string
+
+  @Field({ nullable: true })
+  siteId?: string
+
+  @Field({ nullable: true })
+  templateId?: string
+
+  @Field({ nullable: true })
+  path?: string
+
+  @Field(type => DataRuleGrants, { nullable: true })
+  grants?: DataRuleGrants
+}
+
+@InputType()
+export class UpdateDataRuleInput {
+  @Field()
+  ruleId!: string
+
+  @Field({ nullable: true })
+  siteId?: string
+
+  @Field({ nullable: true })
+  templateId?: string
+
+  @Field({ nullable: true })
+  path?: string
+
+  @Field(type => DataRuleGrants, { nullable: true })
+  grants?: DataRuleGrants
+}
+
 @ObjectType()
 export class DataRuleResponse extends ValidatedResponse {
   @Field({ nullable: true })

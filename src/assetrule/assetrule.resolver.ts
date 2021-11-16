@@ -2,7 +2,7 @@ import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Mutation, Root, Arg } from 'type-graphql'
 import { Role, RoleService } from '../role'
 import { Site, SiteService } from '../site'
-import { AssetRule, AssetRuleGrants, AssetRulePermissions, AssetRuleResponse } from './assetrule.model'
+import { AssetRule, AssetRulePermissions, AssetRuleResponse, CreateAssetRuleInput, UpdateAssetRuleInput } from './assetrule.model'
 import { isNull } from 'txstate-utils'
 
 @Resolver(of => AssetRule)
@@ -27,12 +27,12 @@ export class AssetRuleResolver {
   }
 
   @Mutation(returns => AssetRuleResponse)
-  async createAssetRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => AssetRuleGrants) grants: AssetRuleGrants) {
+  async createAssetRule (@Ctx() ctx: Context, @Arg('args', type => CreateAssetRuleInput) args: CreateAssetRuleInput) {
     throw new UnimplementedError()
   }
 
   @Mutation(returns => AssetRuleResponse)
-  async updateAssetRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string, @Arg('grants', type => AssetRuleGrants) grants: AssetRuleGrants) {
+  async updateAssetRule (@Ctx() ctx: Context, @Arg('args', type => UpdateAssetRuleInput) args: UpdateAssetRuleInput) {
     throw new UnimplementedError()
   }
 }

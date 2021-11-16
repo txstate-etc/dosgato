@@ -102,5 +102,47 @@ export class PageRuleResponse extends ValidatedResponse {
   }
 }
 
+@InputType()
+export class CreatePageRuleInput {
+  @Field()
+  roleId!: string
+
+  @Field({ nullable: true })
+  siteId?: string
+
+  @Field({ nullable: true })
+  pagetreeId?: string
+
+  @Field({ nullable: true })
+  path?: string
+
+  @Field(type => RulePathMode, { nullable: true })
+  mode?: RulePathMode
+
+  @Field(type => PageRuleGrants, { nullable: true })
+  grants?: PageRuleGrants
+}
+
+@InputType()
+export class UpdatePageRuleInput {
+  @Field()
+  ruleId!: string
+
+  @Field({ nullable: true })
+  siteId?: string
+
+  @Field({ nullable: true })
+  pagetreeId?: string
+
+  @Field({ nullable: true })
+  path?: string
+
+  @Field(type => RulePathMode, { nullable: true })
+  mode?: RulePathMode
+
+  @Field(type => PageRuleGrants, { nullable: true })
+  grants?: PageRuleGrants
+}
+
 @ObjectType()
 export class PageRulePermissions {}

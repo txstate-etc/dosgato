@@ -90,6 +90,42 @@ export class AssetRuleFilter {
   undelete?: boolean
 }
 
+@InputType()
+export class CreateAssetRuleInput {
+  @Field()
+  roleId!: string
+
+  @Field({ nullable: true })
+  siteId?: string
+
+  @Field({ nullable: true })
+  path?: string
+
+  @Field(type => RulePathMode, { nullable: true })
+  mode?: RulePathMode
+
+  @Field(type => AssetRuleGrants, { nullable: true })
+  grants?: AssetRuleGrants
+}
+
+@InputType()
+export class UpdateAssetRuleInput {
+  @Field()
+  ruleId!: string
+
+  @Field({ nullable: true })
+  siteId?: string
+
+  @Field({ nullable: true })
+  path?: string
+
+  @Field(type => RulePathMode, { nullable: true })
+  mode?: RulePathMode
+
+  @Field(type => AssetRuleGrants, { nullable: true })
+  grants?: AssetRuleGrants
+}
+
 @ObjectType()
 export class AssetRuleResponse extends ValidatedResponse {
   @Field({ nullable: true })

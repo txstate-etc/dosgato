@@ -92,6 +92,30 @@ export class SiteRuleFilter {
   undelete?: boolean
 }
 
+@InputType()
+export class CreateSiteRuleInput {
+  @Field()
+  roleId!: string
+
+  @Field({ nullable: true })
+  siteId?: string
+
+  @Field(type => SiteRuleGrants, { nullable: true })
+  grants?: SiteRuleGrants
+}
+
+@InputType()
+export class UpdateSiteRuleInput {
+  @Field()
+  ruleId!: string
+
+  @Field({ nullable: true })
+  siteId?: string
+
+  @Field(type => SiteRuleGrants, { nullable: true })
+  grants?: SiteRuleGrants
+}
+
 @ObjectType()
 export class SiteRuleResponse extends ValidatedResponse {
   @Field({ nullable: true })

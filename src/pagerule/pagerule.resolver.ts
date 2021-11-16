@@ -3,7 +3,7 @@ import { Resolver, Ctx, FieldResolver, Root, Arg, Mutation } from 'type-graphql'
 import { PageTree } from '../pagetree'
 import { Role, RoleService } from '../role'
 import { Site, SiteService } from '../site'
-import { PageRule, PageRuleGrants, PageRulePermissions, PageRuleResponse } from './pagerule.model'
+import { CreatePageRuleInput, PageRule, PageRulePermissions, PageRuleResponse, UpdatePageRuleInput } from './pagerule.model'
 import { isNull } from 'txstate-utils'
 
 @Resolver(of => PageRule)
@@ -33,12 +33,12 @@ export class PageRuleResolver {
   }
 
   @Mutation(returns => PageRuleResponse)
-  async createPageRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => PageRuleGrants) grants: PageRuleGrants) {
+  async createPageRule (@Ctx() ctx: Context, @Arg('args', type => CreatePageRuleInput) args: CreatePageRuleInput) {
     throw new UnimplementedError()
   }
 
   @Mutation(returns => PageRuleResponse)
-  async updatePageRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string, @Arg('grants', type => PageRuleGrants) grants: PageRuleGrants) {
+  async updatePageRule (@Ctx() ctx: Context, @Arg('args', type => UpdatePageRuleInput) args: UpdatePageRuleInput) {
     throw new UnimplementedError()
   }
 }

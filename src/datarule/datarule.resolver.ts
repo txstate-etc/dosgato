@@ -3,7 +3,7 @@ import { Arg, Resolver, Ctx, Mutation, FieldResolver, Root } from 'type-graphql'
 import { Role, RoleService } from '../role'
 import { Site, SiteService } from '../site'
 import { Template } from '../template'
-import { DataRule, DataRuleGrants, DataRulePermissions, DataRuleResponse } from './datarule.model'
+import { CreateDataRuleInput, DataRule, DataRulePermissions, DataRuleResponse, UpdateDataRuleInput } from './datarule.model'
 import { isNull } from 'txstate-utils'
 
 @Resolver(of => DataRule)
@@ -33,12 +33,12 @@ export class DataRuleResolver {
   }
 
   @Mutation(returns => DataRuleResponse)
-  async createDataRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => DataRuleGrants) grants: DataRuleGrants) {
+  async createDataRule (@Ctx() ctx: Context, @Arg('args', type => CreateDataRuleInput) args: CreateDataRuleInput) {
     throw new UnimplementedError()
   }
 
   @Mutation(returns => DataRuleResponse)
-  async updateDataRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string, @Arg('grants', type => DataRuleGrants) grants: DataRuleGrants) {
+  async updateDataRule (@Ctx() ctx: Context, @Arg('args', type => UpdateDataRuleInput) args: UpdateDataRuleInput) {
     throw new UnimplementedError()
   }
 }
