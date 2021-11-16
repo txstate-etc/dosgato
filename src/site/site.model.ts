@@ -1,3 +1,5 @@
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
+import { DateTime } from 'luxon'
 import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
@@ -35,6 +37,11 @@ export class Site {
   @Field({ nullable: true, description: 'URL outside the editing host that points to this site. Null if the site is not launched.' })
   url?: LaunchURL
 
+  @Field({ nullable: true, description: 'Date this site was soft-deleted, null when not applicable.' })
+  deletedAt?: DateTime
+
+  deletedBy?: number
+
   constructor (row: any) {
     this.id = String(row.id)
     this.name = row.name
@@ -43,6 +50,8 @@ export class Site {
     this.rootAssetFolderInternalId = row.rootAssetFolderId
     this.organizationId = optionalString(row.organizationId)
     this.ownerId = row.ownerId
+    this.deletedAt = DateTime.fromJSDate(row.deleted)
+    this.deletedBy = row.deletedBy
   }
 }
 
@@ -65,6 +74,53 @@ export class SiteFilter {
 
   @Field({ nullable: true, description: 'Return sites that are currently launched (i.e. they are publicly available at a specified URL other than the editing host).' })
   launched?: boolean
+}
+
+@InputType()
+export class CreateSiteInput {
+  @Field()
+  name!: string
+
+  @Field({ nullable: true })
+  organizationId?: string
+
+  @Field({ nullable: true })
+  ownerId?: number
+
+  @Field(type => [Number], { nullable: true })
+  managerIds?: number[]
+
+  // TODO: Should this input include the launch host and path? Would they know it when creating a site
+  // or not until later?
+}
+
+@InputType()
+export class UpdateSiteInput {
+  @Field()
+  name?: string
+
+  @Field({ nullable: true })
+  organizationId?: string
+
+  @Field({ nullable: true })
+  ownerId?: number
+
+  @Field(type => [Number], { nullable: true })
+  managerIds?: number[]
+
+  // TODO: What format should the launch host and path take here? How will the look in the dialog? Or does this even come from a dialog?
+  // Or, is this set during the site launch process and belong in a different mutation?
+}
+
+@ObjectType()
+export class SiteResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  site?: Site
+
+  constructor (config: ValidatedResponseArgs & { site?: Site }) {
+    super(config)
+    this.site = config.site
+  }
 }
 
 @ObjectType()

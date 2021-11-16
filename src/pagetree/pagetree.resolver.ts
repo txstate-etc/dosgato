@@ -62,18 +62,12 @@ export class PageTreeResolver {
   }
 
   @Mutation(returns => PageTreeResponse, { description: 'Undo a pagetree delete' })
-  async restorePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
+  async undeletePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
     throw new UnimplementedError()
   }
 
-  // TODO: Should these two mutations just be one mutation that updates the pagetree type?
   @Mutation(returns => PageTreeResponse, { description: 'Promote a pagetree from sandbox to primary' })
   async promotePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
-    throw new UnimplementedError()
-  }
-
-  @Mutation(returns => PageTreeResponse, { description: 'Archive a pagetree' })
-  async archivePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
     throw new UnimplementedError()
   }
 }

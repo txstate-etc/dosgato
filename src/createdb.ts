@@ -53,6 +53,8 @@ export async function init () {
         `launchPath` VARCHAR(255) DEFAULT '/', \
         `organizationId` SMALLINT UNSIGNED, \
         `ownerId` MEDIUMINT UNSIGNED, \
+        `deletedAt` DATETIME, \
+        `deletedBy` MEDIUMINT UNSIGNED, \
         PRIMARY KEY (`id`), \
         UNIQUE INDEX `name_UNIQUE` (`name`), \
         UNIQUE INDEX `primary_pagetree_id_UNIQUE` (`primaryPagetreeId`), \

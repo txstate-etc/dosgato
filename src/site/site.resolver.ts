@@ -1,5 +1,5 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import { AssetPermission } from '../asset'
 import { AssetFolder } from '../assetfolder'
 import { Data, DataFilter, DataPermission } from '../data'
@@ -10,7 +10,7 @@ import { PageTree, PageTreeFilter, PageTreeService } from '../pagetree'
 import { Role } from '../role'
 import { Template, TemplateFilter, TemplateService } from '../template'
 import { User, UserService } from '../user'
-import { Site, SiteFilter, SitePermission, SitePermissions } from './site.model'
+import { Site, SiteFilter, CreateSiteInput, SitePermission, SitePermissions, SiteResponse, UpdateSiteInput } from './site.model'
 import { SiteService } from './site.service'
 import { isNotNull, isNull } from 'txstate-utils'
 
@@ -93,6 +93,34 @@ export class SiteResolver {
   })
   permissions (@Root() site: Site) {
     return site
+  }
+
+  // MUTATIONS
+  @Mutation(returns => SiteResponse, { description: 'Create a new site with a pagetree, root page, and asset folder' })
+  async createSite (@Ctx() ctx: Context, @Arg('args', type => CreateSiteInput) args: CreateSiteInput) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => SiteResponse)
+  async updateSite (@Ctx() ctx: Context, @Arg('siteId') siteId: string, @Arg('args', type => UpdateSiteInput) args: UpdateSiteInput) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => SiteResponse)
+  async deleteSite (@Ctx() ctx: Context, @Arg('siteId') siteId: string, @Arg('hardDelete', { nullable: true, description: 'true if the site should be hard deleted, false for soft deletion' }) hardDelete?: boolean) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => SiteResponse)
+  async undeleteSite (@Ctx() ctx: Context, @Arg('siteId') siteId: string) {
+    throw new UnimplementedError()
+  }
+
+  // TODO: what arguments does this need aside from a siteId? Do the launch url parameters get
+  // passed in here instead of the create/update mutations?
+  @Mutation(returns => ValidatedResponse)
+  async launchSite (@Ctx() ctx: Context, @Arg('siteId') siteId: string) {
+    throw new UnimplementedError()
   }
 }
 
