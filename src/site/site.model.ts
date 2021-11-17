@@ -85,31 +85,37 @@ export class CreateSiteInput {
   organizationId?: string
 
   @Field({ nullable: true })
-  ownerId?: number
+  ownerId?: string
 
-  @Field(type => [Number], { nullable: true })
-  managerIds?: number[]
+  @Field(type => [String], { nullable: true })
+  managerIds?: string[]
 
-  // TODO: Should this input include the launch host and path? Would they know it when creating a site
-  // or not until later?
+  @Field({ nullable: true })
+  launchHost?: string
+
+  @Field({ nullable: true })
+  launchPath?: string
 }
 
 @InputType()
 export class UpdateSiteInput {
-  @Field()
+  @Field({ nullable: true })
   name?: string
 
   @Field({ nullable: true })
   organizationId?: string
 
   @Field({ nullable: true })
-  ownerId?: number
+  ownerId?: string
 
-  @Field(type => [Number], { nullable: true })
-  managerIds?: number[]
+  @Field(type => [String], { nullable: true })
+  managerIds?: string[]
 
-  // TODO: What format should the launch host and path take here? How will the look in the dialog? Or does this even come from a dialog?
-  // Or, is this set during the site launch process and belong in a different mutation?
+  @Field({ nullable: true })
+  launchHost?: string
+
+  @Field({ nullable: true })
+  launchPath?: string
 }
 
 @ObjectType()

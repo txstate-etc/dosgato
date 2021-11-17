@@ -1,4 +1,4 @@
-import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import { AssetPermission } from '../asset'
 import { AssetFolder } from '../assetfolder'
@@ -113,13 +113,6 @@ export class SiteResolver {
 
   @Mutation(returns => SiteResponse)
   async undeleteSite (@Ctx() ctx: Context, @Arg('siteId') siteId: string) {
-    throw new UnimplementedError()
-  }
-
-  // TODO: what arguments does this need aside from a siteId? Do the launch url parameters get
-  // passed in here instead of the create/update mutations?
-  @Mutation(returns => ValidatedResponse)
-  async launchSite (@Ctx() ctx: Context, @Arg('siteId') siteId: string) {
     throw new UnimplementedError()
   }
 }
