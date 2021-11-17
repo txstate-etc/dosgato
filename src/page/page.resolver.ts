@@ -165,7 +165,7 @@ export class PageResolver {
   }
 
   @Mutation(returns => ValidatedResponse)
-  async unPublishPage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
+  async unpublishPage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
     throw new UnimplementedError()
   }
 
@@ -175,7 +175,7 @@ export class PageResolver {
   }
 
   @Mutation(returns => PageResponse)
-  async unDeletePage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
+  async undeletePage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
     throw new UnimplementedError()
   }
 }

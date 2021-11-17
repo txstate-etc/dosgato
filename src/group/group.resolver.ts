@@ -86,7 +86,7 @@ export class GroupResolver {
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Make one group a subgroup of another' })
-  async addSubgroup (@Ctx() ctx: Context, @Arg('parentgroupId') parentGroupId: string, @Arg('childGroupId') childGroupId: string) {
+  async addSubgroup (@Ctx() ctx: Context, @Arg('parentGroupId') parentGroupId: string, @Arg('childGroupId') childGroupId: string) {
     throw new UnimplementedError()
   }
 
