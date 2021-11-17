@@ -1,5 +1,5 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import { Data, DataFilter } from '../data'
 import { Page, PageFilter } from '../page'
 import { PageTree, PageTreeService } from '../pagetree'
@@ -53,6 +53,26 @@ export class TemplateResolver {
   })
   permissions (@Root() template: Template) {
     return template
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async authorizePagetreeTemplate (@Ctx() ctx: Context, @Arg('templateId') templateId: string, @Arg('pagetreeId') pagetreeId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async authorizeSiteTemplate (@Ctx() ctx: Context, @Arg('templateId') templateId: string, @Arg('siteId') siteId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async deauthorizePagetreeTemplate (@Ctx() ctx: Context, @Arg('templateId') templateId: string, @Arg('pagetreeId') pagetreeId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async deauthorizeSiteTemplate (@Ctx() ctx: Context, @Arg('templateId') templateId: string, @Arg('siteId') siteId: string) {
+    throw new UnimplementedError()
   }
 }
 
