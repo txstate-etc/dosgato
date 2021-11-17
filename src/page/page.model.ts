@@ -1,3 +1,4 @@
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
@@ -92,6 +93,29 @@ export class PageFilter {
 
   @Field(type => Boolean, { nullable: true, description: 'true -> return only deleted pages, false -> return only nondeleted pages, undefined -> return all pages' })
   deleted?: boolean
+}
+
+@InputType()
+export class CreatePageInput {
+  @Field()
+  name!: string
+
+  @Field()
+  pagetreeId!: string
+
+  @Field({ nullable: true })
+  parentId?: string
+}
+
+@ObjectType()
+export class PageResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  page?: Page
+
+  constructor (config: ValidatedResponseArgs & { page?: Page }) {
+    super(config)
+    this.page = config.page
+  }
 }
 
 @ObjectType()

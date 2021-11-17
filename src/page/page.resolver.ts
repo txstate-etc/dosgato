@@ -1,6 +1,6 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphql'
+import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation } from 'type-graphql'
 import { PageTree, PageTreeService } from '../pagetree'
 import { Role } from '../role'
 import { JsonData } from '../scalars/jsondata'
@@ -9,7 +9,7 @@ import { Template, TemplateFilter } from '../template'
 import { User, UserService } from '../user'
 import { ObjectVersion } from '../version'
 import { VersionedService } from '../versionedservice'
-import { Page, PageFilter, PagePermission, PagePermissions } from './page.model'
+import { CreatePageInput, Page, PageFilter, PagePermission, PagePermissions, PageResponse } from './page.model'
 import { PageService } from './page.service'
 import { isNull } from 'txstate-utils'
 
@@ -141,6 +141,42 @@ export class PageResolver {
   })
   permissions (@Root() page: Page) {
     return page
+  }
+
+  // Mutations
+  @Mutation(returns => PageResponse, { description: 'Create a new page in a pagetree' })
+  async createPage (@Ctx() ctx: Context, @Arg('args', type => CreatePageInput) args: CreatePageInput) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => PageResponse)
+  async renamePage (@Ctx() ctx: Context, @Arg('pageId') pageId: string, @Arg('name') name: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => PageResponse)
+  async movePage (@Ctx() ctx: Context, @Arg('pageId') pageId: string, @Arg('parentId') parentId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async publishPage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async unPublishPage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => PageResponse)
+  async deletePage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => PageResponse)
+  async unDeletePage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
+    throw new UnimplementedError()
   }
 }
 
