@@ -31,6 +31,7 @@ export async function init () {
         `siteId` SMALLINT UNSIGNED NOT NULL COMMENT 'for lookup convenience, not canonical', \
         `parentId` MEDIUMINT UNSIGNED, \
         `name` VARCHAR(255) NOT NULL, \
+        `guid` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
         `deletedAt` DATETIME, \
         `deletedBy` MEDIUMINT UNSIGNED, \
         PRIMARY KEY (`id`), \
@@ -110,12 +111,25 @@ export async function init () {
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;')
   await db.execute("\
+    CREATE TABLE IF NOT EXISTS `binaries` ( \
+      `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
+      `shasum` CHAR(40) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `mime` VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `meta` JSON NOT NULL, \
+      `bytes` BIGINT UNSIGNED NOT NULL, \
+      PRIMARY KEY (`id`), \
+      UNIQUE INDEX `shasum_UNIQUE` (`shasum`)) \
+    ENGINE = InnoDB \
+    DEFAULT CHARACTER SET = utf8mb4 \
+    DEFAULT COLLATE = utf8mb4_general_ci;")
+  await db.execute("\
     CREATE TABLE IF NOT EXISTS `assets` ( \
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `name` VARCHAR(255) NOT NULL, \
       `folderId` MEDIUMINT UNSIGNED NOT NULL, \
       `path` VARCHAR(255) NOT NULL COMMENT 'does not include name. not canonical, here for fast lookups', \
       `dataId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL, \
+      `shasum` CHAR(40) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `deletedAt` DATETIME, \
       `deletedBy` MEDIUMINT UNSIGNED, \
       PRIMARY KEY (`id`), \
@@ -125,7 +139,10 @@ export async function init () {
         REFERENCES `assetfolders` (`id`), \
       CONSTRAINT `FK_assets_users` \
         FOREIGN KEY (`deletedBy`) \
-        REFERENCES `users` (`id`)) \
+        REFERENCES `users` (`id`), \
+      CONSTRAINT `FK_assets_binaries` \
+        FOREIGN KEY (`shasum`) \
+        REFERENCES `binaries` (`shasum`)) \
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;")
@@ -224,18 +241,6 @@ export async function init () {
       CONSTRAINT `FK_pages_users` \
         FOREIGN KEY (`deletedBy`) \
         REFERENCES `users` (`id`)) \
-    ENGINE = InnoDB \
-    DEFAULT CHARACTER SET = utf8mb4 \
-    DEFAULT COLLATE = utf8mb4_general_ci;")
-  await db.execute("\
-    CREATE TABLE IF NOT EXISTS `binaries` ( \
-      `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
-      `shasum` CHAR(40) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
-      `mime` VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
-      `meta` JSON NOT NULL, \
-      `bytes` BIGINT UNSIGNED NOT NULL, \
-      PRIMARY KEY (`id`), \
-      UNIQUE INDEX `shasum_UNIQUE` (`shasum`)) \
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;")
@@ -382,6 +387,7 @@ export async function init () {
     CREATE TABLE IF NOT EXISTS `datafolders` ( \
       `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `name` VARCHAR(255) NOT NULL, \
+      `guid` CHAR(10) CHARACTER SET \'ascii\' COLLATE \'ascii_bin\' NOT NULL,\
       `siteId` SMALLINT UNSIGNED, \
       `templateId` SMALLINT UNSIGNED NOT NULL, \
       PRIMARY KEY (`id`), \

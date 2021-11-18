@@ -4,21 +4,24 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphq
 import { AssetFolder } from '../assetfolder'
 import { Role } from '../role'
 import { JsonData } from '../scalars/jsondata'
-import { User } from '../user'
+import { User, UserService } from '../user'
 import { ObjectVersion } from '../version'
 import { VersionedService } from '../versionedservice'
 import { Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize } from './asset.model'
+import { AssetService } from './asset.service'
+import { isNull } from 'txstate-utils'
 
 @Resolver(of => Asset)
 export class AssetResolver {
   @Query(returns => [Asset])
   async assets (@Ctx() ctx: Context, @Arg('filter') filter: AssetFilter) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetService).find(filter)
   }
 
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the asset is not in the soft-deleted state.' })
   async deletedBy (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    if (isNull(asset.deletedBy)) return null
+    else return await ctx.svc(UserService).findByInternalId(asset.deletedBy)
   }
 
   @FieldResolver(returns => AssetFolder, { description: 'Returns parent folder.' })
@@ -46,22 +49,26 @@ export class AssetResolver {
 
   @FieldResolver(returns => DateTime)
   async createdAt (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    const data = await ctx.svc(VersionedService).get(asset.dataId)
+    return DateTime.fromJSDate(data!.created)
   }
 
   @FieldResolver(returns => User)
   async createdBy (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    const data = await ctx.svc(VersionedService).get(asset.dataId)
+    return await ctx.svc(UserService).findById(data!.createdBy)
   }
 
   @FieldResolver(returns => DateTime)
   async modifiedAt (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    const data = await ctx.svc(VersionedService).get(asset.dataId)
+    return DateTime.fromJSDate(data!.modified)
   }
 
   @FieldResolver(returns => User)
   async modifiedBy (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    const data = await ctx.svc(VersionedService).get(asset.dataId)
+    return await ctx.svc(UserService).findById(data!.modifiedBy)
   }
 
   @FieldResolver(returns => DateTime, {
@@ -79,7 +86,8 @@ export class AssetResolver {
 
   @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all versions of this asset. One of the version numbers can be passed to the data property in order to retrieve that version of the data.' })
   async versions (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    const versions = await ctx.svc(VersionedService).listVersions(asset.dataId)
+    return versions.map(v => new ObjectVersion(v))
   }
 
   @FieldResolver(returns => AssetPermissions, {
