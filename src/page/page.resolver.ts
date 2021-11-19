@@ -1,7 +1,7 @@
 import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation } from 'type-graphql'
-import { PageTree, PageTreeService } from '../pagetree'
+import { Pagetree, PagetreeService } from '../pagetree'
 import { Role } from '../role'
 import { JsonData } from '../scalars/jsondata'
 import { Site, SiteService } from '../site'
@@ -53,14 +53,14 @@ export class PageResolver {
     }
   }
 
-  @FieldResolver(returns => PageTree)
+  @FieldResolver(returns => Pagetree)
   async pagetree (@Ctx() ctx: Context, @Root() page: Page) {
-    return await ctx.svc(PageTreeService).findById(page.pageTreeId)
+    return await ctx.svc(PagetreeService).findById(page.pagetreeId)
   }
 
   @FieldResolver(returns => Site)
   async site (@Ctx() ctx: Context, @Root() page: Page) {
-    const pagetree = await ctx.svc(PageTreeService).findById(page.pageTreeId)
+    const pagetree = await ctx.svc(PagetreeService).findById(page.pagetreeId)
     if (pagetree) return await ctx.svc(SiteService).findById(pagetree.siteId)
     else throw new Error(`Could not get site for page ${String(page.name)}. Pagetree does not exist.`)
   }

@@ -25,14 +25,14 @@ function processFilters (filter: PageFilter) {
     where.push(`pages.linkId IN (${db.in(binds, filter.linkIds)})`)
   }
   // live
-  if (filter.pageTreeIds?.length) {
-    where.push(`pages.pagetreeId IN (${db.in(binds, filter.pageTreeIds)})`)
+  if (filter.pagetreeIds?.length) {
+    where.push(`pages.pagetreeId IN (${db.in(binds, filter.pagetreeIds)})`)
   }
   if (filter.parentInternalIds?.length) {
     where.push(`pages.parentId IN (${db.in(binds, filter.parentInternalIds)})`)
   }
-  if (filter.pageTreeTypes?.length) {
-    where.push(`pagetrees.type IN (${db.in(binds, filter.pageTreeTypes)})`)
+  if (filter.pagetreeTypes?.length) {
+    where.push(`pagetrees.type IN (${db.in(binds, filter.pagetreeTypes)})`)
     if (!joined.has('pagetrees')) {
       joins.push('INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id')
       joined.set('pagetrees', true)

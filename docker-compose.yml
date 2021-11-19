@@ -14,6 +14,7 @@ services:
       MYSQL_DATABASE: dosgatodev
       MYSQL_HOST: mysql
       RESET_DB_ON_STARTUP: 'false'
+      JWT_SECRET: secret
     volumes:
       - ./src:/usr/app/src
     depends_on:

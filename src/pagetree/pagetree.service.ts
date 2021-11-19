@@ -1,6 +1,6 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { PageTree, PageTreeFilter } from './pagetree.model'
+import { Pagetree, PagetreeFilter } from './pagetree.model'
 import { getPagetreesById, getPagetreesBySite, getPagetreesByTemplate } from './pagetree.database'
 
 const PagetreesByIdLoader = new PrimaryKeyLoader({
@@ -9,10 +9,10 @@ const PagetreesByIdLoader = new PrimaryKeyLoader({
   }
 })
 const PagetreesBySiteIdLoader = new OneToManyLoader({
-  fetch: async (siteIds: string[], filter?: PageTreeFilter) => {
+  fetch: async (siteIds: string[], filter?: PagetreeFilter) => {
     return await getPagetreesBySite(siteIds, filter)
   },
-  extractKey: (p: PageTree) => p.siteId,
+  extractKey: (p: Pagetree) => p.siteId,
   idLoader: PagetreesByIdLoader
 })
 
@@ -23,12 +23,12 @@ const PagetreesByTemplateIdLoader = new ManyJoinedLoader({
   idLoader: PagetreesByIdLoader
 })
 
-export class PageTreeService extends AuthorizedService {
+export class PagetreeService extends AuthorizedService {
   async findById (id: string) {
     return await this.loaders.get(PagetreesByIdLoader).load(id)
   }
 
-  async findBySiteId (siteId: string, filter?: PageTreeFilter) {
+  async findBySiteId (siteId: string, filter?: PagetreeFilter) {
     return await this.loaders.get(PagetreesBySiteIdLoader, filter).load(siteId)
   }
 

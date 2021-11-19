@@ -6,7 +6,7 @@ import { Data, DataFilter, DataPermission } from '../data'
 import { DataFolder, DataFolderFilter } from '../datafolder'
 import { Organization, OrganizationService } from '../organization'
 import { Page, PagePermission, PageService } from '../page'
-import { PageTree, PageTreeFilter, PageTreeService } from '../pagetree'
+import { Pagetree, PagetreeFilter, PagetreeService } from '../pagetree'
 import { Role } from '../role'
 import { Template, TemplateFilter, TemplateService } from '../template'
 import { User, UserService } from '../user'
@@ -21,9 +21,9 @@ export class SiteResolver {
     return await ctx.svc(SiteService).find(filter)
   }
 
-  @FieldResolver(returns => [PageTree])
-  async pagetrees (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: PageTreeFilter) {
-    return await ctx.svc(PageTreeService).findBySiteId(site.id, filter)
+  @FieldResolver(returns => [Pagetree])
+  async pagetrees (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: PagetreeFilter) {
+    return await ctx.svc(PagetreeService).findBySiteId(site.id, filter)
   }
 
   @FieldResolver(returns => Page)

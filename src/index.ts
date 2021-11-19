@@ -8,7 +8,7 @@ import { DataRuleResolver, DataRulePermissionsResolver } from './datarule'
 import { AssetFolderResolver, AssetFolderPermissionsResolver } from './assetfolder'
 import { PagePermissionsResolver, PageResolver } from './page'
 import { PageRulePermissionsResolver, PageRuleResolver } from './pagerule'
-import { PageTreePermissionsResolver, PageTreeResolver } from './pagetree'
+import { PagetreePermissionsResolver, PagetreeResolver } from './pagetree'
 import { RolePermissionsResolver, RoleResolver } from './role'
 import { DateTimeScalar } from './scalars/datetime'
 import { UrlSafeString, UrlSafeStringScalar } from './scalars/urlsafestring'
@@ -51,8 +51,8 @@ async function main () {
       PagePermissionsResolver,
       PageRuleResolver,
       PageRulePermissionsResolver,
-      PageTreeResolver,
-      PageTreePermissionsResolver,
+      PagetreeResolver,
+      PagetreePermissionsResolver,
       RoleResolver,
       RolePermissionsResolver,
       SiteResolver,

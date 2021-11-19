@@ -2,7 +2,7 @@ import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/gra
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import { Data, DataFilter } from '../data'
 import { Page, PageFilter } from '../page'
-import { PageTree, PageTreeService } from '../pagetree'
+import { Pagetree, PagetreeService } from '../pagetree'
 import { Site, SiteService } from '../site'
 import { Template, TemplateFilter, TemplatePermissions } from './template.model'
 import { TemplateService } from './template.service'
@@ -14,7 +14,7 @@ export class TemplateResolver {
     return await ctx.svc(TemplateService).find(filter)
   }
 
-  @FieldResolver(returns => [PageTree])
+  @FieldResolver(returns => [Pagetree])
   async pagetrees (@Ctx() ctx: Context, @Root() template: Template,
     @Arg('direct', {
       nullable: true,
@@ -24,7 +24,7 @@ export class TemplateResolver {
         or all pagetrees that would be authorized to use the template.`
     }) direct?: boolean
   ) {
-    return await ctx.svc(PageTreeService).findByTemplateId(template.id, direct)
+    return await ctx.svc(PagetreeService).findByTemplateId(template.id, direct)
   }
 
   @FieldResolver(returns => [Page], { description: 'All pages using this template. Empty array for data templates.' })

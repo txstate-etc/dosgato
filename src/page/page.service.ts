@@ -14,11 +14,11 @@ const pagesByInternalIdLoader = new PrimaryKeyLoader({
 })
 
 const pagesInPagetreeLoader = new OneToManyLoader({
-  fetch: async (pageTreeIds: string[], filter?: PageFilter) => {
-    return await getPages({ ...filter, pageTreeIds })
+  fetch: async (pagetreeIds: string[], filter?: PageFilter) => {
+    return await getPages({ ...filter, pagetreeIds })
   },
-  extractKey: (p: Page) => p.pageTreeId,
-  keysFromFilter: (filter: PageFilter | undefined) => filter?.pageTreeIds ?? [],
+  extractKey: (p: Page) => p.pagetreeId,
+  keysFromFilter: (filter: PageFilter | undefined) => filter?.pagetreeIds ?? [],
   idLoader: pagesByInternalIdLoader
 })
 

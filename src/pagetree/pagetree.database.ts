@@ -1,8 +1,8 @@
 import db from 'mysql2-async/db'
-import { PageTree, PageTreeFilter } from './pagetree.model'
+import { Pagetree, PagetreeFilter } from './pagetree.model'
 import { unique } from 'txstate-utils'
 
-function processFilters (filter?: PageTreeFilter) {
+function processFilters (filter?: PagetreeFilter) {
   const binds: string[] = []
   const where: string[] = []
   if (filter?.ids?.length) {
@@ -18,15 +18,15 @@ export async function getPagetreesById (ids: string[]) {
   const { binds, where } = processFilters({ ids })
   const pagetrees = await db.getall(`SELECT * FROM pagetrees
                                      WHERE (${where.join(') AND (')})`, binds)
-  return pagetrees.map(p => new PageTree(p))
+  return pagetrees.map(p => new Pagetree(p))
 }
 
-export async function getPagetreesBySite (siteIds: string[], filter?: PageTreeFilter) {
+export async function getPagetreesBySite (siteIds: string[], filter?: PagetreeFilter) {
   const { binds, where } = processFilters(filter)
   where.push(`pagetrees.siteID IN (${db.in(binds, siteIds)})`)
   const pagetrees = await db.getall(`SELECT * from pagetrees
                      WHERE (${where.join(') AND (')})`, binds)
-  return pagetrees.map(p => new PageTree(p))
+  return pagetrees.map(p => new Pagetree(p))
 }
 
 export async function getPagetreesByTemplate (templateIds: number[], direct?: boolean) {
@@ -36,7 +36,7 @@ export async function getPagetreesByTemplate (templateIds: number[], direct?: bo
                                WHERE pagetrees_templates.templateId IN (${db.in(directBinds, templateIds)})`
   const pagetrees = await db.getall(directPagetreeQuery, directBinds)
   if (direct) {
-    return pagetrees.map(row => ({ key: row.templateId, value: new PageTree(row) }))
+    return pagetrees.map(row => ({ key: row.templateId, value: new Pagetree(row) }))
   } else {
     const indirectBinds: string[] = []
     const pagetreesThroughSites = await db.getall(`SELECT pagetrees.*, sites_templates.templateId as templateId
@@ -46,9 +46,9 @@ export async function getPagetreesByTemplate (templateIds: number[], direct?: bo
                                    WHERE sites_templates.templateId IN (${db.in(indirectBinds, templateIds)})`, indirectBinds)
     if (typeof direct === 'undefined') {
       const combined = unique([...pagetrees, ...pagetreesThroughSites])
-      return combined.map(row => ({ key: row.templateId, value: new PageTree(row) }))
+      return combined.map(row => ({ key: row.templateId, value: new Pagetree(row) }))
     } else {
-      return pagetreesThroughSites.map(row => ({ key: row.templateId, value: new PageTree(row) }))
+      return pagetreesThroughSites.map(row => ({ key: row.templateId, value: new Pagetree(row) }))
     }
   }
 }

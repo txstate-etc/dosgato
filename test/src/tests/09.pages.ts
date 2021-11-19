@@ -4,7 +4,7 @@ import { query } from '../common'
 
 describe('pages', () => {
   it('should get pages, filtered by pagetree type', async () => {
-    const resp = await query('{ pages(filter: {pageTreeTypes: [SANDBOX]}) { id name pagetree { id type } } }')
+    const resp = await query('{ pages(filter: {pagetreeTypes: [SANDBOX]}) { id name pagetree { id type } } }')
     for (const page of resp.data.pages) {
       expect(page.pagetree.type).to.equal('SANDBOX')
     }
@@ -40,13 +40,13 @@ describe('pages', () => {
     expect(resultPageNames).to.have.members(['root', 'location', 'people'])
   })
   it.skip('should get pages, filtered by "live" property', async () => {})
-  it('should get pages, filtered by pageTreeId', async () => {
+  it('should get pages, filtered by pagetreeId', async () => {
     const resp = await query('{ sites { name pagetrees { id name } } }')
     const site1 = resp.data.sites.find((s: any) => s.name === 'site1')
     const pagetree1 = site1.pagetrees.find((p: any) => p.name === 'pagetree1')
     const site3 = resp.data.sites.find((s: any) => s.name === 'site3')
     const pagetree3 = site3.pagetrees.find((p: any) => p.name === 'pagetree3')
-    const { data: { pages } } = await query(`{ pages(filter: { pageTreeIds: [${pagetree1.id},${pagetree3.id}]}) { id name pagetree { id name } } }`)
+    const { data: { pages } } = await query(`{ pages(filter: { pagetreeIds: [${pagetree1.id},${pagetree3.id}]}) { id name pagetree { id name } } }`)
     for (const page of pages) {
       expect([pagetree1.id, pagetree3.id]).to.include(page.pagetree.id)
     }

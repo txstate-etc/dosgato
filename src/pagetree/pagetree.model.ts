@@ -2,21 +2,21 @@ import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-s
 import { DateTime } from 'luxon'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
-export enum PageTreeType {
+export enum PagetreeType {
   PRIMARY = 'primary',
   SANDBOX = 'sandbox',
   ARCHIVE = 'archive'
 }
-registerEnumType(PageTreeType, {
-  name: 'PageTreeType',
-  description: `An indicator of which stage of the lifecycle a page tree represents. Page
+registerEnumType(PagetreeType, {
+  name: 'PagetreeType',
+  description: `An indicator of which stage of the lifecycle a pagetree represents. Page
   trees are always SANDBOX when first created, become PRIMARY when promoted, and become
-  ARCHIVE when some other page tree is promoted and replaces it. When a site is created
+  ARCHIVE when some other pagetree is promoted and replaces it. When a site is created
   it will always be created with a single PRIMARY pagetree.`,
   valuesConfig: {
-    PRIMARY: { description: 'The primary page tree. There will always be exactly one of these per site.' },
-    SANDBOX: { description: 'A page tree that is currently being groomed to be the next primary page tree.' },
-    ARCHIVE: { description: 'A page tree that used to be the primary page tree.' }
+    PRIMARY: { description: 'The primary pagetree. There will always be exactly one of these per site.' },
+    SANDBOX: { description: 'A pagetree that is currently being groomed to be the next primary pagetree.' },
+    ARCHIVE: { description: 'A pagetree that used to be the primary pagetree.' }
   }
 })
 
@@ -25,12 +25,12 @@ registerEnumType(PageTreeType, {
     with a single root page. A site may have multiple pagetrees, but only one active pagetree.
     Inactive pagetrees would be archives or sandboxes.`
 })
-export class PageTree {
+export class Pagetree {
   @Field(type => ID)
   id: string
 
-  @Field(type => PageTreeType)
-  type: PageTreeType
+  @Field(type => PagetreeType)
+  type: PagetreeType
 
   @Field()
   name: string
@@ -38,10 +38,10 @@ export class PageTree {
   @Field()
   deleted: boolean
 
-  @Field({ description: 'Date this page tree was created. If it matches the site created date, it is the page tree that was automatically created to be the site\'s PRIMARY.' })
+  @Field({ description: 'Date this pagetree was created. If it matches the site created date, it is the pagetree that was automatically created to be the site\'s PRIMARY.' })
   created: DateTime
 
-  @Field({ nullable: true, description: 'Date this page tree was archived. If an archive is promoted to primary and re-archived, only the last move to archive status is recorded.' })
+  @Field({ nullable: true, description: 'Date this pagetree was archived. If an archive is promoted to primary and re-archived, only the last move to archive status is recorded.' })
   archived?: DateTime
 
   siteId: string
@@ -60,36 +60,36 @@ export class PageTree {
 }
 
 @InputType()
-export class PageTreeFilter {
+export class PagetreeFilter {
   @Field(type => [ID], { nullable: true })
   ids?: string[]
 
-  @Field(type => [PageTreeType], { nullable: true })
-  types?: PageTreeType[]
+  @Field(type => [PagetreeType], { nullable: true })
+  types?: PagetreeType[]
 }
 
 @ObjectType()
-export class PageTreeResponse extends ValidatedResponse {
+export class PagetreeResponse extends ValidatedResponse {
   @Field({ nullable: true })
-  pagetree?: PageTree
+  pagetree?: Pagetree
 
-  constructor (config: ValidatedResponseArgs & { pagetree?: PageTree }) {
+  constructor (config: ValidatedResponseArgs & { pagetree?: Pagetree }) {
     super(config)
     this.pagetree = config.pagetree
   }
 }
 
 @ObjectType()
-export class PageTreePermissions {
+export class PagetreePermissions {
 }
 
-export enum PageTreePermission {
+export enum PagetreePermission {
   RENAME = 'rename',
   PROMOTE = 'promote',
   DELETE = 'delete',
   UNDELETE = 'undelete'
 }
-registerEnumType(PageTreePermission, {
-  name: 'PageTreePermission',
+registerEnumType(PagetreePermission, {
+  name: 'PagetreePermission',
   description: 'All the action types that can be individually permissioned on a pagetree.'
 })

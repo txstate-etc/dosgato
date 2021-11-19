@@ -1,6 +1,6 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root, Arg, Mutation } from 'type-graphql'
-import { PageTree } from '../pagetree'
+import { Pagetree } from '../pagetree'
 import { Role, RoleService } from '../role'
 import { Site, SiteService } from '../site'
 import { CreatePageRuleInput, PageRule, PageRulePermissions, PageRuleResponse, UpdatePageRuleInput } from './pagerule.model'
@@ -14,7 +14,7 @@ export class PageRuleResolver {
     else return await ctx.svc(SiteService).findById(pagerule.siteId)
   }
 
-  @FieldResolver(returns => PageTree, { nullable: true, description: 'The pagetree to which this rule applies. Null if it applies to all pagetrees. Note that specifying a pagetree also implies specifying a site. For multiple pagetrees, make multiple rules.' })
+  @FieldResolver(returns => Pagetree, { nullable: true, description: 'The pagetree to which this rule applies. Null if it applies to all pagetrees. Note that specifying a pagetree also implies specifying a site. For multiple pagetrees, make multiple rules.' })
   async pagetree (@Ctx() ctx: Context, @Root() pagerule: PageRule) {
     throw new UnimplementedError()
   }

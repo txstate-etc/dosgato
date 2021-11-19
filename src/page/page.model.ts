@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
-import { PageTreeType } from '../pagetree'
+import { PagetreeType } from '../pagetree'
 
 @ObjectType({ description: 'Sites contain pages. Each page can have subpages. Each pagetree has one root page.' })
 export class Page {
@@ -35,7 +35,7 @@ export class Page {
   deletedAt?: DateTime
 
   deletedBy?: number
-  pageTreeId: string
+  pagetreeId: string
   parentInternalId?: number
   dataId: string
 
@@ -43,7 +43,7 @@ export class Page {
     this.internalId = row.id
     this.id = row.dataId
     this.name = row.name
-    this.pageTreeId = String(row.pagetreeId)
+    this.pagetreeId = String(row.pagetreeId)
     this.parentInternalId = row.parentId
     this.dataId = row.dataId
     this.linkId = row.linkId
@@ -65,7 +65,7 @@ export class PageFilter {
   linkIds?: string[]
 
   @Field(type => [ID], { nullable: true, description: 'Return pages that belong to any of the given pagetree ids.' })
-  pageTreeIds?: string[]
+  pagetreeIds?: string[]
 
   @Field(type => [ID], { nullable: true, description: 'Return pages that belong to any of the given sites.' })
   siteIds?: string[]
@@ -82,6 +82,9 @@ export class PageFilter {
   @Field(type => [ID], { nullable: true, description: 'Return pages that contain a link to any of the given assets.' })
   assetKeysReferenced?: string[]
 
+  @Field(type => [PagetreeType], { nullable: true, description: 'Only return pages in the pagetrees of their site with the types specified' })
+  pagetreeTypes?: PagetreeType[]
+
   @Field(type => [String], { nullable: true, description: 'Return pages with the given paths inside their pagetree, regardless of which site or pagetree. For instance, "/about" could return the about page for dozens of sites. Combine with site or pagetree filters for best results.' })
   paths?: string[]
 
@@ -91,7 +94,7 @@ export class PageFilter {
   @Field(type => Boolean, { nullable: true, description: 'Only return pages that have been published. Implies filter activePagetree -> true.' })
   published?: boolean
 
-  @Field(type => Boolean, { nullable: true, description: 'Only return pages that are published, in the active page tree, and on a launched site.' })
+  @Field(type => Boolean, { nullable: true, description: 'Only return pages that are published, in the active pagetree, and on a launched site.' })
   live?: boolean
 
   @Field(type => Boolean, { nullable: true, description: 'true -> return only deleted pages, false -> return only nondeleted pages, undefined -> return all pages' })
