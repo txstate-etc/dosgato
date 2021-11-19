@@ -82,8 +82,11 @@ export class PageFilter {
   @Field(type => [ID], { nullable: true, description: 'Return pages that contain a link to any of the given assets.' })
   assetKeysReferenced?: string[]
 
-  @Field(type => [PageTreeType], { nullable: true, description: 'Only return pages in the pagetrees of their site with the types specified' })
-  pageTreeTypes?: PageTreeType[]
+  @Field(type => [String], { nullable: true, description: 'Return pages with the given paths inside their pagetree, regardless of which site or pagetree. For instance, "/about" could return the about page for dozens of sites. Combine with site or pagetree filters for best results.' })
+  paths?: string[]
+
+  @Field(type => [String], { nullable: true, description: 'Return pages referenced by the given launched URLs (e.g. "http://history.example.edu/about" points to "/about" inside the history site). Only returns pages from the primary pagetree. Protocol (http/https) may or may not be present but will be ignored if present.' })
+  launchedUrls?: string[]
 
   @Field(type => Boolean, { nullable: true, description: 'Only return pages that have been published. Implies filter activePagetree -> true.' })
   published?: boolean
