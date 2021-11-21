@@ -9,11 +9,12 @@ export interface Template {
   migrations: Migration[]
   getLinks: LinkGatheringFn
   getFulltext: FulltextGatheringFn
+  validate: (data: any) => Promise<Record<string, string[]>>
 }
 
 class TemplateRegistry {
-  byType: Record<TemplateType, Template[]> = { page: [], component: [], data: [] }
-  byKey: Record<string, Template> = {}
+  protected byType: Record<TemplateType, Template[]> = { page: [], component: [], data: [] }
+  protected byKey: Record<string, Template> = {}
   register (template: Template) {
     this.byType[template.type] ??= []
     this.byType[template.type].push(template)
