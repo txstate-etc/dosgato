@@ -1,5 +1,6 @@
 import { stopwords } from './stopwords'
 import stringify from 'fast-json-stable-stringify'
+import { Field, ID, InputType } from 'type-graphql'
 
 export interface AssetLink {
   type: 'asset'
@@ -17,11 +18,17 @@ export interface AssetFolderLink {
   path: string
 }
 
-export interface PageLink {
-  type: 'page'
-  linkId: string
-  siteId: string
-  path: string
+@InputType()
+export class PageLink {
+  type!: 'page'
+  @Field()
+  linkId!: string
+
+  @Field(type => ID)
+  siteId!: string
+
+  @Field()
+  path!: string
 }
 
 export interface WebLink {
@@ -82,39 +89,35 @@ export interface Index {
   value: string[]
 }
 
-export type LinkIndexTypes = 'link_asset_id'|'link_asset_path'|'link_asset_checksum'|
-'link_page_id'|'link_page_path'|'link_hostname'|
-'link_data_id'|'link_data_path'|
-'link_assetfolder_id'|'link_assetfolder_path'|
-'link_datafolder_id'|'link_datafolder_path'
+export type LinkIndexTypes = 'link_asset'|'link_page'|'link_hostname'|'link_data'|'link_assetfolder'|'link_datafolder'
 
 export function processLink (link: LinkDefinition) {
   let ret: { name: LinkIndexTypes, value: any }[] = []
   if (link.type === 'asset') {
     ret = [
-      { name: 'link_asset_id', value: { source: link.source, id: link.id } },
-      { name: 'link_asset_path', value: { siteId: link.siteId, path: link.path } },
-      { name: 'link_asset_checksum', value: { checksum: link.checksum } }
+      { name: 'link_asset', value: { source: link.source, id: link.id } },
+      { name: 'link_asset', value: { siteId: link.siteId, path: link.path } },
+      { name: 'link_asset', value: { checksum: link.checksum } }
     ]
   } else if (link.type === 'page') {
     ret = [
-      { name: 'link_page_id', value: { linkId: link.linkId } },
-      { name: 'link_page_path', value: { siteId: link.siteId, path: link.path } }
+      { name: 'link_page', value: { linkId: link.linkId } },
+      { name: 'link_page', value: { siteId: link.siteId, path: link.path } }
     ]
   } else if (link.type === 'data') {
     ret = [
-      { name: 'link_data_id', value: { linkId: link.id } },
-      { name: 'link_data_path', value: { siteId: link.siteId, path: link.path } }
+      { name: 'link_data', value: { linkId: link.id } },
+      { name: 'link_data', value: { siteId: link.siteId, path: link.path } }
     ]
   } else if (link.type === 'assetfolder') {
     ret = [
-      { name: 'link_assetfolder_id', value: { linkId: link.id } },
-      { name: 'link_assetfolder_path', value: { siteId: link.siteId, path: link.path } }
+      { name: 'link_assetfolder', value: { linkId: link.id } },
+      { name: 'link_assetfolder', value: { siteId: link.siteId, path: link.path } }
     ]
   } else if (link.type === 'datafolder') {
     ret = [
-      { name: 'link_datafolder_id', value: { linkId: link.id } },
-      { name: 'link_datafolder_path', value: { siteId: link.siteId, path: link.path } }
+      { name: 'link_datafolder', value: { linkId: link.id } },
+      { name: 'link_datafolder', value: { siteId: link.siteId, path: link.path } }
     ]
   } else if (link.type === 'url') {
     const hostname = getHostname(link.url)

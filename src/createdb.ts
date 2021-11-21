@@ -219,8 +219,8 @@ export async function init () {
     CREATE TABLE IF NOT EXISTS `pages` ( \
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `name` VARCHAR(255) NOT NULL, \
+      `path` TEXT NOT NULL, \
       `pagetreeId` MEDIUMINT UNSIGNED NOT NULL, \
-      `parentId` INT UNSIGNED, \
       `dataId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `linkId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `deletedAt` DATETIME, \
@@ -229,12 +229,10 @@ export async function init () {
       UNIQUE INDEX `data_UNIQUE` (`dataId`), \
       UNIQUE INDEX `linkId_in_pagetree` (`pagetreeId`, `linkId`), \
       INDEX `linkId_idx` (`linkId`), \
+      INDEX `path_idx` (`path`(255)), \
       CONSTRAINT `FK_pages_pagetrees` \
         FOREIGN KEY (`pagetreeId`) \
         REFERENCES `pagetrees` (`id`), \
-      CONSTRAINT `FK_pages_pages` \
-        FOREIGN KEY (`parentId`) \
-        REFERENCES `pages` (`id`), \
       CONSTRAINT `FK_pages_storage` \
         FOREIGN KEY (`dataId`) \
         REFERENCES `storage` (`id`), \

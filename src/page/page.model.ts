@@ -1,9 +1,10 @@
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import { isNotNull } from 'txstate-utils'
+import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
 import { PagetreeType } from '../pagetree'
+import { PageLink } from '../util/indexing'
 
 @ObjectType({ description: 'Sites contain pages. Each page can have subpages. Each pagetree has one root page.' })
 export class Page {
@@ -36,6 +37,8 @@ export class Page {
 
   deletedBy?: number
   pagetreeId: string
+  path: string
+  pathSplit: number[]
   parentInternalId?: number
   dataId: string
 
@@ -44,7 +47,9 @@ export class Page {
     this.id = row.dataId
     this.name = row.name
     this.pagetreeId = String(row.pagetreeId)
-    this.parentInternalId = row.parentId
+    this.path = row.path
+    this.pathSplit = row.path.split(/\//).filter(isNotBlank).map(Number)
+    this.parentInternalId = this.pathSplit[this.pathSplit.length - 1]
     this.dataId = row.dataId
     this.linkId = row.linkId
     this.deleted = isNotNull(row.deletedAt)
@@ -56,13 +61,17 @@ export class Page {
 @InputType()
 export class PageFilter {
   internalIds?: number[]
-  parentInternalIds?: number[]
+  internalIdPaths?: string[]
+  internalIdPathsRecursive?: string[]
 
   @Field(type => [ID], { nullable: true })
   ids?: string[]
 
   @Field(type => [String], { nullable: true, description: 'Return pages with the given link ids.' })
   linkIds?: string[]
+
+  @Field(type => [PageLink], { nullable: true, description: 'Resolve page links preferring linkId and falling back to path.' })
+  links?: PageLink[]
 
   @Field(type => [ID], { nullable: true, description: 'Return pages that belong to any of the given pagetree ids.' })
   pagetreeIds?: string[]
@@ -106,10 +115,10 @@ export class CreatePageInput {
   @Field()
   name!: string
 
-  @Field()
+  @Field(type => ID)
   pagetreeId!: string
 
-  @Field({ nullable: true })
+  @Field(type => ID, { nullable: true })
   parentId?: string
 }
 
@@ -118,9 +127,9 @@ export class PageResponse extends ValidatedResponse {
   @Field({ nullable: true })
   page?: Page
 
-  constructor (config: ValidatedResponseArgs & { page?: Page }) {
-    super(config)
-    this.page = config.page
+  constructor (config?: ValidatedResponseArgs & { page?: Page }) {
+    super(config ?? {})
+    this.page = config?.page
   }
 }
 

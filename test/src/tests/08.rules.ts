@@ -5,14 +5,14 @@ import { query } from '../common'
 describe('global rules', () => {
   it('should get global rules for a role', async () => {
     const resp = await query('{ roles(filter: { users: ["su01"] }) { name globalRules { grants { manageUsers } } } }')
-    const superUserRole = resp.data.roles.find((r: any) => r.name === 'superuser')
+    const superUserRole = resp.roles.find((r: any) => r.name === 'superuser')
     const globalRules = superUserRole.globalRules
     expect(globalRules).to.have.lengthOf(1)
     expect(globalRules[0].grants.manageUsers).to.be.true
   })
   it('should get the role attached to a global rule', async () => {
     const resp = await query('{ roles(filter: { users: ["su01"] }) { name globalRules { role { id name } } } }')
-    const superUserRole = resp.data.roles.find((r: any) => r.name === 'superuser')
+    const superUserRole = resp.roles.find((r: any) => r.name === 'superuser')
     const globalRules = superUserRole.globalRules
     expect(globalRules[0].role.name).to.equal('superuser')
   })
@@ -21,7 +21,7 @@ describe('global rules', () => {
 describe('site rules', () => {
   it('should get the site rules for a role', async () => {
     const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules { grants { delete launch manageOwners managePagetrees promotePagetree rename undelete } } } }')
-    const testrole1 = resp.data.roles.find((r: any) => r.name === 'site1-siterulestest1')
+    const testrole1 = resp.roles.find((r: any) => r.name === 'site1-siterulestest1')
     const siteRules = testrole1.siteRules[0]
     expect(siteRules.grants.delete).to.be.false
     expect(siteRules.grants.launch).to.be.true
@@ -34,16 +34,16 @@ describe('site rules', () => {
   it.skip('should filter site rules by role ID', async () => {})
   it('should filter site rules by site ID', async () => {
     const sitesResp = await query('{ sites { id name } }')
-    const site2 = sitesResp.data.sites.find((s: any) => s.name === 'site2')
+    const site2 = sitesResp.sites.find((s: any) => s.name === 'site2')
     const resp = await query(`{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { siteIds: [${site2.id}] }) { id site { name } } } }`)
-    for (const role of resp.data.roles) {
+    for (const role of resp.roles) {
       if (role.name === 'site2-siterulestest1') expect(role.siteRules).to.have.length.greaterThan(0)
       else expect(role.siteRules).to.have.lengthOf(0)
     }
   })
   it('should return site rules that grant the "launch" permission', async () => {
     const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { launch: true }) { id type } } }')
-    const roles = resp.data.roles
+    const roles = resp.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
         expect(role.siteRules).to.have.lengthOf(1)
@@ -54,7 +54,7 @@ describe('site rules', () => {
   })
   it('should return site rules that grant the "rename" permission', async () => {
     const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { rename: true }) { id type } } }')
-    const roles = resp.data.roles
+    const roles = resp.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
         expect(role.siteRules).to.have.lengthOf(1)
@@ -65,7 +65,7 @@ describe('site rules', () => {
   })
   it('should return site rules that grant the "manageOwners" permission', async () => {
     const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { manageOwners: true }) { id type } } }')
-    const roles = resp.data.roles
+    const roles = resp.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
         expect(role.siteRules).to.have.lengthOf(1)
@@ -76,7 +76,7 @@ describe('site rules', () => {
   })
   it('should return site rules that grant the "managePagetrees" permission', async () => {
     const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { managePagetrees: true }) { id type } } }')
-    const roles = resp.data.roles
+    const roles = resp.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
         expect(role.siteRules).to.have.lengthOf(0)
@@ -87,7 +87,7 @@ describe('site rules', () => {
   })
   it('should return site rules that grant the "promotePagetree" permission', async () => {
     const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { promotePagetree: true }) { id type } } }')
-    const roles = resp.data.roles
+    const roles = resp.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
         expect(role.siteRules).to.have.lengthOf(0)
@@ -98,7 +98,7 @@ describe('site rules', () => {
   })
   it('should return site rules that grant the "delete" permission', async () => {
     const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { delete: true }) { id type } } }')
-    const roles = resp.data.roles
+    const roles = resp.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
         expect(role.siteRules).to.have.lengthOf(0)
@@ -109,7 +109,7 @@ describe('site rules', () => {
   })
   it('should return site rules that grant the "undelete" permission', async () => {
     const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules(filter: { undelete: true }) { id type } } }')
-    const roles = resp.data.roles
+    const roles = resp.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1') {
         expect(role.siteRules).to.have.lengthOf(0)
@@ -120,7 +120,7 @@ describe('site rules', () => {
   })
   it('should get the role attached to a site rule', async () => {
     const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules { id role { name } } } }')
-    const roles = resp.data.roles
+    const roles = resp.roles
     for (const role of roles) {
       const siteRuleRoleNames = role.siteRules.map((r: any) => r.role.name)
       expect(siteRuleRoleNames).to.have.members([role.name])
@@ -128,7 +128,7 @@ describe('site rules', () => {
   })
   it('should get the site targeted by a site rule', async () => {
     const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules { id site { name } } } }')
-    const roles = resp.data.roles
+    const roles = resp.roles
     for (const role of roles) {
       if (role.name === 'site1-siterulestest1' || role.name === 'site1-siterulestest2') {
         expect(role.siteRules[0].site.name).to.equal('site1')
@@ -137,7 +137,7 @@ describe('site rules', () => {
   })
   it('should return null for the site of a site rule that targets all sites', async () => {
     const resp = await query('{ roles(filter: { users: ["ed05"] }) { name siteRules { id site { name } } } }')
-    const role = resp.data.roles.find((r: any) => r.name === 'siteLauncher')
+    const role = resp.roles.find((r: any) => r.name === 'siteLauncher')
     expect(role.siteRules[0].site).to.be.null
   })
 })
@@ -179,15 +179,15 @@ describe('data rules', () => {
 describe('template rules', () => {
   it('should get the template rules for a role', async () => {
     const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules { id template { name } } } }')
-    const test1role = resp.data.roles.find((r: any) => r.name === 'templaterulestest1')
+    const test1role = resp.roles.find((r: any) => r.name === 'templaterulestest1')
     const templates = test1role.templateRules.map((r: any) => r.template.name)
     expect(templates).to.have.members(['pagetemplate1', 'pagetemplate2', 'pagetemplate3'])
   })
   it.skip('should filter template rules by role ID', async () => {})
   it('should filter template rules by template key', async () => {
     const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules(filter: {templateKeys: ["keyp1"]}) { id template { name } } } }')
-    const test1role = resp.data.roles.find((r: any) => r.name === 'templaterulestest1')
-    const test2role = resp.data.roles.find((r: any) => r.name === 'templaterulestest2')
+    const test1role = resp.roles.find((r: any) => r.name === 'templaterulestest1')
+    const test2role = resp.roles.find((r: any) => r.name === 'templaterulestest2')
     const templates = test1role.templateRules.map((r: any) => r.template.name)
     expect(templates).to.have.members(['pagetemplate1'])
     expect(templates).to.not.have.members(['pagetemplate2', 'pagetemplate3'])
@@ -195,25 +195,25 @@ describe('template rules', () => {
   })
   it('should filter template rules by template key, including null', async () => {
     const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules(filter: {templateKeys: ["keyp1", null]}) { id template { name } } } }')
-    const test2role = resp.data.roles.find((r: any) => r.name === 'templaterulestest2')
+    const test2role = resp.roles.find((r: any) => r.name === 'templaterulestest2')
     expect(test2role.templateRules).to.have.lengthOf(1)
     expect(test2role.templateRules[0].template).to.be.null
   })
   it('should filter template rules on whether they grant the "use" permission', async () => {
     const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules(filter: { use: true }) { id template { name } } } }')
-    const test1role = resp.data.roles.find((r: any) => r.name === 'templaterulestest1')
+    const test1role = resp.roles.find((r: any) => r.name === 'templaterulestest1')
     const templates = test1role.templateRules.map((r: any) => r.template.name)
     expect(templates).to.have.members(['pagetemplate1', 'pagetemplate2'])
     expect(templates).to.not.have.members(['pagetemplate3'])
   })
   it('should get the role attached to a template rule', async () => {
     const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules { id role { name } } } }')
-    const test1role = resp.data.roles.find((r: any) => r.name === 'templaterulestest1')
+    const test1role = resp.roles.find((r: any) => r.name === 'templaterulestest1')
     expect(test1role.templateRules[0].role.name).to.equal(test1role.name)
   })
   it('should return null for the template of a template rule that targets all templates', async () => {
     const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules(filter: {templateKeys: [null]}) { id template { name } } } }')
-    const test2role = resp.data.roles.find((r: any) => r.name === 'templaterulestest2')
+    const test2role = resp.roles.find((r: any) => r.name === 'templaterulestest2')
     expect(test2role.templateRules[0].template).to.be.null
   })
 })

@@ -11,7 +11,7 @@ export async function query (query: string, variables?: any) {
       ...(variables ? { variables } : {})
     })
     if (resp.data.errors?.length) throw new Error(resp.data.errors[0].message)
-    return resp.data
+    return resp.data.data
   } catch (e) {
     if (axios.isAxiosError(e)) {
       if (!e.response) throw e

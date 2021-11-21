@@ -1,6 +1,6 @@
 import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation } from 'type-graphql'
+import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import { Pagetree, PagetreeService } from '../pagetree'
 import { Role } from '../role'
 import { JsonData } from '../scalars/jsondata'
@@ -30,7 +30,7 @@ export class PageResolver {
   async children (@Ctx() ctx: Context, @Root() page: Page,
     @Arg('recursive', { nullable: true }) recursive?: boolean
   ) {
-    return await ctx.svc(PageService).getPageChildren(page.internalId, recursive)
+    return await ctx.svc(PageService).getPageChildren(page, recursive)
   }
 
   @FieldResolver(returns => Page, { nullable: true, description: 'Returns null when current page is the root page of a pagetree.' })
@@ -41,15 +41,14 @@ export class PageResolver {
 
   @FieldResolver(returns => Page, { description: 'May return itself when page is already the root page.' })
   async rootpage (@Ctx() ctx: Context, @Root() page: Page) {
-    if (isNull(page.parentInternalId)) return page
-    else return await ctx.svc(PageService).getRootPage(page.internalId)
+    return await ctx.svc(PageService).getRootPage(page)
   }
 
   @FieldResolver(returns => [Page], { description: 'Starts with the parent page and proceeds upward. Last element will be the pagetree\'s root page. Empty array if current page is the root page of a pagetree.' })
   async ancestors (@Ctx() ctx: Context, @Root() page: Page) {
     if (isNull(page.parentInternalId)) return []
     else {
-      return await ctx.svc(PageService).getPageAncestors(page.internalId)
+      return await ctx.svc(PageService).getPageAncestors(page)
     }
   }
 
@@ -155,17 +154,17 @@ export class PageResolver {
   }
 
   @Mutation(returns => PageResponse)
-  async movePage (@Ctx() ctx: Context, @Arg('pageId') pageId: string, @Arg('parentId') parentId: string) {
+  async movePage (@Ctx() ctx: Context, @Arg('pageId', type => ID) pageId: string, @Arg('parentId', type => ID) parentId: string) {
+    return await ctx.svc(PageService).movePage(pageId, parentId)
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async publishPage (@Ctx() ctx: Context, @Arg('pageId', type => ID) pageId: string) {
     throw new UnimplementedError()
   }
 
   @Mutation(returns => ValidatedResponse)
-  async publishPage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
-    throw new UnimplementedError()
-  }
-
-  @Mutation(returns => ValidatedResponse)
-  async unpublishPage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
+  async unpublishPage (@Ctx() ctx: Context, @Arg('pageId', type => ID) pageId: string) {
     throw new UnimplementedError()
   }
 

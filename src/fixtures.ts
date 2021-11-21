@@ -203,8 +203,10 @@ export async function fixtures () {
     const versionedService = new VersionedService(ctx)
 
     const pageId = await db.transaction(async db => {
+      const parentsPath = parentId && await db.getval<string>('SELECT p.path FROM pages p WHERE p.id=?', [parentId])
+      const path = `${parentsPath ?? ''}${parentsPath === '/' ? '' : '/'}${parentId ?? ''}`
       const dataId = await versionedService.create('testdata', pageData, indexes, 'su01')
-      return await db.insert('INSERT INTO pages (name, pagetreeId, parentId, dataId, linkId) VALUES (?,?,?,?,?)', [name, pagetreeId, parentId, dataId, linkId])
+      return await db.insert('INSERT INTO pages (name, pagetreeId, path, dataId, linkId) VALUES (?,?,?,?,?)', [name, pagetreeId, path, dataId, linkId])
     })
     return pageId
   }
@@ -240,7 +242,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc1', 'keyc2']
     }
   ]
-  const site1pagetree1Root = await createPage('root', rootLinkId, pagetree1, null, stringify({ title: 'Basketry Home' }), indexes)
+  const site1pagetree1Root = await createPage('site1', rootLinkId, pagetree1, null, stringify({ title: 'Basketry Home' }), indexes)
 
   // about page
   indexes = [
@@ -391,7 +393,7 @@ export async function fixtures () {
       values: ['keyp2', 'keyc3']
     }
   ]
-  await createPage('Site 2 Home', site2RootLinkId, pagetree2, null, stringify({ title: 'Site 2 Home' }), indexes)
+  await createPage('site2', site2RootLinkId, pagetree2, null, stringify({ title: 'Site 2 Home' }), indexes)
 
   /* Site 3, Pagetree 3 Pages */
   const site3RootLinkId = nanoid(10)
@@ -415,7 +417,7 @@ export async function fixtures () {
       values: ['keyp3', 'keyc1', 'keyc2']
     }
   ]
-  const site3pagetree3Root = await createPage('Site 3 Home', site3RootLinkId, pagetree3, null, stringify({ title: 'Site 3 Home' }), indexes)
+  const site3pagetree3Root = await createPage('site3', site3RootLinkId, pagetree3, null, stringify({ title: 'Site 3 Home' }), indexes)
   // about
   indexes = [
     {
@@ -423,7 +425,7 @@ export async function fixtures () {
       values: ['keyp3', 'keyc2', 'keyc3']
     }
   ]
-  await createPage('About', site3AboutLinkId, pagetree3, site3pagetree3Root, stringify({ title: 'About Us' }), indexes)
+  await createPage('about', site3AboutLinkId, pagetree3, site3pagetree3Root, stringify({ title: 'About Us' }), indexes)
   // site map
   indexes = [
     {
@@ -431,7 +433,7 @@ export async function fixtures () {
       values: ['keyp3']
     }
   ]
-  await createPage('Site Map', site3SiteMapLinkId, pagetree3, site3pagetree3Root, stringify({ title: 'Site Map' }), indexes)
+  await createPage('sitemap', site3SiteMapLinkId, pagetree3, site3pagetree3Root, stringify({ title: 'Site Map' }), indexes)
 
   /* Site 3, Sandbox Pages */
   const site3SandboxRootLinkId = nanoid(10)
@@ -452,5 +454,5 @@ export async function fixtures () {
       values: ['keyp2', 'keyc1', 'keyc2']
     }
   ]
-  await createPage('Site 3 Home', site3SandboxRootLinkId, pagetree3sandbox, null, stringify({ title: 'Site 3 Home' }), indexes)
+  await createPage('site3', site3SandboxRootLinkId, pagetree3sandbox, null, stringify({ title: 'Site 3 Home' }), indexes)
 }
