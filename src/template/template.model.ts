@@ -1,5 +1,6 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
+import { templateRegistry } from '../util/registry'
 
 export enum TemplateType {
   PAGE = 'page',
@@ -42,6 +43,9 @@ export class Template {
   @Field({ description: 'Any template not found in the currently running source code will be marked as deleted upon startup.' })
   deleted: boolean
 
+  @Field(type => [TemplateArea], { description: 'If this template is a page or component template, areas are the slots it provides for child placement. Each area will have a list of acceptable child component templates. These will be validated when creating a new component on a page.' })
+  areas: TemplateArea[]
+
   constructor (row: any) {
     this.id = row.id
     this.key = row.key
@@ -49,6 +53,7 @@ export class Template {
     this.type = row.type
     this.deleted = !!row.deleted
     this.universal = !!row.universal
+    this.areas = Object.values(templateRegistry.get(this.key).areas)
   }
 }
 
@@ -68,3 +73,20 @@ export class TemplateFilter {
 
 @ObjectType()
 export class TemplatePermissions {}
+
+@ObjectType()
+export class TemplateArea {
+  @Field()
+  name!: string
+
+  _availableComponents: Set<string>
+
+  constructor (name: string, availableComponents: string[]) {
+    this.name = name
+    this._availableComponents = new Set(availableComponents)
+  }
+
+  addAvailableComponent (templateKey: string) {
+    this._availableComponents.add(templateKey)
+  }
+}

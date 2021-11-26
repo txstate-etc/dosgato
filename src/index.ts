@@ -14,7 +14,7 @@ import { DateTimeScalar } from './scalars/datetime'
 import { UrlSafeString, UrlSafeStringScalar } from './scalars/urlsafestring'
 import { SitePermissionsResolver, SiteResolver } from './site'
 import { SiteRulePermissionsResolver, SiteRuleResolver } from './siterule'
-import { TemplatePermissionsResolver, TemplateResolver } from './template'
+import { TemplateAreaResolver, TemplatePermissionsResolver, TemplateResolver } from './template'
 import { UserPermissionsResolver, UserResolver } from './user'
 import { DataFolderPermissionsResolver, DataFolderResolver } from './datafolder'
 import { GroupPermissionsResolver, GroupResolver } from './group'
@@ -59,6 +59,7 @@ async function main () {
       SitePermissionsResolver,
       SiteRuleResolver,
       SiteRulePermissionsResolver,
+      TemplateAreaResolver,
       TemplateResolver,
       TemplatePermissionsResolver,
       TemplateRuleResolver,

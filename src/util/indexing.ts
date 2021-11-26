@@ -50,17 +50,22 @@ export interface DataFolderLink {
   path: string
 }
 
+export function extractLinksFromText (text: string) {
+  const matches = text.matchAll(/{.*\btype:\s+'\w+'.*?}/i)
+  return Array.from(matches).map(m => JSON.parse(m[0])) as LinkDefinition[]
+}
+
 export type LinkDefinition = AssetLink | AssetFolderLink | PageLink | WebLink | DataLink | DataFolderLink
 
 export type LinkGatheringFn = (data: any) => LinkDefinition[]
 export type FulltextGatheringFn = (data: any) => string[]
 
-export function getKeywords (text: string) {
+export function getKeywords (text: string, options?: { stopwords?: boolean }) {
   return Array.from(new Set(text
     .toLocaleLowerCase()
     .normalize('NFD').replace(/\p{Diacritic}/gu, '')
     .split(/[^\w]+/)
-    .filter(word => word.length > 2 && !stopwords[word] && isNaN(Number(word)))
+    .filter(word => word.length > 2 && (options?.stopwords === false || !stopwords[word]) && isNaN(Number(word)))
   ))
 }
 

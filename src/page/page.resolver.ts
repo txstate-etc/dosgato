@@ -75,7 +75,7 @@ export class PageResolver {
     return versioned!.data
   }
 
-  @FieldResolver(returns => [Template], { description: 'All templates that are approved for use on this page.' })
+  @FieldResolver(returns => [Template], { description: 'All templates that are approved for use on this page or by the authenticated user.' })
   async templates (@Ctx() ctx: Context, @Root() page: Page, @Arg('filter', { nullable: true }) filter?: TemplateFilter) {
     throw new UnimplementedError()
   }

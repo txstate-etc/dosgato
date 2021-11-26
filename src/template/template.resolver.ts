@@ -1,5 +1,6 @@
 import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
+import { TemplateArea } from '.'
 import { Data, DataFilter } from '../data'
 import { Page, PageFilter } from '../page'
 import { Pagetree, PagetreeService } from '../pagetree'
@@ -78,8 +79,21 @@ export class TemplateResolver {
 
 @Resolver(of => TemplatePermissions)
 export class TemplatePermissionsResolver {
-  @FieldResolver(returns => Boolean, { description: 'Current user has permission to set or update the public URL for this template.' })
+  @FieldResolver(returns => Boolean, { description: 'Authenticated user has permission to approve this template for use on a specific site. Currently based on GlobalRule.manageUsers.' })
   async assign (@Ctx() ctx: Context, @Root() template: Template) {
     throw new UnimplementedError()
+  }
+
+  @FieldResolver(returns => Boolean, { description: 'Authenticated user has permission to make this template universal or not. Currently based on GlobalRule.manageUsers.' })
+  async setUniversal (@Ctx() ctx: Context, @Root() template: Template) {
+    throw new UnimplementedError()
+  }
+}
+
+@Resolver(of => TemplateArea)
+export class TemplateAreaResolver {
+  @FieldResolver(returns => [Template], { description: 'Component templates that are possible inside this area. Does not take user/site permissions into account.' })
+  async availableComponents (@Ctx() ctx: Context, @Root() templateArea: TemplateArea) {
+    return await ctx.svc(TemplateService).findByKeys(Array.from(templateArea._availableComponents))
   }
 }

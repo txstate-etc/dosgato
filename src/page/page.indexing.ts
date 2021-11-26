@@ -1,4 +1,4 @@
-import { getKeywords, processLink } from '../util/indexing'
+import { extractLinksFromText, getKeywords, processLink } from '../util/indexing'
 import { templateRegistry } from '../util/registry'
 import { PageData } from '../util/sharedtypes'
 import { Index } from '../versionedservice'
@@ -15,7 +15,13 @@ export function getPageIndexes (page: PageData): Index[] {
   storage.template = new Set(components.map(c => c.templateKey))
   storage.fulltext = new Set()
   for (const component of components) {
-    const words = templateRegistry.get(component.templateKey).getFulltext(component).flatMap(getKeywords)
+    const text = templateRegistry.get(component.templateKey).getFulltext(component)
+    const moreLinks = text.flatMap(extractLinksFromText).flatMap(processLink)
+    for (const index of moreLinks) {
+      storage[index.name] ??= new Set()
+      storage[index.name].add(index.value)
+    }
+    const words = text.flatMap(t => getKeywords(t))
     for (const word of words) storage.fulltext.add(word)
   }
   return Object.keys(storage).map(k => ({ name: k, values: Array.from(storage[k]) }))
