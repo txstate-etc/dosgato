@@ -5,7 +5,7 @@ import { AssetFolder } from '../assetfolder'
 import { Data, DataFilter, DataPermission } from '../data'
 import { DataFolder, DataFolderFilter } from '../datafolder'
 import { Organization, OrganizationService } from '../organization'
-import { Page, PagePermission, PageService } from '../page'
+import { Page, PageFilter, PagePermission, PageService } from '../page'
 import { Pagetree, PagetreeFilter, PagetreeService } from '../pagetree'
 import { Role } from '../role'
 import { Template, TemplateFilter, TemplateService } from '../template'
@@ -28,9 +28,9 @@ export class SiteResolver {
 
   @FieldResolver(returns => Page)
   async pageroot (@Ctx() ctx: Context, @Root() site: Site) {
-    // TODO: This would be better if there was a page filter for root page
-    const pages = await ctx.svc(PageService).findByPagetreeId(site.primaryPagetreeId)
-    return pages.find(p => isNull(p.parentInternalId))
+    const filter: PageFilter = { pagetreeIds: [site.primaryPagetreeId], paths: [`/${site.name}`] }
+    const pages = await ctx.svc(PageService).find(filter)
+    return pages[0]
   }
 
   @FieldResolver(returns => AssetFolder)
