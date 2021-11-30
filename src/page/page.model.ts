@@ -4,7 +4,6 @@ import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
 import { PagetreeType } from '../pagetree'
-import { PageLink } from '../util/indexing'
 
 @ObjectType({ description: 'Sites contain pages. Each page can have subpages. Each pagetree has one root page.' })
 export class Page {
@@ -70,8 +69,8 @@ export class PageFilter {
   @Field(type => [String], { nullable: true, description: 'Return pages with the given link ids.' })
   linkIds?: string[]
 
-  @Field(type => [PageLink], { nullable: true, description: 'Resolve page links preferring linkId and falling back to path.' })
-  links?: PageLink[]
+  @Field(type => [PageLinkInput], { nullable: true, description: 'Resolve page links preferring linkId and falling back to path.' })
+  links?: PageLinkInput[]
 
   @Field(type => [ID], { nullable: true, description: 'Return pages that belong to any of the given pagetree ids.' })
   pagetreeIds?: string[]
@@ -150,3 +149,15 @@ registerEnumType(PagePermission, {
   name: 'PagePermission',
   description: 'All the action types that can be individually permissioned on a page.'
 })
+
+@InputType()
+export class PageLinkInput {
+  @Field()
+  linkId!: string
+
+  @Field()
+  siteId!: string
+
+  @Field()
+  path!: string
+}

@@ -41,6 +41,7 @@ describe('sites', () => {
   })
   it('should get templates for sites', async () => {
     const resp = await query('{ sites { id name templates { key name } } }')
+    console.log(resp)
     const site2 = resp.sites.find((s: any) => s.name === 'site2')
     const templateNames = site2.templates.map((t: any) => t.key)
     expect(templateNames).to.have.members(['keyp1'])

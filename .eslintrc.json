@@ -4,13 +4,16 @@
       "project": "./tsconfig.eslint.json"
   },
   "rules": {
-    "@typescript-eslint/array-type": "off",
+    "@typescript-eslint/explicit-function-return-type": "off", // useless boilerplate
+    "@typescript-eslint/array-type": "off", // would have forced you to use Array<CustomType> instead of CustomType[], silly
+    "@typescript-eslint/no-non-null-assertion": "off", // would have disabled using ! to mark something as non-null,
+                                                       // generally not avoidable without wasting cpu cycles on a check
+    "@typescript-eslint/no-unused-vars": "off", // typescript already reports this and VSCode darkens the variable
+    "@typescript-eslint/return-await": ["error", "always"], // allows you to accidentally break async stacktraces in node 14+
+    "@typescript-eslint/strict-boolean-expressions": "off", // we know how truthiness works, annoying to have to avoid
+    "@typescript-eslint/restrict-template-expressions": ["error", { "allowAny": true }], // `${myVar}` is fine if myVar is `any`
+    // disallow typecasting with e.g. <string> because it's very confusing vs generics
     "@typescript-eslint/consistent-type-assertions": ["error", { "assertionStyle": "as" }],
-    "@typescript-eslint/explicit-function-return-type": "off",
-    "@typescript-eslint/no-non-null-assertion": "off",
-    "@typescript-eslint/prefer-readonly": "off",
-    "@typescript-eslint/restrict-template-expressions": ["error", { "allowAny": true }],
-    "@typescript-eslint/return-await": ["error", "always"],
-    "@typescript-eslint/strict-boolean-expressions": "off"
+    "@typescript-eslint/prefer-readonly": "off" // readonly adds a lot of complication and often infects other code with its complexity
   }
 }

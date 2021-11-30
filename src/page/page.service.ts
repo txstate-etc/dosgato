@@ -1,13 +1,12 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import stringify from 'fast-json-stable-stringify'
 import { Page, PageFilter } from './page.model'
 import { getPages, movePage } from './page.database'
 import { intersect, isNotNull, unique } from 'txstate-utils'
 import { VersionedService } from '../versionedservice'
-import stringify from 'fast-json-stable-stringify'
-import { PageResponse } from '.'
+import { PageLinkInput, PageResponse } from '.'
 import { templateRegistry } from '../util/registry'
-import { PageLink } from '../util/indexing'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
@@ -103,8 +102,8 @@ export class PageService extends AuthorizedService {
       const verService = this.svc(VersionedService)
       const pages = (await Promise.all(filter.referencedByPageIds.map(async id => await this.findById(id)))).filter(isNotNull)
       const pagedata = (await Promise.all(pages.map(async page => await verService.get(page.dataId, { tag: filter.published ? 'published' : undefined })))).filter(isNotNull)
-      const links = pagedata.flatMap(d => templateRegistry.get(d.data.templateKey).getLinks(d.data)).filter(l => l.type === 'page') as PageLink[]
-      filter.links = intersect({ skipEmpty: true }, links, filter.links)
+      const links = pagedata.flatMap(d => templateRegistry.get(d.data.templateKey).getLinks(d.data)).filter(l => l.type === 'page') as PageLinkInput[]
+      filter.links = intersect({ skipEmpty: true, by: lnk => stringify({ ...lnk, type: 'page' }) }, links, filter.links)
     }
     return filter
   }

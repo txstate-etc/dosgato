@@ -1,3 +1,4 @@
+import { PageWithAncestors } from '@dosgato/templating'
 import { sortby } from 'txstate-utils'
 import { MigrationWithTemplate } from '../util/migrations'
 import { templateRegistry } from '../util/registry'
@@ -6,19 +7,19 @@ import { collectTemplates } from './page.util'
 
 // recursive helper function to traverse a page and apply one migration to any applicable
 // components
-async function processMigration (component: ComponentData, migration: MigrationWithTemplate, backward: boolean) {
+async function processMigration (component: ComponentData, migration: MigrationWithTemplate, backward: boolean, page: PageWithAncestors) {
   const migrate = backward ? migration.down : migration.up
   const newAreas: Record<string, Promise<ComponentData>[]> = {}
 
   for (const [areaKey, areaList] of Object.entries(component.areas)) {
     for (const cData of areaList) {
-      newAreas[areaKey].push(processMigration(cData, migration, backward))
+      newAreas[areaKey].push(processMigration(cData, migration, backward, page))
     }
   }
   for (const areaKey of Object.keys(component.areas)) {
     component.areas[areaKey] = await Promise.all(newAreas[areaKey])
   }
-  if (migration.templateKey === component.templateKey) component = await migrate(component)
+  if (migration.templateKey === component.templateKey) component = await migrate(component, page)
   return component
 }
 
@@ -33,9 +34,10 @@ async function processMigration (component: ComponentData, migration: MigrationW
  * often as usually the page's interest is in re-organizing components rather than
  * manipulating their internals.
  */
-export async function migratePage (page: PageData, toSchemaVersion: Date = new Date()) {
-  const templateKeysInUse = collectTemplates(page)
-  const fromSchemaVersion = page.savedAtVersion
+export async function migratePage (page: PageWithAncestors, toSchemaVersion: Date = new Date()) {
+  let data = page.data
+  const templateKeysInUse = collectTemplates(page.data)
+  const fromSchemaVersion = page.data.savedAtVersion
   const backward = fromSchemaVersion > toSchemaVersion
   // collect all the migrations from every component in the registry and filter out
   // the ones this page does not use or that are outside the time range in which we are
@@ -52,7 +54,8 @@ export async function migratePage (page: PageData, toSchemaVersion: Date = new D
   // order)
   const sortedMigrations = sortby(migrations, 'createdAt', backward)
 
-  for (const migration of sortedMigrations) page = await processMigration(page, migration, backward) as PageData
-  page.savedAtVersion = toSchemaVersion
+  for (const migration of sortedMigrations) data = await processMigration(data, migration, backward, page) as PageData
+  data.savedAtVersion = toSchemaVersion
+  page.data = data
   return page
 }

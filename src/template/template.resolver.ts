@@ -94,6 +94,6 @@ export class TemplatePermissionsResolver {
 export class TemplateAreaResolver {
   @FieldResolver(returns => [Template], { description: 'Component templates that are possible inside this area. Does not take user/site permissions into account.' })
   async availableComponents (@Ctx() ctx: Context, @Root() templateArea: TemplateArea) {
-    return await ctx.svc(TemplateService).findByKeys(Array.from(templateArea._availableComponents))
+    return await ctx.svc(TemplateService).findByKeys(templateArea.availableComponents)
   }
 }

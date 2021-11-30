@@ -53,7 +53,7 @@ export class Template {
     this.type = row.type
     this.deleted = !!row.deleted
     this.universal = !!row.universal
-    this.areas = Object.values(templateRegistry.get(this.key).areas)
+    this.areas = [] // TODO Object.values(templateRegistry.get(this.key).areas)
   }
 }
 
@@ -77,16 +77,19 @@ export class TemplatePermissions {}
 @ObjectType()
 export class TemplateArea {
   @Field()
-  name!: string
+  name: string
 
-  _availableComponents: Set<string>
+  _availableComponentSet: Set<string>
+  availableComponents: string[]
 
   constructor (name: string, availableComponents: string[]) {
     this.name = name
-    this._availableComponents = new Set(availableComponents)
+    this.availableComponents = availableComponents
+    this._availableComponentSet = new Set(availableComponents)
   }
 
-  addAvailableComponent (templateKey: string) {
-    this._availableComponents.add(templateKey)
+  addAvailableComponent (availableComponent: string) {
+    this._availableComponentSet.add(availableComponent)
+    this.availableComponents = Array.from(this._availableComponentSet)
   }
 }

@@ -1,64 +1,11 @@
-import { stopwords } from './stopwords'
+import { LinkDefinition } from '@dosgato/templating'
 import stringify from 'fast-json-stable-stringify'
-import { Field, ID, InputType } from 'type-graphql'
-
-export interface AssetLink {
-  type: 'asset'
-  source: string
-  id: string
-  siteId: string
-  path: string
-  checksum: string
-}
-
-export interface AssetFolderLink {
-  type: 'assetfolder'
-  id: string // the asset folder's guid
-  siteId: string
-  path: string
-}
-
-@InputType()
-export class PageLink {
-  type!: 'page'
-  @Field()
-  linkId!: string
-
-  @Field(type => ID)
-  siteId!: string
-
-  @Field()
-  path!: string
-}
-
-export interface WebLink {
-  type: 'url'
-  url: string
-}
-
-export interface DataLink {
-  type: 'data'
-  id: string // the data item's dataId
-  siteId?: string // null if global data
-  path: string
-}
-
-export interface DataFolderLink {
-  type: 'datafolder'
-  id: string // the asset folder's guid
-  siteId?: string // null if global data
-  path: string
-}
+import { stopwords } from './stopwords'
 
 export function extractLinksFromText (text: string) {
   const matches = text.matchAll(/{.*\btype:\s+'\w+'.*?}/i)
   return Array.from(matches).map(m => JSON.parse(m[0])) as LinkDefinition[]
 }
-
-export type LinkDefinition = AssetLink | AssetFolderLink | PageLink | WebLink | DataLink | DataFolderLink
-
-export type LinkGatheringFn = (data: any) => LinkDefinition[]
-export type FulltextGatheringFn = (data: any) => string[]
 
 export function getKeywords (text: string, options?: { stopwords?: boolean }) {
   return Array.from(new Set(text
