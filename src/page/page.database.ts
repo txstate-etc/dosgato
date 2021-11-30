@@ -74,20 +74,21 @@ async function processFilters (filter: PageFilter) {
     const names = new Set<string>(paths.flat())
     const namebinds = Array.from(names)
     const rows = await db.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM pages WHERE name IN (${namebinds.map(n => '?').join(',')})`, namebinds)
-    const rowsByNameAndPath: Record<string, Record<string, typeof rows[number]>> = {}
+    const rowsByNameAndPath: Record<string, Record<string, typeof rows[number][]>> = {}
     for (const row of rows) {
       rowsByNameAndPath[row.name] ??= {}
-      rowsByNameAndPath[row.name][row.path] = row
+      rowsByNameAndPath[row.name][row.path] ??= []
+      rowsByNameAndPath[row.name][row.path].push(row)
     }
-    where.push(`(pages.name, pages.path) IN (${db.in(binds, paths.map(p => {
-      let searchpath = '/'
-      for (const segment of p.slice(0, -1)) {
-        const page = rowsByNameAndPath[segment][searchpath]
-        if (!page) return undefined
-        searchpath += (searchpath === '/' ? '' : '/') + String(page.id)
+    where.push(`(pages.name, pages.path) IN (${db.in(binds, paths.flatMap(pt => {
+      let searchpaths = ['/']
+      for (const segment of pt.slice(0, -1)) {
+        const pages = searchpaths.flatMap(sp => rowsByNameAndPath[segment][sp])
+        if (!pages.length) return undefined
+        searchpaths = searchpaths.flatMap(sp => pages.map(pg => `${sp}${sp === '/' ? '' : '/'}${pg.id}`))
       }
 
-      return [p[p.length - 1], searchpath]
+      return searchpaths.map(sp => [pt[pt.length - 1], sp])
     }).filter(isNotNull))})`)
   }
 
