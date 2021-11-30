@@ -61,6 +61,15 @@ describe('pages', () => {
     expect(pageNames).to.include.members(['location', 'people', 'contact', 'programs'])
     expect(pageNames).to.not.have.members(['sitemap', 'Site 3 Home'])
   })
+  it('should get pages, filtered by path', async () => {
+    const resp = await query('{ pages(filter: { paths: ["site1/about", "site1/programs/grad"] }) { id name } }')
+    expect(resp.pages.find((p: any) => p.name === 'about')).to.not.be.undefined
+    expect(resp.pages.find((p: any) => p.name === 'grad')).to.not.be.undefined
+  })
+  it('should get pages, filtered by path: page with same name and path in different pagetrees', async () => {
+    const resp = await query('{ pages(filter: { paths: ["site3/about"] }) { id name } }')
+    expect(resp.pages).to.have.lengthOf(2)
+  })
   it.skip('should get pages using specific templates', async () => {})
   it('should get the ancestors for a page', async () => {
     const resp = await query('{ pages(filter: {deleted: false}) { name ancestors { id name } } }')

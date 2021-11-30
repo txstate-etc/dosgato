@@ -437,6 +437,7 @@ export async function fixtures () {
 
   /* Site 3, Sandbox Pages */
   const site3SandboxRootLinkId = nanoid(10)
+  const site3AboutPageLinkId = nanoid(10)
   indexes = [
     {
       name: 'link_page',
@@ -454,5 +455,13 @@ export async function fixtures () {
       values: ['keyp2', 'keyc1', 'keyc2']
     }
   ]
-  await createPage('site3', site3SandboxRootLinkId, pagetree3sandbox, null, stringify({ title: 'Site 3 Home' }), indexes)
+  const site3SandboxRoot = await createPage('site3', site3SandboxRootLinkId, pagetree3sandbox, null, stringify({ title: 'Site 3 Home' }), indexes)
+
+  indexes = [
+    {
+      name: 'templateKey',
+      values: ['keyp2']
+    }
+  ]
+  await createPage('about', site3AboutPageLinkId, pagetree3sandbox, site3SandboxRoot, stringify({ title: 'About Site 3' }), indexes)
 }
