@@ -1,26 +1,29 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphql'
-import { DataFolder } from '../datafolder'
+import { DataFolder, DataFolderService } from '../datafolder'
 import { Role } from '../role'
 import { JsonData } from '../scalars/jsondata'
 import { Site } from '../site'
 import { Template } from '../template'
-import { User } from '../user'
+import { User, UserService } from '../user'
 import { ObjectVersion } from '../version'
 import { VersionedService } from '../versionedservice'
 import { Data, DataFilter, DataPermission, DataPermissions } from './data.model'
+import { DataService } from './data.service'
+import { isNull } from 'txstate-utils'
 
 @Resolver(of => Data)
 export class DataResolver {
   @Query(returns => [Data], { name: 'data' })
   async dataquery (@Ctx() ctx: Context, @Arg('filter') filter: DataFilter) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).find(filter)
   }
 
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the data is not in the soft-deleted state.' })
   async deletedBy (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    if (isNull(data.deletedBy)) return null
+    else return await ctx.svc(UserService).findByInternalId(data.deletedBy)
   }
 
   @FieldResolver(returns => JsonData)
@@ -39,7 +42,8 @@ export class DataResolver {
 
   @FieldResolver(returns => DataFolder, { nullable: true, description: 'Parent folder containing the data entry. Null if the data exists at the global or site root. In the data area, there is only one level of folders for organization - folders do not contain more folders.' })
   async folder (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    if (isNull(data.folderInternalId)) return null
+    else return await ctx.svc(DataFolderService).findByInternalId(data.folderInternalId)
   }
 
   @FieldResolver(returns => Site, { nullable: true, description: 'The site to which this data entry belongs. Data can be shared across sites, but one site is still the owner. Null if the data is global (not associated with any site).' })
@@ -54,22 +58,26 @@ export class DataResolver {
 
   @FieldResolver(returns => DateTime)
   async createdAt (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    const dataFromStorage = await ctx.svc(VersionedService).get(data.dataId)
+    return DateTime.fromJSDate(dataFromStorage!.created)
   }
 
   @FieldResolver(returns => User)
   async createdBy (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    const dataFromStorage = await ctx.svc(VersionedService).get(data.dataId)
+    return await ctx.svc(UserService).findById(dataFromStorage!.createdBy)
   }
 
   @FieldResolver(returns => DateTime)
   async modifiedAt (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    const dataFromStorage = await ctx.svc(VersionedService).get(data.dataId)
+    return DateTime.fromJSDate(dataFromStorage!.modified)
   }
 
   @FieldResolver(returns => User)
   async modifiedBy (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    const dataFromStorage = await ctx.svc(VersionedService).get(data.dataId)
+    return await ctx.svc(UserService).findById(dataFromStorage!.modifiedBy)
   }
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this page, or any permission if null.' })

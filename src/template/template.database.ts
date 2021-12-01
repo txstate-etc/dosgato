@@ -7,6 +7,9 @@ function processFilters (filter?: TemplateFilter) {
   const where: string[] = []
   const binds: string[] = []
   if (typeof filter !== 'undefined') {
+    if (filter.ids?.length) {
+      where.push(`templates.id IN (${db.in(binds, filter.ids)})`)
+    }
     if (filter.keys?.length) {
       where.push(`templates.key IN (${db.in(binds, filter.keys)})`)
     }
