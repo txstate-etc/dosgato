@@ -105,7 +105,7 @@ export async function fixtures () {
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES(?,?,?)', ['pagetree3', site3, 'primary'])
   ])
 
-  const [pagetemplate1, pagetemplate2, pagetemplate3, pagetemplate4, componenttemplate1, componenttemplate2, componenttemplate3, datatemplate1, datatemplate2] = await Promise.all([
+  const [pagetemplate1, pagetemplate2, pagetemplate3, pagetemplate4, componenttemplate1, componenttemplate2, componenttemplate3, datatemplate1, datatemplate2, articleTemplate] = await Promise.all([
     db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyp1", "pagetemplate1", "page", 0)'),
     db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyp2", "pagetemplate2", "page", 0)'),
     db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyp3", "pagetemplate3", "page", 0)'),
@@ -114,7 +114,8 @@ export async function fixtures () {
     db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyc2", "componenttemplate2", "component", 0)'),
     db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyc3", "componenttemplate3", "component", 0)'),
     db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyd1", "datatemplate1", "data", 0)'),
-    db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyd2", "datatemplate2", "data", 0)')
+    db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyd2", "datatemplate2", "data", 0)'),
+    db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("articledatakey", "articledata", "data", 0)')
   ])
 
   await Promise.all([
@@ -205,7 +206,7 @@ export async function fixtures () {
     const pageId = await db.transaction(async db => {
       const parentsPath = parentId && await db.getval<string>('SELECT p.path FROM pages p WHERE p.id=?', [parentId])
       const path = `${parentsPath ?? ''}${parentsPath === '/' ? '' : '/'}${parentId ?? ''}`
-      const dataId = await versionedService.create('testdata', pageData, indexes, 'su01')
+      const dataId = await versionedService.create('testdata_page', pageData, indexes, 'su01')
       return await db.insert('INSERT INTO pages (name, pagetreeId, path, dataId, linkId) VALUES (?,?,?,?,?)', [name, pagetreeId, path, dataId, linkId])
     })
     return pageId
@@ -464,4 +465,50 @@ export async function fixtures () {
     }
   ]
   await createPage('about', site3AboutPageLinkId, pagetree3sandbox, site3SandboxRoot, stringify({ title: 'About Site 3' }), indexes)
+
+  /* Data */
+  const [datafolder1, datafolder2] = await Promise.all([
+    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site2datafolder', nanoid(10), site2, datatemplate1]),
+    db.insert('INSERT INTO datafolders (name, guid, templateId) VALUES (?,?,?)', ['globaldatafolder', nanoid(10), articleTemplate])
+  ])
+
+  async function createData (content: string, indexes: Index[], creator: string) {
+    const ctx = new Context()
+    const versionedService = new VersionedService(ctx)
+    const id = await db.transaction(async db => {
+      const dataId = await versionedService.create('testdata_data', content, indexes, creator)
+      return await db.insert('INSERT INTO data (dataId) VALUES (?)', [dataId])
+    })
+    return id
+  }
+
+  // TODO: Add more indexes?
+  const data1Id = await createData(stringify({ title: 'Red Text', color: 'red', align: 'center' }), [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data1Id])
+
+  const data2Id = await createData(stringify({ title: 'Blue Text', color: 'blue', align: 'left' }), [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data2Id])
+
+  const data3Id = await createData(stringify({ title: 'Orange Text', color: 'orange', align: 'right' }), [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  await db.update('UPDATE data SET siteId = ?, folderId = ?, deletedAt = NOW(), deletedBy = ? WHERE id = ?', [site2, datafolder1, su01, data3Id])
+
+  const data4Id = await createData(stringify({ title: 'Green Text', color: 'green', align: 'center' }), [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data4Id])
+
+  // some global data that does not belong to a site
+  const article1Id = await createData(stringify({ title: '5 Steps to a Cleaner Car', author: 'Jane Doe' }), [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
+  await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article1Id])
+
+  const article2Id = await createData(stringify({ title: 'Trees of Central Texas', author: 'John Smith' }), [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
+  await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article2Id])
+
+  const article3Id = await createData(stringify({ title: 'The Secret Lives of Ladybugs', author: 'Jack Frost' }), [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
+  await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article3Id])
+
+  // data not in a folder
+  await Promise.all([
+    createData(stringify({ name: 'Cottonwood Hall', floors: 3 }), [{ name: 'templateKey', values: ['keyd2'] }], 'su01'),
+    createData(stringify({ name: 'Student Center', floors: 4 }), [{ name: 'templateKey', values: ['keyd2'] }], 'su01'),
+    createData(stringify({ name: 'Aquatics Center', floors: 2 }), [{ name: 'templateKey', values: ['keyd2'] }], 'su01')
+  ])
 }
