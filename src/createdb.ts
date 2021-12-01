@@ -220,6 +220,7 @@ export async function init () {
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `name` VARCHAR(255) NOT NULL, \
       `path` TEXT NOT NULL, \
+      `displayOrder` SMALLINT UNSIGNED NOT NULL, \
       `pagetreeId` MEDIUMINT UNSIGNED NOT NULL, \
       `dataId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `linkId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
@@ -229,7 +230,7 @@ export async function init () {
       UNIQUE INDEX `data_UNIQUE` (`dataId`), \
       UNIQUE INDEX `linkId_in_pagetree` (`pagetreeId`, `linkId`), \
       INDEX `linkId_idx` (`linkId`), \
-      INDEX `path_idx` (`path`(255)), \
+      INDEX `path_idx` (`path`(255), `displayOrder`), \
       CONSTRAINT `FK_pages_pagetrees` \
         FOREIGN KEY (`pagetreeId`) \
         REFERENCES `pagetrees` (`id`), \

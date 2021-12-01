@@ -104,29 +104,64 @@ export async function getPages (filter: PageFilter) {
   const { binds, where, joins } = await processFilters(filter)
   const pages = await db.getall(`SELECT pages.* FROM pages
                            ${joins.join('\n')}
-                           WHERE (${where.join(') AND (')})`, binds)
+                           WHERE (${where.join(') AND (')})
+                           ORDER BY path, displayOrder`, binds)
   return pages.map(p => new Page(p))
 }
 
-export async function movePage (dataId: string, newParentDataId: string) {
+export async function movePage (dataId: string, otherDataId: string, above?: boolean) {
   return await db.transaction(async db => {
-    const pages = (await db.getall('SELECT * FROM pages WHERE dataId IN (?,?)', [dataId, newParentDataId])).map(r => new Page(r))
-    const page = pages.find(p => p.dataId === dataId)
-    const parent = pages.find(p => p.dataId === newParentDataId)
+    // fetch the page and target in one round trip
+    const pages = (await db.getall('SELECT * FROM pages WHERE dataId IN (?,?)', [dataId, otherDataId])).map(r => new Page(r))
 
+    // identify the page that's getting moved out of the two we fetched
+    const page = pages.find(p => p.dataId === dataId)
     if (!page) throw new Error('Cannot move page that does not exist.')
-    if (!parent) throw new Error('Cannot move page into parent that does not exist.')
     if (page.pathSplit.length === 0) throw new Error('Root pages cannot be moved.')
-    // TODO make sure target site/pagetree allows the page template? all component templates?
+
+    // identify the target page, may be new parent or new sibling depending on "above" parameter
+    const other = pages.find(p => p.dataId === otherDataId)
+    if (!other) throw new Error('Move target does not exist.')
+    if (above && !other.parentInternalId) throw new Error('Cannot move a page above a root page, makes no sense.')
+
+    // resolve the "above" parameter and determine the new parent
+    const parent = above ? new Page(await db.getrow('SELECT * FROM pages WHERE id=?', [other.parentInternalId!])) : other
+    if (!parent) throw new Error('Cannot move page into parent that does not exist.')
     if (parent.path.startsWith(page.path)) throw new Error('Cannot move a page into its own subtree.')
 
+    // We cannot allow pages to be moved between pagetrees because linkId collision could occur.
+    // linkId collision can also occur on a copy, but in that case we can generate a new linkId
+    // automatically and the operation can still be undone. For instance, if you move a page to
+    // a new pagetree and give it a new linkId in the process, but that move was a mistake, lots
+    // of links will break and there's no way to restore them. Also, moving a page always moves
+    // all of its subpages, so the problem would be multiplied by the number of descendants.
+    if (parent.pagetreeId !== page.pagetreeId) throw new Error('Moving between sites or pagetrees is not allowed. Copy instead.')
+
+    // deal with displayOrder
+    const pathToParent = `/${[...parent.pathSplit, parent.internalId].join('/')}`
+    let displayOrder
+    if (above) {
+      displayOrder = other.displayOrder
+      await db.update('UPDATE pages SET displayOrder=displayOrder + 1 WHERE path=? AND displayOrder >= ?', [pathToParent, displayOrder])
+    } else {
+      const maxDisplayOrder = await db.getval<number>('SELECT MAX(displayOrder) FROM pages WHERE path=?', [pathToParent])
+      displayOrder = (maxDisplayOrder ?? 0) + 1
+    }
+
+    // TODO make sure target site/pagetree allows the page template? all component templates?
+
+    // update the page itself, currently just displayOrder
+    await db.update('UPDATE pages SET displayOrder=? WHERE id=?', [displayOrder, page.internalId])
+
+    // correct the path column for page and all its descendants
     const descendants = (await db.getall('SELECT * FROM pages WHERE id=? OR path LIKE ?', [page.internalId, `/${[...page.pathSplit, page.internalId].join('/')}%`])).map(r => new Page(r))
     const pathsize = page.pathSplit.length
     for (const d of descendants) {
       const newPath = `/${[...parent.pathSplit, parent.internalId, ...d.pathSplit.slice(pathsize)].join('/')}`
-      await db.update('UPDATE pages SET path = ? WHERE id=?', [newPath, d.internalId])
+      await db.update('UPDATE pages SET path=? WHERE id=?', [newPath, d.internalId])
     }
 
+    // return the newly updated page
     return new Page(await db.getrow('SELECT * FROM pages WHERE id=?', [page.internalId]))
   })
 }

@@ -38,6 +38,7 @@ export class Page {
   pagetreeId: string
   path: string
   pathSplit: number[]
+  displayOrder: number
   parentInternalId?: number
   dataId: string
 
@@ -49,6 +50,7 @@ export class Page {
     this.path = row.path
     this.pathSplit = row.path.split(/\//).filter(isNotBlank).map(Number)
     this.parentInternalId = this.pathSplit[this.pathSplit.length - 1]
+    this.displayOrder = row.displayOrder
     this.dataId = row.dataId
     this.linkId = row.linkId
     this.deleted = isNotNull(row.deletedAt)
