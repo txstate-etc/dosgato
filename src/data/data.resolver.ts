@@ -4,8 +4,8 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphq
 import { DataFolder, DataFolderService } from '../datafolder'
 import { Role } from '../role'
 import { JsonData } from '../scalars/jsondata'
-import { Site } from '../site'
-import { Template } from '../template'
+import { Site, SiteService } from '../site'
+import { Template, TemplateService } from '../template'
 import { User, UserService } from '../user'
 import { ObjectVersion } from '../version'
 import { VersionedService } from '../versionedservice'
@@ -37,7 +37,12 @@ export class DataResolver {
 
   @FieldResolver(returns => Template, { description: 'Data are created with a template that defines the schema and provides an editing dialog. The template never changes (except as part of an upgrade task).' })
   async template (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    // TODO: Is there another way to get this?
+    const versioned = await ctx.svc(VersionedService).get(data.dataId)
+    const indexes = await ctx.svc(VersionedService).getIndexes(data.dataId, versioned!.version)
+    const templateKeyIndex = indexes.find(i => i.name === 'templateKey')
+    const templateKey = templateKeyIndex!.values[0]
+    return await ctx.svc(TemplateService).findByKey(templateKey)
   }
 
   @FieldResolver(returns => DataFolder, { nullable: true, description: 'Parent folder containing the data entry. Null if the data exists at the global or site root. In the data area, there is only one level of folders for organization - folders do not contain more folders.' })
@@ -48,12 +53,14 @@ export class DataResolver {
 
   @FieldResolver(returns => Site, { nullable: true, description: 'The site to which this data entry belongs. Data can be shared across sites, but one site is still the owner. Null if the data is global (not associated with any site).' })
   async site (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    if (isNull(data.siteId)) return null
+    else return await ctx.svc(SiteService).findById(data.siteId)
   }
 
   @FieldResolver(returns => Boolean, { description: 'True if the data entry has a version marked as published.' })
   async published (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    const published = await ctx.svc(VersionedService).get(data.dataId, { tag: 'published' })
+    return (typeof published) !== 'undefined'
   }
 
   @FieldResolver(returns => DateTime)
@@ -87,7 +94,8 @@ export class DataResolver {
 
   @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all versions of this data entry. One of the version numbers can be passed to the data property in order to retrieve that version.' })
   async versions (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    const versions = await ctx.svc(VersionedService).listVersions(data.dataId)
+    return versions.map(v => new ObjectVersion(v))
   }
 
   @FieldResolver(returns => DataPermissions, {

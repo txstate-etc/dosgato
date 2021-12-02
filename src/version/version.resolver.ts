@@ -1,18 +1,20 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context } from '@txstate-mws/graphql-server'
 import { Ctx, FieldResolver, Resolver, Root } from 'type-graphql'
 import { JsonData } from '../scalars/jsondata'
-import { User } from '../user'
+import { User, UserService } from '../user'
 import { ObjectVersion } from './version.model'
+import { VersionedService } from '../versionedservice'
 
 @Resolver(of => ObjectVersion)
 export class VersionResolver {
   @FieldResolver(returns => User, { description: 'The user whose action created this version.' })
   async user (@Ctx() ctx: Context, @Root() version: ObjectVersion) {
-    throw new UnimplementedError()
+    return await ctx.svc(UserService).findById(version.userId)
   }
 
   @FieldResolver(returns => JsonData, { description: 'The full JSON object as it was when this version was recorded.' })
   async data (@Ctx() ctx: Context, @Root() version: ObjectVersion) {
-    throw new UnimplementedError()
+    const versioned = await ctx.svc(VersionedService).get(version.id, { version: version.version })
+    return versioned!.data
   }
 }

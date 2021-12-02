@@ -58,7 +58,6 @@ export async function getData (filter?: DataFilter) {
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`
   }
-  console.log(query)
   const data = await db.getall(query, binds)
   return data.map(d => new Data(d))
 }
