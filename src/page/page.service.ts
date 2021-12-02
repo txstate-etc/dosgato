@@ -43,7 +43,6 @@ const pagesByInternalIdPathLoader = new OneToManyLoader({
 const pagesByInternalIdPathRecursiveLoader = new OneToManyLoader({
   fetch: async (internalIdPathsRecursive: string[]) => {
     const pages = await getPages({ internalIdPathsRecursive })
-    console.log(pages)
     return pages
   },
   matchKey: (path: string, p: Page) => p.path.startsWith(path),

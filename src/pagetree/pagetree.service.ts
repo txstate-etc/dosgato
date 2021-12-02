@@ -33,7 +33,6 @@ export class PagetreeService extends AuthorizedService {
   }
 
   async findByTemplateId (templateId: number, direct?: boolean) {
-    console.log(templateId)
     return await this.loaders.get(PagetreesByTemplateIdLoader, direct).load(templateId)
   }
 

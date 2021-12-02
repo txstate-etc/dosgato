@@ -5,7 +5,7 @@ import { query } from '../common'
 describe('templates', () => {
   it('should retrieve all templates', async () => {
     const resp = await query('{ templates { key name } }')
-    expect(resp.templates).to.have.lengthOf(9)
+    expect(resp.templates).to.have.lengthOf(10)
   })
   it('should retrieve templates by keys', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp1", "keyc1", "keyd1"] }) { key name } }')
