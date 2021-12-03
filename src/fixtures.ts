@@ -495,11 +495,11 @@ export async function fixtures () {
   }
 
   // TODO: Add more indexes?
-  const data1Id = await createData({ title: 'Red Text', color: 'red', align: 1 }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data1Id = await createData({ title: 'Red Text', color: 'red', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data1Id])
   const dataIdData1 = await db.getval<string>('SELECT dataId FROM data WHERE id = ?', [data1Id])
-  await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 0 }, [{ name: 'templateKey', values: ['keyd1'] }], 'su03', 'updating alignment')
-  await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 2 }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01', 'updating alignment again')
+  await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su03', 'updating alignment')
+  await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 'right' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01', 'updating alignment again')
 
   const data2Id = await createData({ title: 'Blue Text', color: 'blue', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data2Id])

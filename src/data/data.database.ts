@@ -53,7 +53,7 @@ export async function getData (filter?: DataFilter) {
   const { where, binds, joins } = processFilters(filter)
   let query = 'SELECT data.* FROM data'
   if (joins.length) {
-    query += joins.join('\n')
+    query += ` ${joins.join('\n')}`
   }
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`
