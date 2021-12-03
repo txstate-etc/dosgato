@@ -3,7 +3,7 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-g
 import { AssetPermission } from '../asset'
 import { AssetFolder } from '../assetfolder'
 import { Data, DataFilter, DataPermission } from '../data'
-import { DataFolder, DataFolderFilter } from '../datafolder'
+import { DataFolder, DataFolderFilter, DataFolderService } from '../datafolder'
 import { Organization, OrganizationService } from '../organization'
 import { Page, PageFilter, PagePermission, PageService } from '../page'
 import { Pagetree, PagetreeFilter, PagetreeService } from '../pagetree'
@@ -44,8 +44,8 @@ export class SiteResolver {
   }
 
   @FieldResolver(returns => [DataFolder], { description: 'Data folders that belong to this site. There is no root folder since data folders are single-depth.' })
-  async datafolders (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter') filter: DataFolderFilter) {
-    throw new UnimplementedError()
+  async datafolders (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: DataFolderFilter) {
+    return await ctx.svc(DataFolderService).findBySiteId(site.id, filter)
   }
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions anywhere on this site, or any permission if null.' })
