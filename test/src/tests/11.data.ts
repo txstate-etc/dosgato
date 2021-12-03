@@ -3,7 +3,10 @@ import { expect } from 'chai'
 import { query } from '../common'
 
 describe('datafolder', () => {
-  it.skip('should return the user who deleted a datafolder', async () => {
+  it('should return the user who deleted a datafolder', async () => {
+    const resp = await query('{ data(filter: { deleted: true }) { id folder { name deletedBy { id } } } }')
+    const entry = resp.data.find((d: any) => d.folder?.name === 'deletedfolder')
+    expect(entry.folder.deletedBy.id).to.equal('su03')
   })
   it('should return null for the user who deleted a datafolder if that datafolder is not deleted', async () => {
     const resp = await query('{ data(filter: { deleted: false }) { id folder { name deletedBy { id } } } }')
