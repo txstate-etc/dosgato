@@ -91,7 +91,7 @@ export class AssetFilter {
   @Field({ nullable: true, description: 'true -> return assets referenced by any page, false -> return assets not referenced by any page, null -> return all assets' })
   referenced?: boolean
 
-  @Field(type => Boolean, { nullable: false, description: 'true -> return only deleted assets, false -> return only nondeleted assets, null -> return all assets' })
+  @Field(type => Boolean, { nullable: true, description: 'true -> return only deleted assets, false -> return only nondeleted assets, null -> return all assets' })
   deleted?: boolean
 }
 

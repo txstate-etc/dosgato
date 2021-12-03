@@ -57,7 +57,7 @@ export class DataFilter {
   @Field(type => [ID], { nullable: true, description: 'Return data using one of the specified templates.' })
   templateKeys?: string[]
 
-  @Field(type => Boolean, { nullable: false, description: 'true -> return only deleted data, false -> return only nondeleted data, undefined -> return all data' })
+  @Field(type => Boolean, { nullable: true, description: 'true -> return only deleted data, false -> return only nondeleted data, undefined -> return all data' })
   deleted?: boolean
 }
 
