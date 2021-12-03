@@ -467,9 +467,10 @@ export async function fixtures () {
   await createPage('about', site3AboutPageLinkId, pagetree3sandbox, site3SandboxRoot, 1, { title: 'About Site 3' }, indexes)
 
   /* Data */
-  const [datafolder1, datafolder2] = await Promise.all([
+  const [datafolder1, datafolder2, datafolder3] = await Promise.all([
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site2datafolder', nanoid(10), site2, datatemplate1]),
-    db.insert('INSERT INTO datafolders (name, guid, templateId) VALUES (?,?,?)', ['globaldatafolder', nanoid(10), articleTemplate])
+    db.insert('INSERT INTO datafolders (name, guid, templateId) VALUES (?,?,?)', ['globaldatafolder', nanoid(10), articleTemplate]),
+    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deletedAt, deletedBy) VALUES (?,?,?,?,NOW(),?)', ['deletedfolder', nanoid(10), site2, datatemplate1, su03])
   ])
 
   async function createData (content: any, indexes: Index[], creator: string) {
@@ -528,4 +529,8 @@ export async function fixtures () {
     createData({ name: 'Student Center', floors: 4 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01'),
     createData({ name: 'Aquatics Center', floors: 2 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01')
   ])
+
+  // deleted data
+  const deletedDataId = await createData({ title: 'Purple Text', color: 'purple', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su02')
+  await db.update('UPDATE data SET folderId = ?, deletedAt = NOW(), deletedBy = ? WHERE id = ?', [datafolder3, su02, deletedDataId])
 }

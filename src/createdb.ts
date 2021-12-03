@@ -389,6 +389,8 @@ export async function init () {
       `guid` CHAR(10) CHARACTER SET \'ascii\' COLLATE \'ascii_bin\' NOT NULL,\
       `siteId` SMALLINT UNSIGNED, \
       `templateId` SMALLINT UNSIGNED NOT NULL, \
+      `deletedAt` DATETIME, \
+      `deletedBy` MEDIUMINT UNSIGNED, \
       PRIMARY KEY (`id`), \
       CONSTRAINT `FK_datafolders_sites` \
         FOREIGN KEY (`siteId`) \
