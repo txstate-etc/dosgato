@@ -110,11 +110,11 @@ export class PageService extends AuthorizedService {
   /**
    * MUTATIONS
    */
-  async movePage (dataId: string, newParentDataId: string) {
+  async movePage (dataId: string, otherDataId: string, above?: boolean) {
     const resp = new PageResponse()
     // TODO make sure the user is permitted to move the page into the chosen parent
     // they need the move permission on the page and createPage on the parent
-    resp.page = await movePage(dataId, newParentDataId)
+    resp.page = await movePage(dataId, otherDataId, above)
     resp.success = true
     return resp
   }

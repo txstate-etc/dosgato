@@ -154,8 +154,12 @@ export class PageResolver {
   }
 
   @Mutation(returns => PageResponse)
-  async movePage (@Ctx() ctx: Context, @Arg('pageId', type => ID) pageId: string, @Arg('parentId', type => ID) parentId: string) {
-    return await ctx.svc(PageService).movePage(pageId, parentId)
+  async movePage (@Ctx() ctx: Context,
+    @Arg('pageId', type => ID) pageId: string,
+    @Arg('targetId', type => ID) targetId: string,
+    @Arg('above', { nullable: true, description: 'When true, page will be moved above the targeted page, rather than inside it.' }) above: boolean
+  ) {
+    return await ctx.svc(PageService).movePage(pageId, targetId, above)
   }
 
   @Mutation(returns => ValidatedResponse)
