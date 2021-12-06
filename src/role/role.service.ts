@@ -34,7 +34,7 @@ export class RoleService extends AuthorizedService {
     return unique(roles)
   }
 
-  async getRolesByGroup (groupId: string, direct?: boolean) {
+  async findByGroupId (groupId: string, direct?: boolean) {
     const roles = await this.loaders.get(rolesByGroupIdLoader).load(groupId)
     if (typeof direct !== 'undefined' && direct) {
       return roles
@@ -57,21 +57,19 @@ export class RoleService extends AuthorizedService {
   }
 
   async findByUserId (userId: string, direct?: boolean) {
-    const roles = await this.loaders.get(rolesByUserIdLoader).load(userId)
-    if (typeof direct !== 'undefined' && direct) {
-      return roles
+    if (direct) {
+      return await this.loaders.get(rolesByUserIdLoader).load(userId)
     } else {
       // get the user's groups
-      const groups = this.svc(GroupService).findByUserId(userId)
+      const groups = await this.svc(GroupService).findByUserId(userId)
       // get the roles for those groups
-      const result = await Promise.all(
-        (await groups).map(async g => {
-          return await this.loaders.get(rolesByGroupIdLoader).load(g.id)
-        })
-      )
-      const indirectRoles = unique(result.flat())
+      const [roles, ...indirectRolesUnflattened] = await Promise.all([
+        this.loaders.get(rolesByUserIdLoader).load(userId),
+        ...groups.map(async g => await this.loaders.get(rolesByGroupIdLoader).load(g.id))
+      ])
+      const indirectRoles = unique(indirectRolesUnflattened.flat(), 'id')
       if (typeof direct === 'undefined') {
-        return unique([...roles, ...indirectRoles])
+        return unique([...roles, ...indirectRoles], 'id')
       } else {
         return indirectRoles
       }

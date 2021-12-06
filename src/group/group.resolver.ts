@@ -24,7 +24,7 @@ export class GroupResolver {
 
   @FieldResolver(returns => [Role], { description: 'Roles this group has either directly or through a parent group.' })
   async roles (@Ctx() ctx: Context, @Root() group: Group, @Arg('direct', { nullable: true, description: 'true -> only roles added directly, false -> only indirect roles, null -> all roles' }) direct?: boolean) {
-    return await ctx.svc(RoleService).getRolesByGroup(group.id, direct)
+    return await ctx.svc(RoleService).findByGroupId(group.id, direct)
   }
 
   @FieldResolver(returns => [User], { description: 'People who are authorized to add and remove members from the group.' })

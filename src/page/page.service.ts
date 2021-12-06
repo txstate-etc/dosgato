@@ -103,11 +103,11 @@ export class PageService extends DosGatoService {
 
   // authenticated user may create pages underneath given page
   async mayCreate (page: Page) {
-    return true
+    return await this.havePagePerm(page, 'create')
   }
 
   async mayMove (page: Page) {
-    return true
+    return await this.havePagePerm(page, 'move')
   }
 
   async processFilters (filter: PageFilter) {

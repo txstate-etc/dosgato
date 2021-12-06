@@ -1,5 +1,6 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader } from 'dataloader-factory'
+import { Site } from '../site'
 import { getSiteRules } from './siterule.database'
 import { SiteRule, SiteRuleFilter } from './siterule.model'
 
@@ -12,8 +13,13 @@ const siteRulesByRoleLoader = new OneToManyLoader({
 })
 
 export class SiteRuleService extends AuthorizedService {
-  async getRules (roleId: string, filter?: SiteRuleFilter) {
+  async findByRoleId (roleId: string, filter?: SiteRuleFilter) {
     return await this.loaders.get(siteRulesByRoleLoader, filter).load(roleId)
+  }
+
+  async applies (rule: SiteRule, site: Site) {
+    if (rule.siteId && rule.siteId !== site.id) return false
+    return true
   }
 
   async mayView (): Promise<boolean> {

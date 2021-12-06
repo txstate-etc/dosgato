@@ -25,7 +25,7 @@ export class RoleResolver {
 
   @FieldResolver(returns => [SiteRule])
   async siteRules (@Ctx() ctx: Context, @Root() role: Role, @Arg('filter', { nullable: true }) filter?: SiteRuleFilter) {
-    return await ctx.svc(SiteRuleService).getRules(role.id, filter)
+    return await ctx.svc(SiteRuleService).findByRoleId(role.id, filter)
   }
 
   @FieldResolver(returns => [AssetRule])
@@ -40,7 +40,7 @@ export class RoleResolver {
 
   @FieldResolver(returns => [PageRule])
   async pageRules (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(PageRuleService).getRules(role.id)
+    return await ctx.svc(PageRuleService).findByRoleId(role.id)
   }
 
   @FieldResolver(returns => [TemplateRule])

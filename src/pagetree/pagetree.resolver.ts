@@ -12,7 +12,7 @@ import { Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, Pa
 export class PagetreeResolver {
   @FieldResolver(returns => Site)
   async site (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
-    return await ctx.svc(SiteService).findById(String(pagetree.siteId))
+    return await ctx.svc(SiteService).findById(pagetree.siteId)
   }
 
   @FieldResolver(returns => [Page])
