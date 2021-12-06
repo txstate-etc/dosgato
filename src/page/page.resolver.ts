@@ -46,10 +46,12 @@ export class PageResolver {
 
   @FieldResolver(returns => [Page], { description: 'Starts with the parent page and proceeds upward. Last element will be the pagetree\'s root page. Empty array if current page is the root page of a pagetree.' })
   async ancestors (@Ctx() ctx: Context, @Root() page: Page) {
-    if (isNull(page.parentInternalId)) return []
-    else {
-      return await ctx.svc(PageService).getPageAncestors(page)
-    }
+    return await ctx.svc(PageService).getPageAncestors(page)
+  }
+
+  @FieldResolver(returns => String)
+  async path (@Ctx() ctx: Context, @Root() page: Page) {
+    return await ctx.svc(PageService).getPath(page)
   }
 
   @FieldResolver(returns => Pagetree)
@@ -143,9 +145,9 @@ export class PageResolver {
   }
 
   // Mutations
-  @Mutation(returns => PageResponse, { description: 'Create a new page in a pagetree' })
+  @Mutation(returns => PageResponse, { description: 'Create a new page.' })
   async createPage (@Ctx() ctx: Context, @Arg('args', type => CreatePageInput) args: CreatePageInput) {
-    throw new UnimplementedError()
+    // return await ctx.svc(PageService).createPage(args)
   }
 
   @Mutation(returns => PageResponse)
@@ -197,12 +199,12 @@ export class PagePermissionsResolver {
 
   @FieldResolver(returns => Boolean, { description: 'User may rename this page or move it beneath a page for which they have the `create` permission.' })
   async move (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).mayMove(page)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may create or move pages beneath this page.' })
   async create (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).mayCreate(page)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may publish this page either for the first time or to the latest version.' })

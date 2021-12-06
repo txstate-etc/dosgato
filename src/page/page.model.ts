@@ -116,11 +116,14 @@ export class CreatePageInput {
   @Field()
   name!: string
 
-  @Field(type => ID)
-  pagetreeId!: string
+  @Field(type => ID, { description: 'The existing page that will be the new page\'s parent (or sibling, see "above" property).' })
+  targetId!: string
 
-  @Field(type => ID, { nullable: true })
-  parentId?: string
+  @Field({ nullable: true, description: 'When true, the page will be created above the targeted page instead of inside it.' })
+  above?: boolean
+
+  @Field(type => ID, { description: 'All pages must have a template, so we need it upon creation. Further page data will be set later by the page template\'s dialog.' })
+  templateKey!: string
 }
 
 @ObjectType()

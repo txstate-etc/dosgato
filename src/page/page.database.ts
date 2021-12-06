@@ -1,7 +1,10 @@
 import db from 'mysql2-async/db'
 import { Page, PageFilter } from './page.model'
-import { isNotBlank, isNotNull } from 'txstate-utils'
+import { hashify, isNotBlank, isNotNull } from 'txstate-utils'
 import { normalizePath } from '../util'
+import { Queryable } from 'mysql2-async'
+import { nanoid } from 'nanoid'
+import { VersionedService } from '../versionedservice'
 
 async function processFilters (filter: PageFilter) {
   const binds: string[] = []
@@ -100,33 +103,58 @@ async function processFilters (filter: PageFilter) {
   return { binds, where, joins }
 }
 
-export async function getPages (filter: PageFilter) {
+export async function getPages (filter: PageFilter, tdb: Queryable = db) {
   const { binds, where, joins } = await processFilters(filter)
-  const pages = await db.getall(`SELECT pages.* FROM pages
+  const pages = await tdb.getall(`SELECT pages.* FROM pages
                            ${joins.join('\n')}
-                           WHERE (${where.join(') AND (')})
-                           ORDER BY path, displayOrder`, binds)
+                           ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
+                           ORDER BY \`path\`, displayOrder`, binds)
   return pages.map(p => new Page(p))
 }
 
-export async function movePage (dataId: string, otherDataId: string, above?: boolean) {
+async function refetch (db: Queryable, ...pages: (Page|undefined)[]) {
+  const refetched = hashify(await getPages({ internalIds: pages.filter(isNotNull).map(p => p.internalId) }, db), 'internalId')
+  return pages.map(p => refetched[p?.internalId ?? 0])
+}
+
+async function handleDisplayOrder (db: Queryable, parent: Page, aboveTarget: Page) {
+  const pathToParent = `/${[...parent.pathSplit, parent.internalId].join('/')}`
+  let displayOrder
+  if (aboveTarget) {
+    displayOrder = aboveTarget.displayOrder
+    await db.update('UPDATE pages SET displayOrder=displayOrder + 1 WHERE path=? AND displayOrder >= ?', [pathToParent, displayOrder])
+  } else {
+    const maxDisplayOrder = await db.getval<number>('SELECT MAX(displayOrder) FROM pages WHERE path=?', [pathToParent])
+    displayOrder = (maxDisplayOrder ?? 0) + 1
+  }
+  return displayOrder
+}
+
+export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page|undefined, name: string, templateKey: string) {
   return await db.transaction(async db => {
-    // fetch the page and target in one round trip
-    const pages = (await db.getall('SELECT * FROM pages WHERE dataId IN (?,?)', [dataId, otherDataId])).map(r => new Page(r))
+    [parent, aboveTarget] = await refetch(db, parent, aboveTarget)
+    if (aboveTarget && parent.internalId !== aboveTarget.parentInternalId) {
+      throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
+    }
+    const displayOrder = await handleDisplayOrder(db, parent, aboveTarget)
+    const dataId = await versionedService.create('page', { templateKey, savedAtVersion: new Date() }, [{ name: 'template', values: [templateKey] }], userId, db)
+    const newInternalId = await db.insert(`
+      INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
+      VALUES (?,?,?,?,?,?)
+    `, [name, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder, parent.pagetreeId, dataId, nanoid(10)])
+    // return the newly created page
+    return new Page(await db.getrow('SELECT * FROM pages WHERE id=?', [newInternalId]))
+  })
+}
 
-    // identify the page that's getting moved out of the two we fetched
-    const page = pages.find(p => p.dataId === dataId)
-    if (!page) throw new Error('Cannot move page that does not exist.')
-    if (page.pathSplit.length === 0) throw new Error('Root pages cannot be moved.')
+export async function movePage (page: Page, parent: Page, aboveTarget?: Page) {
+  return await db.transaction(async db => {
+    // refetch pages inside transaction for safety
+    [page, parent, aboveTarget] = await refetch(db, page, parent, aboveTarget)
+    if (aboveTarget && parent.internalId !== aboveTarget.parentInternalId) {
+      throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
+    }
 
-    // identify the target page, may be new parent or new sibling depending on "above" parameter
-    const other = pages.find(p => p.dataId === otherDataId)
-    if (!other) throw new Error('Move target does not exist.')
-    if (above && !other.parentInternalId) throw new Error('Cannot move a page above a root page, makes no sense.')
-
-    // resolve the "above" parameter and determine the new parent
-    const parent = above ? new Page(await db.getrow('SELECT * FROM pages WHERE id=?', [other.parentInternalId!])) : other
-    if (!parent) throw new Error('Cannot move page into parent that does not exist.')
     if (parent.path.startsWith(page.path)) throw new Error('Cannot move a page into its own subtree.')
 
     // We cannot allow pages to be moved between pagetrees because linkId collision could occur.
@@ -138,17 +166,7 @@ export async function movePage (dataId: string, otherDataId: string, above?: boo
     if (parent.pagetreeId !== page.pagetreeId) throw new Error('Moving between sites or pagetrees is not allowed. Copy instead.')
 
     // deal with displayOrder
-    const pathToParent = `/${[...parent.pathSplit, parent.internalId].join('/')}`
-    let displayOrder
-    if (above) {
-      displayOrder = other.displayOrder
-      await db.update('UPDATE pages SET displayOrder=displayOrder + 1 WHERE path=? AND displayOrder >= ?', [pathToParent, displayOrder])
-    } else {
-      const maxDisplayOrder = await db.getval<number>('SELECT MAX(displayOrder) FROM pages WHERE path=?', [pathToParent])
-      displayOrder = (maxDisplayOrder ?? 0) + 1
-    }
-
-    // TODO make sure target site/pagetree allows the page template? all component templates?
+    const displayOrder = await handleDisplayOrder(db, parent, aboveTarget)
 
     // update the page itself, currently just displayOrder
     await db.update('UPDATE pages SET displayOrder=? WHERE id=?', [displayOrder, page.internalId])

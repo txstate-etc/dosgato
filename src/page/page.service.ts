@@ -1,12 +1,12 @@
-import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import stringify from 'fast-json-stable-stringify'
 import { Page, PageFilter } from './page.model'
-import { getPages, movePage } from './page.database'
+import { createPage, getPages, movePage } from './page.database'
 import { intersect, isNotNull, unique } from 'txstate-utils'
 import { VersionedService } from '../versionedservice'
-import { PageLinkInput, PageResponse } from '.'
+import { CreatePageInput, PageLinkInput, PageResponse } from '.'
 import { templateRegistry } from '../util/registry'
+import { DosGatoService } from '../util/authservice'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
@@ -49,7 +49,7 @@ const pagesByInternalIdPathRecursiveLoader = new OneToManyLoader({
   idLoader: [pagesByInternalIdLoader, pagesByDataIdLoader]
 })
 
-export class PageService extends AuthorizedService {
+export class PageService extends DosGatoService {
   async find (filter: PageFilter) {
     filter = await this.processFilters(filter)
     if (filter.linkIdsReferenced?.length) {
@@ -92,7 +92,21 @@ export class PageService extends AuthorizedService {
     return await this.findByInternalId(rootId)
   }
 
-  async mayView (): Promise<boolean> {
+  async getPath (page: Page) {
+    const ancestors = await this.getPageAncestors(page)
+    return `/${ancestors.map(a => a.name).join('/')}${ancestors.length ? '/' : ''}${page.name as string}`
+  }
+
+  async mayView () {
+    return true
+  }
+
+  // authenticated user may create pages underneath given page
+  async mayCreate (page: Page) {
+    return true
+  }
+
+  async mayMove (page: Page) {
     return true
   }
 
@@ -110,12 +124,34 @@ export class PageService extends AuthorizedService {
   /**
    * MUTATIONS
    */
-  async movePage (dataId: string, otherDataId: string, above?: boolean) {
-    const resp = new PageResponse()
-    // TODO make sure the user is permitted to move the page into the chosen parent
-    // they need the move permission on the page and createPage on the parent
-    resp.page = await movePage(dataId, otherDataId, above)
-    resp.success = true
-    return resp
+  async movePage (dataId: string, targetId: string, above?: boolean) {
+    const [page, { parent, aboveTarget }] = await Promise.all([this.findById(dataId), this.resolveTarget(targetId, above)])
+    if (!page) throw new Error('Cannot move page that does not exist.')
+    if (!(await this.mayCreate(parent)) || !(await this.mayMove(page))) throw new Error('Current user is not permitted to perform this move.')
+    const newPage = await movePage(page, parent, aboveTarget)
+    return new PageResponse({ success: true, page: newPage })
+  }
+
+  async createPage (args: CreatePageInput) {
+    const { parent, aboveTarget } = await this.resolveTarget(args.targetId, args.above)
+    if (!(await this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
+    // TODO check page template to see if it's permitted
+    const page = await createPage(this.svc(VersionedService), this.auth!.login, parent, aboveTarget, args.name, args.templateKey)
+    return new PageResponse({ success: true, page })
+  }
+
+  /**
+   * Mutation Helpers
+   */
+  async resolveTarget (targetId: string, above?: boolean) {
+    const target = await this.findById(targetId)
+    let parent = target
+    let aboveTarget
+    if (above) {
+      parent = target?.parentInternalId ? await this.findByInternalId(target.parentInternalId) : undefined
+      aboveTarget = target
+    }
+    if (!parent) throw new Error('Target selection not appropriate.')
+    return { parent, aboveTarget }
   }
 }

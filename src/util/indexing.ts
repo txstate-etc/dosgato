@@ -36,11 +36,6 @@ export interface SingleValueIndex {
   value: string
 }
 
-export interface Index {
-  name: string
-  value: string[]
-}
-
 export type LinkIndexTypes = 'link_asset'|'link_page'|'link_hostname'|'link_data'|'link_assetfolder'|'link_datafolder'
 
 export function processLink (link: LinkDefinition) {
