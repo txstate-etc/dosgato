@@ -13,5 +13,4 @@ COPY package.json ./
 RUN npm install --production --no-optional
 COPY --from=build /usr/app/dist dist
 
-ENTRYPOINT [ "npm" ]
-CMD [ "start" ]
+CMD [ "npm", "start" ]
