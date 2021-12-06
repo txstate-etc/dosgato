@@ -136,7 +136,7 @@ export class PageService extends DosGatoService {
     const { parent, aboveTarget } = await this.resolveTarget(args.targetId, args.above)
     if (!(await this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
     // TODO check page template to see if it's permitted
-    const page = await createPage(this.svc(VersionedService), this.auth!.login, parent, aboveTarget, args.name, args.templateKey)
+    const page = await createPage(this.svc(VersionedService), this.auth!.login, parent, aboveTarget, args.name, args.templateKey, args.schemaVersion)
     return new PageResponse({ success: true, page })
   }
 

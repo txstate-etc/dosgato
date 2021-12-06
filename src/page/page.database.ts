@@ -5,6 +5,7 @@ import { normalizePath } from '../util'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { VersionedService } from '../versionedservice'
+import { DateTime } from 'luxon'
 
 async function processFilters (filter: PageFilter) {
   const binds: string[] = []
@@ -130,14 +131,14 @@ async function handleDisplayOrder (db: Queryable, parent: Page, aboveTarget: Pag
   return displayOrder
 }
 
-export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page|undefined, name: string, templateKey: string) {
+export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page|undefined, name: string, templateKey: string, schemaVersion: DateTime) {
   return await db.transaction(async db => {
     [parent, aboveTarget] = await refetch(db, parent, aboveTarget)
     if (aboveTarget && parent.internalId !== aboveTarget.parentInternalId) {
       throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
     }
     const displayOrder = await handleDisplayOrder(db, parent, aboveTarget)
-    const dataId = await versionedService.create('page', { templateKey, savedAtVersion: new Date() }, [{ name: 'template', values: [templateKey] }], userId, db)
+    const dataId = await versionedService.create('page', { templateKey, savedAtVersion: schemaVersion }, [{ name: 'template', values: [templateKey] }], userId, db)
     const newInternalId = await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
       VALUES (?,?,?,?,?,?)

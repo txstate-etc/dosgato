@@ -116,6 +116,9 @@ export class CreatePageInput {
   @Field()
   name!: string
 
+  @Field({ description: 'The current schema version of the admin UI. The new page will be empty, so it may seem unnecessary, but all pages MUST be tagged with a schema version to maintain sanity.' })
+  schemaVersion!: DateTime
+
   @Field(type => ID, { description: 'The existing page that will be the new page\'s parent (or sibling, see "above" property).' })
   targetId!: string
 
