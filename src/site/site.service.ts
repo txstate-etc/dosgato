@@ -17,6 +17,13 @@ const sitesByIdLoader = new PrimaryKeyLoader({
   }
 })
 
+const sitesByAssetRootLoader = new PrimaryKeyLoader({
+  fetch: async (assetRootIds: number[]) => {
+    return await getSites({ assetRootIds })
+  },
+  extractId: site => site.rootAssetFolderInternalId
+})
+
 const sitesByTemplateIdLoader = new ManyJoinedLoader({
   fetch: async (templateIds: number[], atLeastOneTree?: boolean) => {
     return await getSitesByTemplate(templateIds, atLeastOneTree)
@@ -48,6 +55,10 @@ export class SiteService extends AuthorizedService<Site> {
     const pagetree = await this.svc(PagetreeService).findById(pagetreeId)
     if (!pagetree) return undefined
     return await this.findById(pagetree.siteId)
+  }
+
+  async findByAssetRootId (assetFolderId: number) {
+    return await this.loaders.get(sitesByAssetRootLoader).load(assetFolderId)
   }
 
   async mayView (): Promise<boolean> {

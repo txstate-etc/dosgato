@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { isNotNull } from 'txstate-utils'
+import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
 
@@ -20,13 +20,17 @@ export class AssetFolder {
   deletedAt?: DateTime
 
   deletedBy?: number
-  parentInternalId: number
+  path: string
+  pathSplit: number[]
+  parentInternalId?: number
 
   constructor (row: any) {
     this.internalId = row.id
     this.id = row.guid
     this.name = row.name
-    this.parentInternalId = row.parentId
+    this.path = row.path
+    this.pathSplit = row.path.split(/\//).filter(isNotBlank).map(Number)
+    this.parentInternalId = row.pathSplit[row.pathSplit.length - 1]
     this.deleted = isNotNull(row.deleted)
     this.deletedAt = DateTime.fromJSDate(row.deleted)
     this.deletedBy = row.deletedBy

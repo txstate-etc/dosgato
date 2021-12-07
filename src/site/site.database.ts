@@ -7,17 +7,18 @@ const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.
 function processFilters (filter?: SiteFilter) {
   const binds: string[] = []
   const where: string[] = []
-  if (typeof filter !== 'undefined') {
-    if (filter.ids?.length) {
-      where.push(`sites.id IN (${db.in(binds, filter.ids)})`)
+  if (filter?.ids?.length) {
+    where.push(`sites.id IN (${db.in(binds, filter.ids)})`)
+  }
+  if (filter?.launched != null) {
+    if (filter.launched) {
+      where.push('sites.launchHost IS NOT NULL')
+    } else {
+      where.push('sites.launchHost IS NULL')
     }
-    if (isNotNull(filter.launched)) {
-      if (filter.launched) {
-        where.push('sites.launchHost IS NOT NULL')
-      } else {
-        where.push('sites.launchHost IS NULL')
-      }
-    }
+  }
+  if (filter?.assetRootIds?.length) {
+    where.push(`sites.rootAssetFolderId IN ${db.in(binds, filter.assetRootIds)}`)
   }
   return { where, binds }
 }

@@ -74,6 +74,8 @@ export class SiteFilter {
 
   @Field({ nullable: true, description: 'Return sites that are currently launched (i.e. they are publicly available at a specified URL other than the editing host).' })
   launched?: boolean
+
+  assetRootIds?: number[]
 }
 
 @InputType()

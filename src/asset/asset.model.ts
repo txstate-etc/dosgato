@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { JsonData } from '../scalars/jsondata'
+import { UrlSafeString } from '../scalars/urlsafestring'
 
 @ObjectType({ description: 'Asset attributes only available for visual inline assets like images, animated GIFS, or videos.' })
 export class BoxAttributes {
@@ -29,7 +30,7 @@ export class Asset {
   id: string
 
   @Field({ description: 'Filename that will be used when downloading the asset. Does not include an extension. May be different than the filename of the original upload.' })
-  name: string
+  name: UrlSafeString
 
   @Field({ description: 'Filesize in bytes.' })
   size: number

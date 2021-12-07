@@ -3,3 +3,7 @@ export function normalizePath (path: string) {
     .replace(/[^/]*\/\.\./, '').replace(/\/+/, '/')
     .replace(/\.\w{1,12}$/i, '')
 }
+
+export function appendPath (a: string, b: string) {
+  return `${a}${a === '/' ? '' : '/'}${b}`
+}

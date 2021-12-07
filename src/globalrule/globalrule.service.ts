@@ -15,6 +15,10 @@ export class GlobalRuleService extends AuthorizedService {
     return await this.loaders.get(globalRulesByRoleLoader).load(roleId)
   }
 
+  async applies (rule: GlobalRule) {
+    return true // global rules always apply but we provide this function to match coding style of other rules
+  }
+
   async mayView (): Promise<boolean> {
     return true
   }

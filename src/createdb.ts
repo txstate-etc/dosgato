@@ -29,15 +29,13 @@ export async function init () {
       CREATE TABLE IF NOT EXISTS `assetfolders` ( \
         `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \
         `siteId` SMALLINT UNSIGNED NOT NULL COMMENT 'for lookup convenience, not canonical', \
-        `parentId` MEDIUMINT UNSIGNED, \
+        `path` TEXT NOT NULL, \
         `name` VARCHAR(255) NOT NULL, \
         `guid` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
         `deletedAt` DATETIME, \
         `deletedBy` MEDIUMINT UNSIGNED, \
         PRIMARY KEY (`id`), \
-        CONSTRAINT `FK_assetfolders_assetfolders` \
-          FOREIGN KEY (`parentId`) \
-          REFERENCES `assetfolders` (`id`), \
+        INDEX `path_idx` (`path`(255)), \
         CONSTRAINT `FK_assetfolders_users` \
           FOREIGN KEY (`deletedBy`) \
           REFERENCES `users` (`id`)) \
@@ -127,13 +125,12 @@ export async function init () {
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `name` VARCHAR(255) NOT NULL, \
       `folderId` MEDIUMINT UNSIGNED NOT NULL, \
-      `path` VARCHAR(255) NOT NULL COMMENT 'does not include name. not canonical, here for fast lookups', \
       `dataId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL, \
       `shasum` CHAR(40) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `deletedAt` DATETIME, \
       `deletedBy` MEDIUMINT UNSIGNED, \
       PRIMARY KEY (`id`), \
-      INDEX `path_idx` (`path`, `name`), \
+      INDEX `name_idx` (`name`), \
       CONSTRAINT `FK_assets_assetfolders` \
         FOREIGN KEY (`folderId`) \
         REFERENCES `assetfolders` (`id`), \
