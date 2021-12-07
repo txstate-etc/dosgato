@@ -1,8 +1,8 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import { Group, GroupService } from '../group'
 import { Role, RoleService } from '../role'
-import { User, UserFilter, UserPermissions } from './user.model'
+import { User, UserFilter, UserPermissions, UserResponse, UpdateUserInput } from './user.model'
 
 import { UserService } from './user.service'
 
@@ -26,6 +26,21 @@ export class UserResolver {
   @FieldResolver(returns => UserPermissions)
   permissions (@Root() user: User) {
     return user
+  }
+
+  @Mutation(returns => UserResponse)
+  async updateUser (@Ctx() ctx: Context, @Arg('args', type => UpdateUserInput) args: UpdateUserInput) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => UserResponse)
+  async disableUser (@Ctx() ctx: Context) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => UserResponse)
+  async enableUser (@Ctx() ctx: Context) {
+    throw new UnimplementedError()
   }
 }
 

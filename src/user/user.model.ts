@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 
 @ObjectType()
 export class User {
@@ -46,6 +47,26 @@ export class UserFilter {
 
   @Field({ nullable: true, description: 'When specified, get rid of any users that became disabled before the given date. Typically used to hide long-disabled users.' })
   hideDisabledBefore?: DateTime
+}
+
+@InputType()
+export class UpdateUserInput {
+  @Field()
+  name!: string
+
+  @Field()
+  email!: string
+}
+
+@ObjectType()
+export class UserResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  user?: User
+
+  constructor (config?: ValidatedResponseArgs & { user?: User }) {
+    super(config ?? {})
+    this.user = config?.user
+  }
 }
 
 @ObjectType()
