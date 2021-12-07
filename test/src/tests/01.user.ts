@@ -28,7 +28,7 @@ describe('users', () => {
   it('should retrieve users who are disabled in the system', async () => {
     const { users } = await query('{ users(filter: { enabled: false }) { id, name, email } }')
     const found = users.some((user: any) => {
-      return user.id === 'ed02'
+      return user.id === 'ed08'
     })
     expect(found).to.be.true
   })
@@ -36,7 +36,7 @@ describe('users', () => {
     const { users } = await query('{ users(filter: { enabled: true }) { id, name, email } }')
     expect(users.length).to.be.greaterThan(0)
     const found = users.some((user: any) => {
-      return user.id === 'ed02'
+      return user.id === 'ed08'
     })
     expect(found).to.be.false
   })
