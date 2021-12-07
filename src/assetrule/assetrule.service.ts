@@ -11,7 +11,7 @@ const assetRulesByRoleLoader = new OneToManyLoader({
 })
 
 export class AssetRuleService extends AuthorizedService {
-  async getRules (roleId: string) {
+  async findByRoleId (roleId: string) {
     return await this.loaders.get(assetRulesByRoleLoader).load(roleId)
   }
 

@@ -11,7 +11,7 @@ const dataRulesByRoleLoader = new OneToManyLoader({
 })
 
 export class DataRuleService extends AuthorizedService {
-  async getRules (roleId: string) {
+  async findByRoleId (roleId: string) {
     return await this.loaders.get(dataRulesByRoleLoader).load(roleId)
   }
 

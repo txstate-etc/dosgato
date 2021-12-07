@@ -20,7 +20,7 @@ export class RoleResolver {
 
   @FieldResolver(returns => [GlobalRule])
   async globalRules (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(GlobalRuleService).getRules(role.id)
+    return await ctx.svc(GlobalRuleService).findByRoleId(role.id)
   }
 
   @FieldResolver(returns => [SiteRule])
@@ -30,12 +30,12 @@ export class RoleResolver {
 
   @FieldResolver(returns => [AssetRule])
   async assetRules (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(AssetRuleService).getRules(role.id)
+    return await ctx.svc(AssetRuleService).findByRoleId(role.id)
   }
 
   @FieldResolver(returns => [DataRule])
   async dataRules (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(DataRuleService).getRules(role.id)
+    return await ctx.svc(DataRuleService).findByRoleId(role.id)
   }
 
   @FieldResolver(returns => [PageRule])
@@ -45,7 +45,7 @@ export class RoleResolver {
 
   @FieldResolver(returns => [TemplateRule])
   async templateRules (@Ctx() ctx: Context, @Root() role: Role, @Arg('filter', { nullable: true }) filter?: TemplateRuleFilter) {
-    return await ctx.svc(TemplateRuleService).getRules(role.id, filter)
+    return await ctx.svc(TemplateRuleService).findByRoleId(role.id, filter)
   }
 
   @FieldResolver(returns => [User], { description: 'Returns a list of all users related to the role, either directly or through a group.' })

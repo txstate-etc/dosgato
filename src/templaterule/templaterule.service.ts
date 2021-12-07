@@ -12,7 +12,7 @@ const templateRulesByRoleLoader = new OneToManyLoader({
 })
 
 export class TemplateRuleService extends AuthorizedService {
-  async getRules (roleId: string, filter?: TemplateRuleFilter) {
+  async findByRoleId (roleId: string, filter?: TemplateRuleFilter) {
     return await this.loaders.get(templateRulesByRoleLoader, filter).load(roleId)
   }
 

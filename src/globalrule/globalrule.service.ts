@@ -11,7 +11,7 @@ const globalRulesByRoleLoader = new OneToManyLoader({
 })
 
 export class GlobalRuleService extends AuthorizedService {
-  async getRules (roleId: string) {
+  async findByRoleId (roleId: string) {
     return await this.loaders.get(globalRulesByRoleLoader).load(roleId)
   }
 
