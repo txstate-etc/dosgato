@@ -8,42 +8,40 @@ function processFilters (filter?: DataFilter) {
   const joins: string[] = []
   const joined = new Map<string, boolean>()
 
-  if (typeof filter !== 'undefined') {
-    if (filter.internalIds?.length) {
-      where.push(`data.id IN (${db.in(binds, filter.internalIds)})`)
+  if (filter?.internalIds?.length) {
+    where.push(`data.id IN (${db.in(binds, filter.internalIds)})`)
+  }
+  if (filter?.ids?.length) {
+    where.push(`data.dataId IN (${db.in(binds, filter.ids)})`)
+  }
+  if (isNotNull(filter?.global)) {
+    if (filter?.global) {
+      where.push('data.siteId IS NULL')
+    } else {
+      where.push('data.siteId IS NOT NULL')
     }
-    if (filter.ids?.length) {
-      where.push(`data.dataId IN (${db.in(binds, filter.ids)})`)
+  }
+  if (filter?.folderIds?.length) {
+    where.push(`datafolders.guid IN (${db.in(binds, filter.folderIds)})`)
+    if (!joined.has('datafolders')) {
+      joins.push('INNER JOIN datafolders on data.folderId = datafolders.id')
+      joined.set('datafolders', true)
     }
-    if (isNotNull(filter.global)) {
-      if (filter.global) {
-        where.push('data.siteId IS NULL')
-      } else {
-        where.push('data.siteId IS NOT NULL')
-      }
-    }
-    if (filter.folderIds?.length) {
-      where.push(`datafolders.guid IN (${db.in(binds, filter.folderIds)})`)
-      if (!joined.has('datafolders')) {
-        joins.push('INNER JOIN datafolders on data.folderId = datafolders.id')
-        joined.set('datafolders', true)
-      }
-    }
-    if (filter.folderInternalIds?.length) {
-      where.push(`data.folderId IN (${(db.in(binds, filter.folderInternalIds))})`)
-    }
-    if (filter.siteIds?.length) {
-      where.push(`data.siteId IN (${db.in(binds, filter.siteIds)})`)
-    }
-    if (filter.templateKeys?.length) {
-      // TODO: look this up using VersionedService?
-    }
-    if (isNotNull(filter.deleted)) {
-      if (filter.deleted) {
-        where.push('data.deletedAt IS NOT NULL')
-      } else {
-        where.push('data.deletedAt IS NULL')
-      }
+  }
+  if (filter?.folderInternalIds?.length) {
+    where.push(`data.folderId IN (${(db.in(binds, filter.folderInternalIds))})`)
+  }
+  if (filter?.siteIds?.length) {
+    where.push(`data.siteId IN (${db.in(binds, filter.siteIds)})`)
+  }
+  if (filter?.templateKeys?.length) {
+    // TODO: look this up using VersionedService?
+  }
+  if (isNotNull(filter?.deleted)) {
+    if (filter?.deleted) {
+      where.push('data.deletedAt IS NOT NULL')
+    } else {
+      where.push('data.deletedAt IS NULL')
     }
   }
   return { where, binds, joins }
