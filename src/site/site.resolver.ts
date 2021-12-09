@@ -2,7 +2,7 @@ import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import { AssetPermission } from '../asset'
 import { AssetFolder } from '../assetfolder'
-import { Data, DataFilter, DataPermission } from '../data'
+import { Data, DataFilter, DataPermission, DataService } from '../data'
 import { DataFolder, DataFolderFilter, DataFolderService } from '../datafolder'
 import { Organization, OrganizationService } from '../organization'
 import { Page, PageFilter, PagePermission, PageService } from '../page'
@@ -40,7 +40,7 @@ export class SiteResolver {
 
   @FieldResolver(returns => [Data])
   async data (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: DataFilter) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).findBySiteId(site.id, filter)
   }
 
   @FieldResolver(returns => [DataFolder], { description: 'Data folders that belong to this site. There is no root folder since data folders are single-depth.' })

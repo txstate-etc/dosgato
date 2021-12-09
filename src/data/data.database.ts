@@ -56,6 +56,7 @@ export async function getData (filter?: DataFilter) {
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`
   }
+  query += ' ORDER BY folderId, displayOrder'
   const data = await db.getall(query, binds)
   return data.map(d => new Data(d))
 }

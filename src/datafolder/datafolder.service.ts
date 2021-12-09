@@ -14,7 +14,7 @@ const dataFoldersBySiteIdLoader = new OneToManyLoader({
   fetch: async (siteIds: string[], filter?: DataFolderFilter) => {
     return await getDataFolders({ ...filter, siteIds })
   },
-  extractKey: (d: DataFolder) => d.siteId,
+  extractKey: (d: DataFolder) => d.siteId!,
   keysFromFilter: (filter: DataFolderFilter | undefined) => filter?.siteIds ?? []
 })
 
@@ -25,6 +25,10 @@ export class DataFolderService extends AuthorizedService {
 
   async findBySiteId (siteId: string, filter?: DataFolderFilter) {
     return await this.loaders.get(dataFoldersBySiteIdLoader, filter).load(siteId)
+  }
+
+  async getPath (folder: DataFolder) {
+    return '/' + (folder.name as string)
   }
 
   async mayView (folder: DataFolder): Promise<boolean> {

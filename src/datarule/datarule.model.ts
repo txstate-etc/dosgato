@@ -51,8 +51,8 @@ export class DataRule {
   @Field({ description: 'Permissions granted by this rule.' })
   grants: DataRuleGrants
 
-  @Field({ nullable: true, description: 'Folder to which this rule should apply. We take a path so that it could apply to the same folder name in multiple sites or multiple template types, if site or template is left null.' })
-  path?: string
+  @Field({ description: 'Folder to which this rule should apply. We take a path so that it could apply to the same folder name in multiple sites or multiple template types, if site or template is left null.' })
+  path: string
 
   templateId?: number
   roleId: string

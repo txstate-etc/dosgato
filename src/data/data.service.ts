@@ -1,16 +1,39 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
-import { OneToManyLoader } from 'dataloader-factory'
+import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Data, DataFilter } from './data.model'
 import { getData } from './data.database'
 import { VersionedService } from '../versionedservice'
 import { unique } from 'txstate-utils'
+import { DataFolderService } from '../datafolder'
+import { appendPath } from '../util'
+
+const dataByInternalIdLoader = new PrimaryKeyLoader({
+  fetch: async (internalIds: number[]) => await getData({ internalIds }),
+  extractId: item => item.internalId
+})
+
+const dataByIdLoader = new PrimaryKeyLoader({
+  fetch: async (ids: string[]) => await getData({ ids }),
+  idLoader: dataByInternalIdLoader
+})
+dataByInternalIdLoader.addIdLoader(dataByIdLoader)
 
 const dataByFolderInternalIdLoader = new OneToManyLoader({
   fetch: async (folderInternalIds: number[], filter?: DataFilter) => {
     return await getData({ ...filter, folderInternalIds })
   },
   extractKey: (item: Data) => item.folderInternalId!,
-  keysFromFilter: (filter: DataFilter | undefined) => filter?.folderInternalIds ?? []
+  keysFromFilter: (filter: DataFilter | undefined) => filter?.folderInternalIds ?? [],
+  idLoader: [dataByInternalIdLoader, dataByIdLoader]
+})
+
+const dataBySiteIdLoader = new OneToManyLoader({
+  fetch: async (siteIds: string[], filter?: DataFilter) => {
+    return await getData({ ...filter, siteIds })
+  },
+  extractKey: (item: Data) => item.siteId!,
+  keysFromFilter: (filter: DataFilter | undefined) => filter?.siteIds ?? [],
+  idLoader: [dataByInternalIdLoader, dataByIdLoader]
 })
 
 export class DataService extends AuthorizedService {
@@ -23,8 +46,19 @@ export class DataService extends AuthorizedService {
     return await this.loaders.get(dataByFolderInternalIdLoader, filter).load(folderId)
   }
 
+  async findBySiteId (siteId: string, filter?: DataFilter) {
+    return await this.loaders.get(dataBySiteIdLoader, filter).load(siteId)
+  }
+
   async mayView (data: Data): Promise<boolean> {
     return true
+  }
+
+  async getPath (data: Data) {
+    if (!data.folderInternalId) return '/'
+    const folder = await this.svc(DataFolderService).findByInternalId(data.folderInternalId)
+    const folderPath = await this.svc(DataFolderService).getPath(folder!)
+    return appendPath(folderPath, data.name as string)
   }
 
   async processFilters (filter: DataFilter) {

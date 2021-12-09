@@ -2,6 +2,8 @@ import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { filterAsync } from 'txstate-utils'
 import { Asset } from '../asset'
 import { AssetRuleService, AssetRuleGrants } from '../assetrule'
+import { Data } from '../data'
+import { DataRuleService, DataRuleGrants } from '../datarule'
 import { GlobalRuleService, GlobalRuleGrants } from '../globalrule'
 import { Page } from '../page'
 import { PageRuleService, PageRuleGrants } from '../pagerule'
@@ -68,6 +70,18 @@ export abstract class DosGatoService extends AuthorizedService<{ login: string }
     const rules = await this.currentAssetRules()
     const assetRuleService = this.svc(AssetRuleService)
     const applicable = await filterAsync(rules, async r => await assetRuleService.applies(r, asset))
+    return applicable.some(r => r.grants[grant])
+  }
+
+  async currentDataRules () {
+    const roles = await this.currentRoles()
+    return (await Promise.all(roles.map(async r => await this.svc(DataRuleService).findByRoleId(r.id)))).flat()
+  }
+
+  async haveDataPerm (item: Data, grant: keyof DataRuleGrants) {
+    const rules = await this.currentDataRules()
+    const dataRuleService = this.svc(DataRuleService)
+    const applicable = await filterAsync(rules, async r => await dataRuleService.applies(r, item))
     return applicable.some(r => r.grants[grant])
   }
 

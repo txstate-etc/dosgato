@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { isNotNull } from 'txstate-utils'
+import { isNotNull, optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString } from '../scalars/urlsafestring'
 
@@ -20,7 +20,7 @@ export class DataFolder {
   deletedAt?: DateTime
 
   templateId: number
-  siteId: string
+  siteId?: string
   deletedBy?: number
 
   constructor (row: any) {
@@ -28,7 +28,7 @@ export class DataFolder {
     this.id = row.guid
     this.name = row.name
     this.templateId = row.templateId
-    this.siteId = String(row.siteId)
+    this.siteId = optionalString(row.siteId)
     this.deleted = isNotNull(row.deleted)
     this.deletedAt = DateTime.fromJSDate(row.deleted)
     this.deletedBy = row.deletedBy

@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
 import { isNotNull, optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
+import { UrlSafeString } from '../scalars/urlsafestring'
 
 @ObjectType({ description: 'Data are pieces of shareable versioned content with a template and a dialog but not rendering code. The data will be consumed by component templates, each of which will do its own rendering of the data. For example, an Article data type could be displayed by an Article List component or an Article Detail component. In addition, outside services could access the article data directly from GraphQL.' })
 export class Data {
@@ -8,6 +9,9 @@ export class Data {
 
   @Field(type => ID, { description: 'A globally unique identifier for this data. Should be used any time content links to data, so that content can migrate to new instances and point at the same thing.' })
   id: string
+
+  @Field({ description: 'Name for this piece of data, to be displayed in the list view.' })
+  name: UrlSafeString
 
   @Field({ description: 'Data has been soft-deleted but is still recoverable.' })
   deleted: boolean
@@ -19,6 +23,7 @@ export class Data {
   dataId: string
   folderInternalId?: number
   siteId?: string
+  displayOrder: number
 
   // template identifier is NOT a property because it's part of the upgradeable data,
   // we'll have to use the versionedservice indexing to look up data by template id
@@ -26,8 +31,10 @@ export class Data {
   constructor (row: any) {
     this.internalId = row.id
     this.id = row.dataId
+    this.name = row.name
     this.dataId = row.dataId
     this.folderInternalId = row.folderId
+    this.displayOrder = row.displayOrder
     this.siteId = optionalString(row.siteId)
     this.deleted = isNotNull(row.deletedAt)
     this.deletedAt = DateTime.fromJSDate(row.deletedAt)

@@ -228,6 +228,7 @@ export async function init () {
       UNIQUE INDEX `linkId_in_pagetree` (`pagetreeId`, `linkId`), \
       INDEX `linkId_idx` (`linkId`), \
       INDEX `path_idx` (`path`(255), `displayOrder`), \
+      INDEX `name_idx` (`name`(255)), \
       CONSTRAINT `FK_pages_pagetrees` \
         FOREIGN KEY (`pagetreeId`) \
         REFERENCES `pagetrees` (`id`), \
@@ -402,12 +403,16 @@ export async function init () {
     CREATE TABLE IF NOT EXISTS `data` ( \
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `dataId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `name` VARCHAR(255) NOT NULL, \
+      `displayOrder` SMALLINT UNSIGNED NOT NULL, \
       `siteId` SMALLINT UNSIGNED, \
       `folderId` MEDIUMINT UNSIGNED, \
       `deletedAt` DATETIME, \
       `deletedBy` MEDIUMINT UNSIGNED, \
       PRIMARY KEY (`id`), \
       UNIQUE INDEX `data_UNIQUE` (`dataId`), \
+      INDEX `folder_idx` (`folderId`, `displayOrder`), \
+      INDEX `name_idx` (`name`(255)), \
       CONSTRAINT `FK_data_users` \
         FOREIGN KEY (`deletedBy`) \
         REFERENCES `users` (`id`), \
