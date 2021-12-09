@@ -48,7 +48,7 @@ export async function fixtures () {
     await db.execute('SET FOREIGN_KEY_CHECKS = 1')
   })
 
-  const [su01, su02, su03, ed01, ed02, ed03, ed04, ed05, ed06, ed07, inactive1] = await Promise.all([
+  const [su01, su02, su03, ed01, ed02, ed03, ed04, ed05, ed06, ed07, inactive1, ed08] = await Promise.all([
     db.insert('INSERT INTO users (login, name, email, lastlogin, lastlogout, disabledAt) VALUES ("su01", "Michael Scott", "su01@example.com", null, null, null)'),
     db.insert('INSERT INTO users (login, name, email, lastlogin, lastlogout, disabledAt) VALUES ("su02", "Elizabeth Bennet", "su02@example.com", null, null, null)'),
     db.insert('INSERT INTO users (login, name, email, lastlogin, lastlogout, disabledAt) VALUES ("su03", "Marge Simpson", "su03@example.com", "2021-09-01 12:43:00", "2021-09-01 16:28:00", null)'),
@@ -59,7 +59,8 @@ export async function fixtures () {
     db.insert('INSERT INTO users (login, name, email, lastlogin, lastlogout, disabledAt) VALUES ("ed05", "Jean Valjean", "ed05@example.com", null, null, null)'),
     db.insert('INSERT INTO users (login, name, email, lastlogin, lastlogout, disabledAt) VALUES ("ed06", "Daniel Tiger", "ed06@example.com", null, null, null)'),
     db.insert('INSERT INTO users (login, name, email, lastlogin, lastlogout, disabledAt) VALUES ("ed07", "Jack Skellington", "ed07@example.com", null, null, null)'),
-    db.insert('INSERT INTO users (login, name, email, lastlogin, lastlogout, disabledAt) VALUES("ed08", "Inactive User", "ed08@example.com", null, null, "2021-08-22 15:02:00")')
+    db.insert('INSERT INTO users (login, name, email, lastlogin, lastlogout, disabledAt) VALUES("ed08", "Inactive User", "ed08@example.com", null, null, "2021-08-22 15:02:00")'),
+    db.insert('INSERT INTO users (login, name, email) VALUES ("ed09", "Oscar Grouch", "ed09@example.com")')
   ])
   const [group1, group2, group3, group4, group5, group6, group7] = await Promise.all([
     db.insert('INSERT INTO groups (name) VALUES ("group1")'),
@@ -158,6 +159,7 @@ export async function fixtures () {
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed06, site2siterulestest1]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed07, templaterulestest1]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed07, templaterulestest2]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed08, site3editorRole]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group3, site2editorRole]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group1, site3editorRole]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group3, editorRole]),
@@ -474,12 +476,12 @@ export async function fixtures () {
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deletedAt, deletedBy) VALUES (?,?,?,?,NOW(),?)', ['deletedfolder', nanoid(10), site2, datatemplate1, su03])
   ])
 
-  async function createData (content: any, indexes: Index[], creator: string) {
+  async function createData (name: string, displayOrder: number, content: any, indexes: Index[], creator: string) {
     const ctx = new Context()
     const versionedService = new VersionedService(ctx)
     const id = await db.transaction(async db => {
       const dataId = await versionedService.create('testdata_data', content, indexes, creator)
-      return await db.insert('INSERT INTO data (dataId) VALUES (?)', [dataId])
+      return await db.insert('INSERT INTO data (dataId, name, displayOrder) VALUES (?, ?, ?)', [dataId, name, displayOrder])
     })
     return id
   }
@@ -497,41 +499,41 @@ export async function fixtures () {
   }
 
   // TODO: Add more indexes?
-  const data1Id = await createData({ title: 'Red Text', color: 'red', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data1Id = await createData('Red Content', 1, { title: 'Red Text', color: 'red', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data1Id])
   const dataIdData1 = await db.getval<string>('SELECT dataId FROM data WHERE id = ?', [data1Id])
   await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su03', 'updating alignment')
   await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 'right' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01', 'updating alignment again')
 
-  const data2Id = await createData({ title: 'Blue Text', color: 'blue', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data2Id = await createData('Blue Content', 2, { title: 'Blue Text', color: 'blue', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data2Id])
 
-  const data3Id = await createData({ title: 'Orange Text', color: 'orange', align: 'right' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data3Id = await createData('Orange Content', 3, { title: 'Orange Text', color: 'orange', align: 'right' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ?, deletedAt = NOW(), deletedBy = ? WHERE id = ?', [site2, datafolder1, su01, data3Id])
 
-  const data4Id = await createData({ title: 'Green Text', color: 'green', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data4Id = await createData('Green Content', 4, { title: 'Green Text', color: 'green', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data4Id])
 
   // some global data that does not belong to a site
-  const article1Id = await createData({ title: '5 Steps to a Cleaner Car', author: 'Jane Doe' }, [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
+  const article1Id = await createData('Car Cleaning', 1, { title: '5 Steps to a Cleaner Car', author: 'Jane Doe' }, [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article1Id])
   const dataIdArticle1 = await db.getval<string>('SELECT dataId FROM data WHERE id = ?', [article1Id])
   await tagData(dataIdArticle1!, 'published', 1, 'su02')
 
-  const article2Id = await createData({ title: 'Trees of Central Texas', author: 'John Smith' }, [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
+  const article2Id = await createData('Trees', 2, { title: 'Trees of Central Texas', author: 'John Smith' }, [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article2Id])
 
-  const article3Id = await createData({ title: 'The Secret Lives of Ladybugs', author: 'Jack Frost' }, [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
+  const article3Id = await createData('Ladybugs', 3, { title: 'The Secret Lives of Ladybugs', author: 'Jack Frost' }, [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article3Id])
 
   // data not in a folder
   await Promise.all([
-    createData({ name: 'Cottonwood Hall', floors: 3 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01'),
-    createData({ name: 'Student Center', floors: 4 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01'),
-    createData({ name: 'Aquatics Center', floors: 2 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01')
+    createData('Cottonwood Hall', 1, { name: 'Cottonwood Hall', floors: 3 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01'),
+    createData('Student Center', 2, { name: 'Student Center', floors: 4 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01'),
+    createData('Aquatics Center', 3, { name: 'Aquatics Center', floors: 2 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01')
   ])
 
   // deleted data
-  const deletedDataId = await createData({ title: 'Purple Text', color: 'purple', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su02')
+  const deletedDataId = await createData('Purple Content', 5, { title: 'Purple Text', color: 'purple', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su02')
   await db.update('UPDATE data SET folderId = ?, deletedAt = NOW(), deletedBy = ? WHERE id = ?', [datafolder3, su02, deletedDataId])
 }
