@@ -1,17 +1,9 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Group, GroupFilter, GroupResponse } from './group.model'
-import { getGroups, getGroupsWithUser, getGroupRelationships, getGroupsWithRole, groupManagerCache, createGroup } from './group.database'
-import { Cache, unique } from 'txstate-utils'
+import { getGroups, getGroupsWithUser, getGroupsWithRole, groupManagerCache, GroupRelationship, createGroup, parentGroupCache } from './group.database'
+import { unique, filterConcurrent } from 'txstate-utils'
 import { UserService } from '../user'
-
-const parentGroupCache = new Cache(async () => {
-  const rows = await getGroupRelationships()
-  return rows.map(r => new GroupRelationship(r))
-}, {
-  freshseconds: 60 * 60,
-  staleseconds: 24 * 60 * 60
-})
 
 const groupsByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -66,17 +58,24 @@ export class GroupService extends AuthorizedService<Group> {
   }
 
   async findByRoleId (roleId: string, direct?: boolean, filter?: GroupFilter) {
-    const groups = await this.loaders.get(groupsByRoleIdLoader, filter).load(roleId)
-    if (typeof direct !== 'undefined' && direct) {
-      return groups
+    if (direct) {
+      return await this.loaders.get(groupsByRoleIdLoader, filter).load(roleId)
     } else {
+      // need to get all of the groups and subgroups and THEN filter them
+      const groups = await this.loaders.get(groupsByRoleIdLoader).load(roleId)
       const groupIds = groups.map(g => g.id)
       const subgroups = await getRelatives(groupIds, 'children')
-      if (typeof direct === 'undefined') {
-        return unique([...groups, ...subgroups])
-      } else {
-        return subgroups
+      let ret = (typeof direct === 'undefined') ? unique([...groups, ...subgroups]) : subgroups
+      if (filter?.ids?.length) {
+        ret = ret.filter(sg => filter.ids?.includes(sg.id))
       }
+      if (filter?.managerIds?.length) {
+        ret = await filterConcurrent(ret, async (sg) => {
+          const managers = await this.getGroupManagers(sg.id)
+          return managers.some(manager => filter.managerIds?.includes(manager.id))
+        })
+      }
+      return ret
     }
   }
 
@@ -138,19 +137,5 @@ const visit = function (groupId: string, visited: Map<string, boolean>, groupCac
   }
   for (const group of related) {
     visit(group, visited, groupCache, false, direction)
-  }
-}
-
-class GroupRelationship {
-  parentId: string
-  parentName: string
-  childId: string
-  childName: string
-
-  constructor (row: any) {
-    this.parentId = String(row.parentId)
-    this.parentName = row.parentName
-    this.childId = String(row.childId)
-    this.childName = row.childName
   }
 }

@@ -60,4 +60,18 @@ describe('roles', () => {
     expect(role.groups).to.have.lengthOf(1)
     expect(role.groups[0].name).to.equal('group7')
   })
+  it('should retrieve a list of groups related to a role, filtered by group ID', async () => {
+    const { groups } = await query('{ groups { id name } }')
+    const groupIds = groups.filter((g: any) => g.name === 'group1' || g.name === 'group2').map((g: any) => g.id)
+    const resp = await query(`{ roles(filter: { users: ["ed09"] }) { name groups(filter: { ids: ["${groupIds.join('","')}"]}) { id name } } }`)
+    const site3role = resp.roles.find((r: any) => r.name === 'site3-editor')
+    for (const group of site3role.groups) {
+      expect(['group1', 'group2']).to.include(group.name)
+    }
+  })
+  it('should retrieve a list of groups related to a role, filtered by manager ID', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed09"] }) { name groups(filter: { managerIds: ["su01", "ed02"]}) { id name } } }')
+    const site3role = resp.roles.find((r: any) => r.name === 'site3-editor')
+    expect(site3role.groups.map((g: any) => g.name)).to.have.members(['group1', 'group3'])
+  })
 })
