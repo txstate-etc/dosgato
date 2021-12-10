@@ -1,9 +1,9 @@
-import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { RoleFilter } from './role.model'
+import { Role, RoleFilter } from './role.model'
 import { getRoles, getRolesWithGroup, getRolesForUsers } from './role.database'
 import { unique } from 'txstate-utils'
 import { GroupService } from '../group'
+import { DosGatoService } from '../util/authservice'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -25,7 +25,7 @@ const rolesByUserIdLoader = new ManyJoinedLoader({
   idLoader: rolesByIdLoader
 })
 
-export class RoleService extends AuthorizedService {
+export class RoleService extends DosGatoService {
   async find (filter: RoleFilter) {
     const roles = await getRoles(filter)
     for (const role of roles) {
@@ -80,7 +80,11 @@ export class RoleService extends AuthorizedService {
     return await this.loaders.get(rolesByIdLoader).load(roleId)
   }
 
-  async mayView (): Promise<boolean> {
+  async mayView (role: Role): Promise<boolean> {
     return true
+  }
+
+  async mayCreateRules (role: Role) {
+    return await this.haveGlobalPerm('manageUsers')
   }
 }

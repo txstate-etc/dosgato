@@ -45,7 +45,7 @@ export class PageRuleResolver {
 
 @Resolver(of => PageRulePermissions)
 export class PageRulePermissionsResolver {
-  @FieldResolver(returns => Boolean, { description: 'User may edit the pagetree, path, or grants on this rule.' })
+  @FieldResolver(returns => Boolean, { description: 'User may edit the pagetree, path, or grants on this rule.\n\nThis will be false if the rule has more power than the user currently has. Even if this is true, the rule may not be upgraded to have more permission than they already have.' })
   async write (@Ctx() ctx: Context, @Root() rule: PageRule) {
     throw new UnimplementedError()
   }

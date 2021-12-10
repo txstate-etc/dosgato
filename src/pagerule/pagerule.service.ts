@@ -1,9 +1,9 @@
-import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader } from 'dataloader-factory'
 import { RulePathMode } from '.'
 import { Page, PageService } from '../page'
 import { PagetreeService } from '../pagetree'
-import { SiteService } from '../site'
+import { DosGatoService } from '../util/authservice'
+import { comparePathsWithMode, tooPowerfulHelper } from '../util/rules'
 import { getPageRules } from './pagerule.database'
 import { PageRule } from './pagerule.model'
 
@@ -14,7 +14,7 @@ const pageRulesByRoleLoader = new OneToManyLoader({
   extractKey: (r: PageRule) => r.roleId
 })
 
-export class PageRuleService extends AuthorizedService {
+export class PageRuleService extends DosGatoService {
   async findByRoleId (roleId: string) {
     return await this.loaders.get(pageRulesByRoleLoader).load(roleId)
   }
@@ -33,5 +33,28 @@ export class PageRuleService extends AuthorizedService {
 
   async mayView (): Promise<boolean> {
     return true
+  }
+
+  async mayEdit (rule: PageRule) {
+    return await this.haveGlobalPerm('manageUsers')
+  }
+
+  asOrMorePowerful (ruleA: PageRule, ruleB: PageRule) { // is ruleA equal or more powerful than ruleB?
+    let sitePagetreeMorePowerful = false
+    if (!ruleA.siteId || ruleA.siteId === ruleB.siteId) { // ruleA is at least as powerful based on site alone
+      if (!ruleA.pagetreeId || ruleA.pagetreeId === ruleB.pagetreeId) { // pagetree is also at least as powerful
+        sitePagetreeMorePowerful = true
+      }
+    } else if (!ruleB.siteId) { // ruleA is less powerful than ruleB based on site alone, but maybe pagetree will equalize
+      if (ruleB.pagetreeId && ruleA.pagetreeId === ruleB.pagetreeId) {
+        sitePagetreeMorePowerful = true
+      }
+    }
+    if (!sitePagetreeMorePowerful) return false
+    return comparePathsWithMode(ruleA, ruleB)
+  }
+
+  async tooPowerful (rule: PageRule) {
+    return tooPowerfulHelper(rule, await this.currentPageRules(), this.asOrMorePowerful)
   }
 }
