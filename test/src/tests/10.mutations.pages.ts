@@ -14,7 +14,7 @@ describe('pages mutations', () => {
     `, { page: '/site1/about/location', parent: '/site1' })
     const toMove = pages.find((p: any) => p.name === 'location')
     const intoPage = pages.find((p: any) => p.name === 'site1')
-    const { movePage: { page } } = await query('mutation movePage ($pageId: ID!, $parentId: ID!) { movePage (pageId: $pageId, parentId: $parentId) { page { name, parent { name } } } }', { pageId: toMove.id, parentId: intoPage.id })
+    const { movePage: { page } } = await query('mutation movePage ($pageId: ID!, $parentId: ID!) { movePage (pageId: $pageId, targetId: $parentId) { page { name, parent { name } } } }', { pageId: toMove.id, parentId: intoPage.id })
     expect(page.parent.name).to.equal('site1')
   })
 })

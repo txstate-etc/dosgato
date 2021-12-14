@@ -1,7 +1,13 @@
 import axios from 'axios'
+import jwt from 'jsonwebtoken'
+
+const token = jwt.sign({ login: 'su01' }, process.env.JWT_SECRET ?? '')
 
 const client = axios.create({
-  baseURL: 'http://dosgato-api'
+  baseURL: 'http://dosgato-api',
+  headers: {
+    Authorization: `Bearer ${token}`
+  }
 })
 
 export async function query (query: string, variables?: any) {

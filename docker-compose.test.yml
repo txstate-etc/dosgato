@@ -8,6 +8,7 @@ services:
       MYSQL_PASS: password
       MYSQL_DATABASE: dosgatotest
       MYSQL_HOST: mysql
+      JWT_SECRET: secret
     depends_on:
       - mysql
   dosgato-api:
@@ -19,6 +20,7 @@ services:
       MYSQL_PASS: password
       MYSQL_DATABASE: dosgatotest
       MYSQL_HOST: mysql
+      JWT_SECRET: secret
       RESET_DB_ON_STARTUP: 'true'
   mysql:
     image: percona:5
