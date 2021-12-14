@@ -1,3 +1,6 @@
+/* eslint-disable import/first */
+import { install } from 'source-map-support'
+install()
 import { GQLServer } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { migrations } from './migrations'
