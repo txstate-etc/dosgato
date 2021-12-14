@@ -59,7 +59,7 @@ export async function getSitesByTemplate (templateIds: number[], atLeastOneTree?
                                             INNER JOIN pagetrees ON pagetrees.siteId = sites.id
                                             INNER JOIN pagetrees_templates ON pagetrees_templates.pagetreeId = pagetrees.id
                                             WHERE pagetrees_templates.templateId IN (${db.in(binds2, templateIds)})`, binds2)
-    const sites = unique([...wholeSites, ...sitesWithPagetreesWithTemplate])
+    const sites = unique([...wholeSites, ...sitesWithPagetreesWithTemplate], 'id')
     return sites.map(s => ({ key: s.templateId, value: new Site(s) }))
   }
 }

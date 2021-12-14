@@ -1,7 +1,7 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Group, GroupFilter, GroupResponse } from './group.model'
-import { getGroups, getGroupsWithUser, getGroupsWithRole, groupManagerCache, GroupRelationship, createGroup, parentGroupCache } from './group.database'
+import { getGroups, getGroupsWithUser, getGroupsWithRole, groupManagerCache, groupHierarchyCache, createGroup } from './group.database'
 import { unique, filterConcurrent } from 'txstate-utils'
 import { UserService } from '../user'
 
@@ -36,9 +36,9 @@ export class GroupService extends AuthorizedService<Group> {
       return directGroups
     } else {
       const directGroupIds = directGroups.map(d => d.id)
-      const indirectGroups = await getRelatives(directGroupIds, 'parents')
+      const indirectGroups = await this.getAllSupers(directGroupIds)
       if (typeof direct === 'undefined') {
-        return unique([...directGroups, ...indirectGroups])
+        return unique([...directGroups, ...indirectGroups], 'id')
       } else {
         return indirectGroups
       }
@@ -46,15 +46,27 @@ export class GroupService extends AuthorizedService<Group> {
   }
 
   async getSubgroups (groupId: string, recursive: boolean = true) {
-    if (recursive) return await getRelatives([groupId], 'children')
-    else {
-      const groupCache = await parentGroupCache.get()
-      return groupCache.filter(relationship => relationship.parentId === groupId).map(g => new Group({ id: g.childId, name: g.childName }))
-    }
+    const groupMap = await groupHierarchyCache.get()
+    const group = groupMap[groupId]
+    if (!group) return []
+    if (recursive) return Array.from(group.descendantIds()).map(id => groupMap[id])
+    else return group.children as Group[]
   }
 
-  async getSuperGroups (groupId: string) {
-    return await getRelatives([groupId], 'parents')
+  async getAllSubs (groupIds: string[]) {
+    return unique((await Promise.all(groupIds.map(async id => await this.getSubgroups(id)))).flat(), 'id')
+  }
+
+  async getSuperGroups (groupId: string, recursive = true) {
+    const groupMap = await groupHierarchyCache.get()
+    const group = groupMap[groupId]
+    if (!group) return []
+    if (recursive) return Array.from(group.ancestorIds()).map(id => groupMap[id])
+    else return group.parents as Group[]
+  }
+
+  async getAllSupers (groupIds: string[]) {
+    return unique((await Promise.all(groupIds.map(async id => await this.getSuperGroups(id)))).flat(), 'id')
   }
 
   async findByRoleId (roleId: string, direct?: boolean, filter?: GroupFilter) {
@@ -63,16 +75,17 @@ export class GroupService extends AuthorizedService<Group> {
     } else {
       // need to get all of the groups and subgroups and THEN filter them
       const groups = await this.loaders.get(groupsByRoleIdLoader).load(roleId)
-      const groupIds = groups.map(g => g.id)
-      const subgroups = await getRelatives(groupIds, 'children')
-      let ret = (typeof direct === 'undefined') ? unique([...groups, ...subgroups]) : subgroups
+      const subgroups = await this.getAllSubs(groups.map(g => g.id))
+      let ret = (typeof direct === 'undefined') ? unique([...groups, ...subgroups], 'id') : subgroups
       if (filter?.ids?.length) {
-        ret = ret.filter(sg => filter.ids?.includes(sg.id))
+        const lookingFor = new Set(filter.ids)
+        ret = ret.filter(sg => lookingFor.has(sg.id))
       }
       if (filter?.managerIds?.length) {
+        const lookingFor = new Set(filter.managerIds)
         ret = await filterConcurrent(ret, async (sg) => {
           const managers = await this.getGroupManagers(sg.id)
-          return managers.some(manager => filter.managerIds?.includes(manager.id))
+          return managers.some(manager => lookingFor.has(manager.id))
         })
       }
       return ret
@@ -105,37 +118,5 @@ export class GroupService extends AuthorizedService<Group> {
 
   async mayView (): Promise<boolean> {
     return true
-  }
-}
-
-const getRelatives = async function (groupIds: string[], direction: 'parents'|'children') {
-  const groupCache = await parentGroupCache.get()
-  const visited = new Map<string, boolean>()
-  for (const id of groupIds) {
-    visit(id, visited, groupCache, true, direction)
-  }
-  const visitedGroupIds: string[] = Array.from(visited.keys())
-  return visitedGroupIds.map(groupId => {
-    if (direction === 'parents') {
-      const found: GroupRelationship = groupCache.find(l => l.parentId === groupId)!
-      return new Group({ id: found.parentId, name: found.parentName })
-    } else {
-      const found: GroupRelationship = groupCache.find(l => l.childId === groupId)!
-      return new Group({ id: found.childId, name: found.childName })
-    }
-  })
-}
-
-const visit = function (groupId: string, visited: Map<string, boolean>, groupCache: GroupRelationship[], isDirectRelative: boolean, direction: 'parents'|'children') {
-  if (visited.has(groupId)) return
-  if (!isDirectRelative) visited.set(groupId, true)
-  let related: string[]
-  if (direction === 'parents') {
-    related = groupCache.filter(r => r.childId === groupId).map(g => g.parentId)
-  } else {
-    related = groupCache.filter(r => r.parentId === groupId).map(g => g.childId)
-  }
-  for (const group of related) {
-    visit(group, visited, groupCache, false, direction)
   }
 }

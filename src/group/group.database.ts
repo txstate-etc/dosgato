@@ -1,18 +1,61 @@
 import db from 'mysql2-async/db'
 import { Group, GroupFilter } from './group.model'
-import { Cache } from 'txstate-utils'
-
-export const parentGroupCache = new Cache(async () => {
-  const rows = await getGroupRelationships()
-  return rows.map(r => new GroupRelationship(r))
-}, {
-  freshseconds: 60 * 60,
-  staleseconds: 24 * 60 * 60
-})
+import { Cache, hashify } from 'txstate-utils'
 
 export const groupManagerCache = new Cache(async (groupId: string) => {
   const managers = await db.getall('SELECT userId FROM users_groups WHERE groupId = ? AND manager IS TRUE', [groupId])
   return managers.map(m => m.userId)
+})
+
+class HierarchyGroup extends Group {
+  children: HierarchyGroup[]
+  parents: HierarchyGroup[]
+
+  ancestorIds (seen = new Set<string>()) {
+    for (const p of this.parents) {
+      if (!seen.has(p.id)) {
+        seen.add(p.id)
+        p.ancestorIds(seen)
+      }
+    }
+    return seen
+  }
+
+  descendantIds (seen = new Set<string>()) {
+    for (const c of this.children) {
+      if (!seen.has(c.id)) {
+        seen.add(c.id)
+        c.descendantIds(seen)
+      }
+    }
+    return seen
+  }
+
+  constructor (row: any) {
+    super(row)
+    this.children = []
+    this.parents = []
+  }
+}
+
+export const groupHierarchyCache = new Cache(async () => {
+  const [relationships, groups] = await Promise.all([
+    db.getall<{ childId: number, parentId: number }>('SELECT * FROM groups_groups'),
+    db.getall(`
+      SELECT DISTINCT g.* FROM groups g
+      INNER JOIN groups_groups gg ON g.id=gg.childId OR g.id=gg.parentId
+    `)
+  ])
+  const groupNodes = groups.map(g => new HierarchyGroup(g))
+  const groupMap = hashify(groupNodes, 'id')
+  for (const r of relationships) {
+    groupMap[r.childId].parents.push(groupMap[r.parentId])
+    groupMap[r.parentId].children.push(groupMap[r.childId])
+  }
+  return groupMap
+}, {
+  freshseconds: 60,
+  staleseconds: 600
 })
 
 function processFilters (filter?: GroupFilter) {
@@ -78,28 +121,7 @@ export async function getGroupsWithRole (roleIds: string[], filter?: GroupFilter
   return groups.map(row => ({ key: String(row.roleId), value: new Group(row) }))
 }
 
-export async function getGroupRelationships () {
-  return await db.getall(`SELECT gg.*, g.name AS parentName, g2.name AS childName
-                          FROM groups_groups gg
-                          INNER JOIN groups g ON gg.parentId = g.id
-                          INNER JOIN groups g2 ON gg.childId = g2.id`)
-}
-
 export async function createGroup (name: string) {
   const groupId = await db.insert('INSERT INTO groups (name) VALUES (?)', [name])
   return groupId
-}
-
-export class GroupRelationship {
-  parentId: string
-  parentName: string
-  childId: string
-  childName: string
-
-  constructor (row: any) {
-    this.parentId = String(row.parentId)
-    this.parentName = row.parentName
-    this.childId = String(row.childId)
-    this.childName = row.childName
-  }
 }

@@ -45,7 +45,7 @@ export async function getPagetreesByTemplate (templateIds: number[], direct?: bo
                                    INNER JOIN sites_templates ON sites.id = sites_templates.siteId
                                    WHERE sites_templates.templateId IN (${db.in(indirectBinds, templateIds)})`, indirectBinds)
     if (typeof direct === 'undefined') {
-      const combined = unique([...pagetrees, ...pagetreesThroughSites])
+      const combined = unique([...pagetrees, ...pagetreesThroughSites], 'id')
       return combined.map(row => ({ key: row.templateId, value: new Pagetree(row) }))
     } else {
       return pagetreesThroughSites.map(row => ({ key: row.templateId, value: new Pagetree(row) }))

@@ -31,7 +31,7 @@ export class RoleService extends DosGatoService {
     for (const role of roles) {
       this.loaders.get(rolesByIdLoader).prime(role.id, role)
     }
-    return unique(roles)
+    return unique(roles, 'id')
   }
 
   async findByGroupId (groupId: string, direct?: boolean) {
@@ -47,9 +47,9 @@ export class RoleService extends DosGatoService {
           return await this.loaders.get(rolesByGroupIdLoader).load(pg.id)
         })
       )
-      const parentGroupRoles = unique(result.flat())
+      const parentGroupRoles = unique(result.flat(), 'id')
       if (typeof direct === 'undefined') {
-        return unique([...roles, ...parentGroupRoles])
+        return unique([...roles, ...parentGroupRoles], 'id')
       } else {
         return parentGroupRoles
       }
