@@ -1,9 +1,10 @@
-import { AuthorizedService } from '@txstate-mws/graphql-server'
+import { DosGatoService } from '../util/authservice'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Group, GroupFilter, GroupResponse } from './group.model'
-import { getGroups, getGroupsWithUser, getGroupsWithRole, groupManagerCache, groupHierarchyCache, createGroup } from './group.database'
+import { getGroups, getGroupsWithUser, getGroupsWithRole, groupManagerCache, groupHierarchyCache, createGroup, updateGroup, deleteGroup } from './group.database'
 import { unique, filterConcurrent } from 'txstate-utils'
 import { UserService } from '../user'
+import { ValidatedResponse } from '@txstate-mws/graphql-server'
 
 const groupsByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -25,7 +26,7 @@ const groupsByRoleIdLoader = new ManyJoinedLoader({
   idLoader: groupsByIdLoader
 })
 
-export class GroupService extends AuthorizedService<Group> {
+export class GroupService extends DosGatoService {
   async find () {
     return await getGroups()
   }
@@ -99,7 +100,7 @@ export class GroupService extends AuthorizedService<Group> {
   }
 
   async create (name: string) {
-    // TODO: make sure the logged in user has permission to create a group
+    if (!(await this.mayManage())) throw new Error('Current user is not permitted to create groups.')
     const response = new GroupResponse({})
     try {
       const groupId = await createGroup(name)
@@ -116,7 +117,39 @@ export class GroupService extends AuthorizedService<Group> {
     return response
   }
 
+  async update (id: string, name: string) {
+    if (!(await this.mayManage())) throw new Error('Current user is not permitted to update group names.')
+    const response = new GroupResponse({})
+    try {
+      await updateGroup(id, name)
+      const updated = await this.loaders.get(groupsByIdLoader).load(id)
+      response.success = true
+      response.group = updated
+    } catch (err: any) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        response.addMessage(`Group ${name} already exists.`, 'name')
+        return response
+      }
+      throw new Error('An unknown error occurred while updating the group name.')
+    }
+    return response
+  }
+
+  async delete (id: string) {
+    if (!(await this.mayManage())) throw new Error('Current user is not permitted to delete groups.')
+    try {
+      await deleteGroup(id)
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while deleting the group.')
+    }
+  }
+
   async mayView (): Promise<boolean> {
     return true
+  }
+
+  async mayManage () {
+    return await this.haveGlobalPerm('manageUsers')
   }
 }

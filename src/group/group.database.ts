@@ -125,3 +125,18 @@ export async function createGroup (name: string) {
   const groupId = await db.insert('INSERT INTO groups (name) VALUES (?)', [name])
   return groupId
 }
+
+export async function updateGroup (id: string, name: string) {
+  return await db.update('UPDATE groups SET name = ? WHERE id = ?', [name, id])
+}
+
+export async function deleteGroup (id: string) {
+  return await db.transaction(async db => {
+    await Promise.all([
+      db.delete('DELETE FROM groups_roles WHERE groupId = ?', [id]),
+      db.delete('DELETE FROM groups_groups WHERE parentId = ? OR childId = ?', [id, id]),
+      db.delete('DELETE FROM users_groups WHERE groupId = ?', [id])
+    ])
+    await db.delete('DELETE FROM groups where id = ?', [id])
+  })
+}

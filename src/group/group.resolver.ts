@@ -47,14 +47,12 @@ export class GroupResolver {
 
   @Mutation(returns => GroupResponse, { description: 'Update the name of an existing group' })
   async updateGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('name') name: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(GroupService).update(groupId, name)
   }
 
-  // TODO: Should this return anything besides what is in ValidatedResponse? Does the UI need anything?
-  // It's not a soft-delete, the table only has an id and name
   @Mutation(returns => ValidatedResponse, { description: 'Delete a group' })
   async deleteGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(GroupService).delete(groupId)
   }
 
   // TODO: Is this user ID the internal ID? Or the login?
@@ -99,12 +97,12 @@ export class GroupResolver {
 @Resolver(of => GroupPermissions)
 export class GroupPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'Current user may add and remove users.' })
-  async manageusers () {
-    throw new UnimplementedError()
+  async manageusers (@Ctx() ctx: Context) {
+    return await ctx.svc(GroupService).mayManage()
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user may add and remove subgroups.' })
-  async managegroups () {
-    throw new UnimplementedError()
+  async managegroups (@Ctx() ctx: Context) {
+    return await ctx.svc(GroupService).mayManage()
   }
 }
