@@ -55,22 +55,19 @@ export class GroupResolver {
     return await ctx.svc(GroupService).delete(groupId)
   }
 
-  // TODO: Is this user ID the internal ID? Or the login?
   @Mutation(returns => ValidatedResponse, { description: 'Add a user to a group' })
   async addUserToGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('userId') userId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(GroupService).addUserToGroup(groupId, userId)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Remove a user from a group' })
   async removeUserFromGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('userId') userId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(GroupService).removeUserFromGroup(groupId, userId)
   }
 
-  // TODO: If the user is not already in the group, should they be added to it or is that an error?
-  // If they are being removed as manager, should they stay in the group?
   @Mutation(returns => ValidatedResponse, { description: 'Update a user\'s status as a manager of a group' })
   async setGroupManager (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('userId') userId: string, @Arg('manager', { description: 'true if this user should be a group manager, false if they should not be a group manager' }) manager: boolean) {
-    throw new UnimplementedError()
+    return await ctx.svc(GroupService).setGroupManager(groupId, userId, manager)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Add a role to a group' })

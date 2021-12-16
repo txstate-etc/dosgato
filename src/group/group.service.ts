@@ -1,7 +1,7 @@
 import { DosGatoService } from '../util/authservice'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Group, GroupFilter, GroupResponse } from './group.model'
-import { getGroups, getGroupsWithUser, getGroupsWithRole, groupManagerCache, groupHierarchyCache, createGroup, updateGroup, deleteGroup } from './group.database'
+import { getGroups, getGroupsWithUser, getGroupsWithRole, groupManagerCache, groupHierarchyCache, createGroup, updateGroup, deleteGroup, addUserToGroup, removeUserFromGroup, setGroupManager } from './group.database'
 import { unique, filterConcurrent } from 'txstate-utils'
 import { UserService } from '../user'
 import { ValidatedResponse } from '@txstate-mws/graphql-server'
@@ -142,6 +142,57 @@ export class GroupService extends DosGatoService {
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       throw new Error('An unknown error occurred while deleting the group.')
+    }
+  }
+
+  async addUserToGroup (groupId: string, userId: string) {
+    if (!(await this.mayManage())) throw new Error('Current user is not permitted to add users to groups.')
+    const user = await this.svc(UserService).findById(userId)
+    if (!user) throw new Error('Cannot add user who does not exist')
+    try {
+      await addUserToGroup(groupId, user.internalId)
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      // TODO: Should the error message specify which user and/or which group?
+      throw new Error('An unknown error occurred while trying to add a user to a group')
+    }
+  }
+
+  async removeUserFromGroup (groupId: string, userId: string) {
+    if (!(await this.mayManage())) throw new Error('Current user is not permitted to remove users from groups.')
+    const user = await this.svc(UserService).findById(userId)
+    if (!user) throw new Error('Cannot remove user who does not exist')
+    try {
+      const removed = await removeUserFromGroup(groupId, user.internalId)
+      if (removed) {
+        return new ValidatedResponse({ success: true })
+      } else {
+        const response = new ValidatedResponse()
+        response.addMessage('user is not a group member')
+        return response
+      }
+    } catch (err: any) {
+      // TODO: Should the error message specify which user and/or which group?
+      console.log(err)
+      throw new Error('An unknown error occurred while trying to remove a user from a group')
+    }
+  }
+
+  async setGroupManager (groupId: string, userId: string, manager: boolean) {
+    if (!(await this.mayManage())) throw new Error('Current user is not permitted add or remove group managers.')
+    const user = await this.svc(UserService).findById(userId)
+    if (!user) throw new Error('User does not exist')
+    try {
+      const updated = await setGroupManager(groupId, user.internalId, manager)
+      if (updated) {
+        return new ValidatedResponse({ success: true })
+      } else {
+        const response = new ValidatedResponse()
+        response.addMessage('user is not a group member')
+        return response
+      }
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while trying to update group managers')
     }
   }
 

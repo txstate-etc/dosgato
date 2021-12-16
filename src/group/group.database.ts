@@ -140,3 +140,15 @@ export async function deleteGroup (id: string) {
     await db.delete('DELETE FROM groups where id = ?', [id])
   })
 }
+
+export async function addUserToGroup (groupId: string, userId: number) {
+  return await db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [userId, groupId])
+}
+
+export async function removeUserFromGroup (groupId: string, userId: number) {
+  return await db.delete('DELETE FROM users_groups WHERE userId = ? AND groupId = ?', [userId, groupId])
+}
+
+export async function setGroupManager (groupId: string, userId: number, manager: boolean) {
+  return await db.update('UPDATE users_groups SET manager = ? WHERE userId = ? AND groupId = ?', [manager, userId, groupId])
+}
