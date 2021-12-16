@@ -72,12 +72,12 @@ export class GroupResolver {
 
   @Mutation(returns => ValidatedResponse, { description: 'Add a role to a group' })
   async addRoleToGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('roleId') roleId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(GroupService).addRoleToGroup(groupId, roleId)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Remove a role from a group' })
   async removeRoleFromGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('roleId') roleId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(GroupService).removeRoleFromGroup(groupId, roleId)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Make one group a subgroup of another' })
@@ -87,7 +87,7 @@ export class GroupResolver {
 
   @Mutation(returns => ValidatedResponse, { description: 'Remove relationship between a group and subgroup' })
   async removeSubgroup (@Ctx() ctx: Context, @Arg('parentgroupId') parentGroupId: string, @Arg('childGroupId') childGroupId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(GroupService).removeSubgroup(parentGroupId, childGroupId)
   }
 }
 

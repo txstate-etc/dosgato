@@ -1,7 +1,7 @@
 import { DosGatoService } from '../util/authservice'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Group, GroupFilter, GroupResponse } from './group.model'
-import { getGroups, getGroupsWithUser, getGroupsWithRole, groupManagerCache, groupHierarchyCache, createGroup, updateGroup, deleteGroup, addUserToGroup, removeUserFromGroup, setGroupManager } from './group.database'
+import { getGroups, getGroupsWithUser, getGroupsWithRole, groupManagerCache, groupHierarchyCache, createGroup, updateGroup, deleteGroup, addUserToGroup, removeUserFromGroup, setGroupManager, addRoleToGroup, removeRoleFromGroup, removeSubgroup } from './group.database'
 import { unique, filterConcurrent } from 'txstate-utils'
 import { UserService } from '../user'
 import { ValidatedResponse } from '@txstate-mws/graphql-server'
@@ -193,6 +193,51 @@ export class GroupService extends DosGatoService {
       }
     } catch (err: any) {
       throw new Error('An unknown error occurred while trying to update group managers')
+    }
+  }
+
+  async addRoleToGroup (groupId: string, roleId: string) {
+    if (!(await this.mayManage())) throw new Error('Current user is not permitted add roles to groups.')
+    try {
+      await addRoleToGroup(groupId, roleId)
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while adding a role to a group')
+    }
+  }
+
+  async removeRoleFromGroup (groupId: string, roleId: string) {
+    if (!(await this.mayManage())) throw new Error('Current user is not permitted add roles to groups.')
+    try {
+      const removed = await removeRoleFromGroup(groupId, roleId)
+      if (removed) {
+        return new ValidatedResponse({ success: true })
+      } else {
+        const response = new ValidatedResponse()
+        response.addMessage('role not assigned to group')
+        return response
+      }
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while removing a role from a group')
+    }
+  }
+
+  async addSubgroup (parentId: string, childId: string) {
+    // TODO: Can there be a cycle where a group is its own descendent and ancestor?
+  }
+
+  async removeSubgroup (parentId: string, childId: string) {
+    if (!(await this.mayManage())) throw new Error('Current user is not permitted remove a subgroup from a group.')
+    try {
+      const removed = await removeSubgroup(parentId, childId)
+      if (removed) {
+        return new ValidatedResponse({ success: true })
+      } else {
+        const response = new ValidatedResponse()
+        response.addMessage('cannot remove non-existant subgroup relationship')
+      }
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while removing a group relationship')
     }
   }
 
