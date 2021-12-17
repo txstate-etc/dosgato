@@ -86,7 +86,7 @@ export class GroupResolver {
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Remove relationship between a group and subgroup' })
-  async removeSubgroup (@Ctx() ctx: Context, @Arg('parentgroupId') parentGroupId: string, @Arg('childGroupId') childGroupId: string) {
+  async removeSubgroup (@Ctx() ctx: Context, @Arg('parentGroupId') parentGroupId: string, @Arg('childGroupId') childGroupId: string) {
     return await ctx.svc(GroupService).removeSubgroup(parentGroupId, childGroupId)
   }
 }

@@ -104,6 +104,7 @@ export class GroupService extends DosGatoService {
     const response = new GroupResponse({})
     try {
       const groupId = await createGroup(name)
+      await groupHierarchyCache.clear()
       const newGroup = await this.loaders.get(groupsByIdLoader).load(String(groupId))
       response.success = true
       response.group = newGroup
@@ -122,6 +123,7 @@ export class GroupService extends DosGatoService {
     const response = new GroupResponse({})
     try {
       await updateGroup(id, name)
+      await groupHierarchyCache.clear()
       const updated = await this.loaders.get(groupsByIdLoader).load(id)
       response.success = true
       response.group = updated
@@ -139,6 +141,7 @@ export class GroupService extends DosGatoService {
     if (!(await this.mayManage())) throw new Error('Current user is not permitted to delete groups.')
     try {
       await deleteGroup(id)
+      await groupHierarchyCache.clear()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       throw new Error('An unknown error occurred while deleting the group.')
@@ -226,6 +229,7 @@ export class GroupService extends DosGatoService {
     if (!(await this.mayManage())) throw new Error('Current user is not permitted add a subgroup to a group.')
     try {
       await addSubgroup(parentId, childId)
+      await groupHierarchyCache.clear()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       throw new Error('An unknown error occurred while adding a subgroup to a group')
@@ -237,10 +241,12 @@ export class GroupService extends DosGatoService {
     try {
       const removed = await removeSubgroup(parentId, childId)
       if (removed) {
+        await groupHierarchyCache.clear()
         return new ValidatedResponse({ success: true })
       } else {
         const response = new ValidatedResponse()
-        response.addMessage('cannot remove non-existant subgroup relationship')
+        response.addMessage('cannot remove non-existent subgroup relationship')
+        return response
       }
     } catch (err: any) {
       throw new Error('An unknown error occurred while removing a subgroup from a group')
