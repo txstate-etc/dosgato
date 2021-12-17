@@ -98,16 +98,6 @@ export class RoleResolver {
   }
 
   @Mutation(returns => ValidatedResponse)
-  async assignRoleToGroup (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('groupId') groupId: string) {
-    throw new UnimplementedError()
-  }
-
-  @Mutation(returns => ValidatedResponse)
-  async removeRoleFromGroup (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('groupId') groupId: string) {
-    throw new UnimplementedError()
-  }
-
-  @Mutation(returns => ValidatedResponse)
   async removeRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string) {
     throw new UnimplementedError()
   }
