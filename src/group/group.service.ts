@@ -1,7 +1,7 @@
 import { DosGatoService } from '../util/authservice'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Group, GroupFilter, GroupResponse } from './group.model'
-import { getGroups, getGroupsWithUser, getGroupsWithRole, groupManagerCache, groupHierarchyCache, createGroup, updateGroup, deleteGroup, addUserToGroup, removeUserFromGroup, setGroupManager, addRoleToGroup, removeRoleFromGroup, removeSubgroup } from './group.database'
+import { getGroups, getGroupsWithUser, getGroupsWithRole, groupManagerCache, groupHierarchyCache, createGroup, updateGroup, deleteGroup, addUserToGroup, removeUserFromGroup, setGroupManager, addRoleToGroup, removeRoleFromGroup, removeSubgroup, addSubgroup } from './group.database'
 import { unique, filterConcurrent } from 'txstate-utils'
 import { UserService } from '../user'
 import { ValidatedResponse } from '@txstate-mws/graphql-server'
@@ -223,7 +223,13 @@ export class GroupService extends DosGatoService {
   }
 
   async addSubgroup (parentId: string, childId: string) {
-    // TODO: Can there be a cycle where a group is its own descendent and ancestor?
+    if (!(await this.mayManage())) throw new Error('Current user is not permitted add a subgroup to a group.')
+    try {
+      await addSubgroup(parentId, childId)
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while adding a subgroup to a group')
+    }
   }
 
   async removeSubgroup (parentId: string, childId: string) {
@@ -237,7 +243,7 @@ export class GroupService extends DosGatoService {
         response.addMessage('cannot remove non-existant subgroup relationship')
       }
     } catch (err: any) {
-      throw new Error('An unknown error occurred while removing a group relationship')
+      throw new Error('An unknown error occurred while removing a subgroup from a group')
     }
   }
 

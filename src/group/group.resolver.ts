@@ -82,7 +82,7 @@ export class GroupResolver {
 
   @Mutation(returns => ValidatedResponse, { description: 'Make one group a subgroup of another' })
   async addSubgroup (@Ctx() ctx: Context, @Arg('parentGroupId') parentGroupId: string, @Arg('childGroupId') childGroupId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(GroupService).addSubgroup(parentGroupId, childGroupId)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Remove relationship between a group and subgroup' })

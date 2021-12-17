@@ -162,7 +162,7 @@ export async function removeRoleFromGroup (groupId: string, roleId: string) {
 }
 
 export async function addSubgroup (parentId: string, childId: string) {
-  //
+  return await db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [parentId, childId])
 }
 
 export async function removeSubgroup (parentId: string, childId: string) {
