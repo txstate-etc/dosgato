@@ -1,21 +1,40 @@
-import { OneToManyLoader } from 'dataloader-factory'
+import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { CreateAssetRuleInput } from '.'
 import { Asset, AssetService } from '../asset'
 import { RulePathMode } from '../pagerule'
 import { DosGatoService } from '../util/authservice'
 import { comparePathsWithMode, tooPowerfulHelper } from '../util/rules'
-import { getAssetRules } from './assetrule.database'
-import { AssetRule } from './assetrule.model'
+import { createAssetRule, getAssetRules } from './assetrule.database'
+import { AssetRule, AssetRuleResponse } from './assetrule.model'
+
+const assetRulesByIdLoader = new PrimaryKeyLoader({
+  fetch: async (ids: number[]) => {
+    return await getAssetRules({ ids })
+  }
+})
 
 const assetRulesByRoleLoader = new OneToManyLoader({
   fetch: async (roleIds: string[]) => {
-    return await getAssetRules(roleIds)
+    return await getAssetRules({ roleIds })
   },
-  extractKey: (r: AssetRule) => r.roleId
+  extractKey: (r: AssetRule) => r.roleId,
+  idLoader: [assetRulesByIdLoader]
 })
 
 export class AssetRuleService extends DosGatoService {
   async findByRoleId (roleId: string) {
     return await this.loaders.get(assetRulesByRoleLoader).load(roleId)
+  }
+
+  async create (args: CreateAssetRuleInput) {
+    // TODO: Check if current user can create an asset rule
+    try {
+      const ruleId = await createAssetRule(args)
+      const rule = await this.loaders.get(assetRulesByIdLoader).load(ruleId)
+      return new AssetRuleResponse({ assetRule: rule, success: true})
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while creating the role.')
+    }
   }
 
   async applies (rule: AssetRule, asset: Asset) {

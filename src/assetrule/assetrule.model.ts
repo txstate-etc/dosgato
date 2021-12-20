@@ -65,6 +65,8 @@ export class AssetRule {
 
 @InputType()
 export class AssetRuleFilter {
+  ids?: number[]
+
   @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that are NOT limited to a site.' })
   siteIds?: (string|null)[]
 

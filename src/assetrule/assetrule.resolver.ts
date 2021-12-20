@@ -4,6 +4,7 @@ import { Role, RoleService } from '../role'
 import { Site, SiteService } from '../site'
 import { AssetRule, AssetRulePermissions, AssetRuleResponse, CreateAssetRuleInput, UpdateAssetRuleInput } from './assetrule.model'
 import { isNull } from 'txstate-utils'
+import { AssetRuleService } from './assetrule.service'
 
 @Resolver(of => AssetRule)
 export class AssetRuleResolver {
@@ -28,7 +29,7 @@ export class AssetRuleResolver {
 
   @Mutation(returns => AssetRuleResponse)
   async createAssetRule (@Ctx() ctx: Context, @Arg('args', type => CreateAssetRuleInput) args: CreateAssetRuleInput) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetRuleService).create(args)
   }
 
   @Mutation(returns => AssetRuleResponse)
