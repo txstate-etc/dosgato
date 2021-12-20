@@ -1,6 +1,6 @@
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { Role, RoleFilter } from './role.model'
-import { getRoles, getRolesWithGroup, getRolesForUsers } from './role.database'
+import { Role, RoleFilter, RoleResponse } from './role.model'
+import { createRole, getRoles, getRolesWithGroup, getRolesForUsers, updateRole } from './role.database'
 import { unique } from 'txstate-utils'
 import { GroupService } from '../group'
 import { DosGatoService } from '../util/authservice'
@@ -76,12 +76,52 @@ export class RoleService extends DosGatoService {
     }
   }
 
+  async create (name: string) {
+    if (!(await this.mayManageRoles())) throw new Error('Current user is not permitted to create roles.')
+    const response = new RoleResponse({})
+    try {
+      const id = await createRole(name)
+      const role = await this.loaders.get(rolesByIdLoader).load(String(id))
+      response.success = true
+      response.role = role
+    } catch (err: any) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        response.addMessage(`Role ${name} already exists.`, 'name')
+        return response
+      }
+      throw new Error('An unknown error occurred while creating the role.')
+    }
+    return response
+  }
+
+  async update (id: string, name: string) {
+    if (!(await this.mayManageRoles())) throw new Error('Current user is not permitted to update role names.')
+    const response = new RoleResponse({})
+    try {
+      await updateRole(id, name)
+      const updated = await this.loaders.get(rolesByIdLoader).load(id)
+      response.success = true
+      response.role = updated
+    } catch (err: any) {
+      if (err.code === 'ER_DUP_ENTRY') {
+        response.addMessage(`${name} role already exists.`, 'name')
+        return response
+      }
+      throw new Error('An unknown error occurred while updating the role name.')
+    }
+    return response
+  }
+
   async getRoleForRule (roleId: string) {
     return await this.loaders.get(rolesByIdLoader).load(roleId)
   }
 
   async mayView (role: Role): Promise<boolean> {
     return true
+  }
+
+  async mayManageRoles () {
+    return await this.haveGlobalPerm('manageUsers')
   }
 
   async mayCreateRules (role: Role) {

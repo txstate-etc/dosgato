@@ -41,3 +41,11 @@ export async function getRolesForUsers (userIds: string[]) {
                                  WHERE (${where.join(') AND (')})`, binds)
   return roles.map(row => ({ key: String(row.userId), value: new Role(row) }))
 }
+
+export async function createRole (name: string) {
+  return await db.insert('INSERT INTO roles (name) VALUES (?)', [name])
+}
+
+export async function updateRole (id: string, name: string) {
+  return await db.update('UPDATE roles SET name = ? WHERE id = ?', [name, id])
+}

@@ -74,12 +74,12 @@ export class RoleResolver {
   // MUTATIONS
   @Mutation(returns => RoleResponse)
   async createRole (@Ctx() ctx: Context, @Arg('name', { description: 'name of the role being created' }) name: string): Promise<RoleResponse> {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).create(name)
   }
 
   @Mutation(returns => RoleResponse, { description: 'Give a role a new name' })
   async updateRole (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('name') name: string): Promise<RoleResponse> {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).update(roleId, name)
   }
 
   @Mutation(returns => ValidatedResponse)
