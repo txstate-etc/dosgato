@@ -49,3 +49,27 @@ export async function createRole (name: string) {
 export async function updateRole (id: string, name: string) {
   return await db.update('UPDATE roles SET name = ? WHERE id = ?', [name, id])
 }
+
+export async function deleteRole (id: string) {
+  return await db.transaction(async db => {
+    await Promise.all([
+      db.delete('DELETE FROM groups_roles WHERE roleId = ?', [id]),
+      db.delete('DELETE FROM users_roles WHERE roleId = ?', [id]),
+      db.delete('DELETE FROM assetrules WHERE roleId = ?', [id]),
+      db.delete('DELETE FROM datarules WHERE roleId = ?', [id]),
+      db.delete('DELETE FROM globalrules WHERE roleId = ?', [id]),
+      db.delete('DELETE FROM pagerules WHERE roleId = ?', [id]),
+      db.delete('DELETE FROM siterules WHERE roleId = ?', [id]),
+      db.delete('DELETE FROM assetrules WHERE roleId = ?', [id])
+    ])
+    await db.delete('DELETE FROM roles where id = ?', [id])
+  })
+}
+
+export async function assignRoleToUser (roleId: string, userId: number) {
+  return await db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [userId, roleId])
+}
+
+export async function removeRoleFromUser (roleId: string, userId: number) {
+  return await db.delete('DELETE FROM users_roles WHERE roleId = ? AND userId = ?', [roleId, userId])
+}

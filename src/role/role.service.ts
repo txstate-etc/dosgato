@@ -1,9 +1,11 @@
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Role, RoleFilter, RoleResponse } from './role.model'
-import { createRole, getRoles, getRolesWithGroup, getRolesForUsers, updateRole } from './role.database'
+import { assignRoleToUser, createRole, deleteRole, getRoles, getRolesWithGroup, getRolesForUsers, removeRoleFromUser, updateRole } from './role.database'
 import { unique } from 'txstate-utils'
 import { GroupService } from '../group'
 import { DosGatoService } from '../util/authservice'
+import { ValidatedResponse } from '@txstate-mws/graphql-server'
+import { UserService } from '../user'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -112,6 +114,46 @@ export class RoleService extends DosGatoService {
     return response
   }
 
+  async delete (id: string) {
+    if (!(await this.mayDeleteRoles())) throw new Error('Current user is not permitted to delete roles.')
+    try {
+      await deleteRole(id)
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while deleting a role')
+    }
+  }
+
+  async assignRoleToUser (roleId: string, userId: string) {
+    if (!(await this.mayManageRoles())) throw new Error('Current user is not permitted to assign roles to users.')
+    const user = await this.svc(UserService).findById(userId)
+    if (!user) throw new Error('Cannot assign role to user who does not exist')
+    try {
+      await assignRoleToUser(roleId, user.internalId)
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while trying to assign a role to a user')
+    }
+  }
+
+  async removeRoleFromUser (roleId: string, userId: string) {
+    if (!(await this.mayManageRoles())) throw new Error('Current user is not permitted to assign roles to users.')
+    const user = await this.svc(UserService).findById(userId)
+    if (!user) throw new Error('Cannot remove role from user who does not exist')
+    try {
+      const removed = await removeRoleFromUser(roleId, user.internalId)
+      if (removed) {
+        return new ValidatedResponse({ success: true })
+      } else {
+        const response = new ValidatedResponse()
+        response.addMessage('role not assigned to user')
+        return response
+      }
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while trying to remove a role from a user')
+    }
+  }
+
   async getRoleForRule (roleId: string) {
     return await this.loaders.get(rolesByIdLoader).load(roleId)
   }
@@ -121,6 +163,10 @@ export class RoleService extends DosGatoService {
   }
 
   async mayManageRoles () {
+    return await this.haveGlobalPerm('manageUsers')
+  }
+
+  async mayDeleteRoles () {
     return await this.haveGlobalPerm('manageUsers')
   }
 

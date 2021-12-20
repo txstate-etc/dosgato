@@ -84,17 +84,17 @@ export class RoleResolver {
 
   @Mutation(returns => ValidatedResponse)
   async deleteRole (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string): Promise<RoleResponse> {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).delete(roleId)
   }
 
   @Mutation(returns => ValidatedResponse)
   async assignRoleToUser (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('userId') userId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).assignRoleToUser(roleId, userId)
   }
 
   @Mutation(returns => ValidatedResponse)
   async removeRoleFromUser (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('userId') userId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).removeRoleFromUser(roleId, userId)
   }
 
   @Mutation(returns => ValidatedResponse)
@@ -107,12 +107,12 @@ export class RoleResolver {
 export class RolePermissionsResolver {
   @FieldResolver(type => Boolean, { description: 'Current user is able to rename this role.' })
   async rename (@Ctx() ctx: Context, @Root() role: Role) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).mayManageRoles()
   }
 
   @FieldResolver(type => Boolean, { description: 'Current user is able to delete this role.' })
   async delete (@Ctx() ctx: Context, @Root() role: Role) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).mayDeleteRoles()
   }
 
   @FieldResolver(type => Boolean, {
