@@ -6,14 +6,23 @@ import { RuleType } from '../role'
 @ObjectType()
 @InputType('DataRuleGrantsInput')
 export class DataRuleGrants {
-  @Field({ description: 'Grants ability to view the latest version of data entries of this type in the specified site or folder. Published data entries are considered public data.' })
+  @Field({ description: 'Grants ability to view the published version of data. Always true on every rule since having any other grant implies this one. Do not try to set this in mutations.' })
+  view!: boolean
+
+  @Field({ description: 'Grants ability to view unpublished versions of data. Required for data to show up in Admin UI.' })
   viewlatest!: boolean
+
+  @Field({ description: 'Grants ability to view this data in the data editing UI. Admins do NOT set this directly - it is implied by having other grants.' })
+  viewForEdit!: boolean
 
   @Field({ description: 'Grants ability to create data entries of this type in the specified site or folder.' })
   create!: boolean
 
   @Field({ description: 'Grants ability to update data entries of this type in the specified site or folder.' })
   update!: boolean
+
+  @Field({ description: 'Grants ability to move or rename the data entries impacted by this rule. Note that user must have the `create` permission for the target folder.' })
+  move!: boolean
 
   @Field({ description: 'Grants ability to publish data entries of this type in the specified site or folder.' })
   publish!: boolean
@@ -29,13 +38,16 @@ export class DataRuleGrants {
 
   constructor (row?: any) {
     if (row) {
-      this.viewlatest = !!row.viewlatest
+      this.view = true
       this.create = !!row.create
       this.update = !!row.update
+      this.move = !!row.move
       this.publish = !!row.publish
       this.unpublish = !!row.unpublish
       this.delete = !!row.delete
       this.undelete = !!row.undelete
+      this.viewlatest = this.update || this.publish
+      this.viewForEdit = this.create || this.update || this.move || this.delete || this.undelete || this.publish || this.unpublish
     }
   }
 }

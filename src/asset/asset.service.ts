@@ -1,13 +1,27 @@
-import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { Asset, AssetFilter } from './asset.model'
 import { getAssets } from './asset.database'
-import { AssetFolderService } from '../assetfolder'
+import { AssetFolder, AssetFolderService } from '../assetfolder'
 import { appendPath } from '../util'
 import { SiteService } from '../site'
+import { DosGatoService } from '../util/authservice'
+import { OneToManyLoader } from 'dataloader-factory'
 
-export class AssetService extends AuthorizedService {
+const assetsByFolderInternalIdLoader = new OneToManyLoader({
+  fetch: async (folderInternalIds: number[]) => await getAssets({ folderInternalIds }),
+  extractKey: asset => asset.folderInternalId
+})
+
+export class AssetService extends DosGatoService {
   async find (filter: AssetFilter) {
     return await getAssets(filter)
+  }
+
+  async findByFolder (folder: AssetFolder) {
+    return await this.loaders.get(assetsByFolderInternalIdLoader).load(folder.internalId)
+  }
+
+  async findByFolders (folders: AssetFolder[]) {
+    return await this.loaders.loadMany(assetsByFolderInternalIdLoader, folders.map(f => f.internalId))
   }
 
   async getAncestors (asset: Asset) {
@@ -27,7 +41,31 @@ export class AssetService extends AuthorizedService {
     return appendPath(await this.svc(AssetFolderService).getPath(folder), asset.name as string)
   }
 
-  async mayView (asset: Asset): Promise<boolean> {
-    return true
+  async mayViewManagerUI () {
+    return (await this.currentAssetRules()).some(r => r.grants.viewForEdit)
+  }
+
+  async mayView (asset: Asset) {
+    return await this.haveAssetPerm(asset, 'view')
+  }
+
+  async mayViewForEdit (asset: Asset) {
+    return await this.haveAssetPerm(asset, 'viewForEdit')
+  }
+
+  async mayUpdate (asset: Asset) {
+    return await this.haveAssetPerm(asset, 'update')
+  }
+
+  async mayMove (asset: Asset) {
+    return await this.haveAssetPerm(asset, 'move')
+  }
+
+  async mayDelete (asset: Asset) {
+    return await this.haveAssetPerm(asset, 'delete')
+  }
+
+  async mayUndelete (asset: Asset) {
+    return await this.haveAssetPerm(asset, 'undelete')
   }
 }

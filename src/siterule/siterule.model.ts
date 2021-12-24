@@ -6,6 +6,9 @@ import { RuleType } from '../role'
 @ObjectType()
 @InputType('SiteRuleGrantsInput')
 export class SiteRuleGrants {
+  @Field({ description: 'Grants ability to view site in the site manager UI. Any siterule automatically grants this as it is implied by the other grants.' })
+  viewForEdit!: boolean
+
   @Field({ description: 'Grants ability to set or update the public URL for affected sites.' })
   launch!: boolean
 
@@ -36,6 +39,7 @@ export class SiteRuleGrants {
       this.promotePagetree = !!row.promotePagetree
       this.delete = !!row.delete
       this.undelete = !!row.undelete
+      this.viewForEdit = true
     }
   }
 }

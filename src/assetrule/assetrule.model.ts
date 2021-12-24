@@ -7,6 +7,12 @@ import { RuleType } from '../role'
 @ObjectType()
 @InputType('AssetRuleGrantsInput')
 export class AssetRuleGrants {
+  @Field({ description: 'Grants ability to view assets and folders. Always true on every rule since having any other grant implies this one. Do not try to set this in mutations.' })
+  view!: boolean
+
+  @Field({ description: 'Grants ability to view assets in the asset manager UI. Admins do NOT set this directly - it is implied by having other grants.' })
+  viewForEdit!: boolean
+
   @Field({ description: 'Grants ability to create or move assets and folders into folders impacted by this rule.' })
   create!: boolean
 
@@ -29,6 +35,8 @@ export class AssetRuleGrants {
       this.move = !!row.move
       this.delete = !!row.delete
       this.undelete = !!row.undelete
+      this.view = true // every rule grants view access
+      this.viewForEdit = this.create || this.update || this.move || this.delete || this.undelete
     }
   }
 }

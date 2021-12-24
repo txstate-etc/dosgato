@@ -21,8 +21,14 @@ registerEnumType(RulePathMode, {
 @ObjectType()
 @InputType('PageRuleGrantsInput')
 export class PageRuleGrants {
-  @Field({ description: 'Grants ability to view the latest unpublished version of pages. Published pages are completely public.' })
+  @Field({ description: 'Grants ability to view the published version of pages. Admins do NOT set this directly - it is implied by having any applicable pagerule.' })
+  view!: boolean
+
+  @Field({ description: 'Grants ability to view unpublished versions of pages. Admins do NOT set this directly - it is implied by having either update or publish grants.' })
   viewlatest!: boolean
+
+  @Field({ description: 'Grants ability to view pages in the page editing UI. Admins do NOT set this directly - it is implied by having other grants.' })
+  viewForEdit!: boolean
 
   @Field({ description: 'Grants ability to update page date but not necessarily move, rename, or publish them.' })
   update!: boolean
@@ -47,14 +53,16 @@ export class PageRuleGrants {
 
   constructor (row?: any) {
     if (row) {
-      this.viewlatest = row.viewlatest
-      this.create = row.create
-      this.update = row.update
-      this.move = row.move
-      this.delete = row.delete
-      this.undelete = row.undelete
-      this.publish = row.publish
-      this.unpublish = row.unpublish
+      this.create = !!row.create
+      this.update = !!row.update
+      this.move = !!row.move
+      this.delete = !!row.delete
+      this.undelete = !!row.undelete
+      this.publish = !!row.publish
+      this.unpublish = !!row.unpublish
+      this.view = true // every rule grants view
+      this.viewlatest = this.update || this.publish
+      this.viewForEdit = this.create || this.update || this.move || this.delete || this.undelete || this.publish || this.unpublish
     }
   }
 }

@@ -101,23 +101,28 @@ export class AssetResolver {
 
 @Resolver(of => AssetPermissions)
 export class AssetPermissionsResolver {
+  @FieldResolver(returns => Boolean, { description: 'User may view this asset in the asset manager UI.' })
+  async viewForEdit (@Ctx() ctx: Context, @Root() asset: Asset) {
+    return await ctx.svc(AssetService).mayViewForEdit(asset)
+  }
+
   @FieldResolver(returns => Boolean, { description: 'User may update this asset but not necessarily move it.' })
   async update (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetService).mayUpdate(asset)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may move this asset beneath a folder for which they have the `create` permission.' })
   async move (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetService).mayMove(asset)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may soft-delete this asset.' })
   async delete (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetService).mayDelete(asset)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may undelete this asset. Returns false when the asset is not deleted.' })
   async undelete (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetService).mayUndelete(asset)
   }
 }

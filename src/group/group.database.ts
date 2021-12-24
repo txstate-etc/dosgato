@@ -92,11 +92,12 @@ export async function getGroups (filter?: GroupFilter) {
   return groups.map(g => new Group(g))
 }
 
-export async function getGroupsWithUser (userIds: string[]) {
+export async function getGroupsWithUser (userIds: string[], filters?: { manager: boolean }) {
   const binds: string[] = []
   const where: string[] = []
 
   where.push(`users.login IN (${db.in(binds, userIds)})`)
+  if (filters?.manager) where.push('users_groups.manager=1')
   const directGroups = await db.getall(`SELECT users.*, groups.*, users_groups.* from groups
                                   INNER JOIN users_groups ON groups.id = users_groups.groupId
                                   INNER JOIN users ON users.id = users_groups.userId

@@ -1,4 +1,3 @@
-import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Data, DataFilter } from './data.model'
 import { getData } from './data.database'
@@ -6,6 +5,7 @@ import { VersionedService } from '../versionedservice'
 import { unique } from 'txstate-utils'
 import { DataFolderService } from '../datafolder'
 import { appendPath } from '../util'
+import { DosGatoService } from '../util/authservice'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => await getData({ internalIds }),
@@ -36,7 +36,7 @@ const dataBySiteIdLoader = new OneToManyLoader({
   idLoader: [dataByInternalIdLoader, dataByIdLoader]
 })
 
-export class DataService extends AuthorizedService {
+export class DataService extends DosGatoService {
   async find (filter: DataFilter) {
     filter = await this.processFilters(filter)
     return await getData(filter)
@@ -52,6 +52,14 @@ export class DataService extends AuthorizedService {
 
   async mayView (data: Data): Promise<boolean> {
     return true
+  }
+
+  async mayViewManagerUI () {
+    return await this.haveGlobalPerm('manageGlobalData') || (await this.currentDataRules()).some(r => r.grants.viewForEdit)
+  }
+
+  async mayCreateGlobal () {
+    return await this.haveGlobalPerm('manageGlobalData')
   }
 
   async getPath (data: Data) {

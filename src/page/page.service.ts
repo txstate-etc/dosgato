@@ -97,13 +97,39 @@ export class PageService extends DosGatoService {
     return `/${ancestors.map(a => a.name).join('/')}${ancestors.length ? '/' : ''}${page.name as string}`
   }
 
-  async mayView () {
-    return true
+  async mayView (page: Page) {
+    if (await this.havePagePerm(page, 'view')) return true
+    // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
+    const children = await this.getPageChildren(page, true)
+    for (const c of children) {
+      if (await this.havePagePerm(c, 'view')) return true
+    }
+    return false
+  }
+
+  async mayViewForEdit (page: Page) {
+    return await this.havePagePerm(page, 'viewForEdit')
+  }
+
+  async mayViewLatest (page: Page) {
+    return await this.havePagePerm(page, 'viewlatest')
+  }
+
+  async mayViewManagerUI () {
+    return (await this.currentPageRules()).some(r => r.grants.viewForEdit)
   }
 
   // authenticated user may create pages underneath given page
   async mayCreate (page: Page) {
     return await this.havePagePerm(page, 'create')
+  }
+
+  async mayUpdate (page: Page) {
+    return await this.havePagePerm(page, 'update')
+  }
+
+  async mayPublish (page: Page) {
+    return await this.havePagePerm(page, 'update')
   }
 
   async mayMove (page: Page) {

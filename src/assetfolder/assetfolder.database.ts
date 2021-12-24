@@ -8,6 +8,19 @@ export async function getAssetFolders (filter: AssetFolderFilter) {
   if (filter.ids?.length) {
     where.push(`id IN ${db.in(binds, filter.ids)}`)
   }
+
+  // internalIdPaths for getting direct descendants of a page
+  if (filter.internalIdPaths?.length) {
+    where.push(`assetfolders.path IN (${db.in(binds, filter.internalIdPaths)})`)
+  }
+
+  // internalIdPathsRecursive for getting all descendants of a page
+  if (filter.internalIdPathsRecursive?.length) {
+    const ors = filter.internalIdPathsRecursive.map(path => 'assetfolders.path LIKE ?')
+    where.push(ors.join(' OR '))
+    binds.push(...filter.internalIdPathsRecursive.map(p => `${p}%`))
+  }
+
   return (await db.getall(`
     SELECT *
     FROM assetfolders

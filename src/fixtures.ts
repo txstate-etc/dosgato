@@ -181,8 +181,8 @@ export async function fixtures () {
   ])
 
   await Promise.all([
-    db.insert('INSERT INTO globalrules (roleId, manageUsers) VALUES (?,?)', [superuserRole, 1]),
-    db.insert('INSERT INTO globalrules (roleId, manageUsers) VALUES (?,?)', [group6Role, 1]),
+    db.insert('INSERT INTO globalrules (roleId, manageUsers, createSites, manageGlobalData) VALUES (?,?,?,?)', [superuserRole, 1, 1, 1]),
+    db.insert('INSERT INTO globalrules (roleId, manageUsers, createSites, manageGlobalData) VALUES (?,?,?,?)', [group6Role, 1, 0, 0]),
     db.insert('INSERT INTO siterules (roleId, launch) VALUES (?,?)', [siteLauncherRole, 1]),
     db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, manageOwners, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?,?,?,?)', [superuserRole, site1, 1, 1, 1, 1, 1, 1, 1]),
     db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, manageOwners, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?,?,?,?)', [superuserRole, site2, 1, 1, 1, 1, 1, 1, 1]),
@@ -193,9 +193,9 @@ export async function fixtures () {
     db.insert('INSERT INTO siterules (roleId, siteId, launch, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?,?)', [site2siterulestest1, site2, 1, 1, 1, 1, 1]),
     db.insert('INSERT INTO assetrules (`roleId`, `create`, `update`, `move`, `delete`, `undelete`) VALUES (?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1]),
     db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `create`, `update`, `move`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?)', [site1editorRole, site1, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO pagerules (`roleId`, `viewlatest`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `path`, `viewlatest`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?,?,?)', [site1editorRole, site1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO datarules (`roleId`, `viewlatest`, `create`, `update`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO pagerules (`roleId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `path`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?,?)', [site1editorRole, site1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO datarules (`roleId`, `create`, `update`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1, 1]),
     db.insert('INSERT INTO templaterules (`roleId`, `templateId`, `use`) VALUES (?,?,?)', [templaterulestest1, pagetemplate1, 1]),
     db.insert('INSERT INTO templaterules (`roleId`, `templateId`, `use`) VALUES (?,?,?)', [templaterulestest1, pagetemplate2, 1]),
     db.insert('INSERT INTO templaterules (`roleId`, `templateId`, `use`) VALUES (?,?,?)', [templaterulestest1, pagetemplate3, 0]),

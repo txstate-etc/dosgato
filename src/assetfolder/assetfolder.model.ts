@@ -19,6 +19,7 @@ export class AssetFolder {
   @Field({ nullable: true, description: 'Date this folder was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
+  siteId?: string
   deletedBy?: number
   path: string
   pathSplit: number[]
@@ -28,6 +29,7 @@ export class AssetFolder {
     this.internalId = row.id
     this.id = row.guid
     this.name = row.name
+    this.siteId = String(row.siteId)
     this.path = row.path
     this.pathSplit = row.path.split(/\//).filter(isNotBlank).map(Number)
     this.parentInternalId = row.pathSplit[row.pathSplit.length - 1]
@@ -40,6 +42,8 @@ export class AssetFolder {
 @InputType()
 export class AssetFolderFilter {
   internalIds?: number[]
+  internalIdPaths?: string[]
+  internalIdPathsRecursive?: string[]
 
   @Field(type => [ID], { nullable: true })
   ids?: string[]

@@ -1,6 +1,7 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { CreateAssetRuleInput } from '.'
 import { Asset, AssetService } from '../asset'
+import { AssetFolder, AssetFolderService } from '../assetfolder'
 import { RulePathMode } from '../pagerule'
 import { DosGatoService } from '../util/authservice'
 import { comparePathsWithMode, tooPowerfulHelper } from '../util/rules'
@@ -41,10 +42,19 @@ export class AssetRuleService extends DosGatoService {
     const site = await this.svc(AssetService).getSite(asset)
     if (!site) return false
     if (rule.siteId && rule.siteId !== site.id) return false
-    const pagePath = await this.svc(AssetService).getPath(asset)
-    if (rule.mode === RulePathMode.SELF && rule.path !== pagePath) return false
-    if (rule.mode === RulePathMode.SELFANDSUB && !pagePath.startsWith(rule.path)) return false
-    if (rule.mode === RulePathMode.SUB && (rule.path === pagePath || !pagePath.startsWith(rule.path))) return false
+    const assetPath = await this.svc(AssetService).getPath(asset)
+    if (rule.mode === RulePathMode.SELF && rule.path !== assetPath) return false
+    if (rule.mode === RulePathMode.SELFANDSUB && !assetPath.startsWith(rule.path)) return false
+    if (rule.mode === RulePathMode.SUB && (rule.path === assetPath || !assetPath.startsWith(rule.path))) return false
+    return true
+  }
+
+  async appliesToFolder (rule: AssetRule, folder: AssetFolder) {
+    if (rule.siteId && rule.siteId !== folder.siteId) return false
+    const folderPath = await this.svc(AssetFolderService).getPath(folder)
+    if (rule.mode === RulePathMode.SELF && rule.path !== folderPath) return false
+    if (rule.mode === RulePathMode.SELFANDSUB && !folderPath.startsWith(rule.path)) return false
+    if (rule.mode === RulePathMode.SUB && (rule.path === folderPath || !folderPath.startsWith(rule.path))) return false
     return true
   }
 

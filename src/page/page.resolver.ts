@@ -72,6 +72,7 @@ export class PageResolver {
     @Arg('version', type => Int, { nullable: true, description: 'Return the specified version of the data. Ignored when published arg is true. Default is latest and may fail if user has improper permissions.' }) version?: number,
     @Arg('schemaversion', { nullable: true, description: 'Specify the preferred schema version. The API will perform any necessary migrations on the data prior to return. Default is the latest schemaversion.' }) schemaversion?: DateTime
   ) {
+    if (!published && !await ctx.svc(PageService).mayViewLatest(page)) throw new Error('User is only permitted to see the published version of this page.')
     const versioned = await ctx.svc(VersionedService).get(page.dataId, { tag: published ? 'published' : undefined, version })
     // TODO: move this code to the page service and make sure migrations get executed
     return versioned!.data

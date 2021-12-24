@@ -36,6 +36,10 @@ export class RoleService extends DosGatoService {
     return unique(roles, 'id')
   }
 
+  async findById (id: string) {
+    return await this.loaders.get(rolesByIdLoader).load(id)
+  }
+
   async findByGroupId (groupId: string, direct?: boolean) {
     const roles = await this.loaders.get(rolesByGroupIdLoader).load(groupId)
     if (typeof direct !== 'undefined' && direct) {
@@ -79,11 +83,11 @@ export class RoleService extends DosGatoService {
   }
 
   async create (name: string) {
-    if (!(await this.mayManageRoles())) throw new Error('Current user is not permitted to create roles.')
+    if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create roles.')
     const response = new RoleResponse({})
     try {
       const id = await createRole(name)
-      const role = await this.loaders.get(rolesByIdLoader).load(String(id))
+      const role = await this.findById(String(id))
       response.success = true
       response.role = role
     } catch (err: any) {
@@ -97,7 +101,9 @@ export class RoleService extends DosGatoService {
   }
 
   async update (id: string, name: string) {
-    if (!(await this.mayManageRoles())) throw new Error('Current user is not permitted to update role names.')
+    const role = await this.findById(id)
+    if (!role) throw new Error('Role to be edited does not exist.')
+    if (!(await this.mayUpdate(role))) throw new Error('Current user is not permitted to update role names.')
     const response = new RoleResponse({})
     try {
       await updateRole(id, name)
@@ -115,7 +121,9 @@ export class RoleService extends DosGatoService {
   }
 
   async delete (id: string) {
-    if (!(await this.mayDeleteRoles())) throw new Error('Current user is not permitted to delete roles.')
+    const role = await this.findById(id)
+    if (!role) throw new Error('Role to be deleted does not exist.')
+    if (!(await this.mayDelete(role))) throw new Error('Current user is not permitted to delete this role.')
     try {
       await deleteRole(id)
       return new ValidatedResponse({ success: true })
@@ -125,7 +133,9 @@ export class RoleService extends DosGatoService {
   }
 
   async assignRoleToUser (roleId: string, userId: string) {
-    if (!(await this.mayManageRoles())) throw new Error('Current user is not permitted to assign roles to users.')
+    const role = await this.findById(roleId)
+    if (!role) throw new Error('Role to be assigned does not exist.')
+    if (!(await this.mayAssign(role))) throw new Error('Current user is not permitted to assign users to this role.')
     const user = await this.svc(UserService).findById(userId)
     if (!user) throw new Error('Cannot assign role to user who does not exist')
     try {
@@ -137,7 +147,9 @@ export class RoleService extends DosGatoService {
   }
 
   async removeRoleFromUser (roleId: string, userId: string) {
-    if (!(await this.mayManageRoles())) throw new Error('Current user is not permitted to assign roles to users.')
+    const role = await this.findById(roleId)
+    if (!role) throw new Error('Role to be unassigned does not exist.')
+    if (!(await this.mayAssign(role))) throw new Error('Current user is not permitted to unassign users from this role.')
     const user = await this.svc(UserService).findById(userId)
     if (!user) throw new Error('Cannot remove role from user who does not exist')
     try {
@@ -162,11 +174,23 @@ export class RoleService extends DosGatoService {
     return true
   }
 
-  async mayManageRoles () {
+  async mayViewManagerUI () {
     return await this.haveGlobalPerm('manageUsers')
   }
 
-  async mayDeleteRoles () {
+  async mayCreate () {
+    return await this.haveGlobalPerm('manageUsers')
+  }
+
+  async mayUpdate (role: Role) {
+    return await this.haveGlobalPerm('manageUsers')
+  }
+
+  async mayDelete (role: Role) {
+    return await this.haveGlobalPerm('manageUsers')
+  }
+
+  async mayAssign (role: Role) {
     return await this.haveGlobalPerm('manageUsers')
   }
 

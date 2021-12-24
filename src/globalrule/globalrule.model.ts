@@ -8,6 +8,12 @@ export class GlobalRuleGrants {
   @Field({ description: 'Grants ability to create/read/update/delete all roles, add roles to users and groups, and add users to groups.' })
   manageUsers!: boolean
 
+  @Field({ description: 'Grants ability to create new sites in the system.' })
+  createSites!: boolean
+
+  @Field({ description: 'Grants ability to edit global data. Site-related data is governed by datarules instead.' })
+  manageGlobalData!: boolean
+
   constructor (row?: any) {
     if (row) {
       this.manageUsers = !!row.manageUsers

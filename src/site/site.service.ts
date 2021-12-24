@@ -1,8 +1,8 @@
-import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import { Site, SiteFilter } from './site.model'
 import { getSites, getSitesByOrganization, getSitesByTemplate } from './site.database'
 import { PagetreeService } from '../pagetree'
+import { DosGatoService } from '../util/authservice'
 
 const siteByOrganizationIdLoader = new OneToManyLoader({
   fetch: async (orgIds: string[]) => {
@@ -30,7 +30,7 @@ const sitesByTemplateIdLoader = new ManyJoinedLoader({
   }
 })
 
-export class SiteService extends AuthorizedService<Site> {
+export class SiteService extends DosGatoService {
   async find (filter?: SiteFilter) {
     const sites = await getSites(filter)
     for (const site of sites) {
@@ -63,5 +63,13 @@ export class SiteService extends AuthorizedService<Site> {
 
   async mayView (): Promise<boolean> {
     return true
+  }
+
+  async mayViewManagerUI () {
+    return (await this.currentSiteRules()).some(r => r.grants.viewForEdit)
+  }
+
+  async mayCreate () {
+    return await this.haveGlobalPerm('createSites')
   }
 }

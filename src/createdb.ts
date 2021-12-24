@@ -324,7 +324,6 @@ export async function init () {
       `pagetreeId` MEDIUMINT UNSIGNED, \
       `path` VARCHAR(255) NOT NULL DEFAULT '/', \
       `mode` ENUM('self', 'sub', 'selfsub') NOT NULL DEFAULT 'selfsub', \
-      `viewlatest` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `create` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `update` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `move` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
@@ -435,7 +434,6 @@ export async function init () {
       `siteId` SMALLINT UNSIGNED, \
       `templateId` SMALLINT UNSIGNED, \
       `path` VARCHAR(255) NOT NULL DEFAULT '/', \
-      `viewlatest` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `create` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `update` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `publish` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
@@ -491,6 +489,8 @@ export async function init () {
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `roleId` MEDIUMINT UNSIGNED NOT NULL, \
       `manageUsers` TINYINT UNSIGNED NOT NULL, \
+      `createSites` TINYINT UNSIGNED NOT NULL, \
+      `manageGlobalData` TINYINT UNSIGNED NOT NULL, \
       PRIMARY KEY (`id`), \
       CONSTRAINT `FK_globalrules_roles` \
         FOREIGN KEY (`roleId`) \
