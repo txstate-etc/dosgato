@@ -70,16 +70,6 @@ export class GroupResolver {
     return await ctx.svc(GroupService).setGroupManager(groupId, userId, manager)
   }
 
-  @Mutation(returns => ValidatedResponse, { description: 'Add a role to a group' })
-  async addRoleToGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('roleId') roleId: string) {
-    return await ctx.svc(GroupService).addRoleToGroup(groupId, roleId)
-  }
-
-  @Mutation(returns => ValidatedResponse, { description: 'Remove a role from a group' })
-  async removeRoleFromGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('roleId') roleId: string) {
-    return await ctx.svc(GroupService).removeRoleFromGroup(groupId, roleId)
-  }
-
   @Mutation(returns => ValidatedResponse, { description: 'Make one group a subgroup of another' })
   async addSubgroup (@Ctx() ctx: Context, @Arg('parentGroupId') parentGroupId: string, @Arg('childGroupId') childGroupId: string) {
     return await ctx.svc(GroupService).addSubgroup(parentGroupId, childGroupId)
@@ -94,12 +84,12 @@ export class GroupResolver {
 @Resolver(of => GroupPermissions)
 export class GroupPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'Current user may add and remove users.' })
-  async manageusers (@Ctx() ctx: Context) {
-    return await ctx.svc(GroupService).mayManage()
+  async manageUsers (@Ctx() ctx: Context, @Root() group: Group) {
+    return await ctx.svc(GroupService).mayManageUsers(group)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user may add and remove subgroups.' })
-  async managegroups (@Ctx() ctx: Context) {
-    return await ctx.svc(GroupService).mayManage()
+  async manageGroups (@Ctx() ctx: Context, @Root() group: Group) {
+    return await ctx.svc(GroupService).mayManageGroups(group)
   }
 }

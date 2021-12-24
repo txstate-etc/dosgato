@@ -97,6 +97,16 @@ export class RoleResolver {
     return await ctx.svc(RoleService).removeRoleFromUser(roleId, userId)
   }
 
+  @Mutation(returns => ValidatedResponse, { description: 'Add a role to a group' })
+  async addRoleToGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('roleId') roleId: string) {
+    return await ctx.svc(RoleService).addRoleToGroup(groupId, roleId)
+  }
+
+  @Mutation(returns => ValidatedResponse, { description: 'Remove a role from a group' })
+  async removeRoleFromGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('roleId') roleId: string) {
+    return await ctx.svc(RoleService).removeRoleFromGroup(groupId, roleId)
+  }
+
   @Mutation(returns => ValidatedResponse)
   async removeRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string) {
     throw new UnimplementedError()
@@ -107,12 +117,12 @@ export class RoleResolver {
 export class RolePermissionsResolver {
   @FieldResolver(type => Boolean, { description: 'Current user is able to rename this role.' })
   async rename (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(RoleService).mayManageRoles()
+    return await ctx.svc(RoleService).mayUpdate(role)
   }
 
   @FieldResolver(type => Boolean, { description: 'Current user is able to delete this role.' })
   async delete (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(RoleService).mayDeleteRoles()
+    return await ctx.svc(RoleService).mayDelete(role)
   }
 
   @FieldResolver(type => Boolean, {

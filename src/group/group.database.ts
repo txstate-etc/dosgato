@@ -154,14 +154,6 @@ export async function setGroupManager (groupId: string, userId: number, manager:
   return await db.update('UPDATE users_groups SET manager = ? WHERE userId = ? AND groupId = ?', [manager, userId, groupId])
 }
 
-export async function addRoleToGroup (groupId: string, roleId: string) {
-  return await db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [groupId, roleId])
-}
-
-export async function removeRoleFromGroup (groupId: string, roleId: string) {
-  return await db.delete('DELETE FROM groups_roles WHERE groupId = ? AND roleId = ?', [groupId, roleId])
-}
-
 export async function addSubgroup (parentId: string, childId: string) {
   return await db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [parentId, childId])
 }

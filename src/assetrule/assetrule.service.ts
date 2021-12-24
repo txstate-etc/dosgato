@@ -32,7 +32,7 @@ export class AssetRuleService extends DosGatoService {
     try {
       const ruleId = await createAssetRule(args)
       const rule = await this.loaders.get(assetRulesByIdLoader).load(ruleId)
-      return new AssetRuleResponse({ assetRule: rule, success: true})
+      return new AssetRuleResponse({ assetRule: rule, success: true })
     } catch (err: any) {
       throw new Error('An unknown error occurred while creating the role.')
     }

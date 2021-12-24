@@ -1,6 +1,6 @@
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Role, RoleFilter, RoleResponse } from './role.model'
-import { assignRoleToUser, createRole, deleteRole, getRoles, getRolesWithGroup, getRolesForUsers, removeRoleFromUser, updateRole } from './role.database'
+import { assignRoleToUser, createRole, deleteRole, getRoles, getRolesWithGroup, getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup } from './role.database'
 import { unique } from 'txstate-utils'
 import { GroupService } from '../group'
 import { DosGatoService } from '../util/authservice'
@@ -163,6 +163,36 @@ export class RoleService extends DosGatoService {
       }
     } catch (err: any) {
       throw new Error('An unknown error occurred while trying to remove a role from a user')
+    }
+  }
+
+  async addRoleToGroup (groupId: string, roleId: string) {
+    const [role, group] = await Promise.all([this.findById(roleId), this.svc(GroupService).findById(groupId)])
+    if (!role) throw new Error('Role to be updated does not exist.')
+    if (!group) throw new Error('Group to be assigned does not exist.')
+    if (!(await this.mayAssign(role))) throw new Error('Current user is not permitted add groups to this role.')
+    try {
+      await addRoleToGroup(groupId, roleId)
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while adding a role to a group')
+    }
+  }
+
+  async removeRoleFromGroup (groupId: string, roleId: string) {
+    const [role, group] = await Promise.all([this.findById(roleId), this.svc(GroupService).findById(groupId)])
+    if (!role) throw new Error('Role to be updated does not exist.')
+    if (!group) throw new Error('Group to be assigned does not exist.')
+    if (!(await this.mayAssign(role))) throw new Error('Current user is not permitted remove groups from this role.')
+    try {
+      const removed = await removeRoleFromGroup(groupId, roleId)
+      if (removed) {
+        return new ValidatedResponse({ success: true })
+      } else {
+        return ValidatedResponse.error('Role was not assigned to group.')
+      }
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while removing a role from a group')
     }
   }
 

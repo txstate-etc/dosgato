@@ -73,3 +73,11 @@ export async function assignRoleToUser (roleId: string, userId: number) {
 export async function removeRoleFromUser (roleId: string, userId: number) {
   return await db.delete('DELETE FROM users_roles WHERE roleId = ? AND userId = ?', [roleId, userId])
 }
+
+export async function addRoleToGroup (groupId: string, roleId: string) {
+  return await db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [groupId, roleId])
+}
+
+export async function removeRoleFromGroup (groupId: string, roleId: string) {
+  return await db.delete('DELETE FROM groups_roles WHERE groupId = ? AND roleId = ?', [groupId, roleId])
+}
