@@ -1,12 +1,11 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import stringify from 'fast-json-stable-stringify'
-import { Page, PageFilter } from './page.model'
-import { createPage, getPages, movePage } from './page.database'
 import { intersect, isNotNull, unique } from 'txstate-utils'
 import { VersionedService } from '../versionedservice'
-import { CreatePageInput, PageLinkInput, PageResponse } from '.'
 import { templateRegistry } from '../util/registry'
 import { DosGatoService } from '../util/authservice'
+import { Page, PageFilter, CreatePageInput, PageLinkInput, PageResponse } from './page.model'
+import { createPage, getPages, movePage } from './page.database'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {

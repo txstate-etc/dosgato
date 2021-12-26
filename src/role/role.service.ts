@@ -40,6 +40,10 @@ export class RoleService extends DosGatoService {
     return await this.loaders.get(rolesByIdLoader).load(id)
   }
 
+  async findByIds (ids: string[]) {
+    return await this.loaders.loadMany(rolesByIdLoader, ids)
+  }
+
   async findByGroupId (groupId: string, direct?: boolean) {
     const roles = await this.loaders.get(rolesByGroupIdLoader).load(groupId)
     if (typeof direct !== 'undefined' && direct) {

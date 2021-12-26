@@ -1,6 +1,5 @@
 import db from 'mysql2-async/db'
-import { CreateAssetRuleInput } from '.'
-import { AssetRule, AssetRuleFilter } from './assetrule.model'
+import { AssetRule, AssetRuleFilter, CreateAssetRuleInput } from './assetrule.model'
 import { isNotNull } from 'txstate-utils'
 
 function processFilters (filter: AssetRuleFilter) {
@@ -13,7 +12,11 @@ function processFilters (filter: AssetRuleFilter) {
     where.push(`assetrules.roleId IN (${db.in(binds, filter.roleIds)})`)
   }
   if (filter?.siteIds?.length) {
-    where.push(`assetrules.siteId IN (${db.in(binds, filter.siteIds)})`)
+    const ors = []
+    if (filter.siteIds.some(id => !id)) ors.push('assetrules.siteId IS NULL')
+    const siteIds = filter.siteIds.filter(isNotNull)
+    if (siteIds.length) ors.push(`assetrules.siteId IN (${db.in(binds, siteIds)})`)
+    where.push(ors.join('OR'))
   }
   if (filter?.paths?.length) {
     where.push(`assetrules.path IN (${db.in(binds, filter.paths)})`)

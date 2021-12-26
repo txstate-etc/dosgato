@@ -250,7 +250,7 @@ export class GroupService extends DosGatoService {
     }
   }
 
-  async mayView (): Promise<boolean> {
+  async mayView (group: Group) {
     return true
   }
 

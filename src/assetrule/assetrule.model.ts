@@ -4,6 +4,19 @@ import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RulePathMode } from '../pagerule'
 import { RuleType } from '../role'
 
+interface AssetRuleRow {
+  id: number|string
+  roleId: number|string
+  siteId?: number|string
+  path: string
+  mode: RulePathMode
+  create?: number|boolean
+  update?: number|boolean
+  move?: number|boolean
+  delete?: number|boolean
+  undelete?: number|boolean
+}
+
 @ObjectType()
 @InputType('AssetRuleGrantsInput')
 export class AssetRuleGrants {
@@ -28,7 +41,7 @@ export class AssetRuleGrants {
   @Field({ description: 'Grants ability to undelete assets and folders.' })
   undelete!: boolean
 
-  constructor (row?: any) {
+  constructor (row?: AssetRuleRow) {
     if (row) {
       this.create = !!row.create
       this.update = !!row.update
@@ -61,8 +74,8 @@ export class AssetRule {
   roleId: string
   siteId?: string
 
-  constructor (row: any) {
-    this.id = String(row.id)
+  constructor (row: AssetRuleRow) {
+    this.id = optionalString(row.id)
     this.roleId = String(row.roleId)
     this.siteId = optionalString(row.siteId)
     this.path = row.path

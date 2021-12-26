@@ -1,12 +1,14 @@
+import { ValidatedResponse } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { CreateAssetRuleInput } from '.'
+import { Cache, filterAsync, unique } from 'txstate-utils'
 import { Asset, AssetService } from '../asset'
 import { AssetFolder, AssetFolderService } from '../assetfolder'
 import { RulePathMode } from '../pagerule'
+import { RoleService } from '../role'
 import { DosGatoService } from '../util/authservice'
 import { comparePathsWithMode, tooPowerfulHelper } from '../util/rules'
 import { createAssetRule, getAssetRules } from './assetrule.database'
-import { AssetRule, AssetRuleResponse } from './assetrule.model'
+import { AssetRule, AssetRuleResponse, CreateAssetRuleInput } from './assetrule.model'
 
 const assetRulesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => {
@@ -19,18 +21,49 @@ const assetRulesByRoleLoader = new OneToManyLoader({
     return await getAssetRules({ roleIds })
   },
   extractKey: (r: AssetRule) => r.roleId,
-  idLoader: [assetRulesByIdLoader]
+  idLoader: assetRulesByIdLoader
 })
+
+const assetRulesBySiteLoader = new OneToManyLoader({
+  fetch: async (siteIds: string[]) => await getAssetRules({ siteIds }),
+  extractKey: r => r.siteId!,
+  idLoader: assetRulesByIdLoader
+})
+
+const globalAssetRulesCache = new Cache(async () => await getAssetRules({ siteIds: [null] }), { freshseconds: 3 })
 
 export class AssetRuleService extends DosGatoService {
   async findByRoleId (roleId: string) {
     return await this.loaders.get(assetRulesByRoleLoader).load(roleId)
   }
 
+  async findBySiteId (siteId?: string) {
+    // dataloader can't handle loading nulls so we have to grab global assetrules separately
+    const [siteRules, globalRules] = await Promise.all([siteId ? this.loaders.get(assetRulesBySiteLoader).load(siteId) : [], globalAssetRulesCache.get()])
+    return [...siteRules, ...globalRules]
+  }
+
+  async findByAsset (asset: Asset) {
+    const folder = await this.svc(AssetFolderService).findByInternalId(asset.folderInternalId)
+    const rules = await this.findBySiteId(folder?.siteId)
+    return await filterAsync(rules, async r => await this.applies(r, asset))
+  }
+
+  async findByAssetFolder (folder: AssetFolder) {
+    const rules = await this.findBySiteId(folder?.siteId)
+    return await filterAsync(rules, async r => await this.appliesToFolder(r, folder))
+  }
+
   async create (args: CreateAssetRuleInput) {
-    // TODO: Check if current user can create an asset rule
+    const role = await this.svc(RoleService).findById(args.roleId)
+    if (!role) throw new Error('Role to be modified does not exist.')
+    if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
+    const newRule = new AssetRule({ id: '0', roleId: args.roleId, siteId: args.siteId, path: args.path ?? '/', mode: args.mode ?? RulePathMode.SELFANDSUB, ...args.grants })
+    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The proposed rule would have more privilege than you currently have, so you cannot create it.')
     try {
       const ruleId = await createAssetRule(args)
+      this.loaders.clear()
+      if (!newRule.siteId) await globalAssetRulesCache.clear()
       const rule = await this.loaders.get(assetRulesByIdLoader).load(ruleId)
       return new AssetRuleResponse({ assetRule: rule, success: true })
     } catch (err: any) {

@@ -35,6 +35,11 @@ export class AssetFolderService extends DosGatoService {
     return await this.loaders.loadMany(assetFolderByInternalIdLoader, folder.pathSplit)
   }
 
+  async getParent (folder: AssetFolder) {
+    if (!folder.parentInternalId) return undefined
+    return await this.loaders.get(assetFolderByInternalIdLoader).load(folder.parentInternalId)
+  }
+
   async getChildFolders (folder: AssetFolder, recursive?: boolean) {
     const loader = recursive ? foldersByInternalIdPathRecursiveLoader : foldersByInternalIdPathLoader
     return await this.loaders.get(loader).load(`${folder.path}${folder.path === '/' ? '' : '/'}${folder.internalId}`)
@@ -68,5 +73,41 @@ export class AssetFolderService extends DosGatoService {
       if (await this.haveAssetPerm(a, 'view')) return true
     }
     return false
+  }
+
+  async mayViewForEdit (folder: AssetFolder) {
+    if (await this.haveAssetFolderPerm(folder, 'viewForEdit')) return true
+    // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
+    const [folders, assets] = await Promise.all([
+      this.getChildFolders(folder, true),
+      this.getChildAssets(folder, true)
+    ])
+    for (const f of folders) {
+      if (await this.haveAssetFolderPerm(f, 'viewForEdit')) return true
+    }
+    for (const a of assets) {
+      if (await this.haveAssetPerm(a, 'viewForEdit')) return true
+    }
+    return false
+  }
+
+  async mayCreate (folder: AssetFolder) {
+    return await this.haveAssetFolderPerm(folder, 'create')
+  }
+
+  async mayMove (folder: AssetFolder) {
+    return await this.haveAssetFolderPerm(folder, 'move')
+  }
+
+  async mayUpdate (folder: AssetFolder) {
+    return await this.haveAssetFolderPerm(folder, 'update')
+  }
+
+  async mayDelete (folder: AssetFolder) {
+    return await this.haveAssetFolderPerm(folder, 'delete')
+  }
+
+  async mayUndelete (folder: AssetFolder) {
+    return await this.haveAssetFolderPerm(folder, 'undelete')
   }
 }

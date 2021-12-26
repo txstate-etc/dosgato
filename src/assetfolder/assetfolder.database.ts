@@ -1,6 +1,5 @@
 import db from 'mysql2-async/db'
-import { AssetFolder } from '.'
-import { AssetFolderFilter } from './assetfolder.model'
+import { AssetFolder, AssetFolderFilter } from './assetfolder.model'
 
 export async function getAssetFolders (filter: AssetFolderFilter) {
   const where: any[] = []

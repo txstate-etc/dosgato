@@ -1,11 +1,10 @@
 import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
-import { TemplateArea } from '.'
 import { Data, DataFilter } from '../data'
 import { Page, PageFilter } from '../page'
 import { Pagetree, PagetreeService } from '../pagetree'
 import { Site, SiteService } from '../site'
-import { Template, TemplateFilter, TemplatePermissions } from './template.model'
+import { Template, TemplateArea, TemplateFilter, TemplatePermissions } from './template.model'
 import { TemplateService } from './template.service'
 
 @Resolver(of => Template)
