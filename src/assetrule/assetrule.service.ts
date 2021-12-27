@@ -1,6 +1,6 @@
 import { ValidatedResponse } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { Cache, filterAsync, unique } from 'txstate-utils'
+import { Cache, filterAsync } from 'txstate-utils'
 import { Asset, AssetService } from '../asset'
 import { AssetFolder, AssetFolderService } from '../assetfolder'
 import { RulePathMode } from '../pagerule'

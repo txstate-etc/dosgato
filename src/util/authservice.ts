@@ -2,15 +2,6 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { filterAsync } from 'txstate-utils'
-import { Asset } from '../asset'
-import { AssetFolder } from '../assetfolder'
-import { Data } from '../data'
-import { DataFolder } from '../datafolder'
-import { Page } from '../page'
-import { RoleService } from '../role'
-import { Site } from '../site'
-import { Template } from '../template'
-import { UserService } from '../user'
 
 export abstract class DosGatoService extends AuthorizedService<{ login: string }> {
   protected isRenderServer () {
@@ -127,6 +118,15 @@ export abstract class DosGatoService extends AuthorizedService<{ login: string }
   }
 }
 
+import { Asset } from '../asset'
+import { AssetFolder } from '../assetfolder'
+import { Data } from '../data'
+import { DataFolder } from '../datafolder'
+import { Page } from '../page'
+import { RoleService } from '../role'
+import { Site } from '../site'
+import { Template } from '../template'
+import { UserService } from '../user'
 import { AssetRuleService, AssetRuleGrants } from '../assetrule'
 import { DataRuleService, DataRuleGrants } from '../datarule'
 import { GlobalRuleService, GlobalRuleGrants } from '../globalrule'

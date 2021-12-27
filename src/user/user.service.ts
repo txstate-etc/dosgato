@@ -1,9 +1,9 @@
-import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { unique } from 'txstate-utils'
+import { DosGatoService } from '../util/authservice'
+import { GroupService } from '../group'
 import { User, UserFilter } from './user.model'
 import { getUsers, getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId } from './user.database'
-import { GroupService } from '../group'
-import { unique } from 'txstate-utils'
 
 const usersByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => {
@@ -39,7 +39,7 @@ const usersBySiteIdLoader = new ManyJoinedLoader({
   idLoader: usersByInternalIdLoader
 })
 
-export class UserService extends AuthorizedService<User> {
+export class UserService extends DosGatoService {
   async find (filter: UserFilter) {
     if (filter.ids?.length) {
       const index = filter.ids?.indexOf('self')

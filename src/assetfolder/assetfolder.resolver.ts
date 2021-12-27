@@ -1,11 +1,11 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { Asset, AssetFilter } from '../asset'
-import { AssetRuleService } from '../assetrule'
 import { Role, RoleService } from '../role'
 import { User } from '../user'
 import { AssetFolder, AssetFolderFilter, AssetFolderPermission, AssetFolderPermissions } from './assetfolder.model'
 import { AssetFolderService } from './assetfolder.service'
+import { AssetRuleService } from '../assetrule'
 
 @Resolver(of => AssetFolder)
 export class AssetFolderResolver {
