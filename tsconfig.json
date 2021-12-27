@@ -5,10 +5,7 @@
     "declaration": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": "./",
-    "paths" : {
-      "internal": ["./src/internal"]
-    },
+    "baseUrl": "./src/",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

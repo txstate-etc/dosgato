@@ -13,6 +13,7 @@
     "mysql2-async": "^1.0.12",
     "nanoid": "^3.1.20",
     "rfdc": "^1.2.0",
+    "tsconfig-paths": "^3.12.0",
     "txstate-utils": "^1.5.0",
     "type-graphql": "^1.1.1",
     "source-map-support": "^0.5.21"
@@ -24,14 +25,13 @@
     "eslint-config-standard-with-typescript": "^20.0.0",
     "nodemon": "^2.0.12",
     "ts-node": "^10.1.0",
-    "tsconfig-paths": "^3.12.0",
     "typescript": "^4.5.2"
   },
   "scripts": {
     "test": "./test.sh",
-    "compile": "tsc -p ./",
+    "compile": "rm -rf dist && tsc -p ./",
     "start:dev": "nodemon",
-    "start": "node ./dist/index.js"
+    "start": "TS_NODE_BASEURL=./dist node -r tsconfig-paths/register ./dist/index.js"
   },
   "repository": {
     "type": "git",
