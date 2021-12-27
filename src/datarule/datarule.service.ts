@@ -1,10 +1,5 @@
 import { OneToManyLoader } from 'dataloader-factory'
-import { tooPowerfulHelper } from '../util/rules'
-import { DosGatoService } from '../util/authservice'
-import { Data, DataService } from '../data'
-import { DataFolder } from '../datafolder'
-import { getDataRules } from './datarule.database'
-import { DataRule } from './datarule.model'
+import { tooPowerfulHelper, DosGatoService, Data, DataService, DataFolder, getDataRules, DataRule } from 'internal'
 
 const dataRulesByRoleLoader = new OneToManyLoader({
   fetch: async (roleIds: string[]) => {

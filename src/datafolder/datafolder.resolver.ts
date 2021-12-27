@@ -1,12 +1,10 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
-import { Data, DataFilter, DataService } from '../data'
-import { Site, SiteService } from '../site'
-import { Template, TemplateService } from '../template'
-import { User, UserService } from '../user'
-import { Role } from '../role'
-import { DataFolder, DataFolderPermission, DataFolderPermissions } from './datafolder.model'
 import { isNull } from 'txstate-utils'
+import {
+  Data, DataFilter, DataService, Site, SiteService, Template, TemplateService,
+  User, UserService, Role, DataFolder, DataFolderPermission, DataFolderPermissions
+} from 'internal'
 
 @Resolver(of => DataFolder)
 export class DataFolderResolver {

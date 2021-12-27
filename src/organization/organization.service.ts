@@ -1,5 +1,5 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
-import { getOrganizations } from './organization.database'
+import { getOrganizations } from 'internal'
 
 export class OrganizationService extends AuthorizedService {
   async find (ids?: string[]) {

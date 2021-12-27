@@ -1,4 +1,4 @@
-import { ComponentData } from '../util/sharedtypes'
+import { ComponentData } from 'internal'
 
 // array of templateKey strings in use on the page
 export function collectTemplates (component: ComponentData) {

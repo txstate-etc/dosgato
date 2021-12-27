@@ -1,7 +1,6 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
-import { Role, RoleService } from '../role'
-import { GlobalRule, GlobalRuleGrants, GlobalRulePermissions, GlobalRuleResponse } from './globalrule.model'
+import { Role, RoleService, GlobalRule, GlobalRuleGrants, GlobalRulePermissions, GlobalRuleResponse } from 'internal'
 
 @Resolver(of => GlobalRule)
 export class GlobalRuleResolver {

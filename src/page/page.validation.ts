@@ -1,5 +1,4 @@
-import { templateRegistry } from '../util/registry'
-import { ComponentData, PageData } from '../util/sharedtypes'
+import { templateRegistry, ComponentData, PageData } from 'internal'
 
 async function validateRecurse (data: ComponentData, path: string[]) {
   const validator = templateRegistry.get(data.templateKey).validate

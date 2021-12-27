@@ -1,10 +1,8 @@
 import { OneToManyLoader } from 'dataloader-factory'
-import { Page, PageService } from '../page'
-import { PagetreeService } from '../pagetree'
-import { DosGatoService } from '../util/authservice'
-import { comparePathsWithMode, tooPowerfulHelper } from '../util/rules'
-import { getPageRules } from './pagerule.database'
-import { PageRule, RulePathMode } from './pagerule.model'
+import {
+  Page, PageService, PagetreeService, DosGatoService, comparePathsWithMode,
+  tooPowerfulHelper, getPageRules, PageRule, RulePathMode
+} from 'internal'
 
 const pageRulesByRoleLoader = new OneToManyLoader({
   fetch: async (roleIds: string[]) => {

@@ -1,8 +1,7 @@
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
-import { RulePathMode } from '../pagerule'
-import { RuleType } from '../role'
+import { RulePathMode, RuleType } from 'internal'
 
 interface AssetRuleRow {
   id: number|string

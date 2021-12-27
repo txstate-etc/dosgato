@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import db from 'mysql2-async/db'
-import { VersionedService, Index } from './versionedservice'
+import { VersionedService, Index } from 'internal'
 import { Context } from '@txstate-mws/graphql-server'
 import stringify from 'fast-json-stable-stringify'
 import { nanoid } from 'nanoid'

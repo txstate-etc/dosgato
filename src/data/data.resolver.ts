@@ -1,17 +1,12 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphql'
-import { DataFolder, DataFolderService } from '../datafolder'
-import { Role } from '../role'
-import { JsonData } from '../scalars/jsondata'
-import { Site, SiteService } from '../site'
-import { Template, TemplateService } from '../template'
-import { User, UserService } from '../user'
-import { ObjectVersion } from '../version'
-import { VersionedService } from '../versionedservice'
-import { Data, DataFilter, DataPermission, DataPermissions } from './data.model'
-import { DataService } from './data.service'
 import { isNull } from 'txstate-utils'
+import {
+  DataFolder, DataFolderService, Role, JsonData, Site, SiteService, Template,
+  TemplateService, User, UserService, ObjectVersion, VersionedService, Data,
+  DataFilter, DataPermission, DataPermissions, DataService
+} from 'internal'
 
 @Resolver(of => Data)
 export class DataResolver {

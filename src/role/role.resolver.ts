@@ -1,15 +1,11 @@
 import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
-import { AssetRule, AssetRuleService } from '../assetrule'
-import { DataRule, DataRuleService } from '../datarule'
-import { GlobalRule, GlobalRuleService } from '../globalrule'
-import { PageRule, PageRuleService } from '../pagerule'
-import { SiteRule, SiteRuleFilter, SiteRuleService } from '../siterule'
-import { Group, GroupFilter, GroupService } from '../group'
-import { User, UserFilter, UserService } from '../user'
-import { Role, RoleFilter, RolePermissions, RoleResponse } from './role.model'
-import { RoleService } from './role.service'
-import { TemplateRule, TemplateRuleFilter, TemplateRuleService } from '../templaterule'
+import {
+  AssetRule, AssetRuleService, DataRule, DataRuleService, GlobalRule, GlobalRuleService,
+  PageRule, PageRuleService, SiteRule, SiteRuleFilter, SiteRuleService, Group, GroupFilter,
+  GroupService, User, UserFilter, UserService, Role, RoleFilter, RolePermissions, RoleResponse,
+  RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService
+} from 'internal'
 
 @Resolver(of => Role)
 export class RoleResolver {

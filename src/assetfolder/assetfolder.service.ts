@@ -1,8 +1,5 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { AssetService } from '../asset'
-import { DosGatoService } from '../util/authservice'
-import { getAssetFolders } from './assetfolder.database'
-import { AssetFolder } from './assetfolder.model'
+import { AssetService, DosGatoService, getAssetFolders, AssetFolder } from 'internal'
 
 const assetFolderByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids }),

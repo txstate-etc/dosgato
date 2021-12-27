@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { SiteRule, SiteRuleFilter } from './siterule.model'
+import { SiteRule, SiteRuleFilter } from 'internal'
 
 function processFilters (filter: SiteRuleFilter) {
   const binds: string[] = []

@@ -1,11 +1,11 @@
 import { ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { unique } from 'txstate-utils'
-import { DosGatoService } from '../util/authservice'
-import { GroupService } from '../group'
-import { UserService } from '../user'
-import { Role, RoleFilter, RoleResponse } from './role.model'
-import { assignRoleToUser, createRole, deleteRole, getRoles, getRolesWithGroup, getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup } from './role.database'
+import {
+  DosGatoService, GroupService, UserService, Role, RoleFilter, RoleResponse,
+  assignRoleToUser, createRole, deleteRole, getRoles, getRolesWithGroup,
+  getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup
+} from 'internal'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

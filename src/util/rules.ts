@@ -1,9 +1,4 @@
-import { AssetRule } from '../assetrule'
-import { DataRule } from '../datarule'
-import { GlobalRule } from '../globalrule'
-import { PageRule, RulePathMode } from '../pagerule'
-import { SiteRule } from '../siterule'
-import { TemplateRule } from '../templaterule'
+import { AssetRule, DataRule, GlobalRule, PageRule, RulePathMode, SiteRule, TemplateRule } from 'internal'
 
 type Rule = AssetRule|DataRule|GlobalRule|PageRule|SiteRule|TemplateRule
 

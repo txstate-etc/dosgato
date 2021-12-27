@@ -1,10 +1,9 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
-import { Group, GroupService } from '../group'
-import { Role, RoleService } from '../role'
-import { User, UserFilter, UserPermissions, UserResponse, UpdateUserInput } from './user.model'
-
-import { UserService } from './user.service'
+import {
+  Group, GroupService, Role, RoleService, User, UserFilter,
+  UserPermissions, UserResponse, UpdateUserInput, UserService
+} from 'internal'
 
 @Resolver(of => User)
 export class UserResolver {

@@ -1,10 +1,10 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Arg, Resolver, Ctx, Mutation, FieldResolver, Root } from 'type-graphql'
-import { Role, RoleService } from '../role'
-import { Site, SiteService } from '../site'
-import { Template } from '../template'
-import { CreateDataRuleInput, DataRule, DataRulePermissions, DataRuleResponse, UpdateDataRuleInput } from './datarule.model'
 import { isNull } from 'txstate-utils'
+import {
+  Role, RoleService, Site, SiteService, Template, CreateDataRuleInput,
+  DataRule, DataRulePermissions, DataRuleResponse, UpdateDataRuleInput
+} from 'internal'
 
 @Resolver(of => DataRule)
 export class DataRuleResolver {

@@ -1,8 +1,5 @@
 import { OneToManyLoader } from 'dataloader-factory'
-import { getGlobalRules } from './globalrules.database'
-import { GlobalRule } from './globalrule.model'
-import { DosGatoService } from '../util/authservice'
-import { tooPowerfulHelper } from '../util/rules'
+import { getGlobalRules, GlobalRule, DosGatoService, tooPowerfulHelper } from 'internal'
 
 const globalRulesByRoleLoader = new OneToManyLoader({
   fetch: async (roleIds: string[]) => {

@@ -1,10 +1,5 @@
-import { Asset, AssetFilter } from './asset.model'
-import { getAssets } from './asset.database'
-import { AssetFolder, AssetFolderService } from '../assetfolder'
-import { appendPath } from '../util'
-import { SiteService } from '../site'
-import { DosGatoService } from '../util/authservice'
 import { OneToManyLoader } from 'dataloader-factory'
+import { Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, SiteService, DosGatoService } from 'internal'
 
 const assetsByFolderInternalIdLoader = new OneToManyLoader({
   fetch: async (folderInternalIds: number[]) => await getAssets({ folderInternalIds }),

@@ -4,28 +4,28 @@ install()
 import { GQLServer } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { migrations } from './migrations'
-import { AssetPermissionsResolver, AssetResolver } from './asset'
-import { AssetRuleResolver, AssetRulePermissionsResolver } from './assetrule'
-import { DataPermissionsResolver, DataResolver } from './data'
-import { DataRuleResolver, DataRulePermissionsResolver } from './datarule'
-import { AssetFolderResolver, AssetFolderPermissionsResolver } from './assetfolder'
-import { PagePermissionsResolver, PageResolver } from './page'
-import { PageRulePermissionsResolver, PageRuleResolver } from './pagerule'
-import { PagetreePermissionsResolver, PagetreeResolver } from './pagetree'
-import { RolePermissionsResolver, RoleResolver } from './role'
-import { DateTimeScalar } from './scalars/datetime'
-import { UrlSafeString, UrlSafeStringScalar } from './scalars/urlsafestring'
-import { SitePermissionsResolver, SiteResolver } from './site'
-import { SiteRulePermissionsResolver, SiteRuleResolver } from './siterule'
-import { TemplateAreaResolver, TemplatePermissionsResolver, TemplateResolver } from './template'
-import { UserPermissionsResolver, UserResolver } from './user'
-import { DataFolderPermissionsResolver, DataFolderResolver } from './datafolder'
-import { GroupPermissionsResolver, GroupResolver } from './group'
-import { GlobalRulePermissionsResolver, GlobalRuleResolver } from './globalrule/globalrule.resolver'
-import { VersionResolver } from './version'
-import { OrganizationResolver } from './organization/organization.resolver'
-import { AccessResolver } from './access'
-import { TemplateRulePermissionsResolver, TemplateRuleResolver } from './templaterule'
+import {
+  DateTimeScalar, UrlSafeString, UrlSafeStringScalar,
+  AssetPermissionsResolver, AssetResolver,
+  AssetRuleResolver, AssetRulePermissionsResolver,
+  DataPermissionsResolver, DataResolver,
+  DataRuleResolver, DataRulePermissionsResolver,
+  AssetFolderResolver, AssetFolderPermissionsResolver,
+  PagePermissionsResolver, PageResolver,
+  PageRulePermissionsResolver, PageRuleResolver,
+  PagetreePermissionsResolver, PagetreeResolver,
+  RolePermissionsResolver, RoleResolver,
+  SitePermissionsResolver, SiteResolver,
+  SiteRulePermissionsResolver, SiteRuleResolver,
+  TemplateAreaResolver, TemplatePermissionsResolver, TemplateResolver,
+  UserPermissionsResolver, UserResolver,
+  DataFolderPermissionsResolver, DataFolderResolver,
+  GroupPermissionsResolver, GroupResolver,
+  GlobalRulePermissionsResolver, GlobalRuleResolver,
+  VersionResolver, OrganizationResolver,
+  AccessResolver,
+  TemplateRulePermissionsResolver, TemplateRuleResolver
+} from 'internal'
 
 async function main () {
   await migrations()

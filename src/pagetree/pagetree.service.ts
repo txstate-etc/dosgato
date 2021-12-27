@@ -1,7 +1,6 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { Pagetree, PagetreeFilter } from './pagetree.model'
-import { getPagetreesById, getPagetreesBySite, getPagetreesByTemplate } from './pagetree.database'
+import { Pagetree, PagetreeFilter, getPagetreesById, getPagetreesBySite, getPagetreesByTemplate } from 'internal'
 
 const PagetreesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

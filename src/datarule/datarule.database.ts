@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { DataRule } from './datarule.model'
+import { DataRule } from 'internal'
 
 export async function getDataRules (roleIds: string[]) {
   const binds: string[] = []

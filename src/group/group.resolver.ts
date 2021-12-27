@@ -1,9 +1,6 @@
-import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Arg, Ctx, FieldResolver, Mutation, Query, Resolver, Root } from 'type-graphql'
-import { Role, RoleService } from '../role'
-import { User, UserService } from '../user'
-import { Group, GroupPermissions, GroupResponse } from './group.model'
-import { GroupService } from './group.service'
+import { Role, RoleService, User, UserService, Group, GroupPermissions, GroupResponse, GroupService } from 'internal'
 
 @Resolver(of => Group)
 export class GroupResolver {

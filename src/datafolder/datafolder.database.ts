@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { DataFolder, DataFolderFilter } from './datafolder.model'
 import { isNotNull } from 'txstate-utils'
+import { DataFolder, DataFolderFilter } from 'internal'
 
 export async function getDataFolders (filter: DataFolderFilter) {
   const where: string[] = []

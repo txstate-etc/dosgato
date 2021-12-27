@@ -1,9 +1,7 @@
 import { OneToManyLoader } from 'dataloader-factory'
-import { Template } from '../template'
-import { DosGatoService } from '../util/authservice'
-import { tooPowerfulHelper } from '../util/rules'
-import { getTemplateRules } from './templaterule.database'
-import { TemplateRule, TemplateRuleFilter } from './templaterule.model'
+import {
+  Template, DosGatoService, tooPowerfulHelper, getTemplateRules, TemplateRule, TemplateRuleFilter
+} from 'internal'
 
 const templateRulesByRoleLoader = new OneToManyLoader({
   fetch: async (roleIds: string[], filter?: TemplateRuleFilter) => {

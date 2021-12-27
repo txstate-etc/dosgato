@@ -1,10 +1,10 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root, Arg, Mutation } from 'type-graphql'
-import { Pagetree } from '../pagetree'
-import { Role, RoleService } from '../role'
-import { Site, SiteService } from '../site'
-import { CreatePageRuleInput, PageRule, PageRulePermissions, PageRuleResponse, UpdatePageRuleInput } from './pagerule.model'
 import { isNull } from 'txstate-utils'
+import {
+  Pagetree, Role, RoleService, Site, SiteService, CreatePageRuleInput, PageRule,
+  PageRulePermissions, PageRuleResponse, UpdatePageRuleInput
+} from 'internal'
 
 @Resolver(of => PageRule)
 export class PageRuleResolver {

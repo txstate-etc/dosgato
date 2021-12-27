@@ -1,13 +1,6 @@
 import { Context } from '@txstate-mws/graphql-server'
 import { Arg, Ctx, FieldResolver, Query, Resolver } from 'type-graphql'
-import { AssetService } from '../asset'
-import { DataService } from '../data'
-import { GroupService } from '../group'
-import { PageService } from '../page'
-import { RoleService } from '../role'
-import { UrlSafeString } from '../scalars/urlsafestring'
-import { SiteService } from '../site'
-import { Access } from './access.model'
+import { AssetService, DataService, GroupService, PageService, RoleService, UrlSafeString, SiteService, Access } from 'internal'
 
 @Resolver(of => Access)
 export class AccessResolver {

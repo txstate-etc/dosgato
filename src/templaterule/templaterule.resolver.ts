@@ -1,9 +1,10 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
-import { Role, RoleService } from '../role'
-import { Template, TemplateService } from '../template'
-import { TemplateRule, TemplateRuleGrants, TemplateRulePermissions, TemplateRuleResponse } from './templaterule.model'
 import { isNull } from 'txstate-utils'
+import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
+import {
+  Role, RoleService, Template, TemplateService, TemplateRule,
+  TemplateRuleGrants, TemplateRulePermissions, TemplateRuleResponse
+} from 'internal'
 
 @Resolver(of => TemplateRule)
 export class TemplateRuleResolver {

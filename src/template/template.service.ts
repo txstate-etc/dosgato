@@ -1,7 +1,6 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { TemplateFilter } from './template.model'
-import { getTemplates, getTemplatesBySite } from './template.database'
+import { TemplateFilter, getTemplates, getTemplatesBySite } from 'internal'
 
 const templatesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => {

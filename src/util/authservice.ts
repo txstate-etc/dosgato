@@ -1,7 +1,11 @@
-/* eslint-disable import/first */
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { filterAsync } from 'txstate-utils'
+import {
+  Asset, AssetFolder, Data, DataFolder, Page, RoleService, Site, Template, UserService,
+  AssetRuleService, AssetRuleGrants, DataRuleService, DataRuleGrants, GlobalRuleService,
+  GlobalRuleGrants, PageRuleService, PageRuleGrants, SiteRuleGrants, SiteRuleService,
+  TemplateRuleService, TemplateRuleGrants
+} from 'internal'
 
 export abstract class DosGatoService extends AuthorizedService<{ login: string }> {
   protected isRenderServer () {
@@ -117,19 +121,3 @@ export abstract class DosGatoService extends AuthorizedService<{ login: string }
     return applicable.some(r => r.grants[grant])
   }
 }
-
-import { Asset } from '../asset'
-import { AssetFolder } from '../assetfolder'
-import { Data } from '../data'
-import { DataFolder } from '../datafolder'
-import { Page } from '../page'
-import { RoleService } from '../role'
-import { Site } from '../site'
-import { Template } from '../template'
-import { UserService } from '../user'
-import { AssetRuleService, AssetRuleGrants } from '../assetrule'
-import { DataRuleService, DataRuleGrants } from '../datarule'
-import { GlobalRuleService, GlobalRuleGrants } from '../globalrule'
-import { PageRuleService, PageRuleGrants } from '../pagerule'
-import { SiteRuleGrants, SiteRuleService } from '../siterule'
-import { TemplateRuleService, TemplateRuleGrants } from '../templaterule'

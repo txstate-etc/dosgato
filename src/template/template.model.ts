@@ -1,6 +1,5 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { UrlSafeString } from '../scalars/urlsafestring'
-import { templateRegistry } from '../util/registry'
+import { UrlSafeString } from 'internal'
 
 export enum TemplateType {
   PAGE = 'page',

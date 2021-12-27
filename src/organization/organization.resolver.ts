@@ -1,8 +1,6 @@
 import { Context } from '@txstate-mws/graphql-server'
 import { Ctx, FieldResolver, Query, Resolver, Root } from 'type-graphql'
-import { Site, SiteService } from '../site'
-import { Organization } from './organization.model'
-import { OrganizationService } from './organization.service'
+import { Site, SiteService, Organization, OrganizationService } from 'internal'
 
 @Resolver(of => Organization)
 export class OrganizationResolver {

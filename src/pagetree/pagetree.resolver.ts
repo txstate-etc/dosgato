@@ -1,11 +1,10 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { isNull } from 'txstate-utils'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
-import { Page, PageService, PageFilter } from '../page'
-import { Role } from '../role'
-import { Site, SiteService } from '../site'
-import { Template, TemplateFilter } from '../template'
-import { Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeType } from './pagetree.model'
+import {
+  Page, PageService, PageFilter, Role, Site, SiteService, Template, TemplateFilter,
+  Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeType
+} from 'internal'
 
 @Resolver(of => Pagetree)
 export class PagetreeResolver {

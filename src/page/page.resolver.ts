@@ -1,17 +1,12 @@
 import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
-import { Pagetree, PagetreeService } from '../pagetree'
-import { Role } from '../role'
-import { JsonData } from '../scalars/jsondata'
-import { Site, SiteService } from '../site'
-import { Template, TemplateFilter } from '../template'
-import { User, UserService } from '../user'
-import { ObjectVersion } from '../version'
-import { VersionedService } from '../versionedservice'
-import { CreatePageInput, Page, PageFilter, PagePermission, PagePermissions, PageResponse } from './page.model'
-import { PageService } from './page.service'
 import { isNull } from 'txstate-utils'
+import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
+import {
+  Pagetree, PagetreeService, Role, JsonData, Site, SiteService, Template, TemplateFilter,
+  User, UserService, ObjectVersion, VersionedService, CreatePageInput, Page, PageFilter,
+  PagePermission, PagePermissions, PageResponse, PageService
+} from 'internal'
 
 @Resolver(of => Page)
 export class PageResolver {

@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { Organization } from './organization.model'
+import { Organization } from 'internal'
 
 export async function getOrganizations (ids?: string[]) {
   const binds: string[] = []

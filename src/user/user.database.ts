@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { User, UserFilter } from './user.model'
 import { isNotNull } from 'txstate-utils'
+import { User, UserFilter } from 'internal'
 
 function processFilters (filter?: UserFilter) {
   const binds: string[] = []

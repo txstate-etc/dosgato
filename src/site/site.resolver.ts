@@ -1,18 +1,14 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { isNotNull } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
-import { AssetPermission } from '../asset'
-import { AssetFolder } from '../assetfolder'
-import { Data, DataFilter, DataPermission, DataService } from '../data'
-import { DataFolder, DataFolderFilter, DataFolderService } from '../datafolder'
-import { Organization, OrganizationService } from '../organization'
-import { Page, PageFilter, PagePermission, PageService } from '../page'
-import { Pagetree, PagetreeFilter, PagetreeService } from '../pagetree'
-import { Role } from '../role'
-import { Template, TemplateFilter, TemplateService } from '../template'
-import { User, UserService } from '../user'
-import { Site, SiteFilter, CreateSiteInput, SitePermission, SitePermissions, SiteResponse, UpdateSiteInput } from './site.model'
-import { SiteService } from './site.service'
-import { isNotNull, isNull } from 'txstate-utils'
+import {
+  AssetPermission, AssetFolder, Data, DataFilter, DataPermission, DataService,
+  DataFolder, DataFolderFilter, DataFolderService, Organization, OrganizationService,
+  Page, PageFilter, PagePermission, PageService, Pagetree, PagetreeFilter,
+  PagetreeService, Role, Template, TemplateFilter, TemplateService, User, UserService,
+  Site, SiteFilter, CreateSiteInput, SitePermission, SitePermissions, SiteResponse,
+  UpdateSiteInput, SiteService
+} from 'internal'
 
 @Resolver(of => Site)
 export class SiteResolver {

@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { Group, GroupFilter } from './group.model'
 import { Cache, hashify } from 'txstate-utils'
+import { Group, GroupFilter } from 'internal'
 
 export const groupManagerCache = new Cache(async (groupId: string) => {
   const managers = await db.getall('SELECT userId FROM users_groups WHERE groupId = ? AND manager IS TRUE', [groupId])

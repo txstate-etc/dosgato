@@ -1,11 +1,6 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { Data, DataFilter } from './data.model'
-import { getData } from './data.database'
-import { VersionedService } from '../versionedservice'
 import { unique } from 'txstate-utils'
-import { DataFolderService } from '../datafolder'
-import { appendPath } from '../util'
-import { DosGatoService } from '../util/authservice'
+import { Data, DataFilter, getData, VersionedService, DataFolderService, appendPath, DosGatoService } from 'internal'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => await getData({ internalIds }),

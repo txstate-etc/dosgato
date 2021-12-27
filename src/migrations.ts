@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { init } from './createdb'
-import { VersionedService } from './versionedservice'
+import { VersionedService } from 'internal'
 import { fixtures } from './fixtures'
 
 export async function migrations () {

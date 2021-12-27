@@ -1,8 +1,8 @@
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
-import { Site, SiteFilter } from './site.model'
-import { getSites, getSitesByOrganization, getSitesByTemplate } from './site.database'
-import { PagetreeService } from '../pagetree'
-import { DosGatoService } from '../util/authservice'
+import {
+  Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate,
+  PagetreeService, DosGatoService
+} from 'internal'
 
 const siteByOrganizationIdLoader = new OneToManyLoader({
   fetch: async (orgIds: string[]) => {

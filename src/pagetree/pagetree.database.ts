@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { Pagetree, PagetreeFilter } from './pagetree.model'
 import { unique } from 'txstate-utils'
+import { Pagetree, PagetreeFilter } from 'internal'
 
 function processFilters (filter?: PagetreeFilter) {
   const binds: string[] = []

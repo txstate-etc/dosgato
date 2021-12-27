@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { Role, RoleFilter } from './role.model'
+import { Role, RoleFilter } from 'internal'
 
 export async function getRoles (filter: RoleFilter) {
   const binds: string[] = []

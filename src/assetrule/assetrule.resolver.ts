@@ -1,10 +1,10 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Mutation, Root, Arg } from 'type-graphql'
-import { Role, RoleService } from '../role'
-import { Site, SiteService } from '../site'
-import { AssetRule, AssetRulePermissions, AssetRuleResponse, CreateAssetRuleInput, UpdateAssetRuleInput } from './assetrule.model'
 import { isNull } from 'txstate-utils'
-import { AssetRuleService } from './assetrule.service'
+import {
+  Role, RoleService, Site, SiteService, AssetRule, AssetRulePermissions, AssetRuleResponse,
+  CreateAssetRuleInput, UpdateAssetRuleInput, AssetRuleService
+} from 'internal'
 
 @Resolver(of => AssetRule)
 export class AssetRuleResolver {

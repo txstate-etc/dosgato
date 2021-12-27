@@ -1,9 +1,6 @@
 import { PageWithAncestors } from '@dosgato/templating'
 import { sortby } from 'txstate-utils'
-import { MigrationWithTemplate } from '../util/migrations'
-import { templateRegistry } from '../util/registry'
-import { ComponentData, PageData } from '../util/sharedtypes'
-import { collectTemplates } from './page.util'
+import { MigrationWithTemplate, templateRegistry, ComponentData, PageData, collectTemplates } from 'internal'
 
 // recursive helper function to traverse a page and apply one migration to any applicable
 // components

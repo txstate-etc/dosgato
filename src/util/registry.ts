@@ -1,5 +1,5 @@
 import { APITemplateType, APITemplate } from '@dosgato/templating'
-import { TemplateArea } from '../template'
+import { TemplateArea } from 'internal'
 
 interface APITemplateImpl extends Omit<APITemplate, 'areas'> {}
 class APITemplateImpl implements Omit<APITemplate, 'areas'> {

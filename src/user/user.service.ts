@@ -1,9 +1,9 @@
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { unique } from 'txstate-utils'
-import { DosGatoService } from '../util/authservice'
-import { GroupService } from '../group'
-import { User, UserFilter } from './user.model'
-import { getUsers, getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId } from './user.database'
+import {
+  DosGatoService, GroupService, User, UserFilter, getUsers,
+  getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId
+} from 'internal'
 
 const usersByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => {

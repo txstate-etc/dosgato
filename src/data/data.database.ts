@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
-import { Data, DataFilter } from './data.model'
+import { Data, DataFilter } from 'internal'
 
 function processFilters (filter?: DataFilter) {
   const where: string[] = []

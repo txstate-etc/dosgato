@@ -1,9 +1,7 @@
 import { OneToManyLoader } from 'dataloader-factory'
-import { Site } from '../site'
-import { DosGatoService } from '../util/authservice'
-import { tooPowerfulHelper } from '../util/rules'
-import { getSiteRules } from './siterule.database'
-import { SiteRule, SiteRuleFilter } from './siterule.model'
+import {
+  Site, DosGatoService, tooPowerfulHelper, getSiteRules, SiteRule, SiteRuleFilter
+} from 'internal'
 
 const siteRulesByRoleLoader = new OneToManyLoader({
   fetch: async (roleIds: string[], filter?: SiteRuleFilter) => {

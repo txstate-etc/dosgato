@@ -1,10 +1,12 @@
 import { ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { Group, GroupFilter, GroupResponse } from './group.model'
-import { getGroups, getGroupsWithUser, getGroupsWithRole, groupManagerCache, groupHierarchyCache, createGroup, updateGroup, deleteGroup, addUserToGroup, removeUserFromGroup, setGroupManager, removeSubgroup, addSubgroup } from './group.database'
 import { unique, filterConcurrent } from 'txstate-utils'
-import { UserService } from '../user'
-import { DosGatoService } from '../util/authservice'
+import {
+  Group, GroupFilter, GroupResponse, getGroups, getGroupsWithUser, getGroupsWithRole,
+  groupManagerCache, groupHierarchyCache, createGroup, updateGroup, deleteGroup,
+  addUserToGroup, removeUserFromGroup, setGroupManager, removeSubgroup, addSubgroup,
+  UserService, DosGatoService
+} from 'internal'
 
 const groupsByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

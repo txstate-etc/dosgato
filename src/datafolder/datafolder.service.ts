@@ -1,7 +1,5 @@
 import { PrimaryKeyLoader, OneToManyLoader } from 'dataloader-factory'
-import { DataFolder, DataFolderFilter } from './datafolder.model'
-import { getDataFolders } from './datafolder.database'
-import { DosGatoService } from '../util/authservice'
+import { DataFolder, DataFolderFilter, DosGatoService, getDataFolders } from 'internal'
 
 const dataFoldersByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {

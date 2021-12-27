@@ -1,8 +1,4 @@
-import { extractLinksFromText, getKeywords, processLink } from '../util/indexing'
-import { templateRegistry } from '../util/registry'
-import { PageData } from '../util/sharedtypes'
-import { Index } from '../versionedservice'
-import { collectComponents } from './page.util'
+import { extractLinksFromText, getKeywords, processLink, templateRegistry, PageData, Index, collectComponents } from 'internal'
 
 export function getPageIndexes (page: PageData): Index[] {
   const storage: Record<string, Set<string>> = {}

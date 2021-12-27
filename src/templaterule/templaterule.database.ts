@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { TemplateRule, TemplateRuleFilter } from './templaterule.model'
+import { TemplateRule, TemplateRuleFilter } from 'internal'
 
 function processFilters (filter: TemplateRuleFilter) {
   const binds: string[] = []

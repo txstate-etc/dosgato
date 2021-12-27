@@ -1,8 +1,7 @@
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { JsonData } from '../scalars/jsondata'
-import { UrlSafeString } from '../scalars/urlsafestring'
+import { JsonData, UrlSafeString } from 'internal'
 
 @ObjectType({ description: 'Asset attributes only available for visual inline assets like images, animated GIFS, or videos.' })
 export class BoxAttributes {

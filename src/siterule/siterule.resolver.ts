@@ -1,9 +1,10 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
-import { Role, RoleService } from '../role'
-import { Site, SiteService } from '../site'
-import { CreateSiteRuleInput, SiteRule, SiteRulePermissions, SiteRuleResponse, UpdateSiteRuleInput } from './siterule.model'
 import { isNull } from 'txstate-utils'
+import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
+import {
+  Role, RoleService, Site, SiteService, CreateSiteRuleInput, SiteRule,
+  SiteRulePermissions, SiteRuleResponse, UpdateSiteRuleInput
+} from 'internal'
 
 @Resolver(of => SiteRule)
 export class SiteRuleResolver {

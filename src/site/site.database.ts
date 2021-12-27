@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { Site, SiteFilter } from './site.model'
-import { isNotNull, unique } from 'txstate-utils'
+import { unique } from 'txstate-utils'
+import { Site, SiteFilter } from 'internal'
 
 const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId']
 
