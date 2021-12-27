@@ -50,12 +50,32 @@ export class DataService extends DosGatoService {
     return await this.loaders.get(dataBySiteIdLoader, filter).load(siteId)
   }
 
-  async mayView (data: Data): Promise<boolean> {
-    return true
+  async mayView (data: Data) {
+    return await this.haveDataPerm(data, 'view')
   }
 
   async mayViewManagerUI () {
     return await this.haveGlobalPerm('manageGlobalData') || (await this.currentDataRules()).some(r => r.grants.viewForEdit)
+  }
+
+  async mayViewForEdit (data: Data) {
+    return await this.haveDataPerm(data, 'viewForEdit')
+  }
+
+  async mayUpdate (data: Data) {
+    return await this.haveDataPerm(data, 'update')
+  }
+
+  async mayMove (data: Data) {
+    return await this.haveDataPerm(data, 'move')
+  }
+
+  async mayDelete (data: Data) {
+    return await this.haveDataPerm(data, 'delete')
+  }
+
+  async mayUndelete (data: Data) {
+    return await this.haveDataPerm(data, 'undelete')
   }
 
   async mayCreateGlobal () {

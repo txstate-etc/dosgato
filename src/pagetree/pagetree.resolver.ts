@@ -1,8 +1,7 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { isNull } from 'txstate-utils'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
-import { Page, PageService } from '../page'
-import { PageFilter } from '../page/page.model'
+import { Page, PageService, PageFilter } from '../page'
 import { Role } from '../role'
 import { Site, SiteService } from '../site'
 import { Template, TemplateFilter } from '../template'
@@ -16,7 +15,7 @@ export class PagetreeResolver {
   }
 
   @FieldResolver(returns => [Page])
-  async pages (@Ctx() ctx: Context, @Root() pagetree: Pagetree, @Arg('filter', { nullable: true }) filter: PageFilter) {
+  async pages (@Ctx() ctx: Context, @Root() pagetree: Pagetree, @Arg('filter', type => PageFilter, { nullable: true }) filter: PageFilter) {
     return await ctx.svc(PageService).findByPagetreeId(pagetree.id, filter)
   }
 

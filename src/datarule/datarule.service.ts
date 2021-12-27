@@ -1,7 +1,8 @@
 import { OneToManyLoader } from 'dataloader-factory'
-import { Data, DataService } from '../data'
-import { DosGatoService } from '../util/authservice'
 import { tooPowerfulHelper } from '../util/rules'
+import { DosGatoService } from '../util/authservice'
+import { Data, DataService } from '../data'
+import { DataFolder } from '../datafolder'
 import { getDataRules } from './datarule.database'
 import { DataRule } from './datarule.model'
 
@@ -21,8 +22,14 @@ export class DataRuleService extends DosGatoService {
     if (!item.siteId && rule.siteId) return false
     if (rule.siteId && rule.siteId !== item.siteId) return false
     const dataPath = await this.svc(DataService).getPath(item)
-    if (!dataPath.startsWith(rule.path)) return false
-    return true
+    return dataPath.startsWith(rule.path)
+  }
+
+  async appliesToFolder (rule: DataRule, folder: DataFolder) {
+    if (!folder.siteId && rule.siteId) return false
+    if (rule.siteId && rule.siteId !== folder.siteId) return false
+    const folderPath = `/${folder.name as string}`
+    return folderPath.startsWith(rule.path)
   }
 
   asOrMorePowerful (ruleA: DataRule, ruleB: DataRule) { // is ruleA equal or more powerful than ruleB?

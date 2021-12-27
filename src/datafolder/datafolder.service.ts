@@ -1,7 +1,7 @@
-import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { PrimaryKeyLoader, OneToManyLoader } from 'dataloader-factory'
 import { DataFolder, DataFolderFilter } from './datafolder.model'
 import { getDataFolders } from './datafolder.database'
+import { DosGatoService } from '../util/authservice'
 
 const dataFoldersByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
@@ -18,7 +18,7 @@ const dataFoldersBySiteIdLoader = new OneToManyLoader({
   keysFromFilter: (filter: DataFolderFilter | undefined) => filter?.siteIds ?? []
 })
 
-export class DataFolderService extends AuthorizedService {
+export class DataFolderService extends DosGatoService {
   async findByInternalId (id: number) {
     return await this.loaders.get(dataFoldersByInternalIdLoader).load(id)
   }

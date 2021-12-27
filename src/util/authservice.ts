@@ -5,6 +5,7 @@ import { filterAsync } from 'txstate-utils'
 import { Asset } from '../asset'
 import { AssetFolder } from '../assetfolder'
 import { Data } from '../data'
+import { DataFolder } from '../datafolder'
 import { Page } from '../page'
 import { RoleService } from '../role'
 import { Site } from '../site'
@@ -99,6 +100,17 @@ export abstract class DosGatoService extends AuthorizedService<{ login: string }
     const rules = await this.currentDataRules()
     const dataRuleService = this.svc(DataRuleService)
     const applicable = await filterAsync(rules, async r => await dataRuleService.applies(r, item))
+    return applicable.some(r => r.grants[grant])
+  }
+
+  protected async haveDataFolderPerm (folder: DataFolder, grant: keyof DataRuleGrants) {
+    if (this.isRenderServer() && grant === 'view') return true
+
+    if (!folder.siteId) return await this.haveGlobalPerm('manageGlobalData')
+
+    const rules = await this.currentDataRules()
+    const dataRuleService = this.svc(DataRuleService)
+    const applicable = await filterAsync(rules, async r => await dataRuleService.appliesToFolder(r, folder))
     return applicable.some(r => r.grants[grant])
   }
 
