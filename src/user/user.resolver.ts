@@ -1,4 +1,4 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import {
   Group, GroupService, Role, RoleService, User, UserFilter,
@@ -28,18 +28,13 @@ export class UserResolver {
   }
 
   @Mutation(returns => UserResponse)
-  async updateUser (@Ctx() ctx: Context, @Arg('args', type => UpdateUserInput) args: UpdateUserInput) {
-    throw new UnimplementedError()
+  async updateUser (@Ctx() ctx: Context, @Arg('userId') userId: string, @Arg('args', type => UpdateUserInput) args: UpdateUserInput) {
+    return await ctx.svc(UserService).updateUser(userId, args)
   }
 
   @Mutation(returns => UserResponse)
-  async disableUser (@Ctx() ctx: Context) {
-    throw new UnimplementedError()
-  }
-
-  @Mutation(returns => UserResponse)
-  async enableUser (@Ctx() ctx: Context) {
-    throw new UnimplementedError()
+  async disableUser (@Ctx() ctx: Context, @Arg('userId') userId: string) {
+    return await ctx.svc(UserService).disableUser(userId)
   }
 }
 
@@ -47,11 +42,11 @@ export class UserResolver {
 export class UserPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'Current user may update this user\'s name or email.' })
   async update (@Ctx() ctx: Context, @Root() user: User) {
-    throw new UnimplementedError()
+    return await ctx.svc(UserService).mayUpdate()
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user may disable this account and remove all role and group memberships it has. The user row itself will stay in the database for referential integrity.' })
   async disable (@Ctx() ctx: Context, @Root() user: User) {
-    throw new UnimplementedError()
+    return await ctx.svc(UserService).mayDisable()
   }
 }

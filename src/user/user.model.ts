@@ -51,10 +51,10 @@ export class UserFilter {
 
 @InputType()
 export class UpdateUserInput {
-  @Field()
+  @Field({ nullable: true })
   name!: string
 
-  @Field()
+  @Field({ nullable: true })
   email!: string
 }
 

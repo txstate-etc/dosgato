@@ -72,3 +72,32 @@ export async function getUsersBySite (siteIds: string[]) {
                                  WHERE (${where.join(') AND (')})`, binds)
   return users.map(row => ({ key: String(row.siteId), value: new User(row) }))
 }
+
+export async function updateUser (id: string, name: string | undefined, email: string | undefined) {
+  const updates: string[] = []
+  const binds: string[] = []
+  if (name) {
+    updates.push('name = ?')
+    binds.push(name)
+  }
+  if (email) {
+    updates.push('email = ?')
+    binds.push(email)
+  }
+  if (updates.length) {
+    binds.push(id)
+    await db.update(`UPDATE users SET ${updates.join(',')} WHERE login = ?`, binds)
+  }
+}
+
+export async function disableUser (id: number) {
+  return await db.transaction(async db => {
+    await Promise.all([
+      db.update('UPDATE users SET disabledAt = NOW() WHERE id = ?', [id]),
+      db.delete('DELETE FROM users_groups WHERE userId = ?', [id]),
+      db.delete('DELETE FROM users_roles WHERE userId = ?', [id]),
+      db.delete('DELETE FROM sites_managers WHERE userId = ?', [id]),
+      db.update('UPDATE sites SET ownerId = NULL WHERE ownerId = ?', [id])
+    ])
+  })
+}

@@ -1,8 +1,10 @@
+
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { unique } from 'txstate-utils'
 import {
-  DosGatoService, GroupService, User, UserFilter, getUsers,
-  getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId
+  DosGatoService, GroupService, User, UserFilter, UserResponse, getUsers,
+  getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId,
+  UpdateUserInput, updateUser, disableUser
 } from 'internal'
 
 const usersByInternalIdLoader = new PrimaryKeyLoader({
@@ -104,7 +106,49 @@ export class UserService extends DosGatoService {
     return await this.loaders.get(usersByIdLoader).load(id)
   }
 
+  async updateUser (id: string, args: UpdateUserInput) {
+    const user = await this.findById(id)
+    if (!user) throw new Error('User to be updated does not exist.')
+    if (!(await this.mayUpdate())) throw new Error('Current user is not permitted to update users.')
+    const response = new UserResponse({})
+    try {
+      await updateUser(id, args.name, args.email)
+      this.loaders.clear()
+      const updated = await this.loaders.get(usersByIdLoader).load(id)
+      response.success = true
+      response.user = updated
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while updating the user.')
+    }
+    return response
+  }
+
+  async disableUser (id: string) {
+    const user = await this.findById(id)
+    if (!user) throw new Error('User to be disabled does not exist.')
+    if (!(await this.mayDisable())) throw new Error('Current user is not permitted to disable users.')
+    const response = new UserResponse({})
+    try {
+      await disableUser(user.internalId)
+      this.loaders.clear()
+      const updated = await this.loaders.get(usersByIdLoader).load(id)
+      response.success = true
+      response.user = updated
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while disabling the user.')
+    }
+    return response
+  }
+
+  async mayUpdate () {
+    return await this.haveGlobalPerm('manageUsers')
+  }
+
+  async mayDisable () {
+    return await this.haveGlobalPerm('manageUsers')
+  }
+
   async mayView (): Promise<boolean> {
-    return true
+    return await this.haveGlobalPerm('manageUsers')
   }
 }
