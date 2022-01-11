@@ -26,7 +26,7 @@ export class AccessResolver {
 
   @FieldResolver(returns => Boolean, { description: 'Currently authenticated user is able to create, edit, or add rules to one or more roles and should therefore see the role management UI.' })
   async viewRoleManager (@Ctx() ctx: Context) {
-    return await ctx.svc(GroupService).mayViewManagerUI()
+    return await ctx.svc(RoleService).mayViewManagerUI()
   }
 
   @FieldResolver(returns => Boolean, { description: 'Currently authenticated user is able to create sites.' })

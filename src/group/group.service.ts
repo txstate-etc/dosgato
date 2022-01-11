@@ -152,7 +152,7 @@ export class GroupService extends DosGatoService {
 
   async delete (id: string) {
     const group = await this.findById(id)
-    if (!group) throw new Error('Group to be updated does not exist.')
+    if (!group) throw new Error('Group to be deleted does not exist.')
     if (!(await this.mayDelete(group))) throw new Error('Current user is not permitted to delete groups.')
     try {
       await deleteGroup(id)

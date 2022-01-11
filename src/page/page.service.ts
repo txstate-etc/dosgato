@@ -127,7 +127,7 @@ export class PageService extends DosGatoService {
   }
 
   async mayPublish (page: Page) {
-    return await this.havePagePerm(page, 'update')
+    return await this.havePagePerm(page, 'publish')
   }
 
   async mayMove (page: Page) {
