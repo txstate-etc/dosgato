@@ -127,6 +127,6 @@ each rule must also be checked for a permission of its own. A user must have bot
 before creating a rule relating a role to a target.`
   })
   async createRules (@Ctx() ctx: Context, @Root() role: Role) {
-    throw new UnimplementedError()
+    return await ctx.svc(RoleService).mayCreateRules(role)
   }
 }
