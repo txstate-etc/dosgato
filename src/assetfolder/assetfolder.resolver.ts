@@ -2,14 +2,17 @@ import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import {
   Asset, AssetFilter, Role, RoleService, User, AssetFolder, AssetFolderFilter,
-  AssetFolderPermission, AssetFolderPermissions, AssetFolderService, AssetRuleService
+  AssetFolderPermission, AssetFolderPermissions, AssetFolderService, AssetRuleService,
+  UserService
 } from 'internal'
+import { isNull } from 'txstate-utils'
 
 @Resolver(of => AssetFolder)
 export class AssetFolderResolver {
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the folder is not in the soft-deleted state.' })
   async deletedBy (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
-    throw new UnimplementedError()
+    if (isNull(folder.deletedBy)) return null
+    else return await ctx.svc(UserService).findByInternalId(folder.deletedBy)
   }
 
   @FieldResolver(returns => AssetFolder, { nullable: true, description: 'Returns parent folder, or null if this folder is the site root.' })
