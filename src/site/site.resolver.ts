@@ -54,14 +54,14 @@ export class SiteResolver {
     throw new UnimplementedError()
   }
 
-  @FieldResolver(returns => User)
+  @FieldResolver(returns => User, { nullable: true })
   async owner (@Ctx() ctx: Context, @Root() site: Site) {
-    if (typeof site.ownerId !== 'undefined') {
+    if (isNotNull(site.ownerId)) {
       return await ctx.svc(UserService).findByInternalId(site.ownerId)
     }
   }
 
-  @FieldResolver(returns => Organization)
+  @FieldResolver(returns => Organization, { nullable: true })
   async organization (@Ctx() ctx: Context, @Root() site: Site) {
     if (typeof site.organizationId !== 'undefined') {
       return await ctx.svc(OrganizationService).find([String(site.organizationId)])
