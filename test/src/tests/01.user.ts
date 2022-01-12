@@ -16,10 +16,10 @@ describe('wait for api', () => {
   })
 }).timeout(10000)
 describe('users', () => {
-  it.skip('should return the logged in user', async () => {
+  it('should return the logged in user', async () => {
     const { users } = await query('{ users(filter: { ids: ["self"] }) { id, name, email } }')
     expect(users.length).to.equal(1)
-    // TODO: make sure it is the correct user
+    expect(users).to.deep.include({ id: 'su01', name: 'Michael Scott', email: 'su01@example.com' })
   })
   it('should retrieve users by netid', async () => {
     const { users } = await query('{ users(filter: { ids: ["su01", "ed01"] }) { id, name, email } }')
