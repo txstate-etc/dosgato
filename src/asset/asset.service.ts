@@ -1,9 +1,13 @@
-import { OneToManyLoader } from 'dataloader-factory'
-import { Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, SiteService, DosGatoService } from 'internal'
+import { ManyJoinedLoader, OneToManyLoader } from 'dataloader-factory'
+import { Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes, SiteService, DosGatoService } from 'internal'
 
 const assetsByFolderInternalIdLoader = new OneToManyLoader({
   fetch: async (folderInternalIds: number[]) => await getAssets({ folderInternalIds }),
   extractKey: asset => asset.folderInternalId
+})
+
+const resizesByAssetIdLoader = new ManyJoinedLoader({
+  fetch: async (assetIds: string[]) => await getResizes(assetIds)
 })
 
 export class AssetService extends DosGatoService {
@@ -34,6 +38,10 @@ export class AssetService extends DosGatoService {
     const folder = await this.svc(AssetFolderService).findByInternalId(asset.folderInternalId)
     if (!folder) return '/'
     return appendPath(await this.svc(AssetFolderService).getPath(folder), asset.name as string)
+  }
+
+  async getResizes (asset: Asset) {
+    return await this.loaders.get(resizesByAssetIdLoader).load(asset.id)
   }
 
   async mayViewManagerUI () {

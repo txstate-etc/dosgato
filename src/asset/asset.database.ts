@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
-import { Asset, AssetFilter } from 'internal'
+import { Asset, AssetFilter, AssetResize } from 'internal'
 
 function processFilters (filter?: AssetFilter) {
   const binds: string[] = []
@@ -41,4 +41,13 @@ export async function getAssets (filter?: AssetFilter) {
   ${joins.join('\n')}
   WHERE (${where.join(') AND (')})`, binds)
   return assets.map(a => new Asset(a))
+}
+
+export async function getResizes (assetIds: string[]) {
+  const binds: string[] = []
+  const resizes = await db.getall(`SELECT assets.id, resizes.* FROM resizes
+  INNER JOIN binaries ON resizes.originalBinaryId = binaries.id
+  INNER JOIN assets ON binaries.shashum = assets.shasum
+  WHERE assets.id IN ${db.in(binds, assetIds)}`, binds)
+  return resizes.map(row => ({ key: String(row.assetId), value: new AssetResize(row) }))
 }

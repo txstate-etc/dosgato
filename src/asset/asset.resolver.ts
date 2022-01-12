@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphql'
 import { isNull } from 'txstate-utils'
 import {
-  AssetFolder, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
+  AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService
 } from 'internal'
 
@@ -22,12 +22,12 @@ export class AssetResolver {
 
   @FieldResolver(returns => AssetFolder, { description: 'Returns parent folder.' })
   async folder (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetFolderService).findByInternalId(asset.folderInternalId)
   }
 
   @FieldResolver(returns => [AssetFolder], { description: 'Starts with the parent folder and proceeds upward. Last element will be the site\'s root folder.' })
   async ancestors (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetService).getAncestors(asset)
   }
 
   @FieldResolver(returns => JsonData)
@@ -40,7 +40,7 @@ export class AssetResolver {
 
   @FieldResolver(returns => [AssetResize], { nullable: true, description: 'List of available resized versions of this asset.' })
   async resizes (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetService).getResizes(asset)
   }
 
   @FieldResolver(returns => DateTime)
