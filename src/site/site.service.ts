@@ -1,7 +1,7 @@
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import {
   Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate,
-  PagetreeService, DosGatoService
+  PagetreeService, DosGatoService, CreateSiteInput
 } from 'internal'
 
 const siteByOrganizationIdLoader = new OneToManyLoader({
@@ -61,6 +61,10 @@ export class SiteService extends DosGatoService {
     return await this.loaders.get(sitesByAssetRootLoader).load(assetFolderId)
   }
 
+  // async create (args: CreateSiteInput) {
+  //   if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create sites.')
+  // }
+
   async mayView (): Promise<boolean> {
     return true
   }
@@ -71,5 +75,37 @@ export class SiteService extends DosGatoService {
 
   async mayCreate () {
     return await this.haveGlobalPerm('createSites')
+  }
+
+  async mayLaunch (site: Site) {
+    return await this.haveSitePerm(site, 'launch')
+  }
+
+  async mayRename (site: Site) {
+    return await this.haveSitePerm(site, 'rename')
+  }
+
+  async mayManageOwners (site: Site) {
+    return await this.haveSitePerm(site, 'manageOwners')
+  }
+
+  async mayManagePagetrees (site: Site) {
+    return await this.haveSitePerm(site, 'managePagetrees')
+  }
+
+  async mayPromotePagetree (site: Site) {
+    return await this.haveSitePerm(site, 'promotePagetree')
+  }
+
+  async mayCreateRules (site: Site) {
+    // TODO: Is there some permission needed beyond the global manageUsers?
+  }
+
+  async mayDelete (site: Site) {
+    return await this.haveSitePerm(site, 'delete')
+  }
+
+  async mayUndelete (site: Site) {
+    return await this.haveSitePerm(site, 'undelete')
   }
 }

@@ -2,7 +2,7 @@ import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { isNotNull } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import {
-  AssetPermission, AssetFolder, Data, DataFilter, DataPermission, DataService,
+  AssetPermission, AssetFolder, AssetFolderService, Data, DataFilter, DataPermission, DataService,
   DataFolder, DataFolderFilter, DataFolderService, Organization, OrganizationService,
   Page, PageFilter, PagePermission, PageService, Pagetree, PagetreeFilter,
   PagetreeService, Role, Template, TemplateFilter, TemplateService, User, UserService,
@@ -31,7 +31,7 @@ export class SiteResolver {
 
   @FieldResolver(returns => AssetFolder)
   async assetroot (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetFolderService).findByInternalId(site.rootAssetFolderInternalId)
   }
 
   @FieldResolver(returns => [Data])
@@ -117,41 +117,41 @@ export class SiteResolver {
 export class SitePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to set or update the public URL for this site.' })
   async launch (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).mayLaunch(site)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to rename this site.' })
   async rename (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).mayRename(site)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to set owner, managers, and organization for this site.' })
   async manageOwners (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).mayManageOwners(site)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to create, edit, delete, and undelete pagetrees (such as a sandbox or archive) in this site.' })
   async managePagetrees (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).mayManagePagetrees(site)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to promote a pagetree (e.g. a sandbox) to be the live pagetree for this site.' })
   async promotePagetree (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).mayPromotePagetree(site)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user may add authorization rules that target this site.' })
   async createRules (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).mayCreateRules(site)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to soft-delete this site.' })
   async delete (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).mayDelete(site)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to un-delete this site. Returns false unless the site is currently soft-deleted.' })
   async undelete (@Ctx() ctx: Context, @Root() site: Site) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).mayUndelete(site)
   }
 }
