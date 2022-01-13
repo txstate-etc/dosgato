@@ -40,3 +40,12 @@ export async function getTemplatesBySite (siteIds: string[], filter?: TemplateFi
                            WHERE (${where.join(') AND (')})`, binds)
   return sites.map(row => ({ key: String(row.siteId), value: new Template(row) }))
 }
+
+export async function getTemplatesByPagetree (pagetreeIds: string[], filter?: TemplateFilter) {
+  const { where, binds } = processFilters(filter)
+  where.push(`pagetrees_templates.pagetreeId IN (${db.in(binds, pagetreeIds)})`)
+  const rows = await db.getall(`SELECT ${columns.join(', ')} pagetrees_templates.pagetreeId as pagetreeId FROM templates
+                                INNER JOIN pagetrees_templates ON templates.id = pagetrees_templates.templateId
+                                WHERE (${where.join(') AND (')})`, binds)
+  return rows.map(row => ({ key: String(row.pagetreeId), value: new Template(row) }))
+}
