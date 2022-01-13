@@ -130,8 +130,20 @@ export class PageService extends DosGatoService {
     return await this.havePagePerm(page, 'publish')
   }
 
+  async mayUnpublish (page: Page) {
+    return await this.havePagePerm(page, 'unpublish')
+  }
+
   async mayMove (page: Page) {
     return await this.havePagePerm(page, 'move')
+  }
+
+  async mayDelete (page: Page) {
+    return await this.havePagePerm(page, 'delete')
+  }
+
+  async mayUndelete (page: Page) {
+    return await this.havePagePerm(page, 'undelete')
   }
 
   async processFilters (filter: PageFilter) {

@@ -104,7 +104,8 @@ export class PageResolver {
 
   @FieldResolver(returns => Boolean, { description: 'True if the page has a version marked as published. Note that the page could be published but not in the currently active pagetree.' })
   async published (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    const tag = await ctx.svc(VersionedService).getTag(page.dataId, 'published')
+    return !!tag
   }
 
   @FieldResolver(returns => Boolean, { description: 'True if the page is published, part of the active pagetree, and on a site that is currently launched.' })
@@ -114,12 +115,16 @@ export class PageResolver {
 
   @FieldResolver(returns => DateTime, { nullable: true, description: 'Null if the page has never been published, but could have a value. ' })
   async publishedAt (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    const tag = await ctx.svc(VersionedService).getTag(page.dataId, 'published')
+    if (!tag) return null
+    return DateTime.fromJSDate(tag.date)
   }
 
   @FieldResolver(returns => User, { nullable: true })
   async publishedBy (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    const tag = await ctx.svc(VersionedService).getTag(page.dataId, 'published')
+    if (!tag) return null
+    return await ctx.svc(UserService).findById(tag.user)
   }
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this page, or any permission if null.' })
@@ -129,7 +134,8 @@ export class PageResolver {
 
   @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all versions of this page. One of the version numbers can be passed to the data property in order to retrieve that version of the data.' })
   async versions (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    const versions = await ctx.svc(VersionedService).listVersions(page.dataId)
+    return versions.map(v => new ObjectVersion(v))
   }
 
   @FieldResolver(returns => PagePermissions, {
@@ -185,12 +191,12 @@ export class PageResolver {
 export class PagePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may view the latest unpublished version of this page. Published pages are completely public.' })
   async viewLatest (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).mayViewLatest(page)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may update this page but not necessarily move or publish it.' })
   async update (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).mayUpdate(page)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may rename this page or move it beneath a page for which they have the `create` permission.' })
@@ -205,21 +211,21 @@ export class PagePermissionsResolver {
 
   @FieldResolver(returns => Boolean, { description: 'User may publish this page either for the first time or to the latest version.' })
   async publish (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).mayPublish(page)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may unpublish this page. Returns false when the page is already unpublished.' })
   async unpublish (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).mayUnpublish(page)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may soft-delete this page.' })
   async delete (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).mayDelete(page)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may undelete this page. Returns false when the page is not deleted.' })
   async undelete (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).mayUndelete(page)
   }
 }
