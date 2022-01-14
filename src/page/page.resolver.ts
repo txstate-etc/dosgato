@@ -5,7 +5,7 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } fro
 import {
   Pagetree, PagetreeService, Role, JsonData, Site, SiteService, Template, TemplateFilter,
   User, UserService, ObjectVersion, VersionedService, CreatePageInput, Page, PageFilter,
-  PagePermission, PagePermissions, PageResponse, PageService
+  PagePermission, PagePermissions, PageResponse, PageService, PageRuleService, RoleService
 } from 'internal'
 
 @Resolver(of => Page)
@@ -129,7 +129,9 @@ export class PageResolver {
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this page, or any permission if null.' })
   async roles (@Ctx() ctx: Context, @Root() page: Page, @Arg('withPermission', type => [PagePermission], { nullable: true }) withPermission?: PagePermission[]) {
-    throw new UnimplementedError()
+    let rules = await ctx.svc(PageRuleService).findByPage(page)
+    if (withPermission) rules = rules.filter(r => withPermission.some(p => r.grants[p]))
+    return await ctx.svc(RoleService).findByIds(rules.map(r => r.roleId))
   }
 
   @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all versions of this page. One of the version numbers can be passed to the data property in order to retrieve that version of the data.' })

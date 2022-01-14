@@ -99,6 +99,42 @@ export class PageRule {
   }
 }
 
+@InputType()
+export class PageRuleFilter {
+  @Field(type => [ID], { nullable: true })
+  roleIds?: string[]
+
+  @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that are NOT limited to a site.' })
+  siteIds?: (string|null)[]
+
+  @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that are NOT limited to a pagetree.' })
+  pagetreeIds?: (string|null)[]
+
+  @Field(type => [String], { nullable: true, description: 'Return rules that apply to any of the given paths.' })
+  paths?: string[]
+
+  @Field({ nullable: true, description: 'Return rules that grant the create permission.' })
+  create?: boolean
+
+  @Field({ nullable: true, description: 'Return rules that grant the update permission.' })
+  update?: boolean
+
+  @Field({ nullable: true, description: 'Return rules that grant the move permission.' })
+  move?: boolean
+
+  @Field({ nullable: true, description: 'Return rules that grant the publish permission.' })
+  publish?: boolean
+
+  @Field({ nullable: true, description: 'Return rules that grant the unpublish permission.' })
+  unpublish?: boolean
+
+  @Field({ nullable: true, description: 'Return rules that grant the delete permission.' })
+  delete?: boolean
+
+  @Field({ nullable: true, description: 'Return rules that grant the undelete permission.' })
+  undelete?: boolean
+}
+
 @ObjectType()
 export class PageRuleResponse extends ValidatedResponse {
   @Field({ nullable: true })
