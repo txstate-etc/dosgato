@@ -1,8 +1,8 @@
 import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
+import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
   Data, DataFilter, Page, PageFilter, Pagetree, PagetreeService, Site, SiteService,
-  Template, TemplateArea, TemplateFilter, TemplatePermissions, TemplateService
+  Template, TemplateArea, TemplateFilter, TemplatePermissions, TemplateService, TemplateType
 } from 'internal'
 
 @Resolver(of => Template)
@@ -54,23 +54,28 @@ export class TemplateResolver {
   }
 
   @Mutation(returns => ValidatedResponse)
-  async authorizePagetreeTemplate (@Ctx() ctx: Context, @Arg('templateId') templateId: string, @Arg('pagetreeId') pagetreeId: string) {
-    throw new UnimplementedError()
+  async authorizePagetreeTemplate (@Ctx() ctx: Context, @Arg('templateId', type => ID) templateId: string, @Arg('pagetreeId', type => ID) pagetreeId: string) {
+    return await ctx.svc(TemplateService).authorizeForPagetree(templateId, pagetreeId)
   }
 
   @Mutation(returns => ValidatedResponse)
-  async authorizeSiteTemplate (@Ctx() ctx: Context, @Arg('templateId') templateId: string, @Arg('siteId') siteId: string) {
-    throw new UnimplementedError()
+  async authorizeSiteTemplate (@Ctx() ctx: Context, @Arg('templateId', type => ID) templateId: string, @Arg('siteId', type => ID) siteId: string) {
+    return await ctx.svc(TemplateService).authorizeForSite(templateId, siteId)
   }
 
   @Mutation(returns => ValidatedResponse)
-  async deauthorizePagetreeTemplate (@Ctx() ctx: Context, @Arg('templateId') templateId: string, @Arg('pagetreeId') pagetreeId: string) {
-    throw new UnimplementedError()
+  async deauthorizePagetreeTemplate (@Ctx() ctx: Context, @Arg('templateId', type => ID) templateId: string, @Arg('pagetreeId', type => ID) pagetreeId: string) {
+    return await ctx.svc(TemplateService).deauthorizeForPagetree(templateId, pagetreeId)
   }
 
   @Mutation(returns => ValidatedResponse)
-  async deauthorizeSiteTemplate (@Ctx() ctx: Context, @Arg('templateId') templateId: string, @Arg('siteId') siteId: string) {
-    throw new UnimplementedError()
+  async deauthorizeSiteTemplate (@Ctx() ctx: Context, @Arg('templateId', type => ID) templateId: string, @Arg('siteId', type => ID) siteId: string) {
+    return await ctx.svc(TemplateService).deauthorizeForSite(templateId, siteId)
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async setTemplateUniversal (@Ctx() ctx: Context, @Arg('templateId', type => ID) templateId: string, @Arg('universal') universal: boolean) {
+    return await ctx.svc(TemplateService).setUniversal(templateId, universal)
   }
 }
 
@@ -78,12 +83,12 @@ export class TemplateResolver {
 export class TemplatePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'Authenticated user has permission to approve this template for use on a specific site. Currently based on GlobalRule.manageUsers.' })
   async assign (@Ctx() ctx: Context, @Root() template: Template) {
-    throw new UnimplementedError()
+    return await ctx.svc(TemplateService).mayAssign()
   }
 
   @FieldResolver(returns => Boolean, { description: 'Authenticated user has permission to make this template universal or not. Currently based on GlobalRule.manageUsers.' })
   async setUniversal (@Ctx() ctx: Context, @Root() template: Template) {
-    throw new UnimplementedError()
+    return await ctx.svc(TemplateService).maySetUniversal()
   }
 }
 

@@ -49,3 +49,23 @@ export async function getTemplatesByPagetree (pagetreeIds: string[], filter?: Te
                                 WHERE (${where.join(') AND (')})`, binds)
   return rows.map(row => ({ key: String(row.pagetreeId), value: new Template(row) }))
 }
+
+export async function authorizeForPagetree (templateId: string, pagetreeId: string) {
+  return await db.insert('INSERT INTO pagetrees_templates (templateId, pagetreeId) VALUES (?,?)', [templateId, pagetreeId])
+}
+
+export async function deauthorizeForPagetree (templateId: string, pagetreeId: string) {
+  return await db.delete('DELETE FROM pagetrees_templates WHERE templateId = ? and pagetreeId = ?', [templateId, pagetreeId])
+}
+
+export async function authorizeForSite (templateId: string, siteId: string) {
+  return await db.insert('INSERT INTO sites_templates (templateId, siteId) VALUES (?,?)', [templateId, siteId])
+}
+
+export async function deauthorizeForSite (templateId: string, siteId: string) {
+  return await db.delete('DELETE FROM sites_templates WHERE templateId = ? and siteId = ?', [templateId, siteId])
+}
+
+export async function setUniversal (templateId: string, universal: boolean) {
+  return await db.update('UPDATE templates SET universal = ? where id = ?', [templateId, universal])
+}

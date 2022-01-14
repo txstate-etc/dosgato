@@ -33,7 +33,7 @@ export class TemplateRuleResolver {
   }
 
   @Mutation(returns => TemplateRuleResponse)
-  async updateTemplateeRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string, @Arg('grants', type => TemplateRuleGrants) grants: TemplateRuleGrants) {
+  async updateTemplateRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string, @Arg('grants', type => TemplateRuleGrants) grants: TemplateRuleGrants) {
     throw new UnimplementedError()
   }
 }
