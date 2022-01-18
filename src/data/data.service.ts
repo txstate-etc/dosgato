@@ -65,6 +65,14 @@ export class DataService extends DosGatoService {
     return await this.haveDataPerm(data, 'move')
   }
 
+  async mayPublish (data: Data) {
+    return await this.haveDataPerm(data, 'publish')
+  }
+
+  async mayUnpublish (data: Data) {
+    return await this.haveDataPerm(data, 'unpublish')
+  }
+
   async mayDelete (data: Data) {
     return await this.haveDataPerm(data, 'delete')
   }

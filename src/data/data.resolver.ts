@@ -106,31 +106,31 @@ export class DataResolver {
 export class DataPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may update this data but not necessarily move it.' })
   async update (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).mayUpdate(data)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may publish this data entry either for the first time or to the latest version.' })
   async publish (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).mayPublish(data)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may unpublish this data entry. Returns false when already unpublished.' })
   async unpublish (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).mayUnpublish(data)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may move this data beneath a folder for which they have the `create` permission.' })
   async move (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).mayMove(data)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may soft-delete this data.' })
   async delete (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).mayDelete(data)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may undelete this data. Returns false when the data is not deleted.' })
   async undelete (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).mayUndelete(data)
   }
 }

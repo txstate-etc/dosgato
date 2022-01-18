@@ -1,5 +1,5 @@
 import { PrimaryKeyLoader, OneToManyLoader } from 'dataloader-factory'
-import { DataFolder, DataFolderFilter, DosGatoService, getDataFolders } from 'internal'
+import { DataFolder, DataFolderFilter, DosGatoService, getDataFolders, DataService } from 'internal'
 
 const dataFoldersByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
@@ -29,7 +29,28 @@ export class DataFolderService extends DosGatoService {
     return '/' + (folder.name as string)
   }
 
-  async mayView (folder: DataFolder): Promise<boolean> {
-    return true
+  async mayView (folder: DataFolder) {
+    if (await this.haveDataFolderPerm(folder, 'view')) return true
+    const dataEntries = await this.svc(DataService).findByFolderInternalId(folder.internalId)
+    for (const d of dataEntries) {
+      if (await this.haveDataPerm(d, 'view')) return true
+    }
+    return false
+  }
+
+  async mayCreate (folder: DataFolder) {
+    return await this.haveDataFolderPerm(folder, 'create')
+  }
+
+  async mayUpdate (folder: DataFolder) {
+    return await this.haveDataFolderPerm(folder, 'update')
+  }
+
+  async mayDelete (folder: DataFolder) {
+    return await this.haveDataFolderPerm(folder, 'delete')
+  }
+
+  async mayUndelete (folder: DataFolder) {
+    return await this.haveDataFolderPerm(folder, 'undelete')
   }
 }

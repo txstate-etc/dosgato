@@ -3,7 +3,8 @@ import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
 import { isNull } from 'txstate-utils'
 import {
   Data, DataFilter, DataService, Site, SiteService, Template, TemplateService,
-  User, UserService, Role, DataFolder, DataFolderPermission, DataFolderPermissions
+  User, UserService, Role, DataFolder, DataFolderPermission, DataFolderPermissions,
+  DataFolderService
 } from 'internal'
 
 @Resolver(of => DataFolder)
@@ -51,22 +52,22 @@ export class DataFolderResolver {
 @Resolver(of => DataFolderPermissions)
 export class DataFolderPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may create or move data inside this folder.' })
-  async create (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+  async create (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    return await ctx.svc(DataFolderService).mayCreate(folder)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may update this folder but not necessarily move or publish it.' })
-  async update (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+  async update (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    return await ctx.svc(DataFolderService).mayUpdate(folder)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may soft-delete this data.' })
-  async delete (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+  async delete (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    return await ctx.svc(DataFolderService).mayDelete(folder)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may undelete this data. Returns false when the data is not deleted.' })
-  async undelete (@Ctx() ctx: Context, @Root() data: Data) {
-    throw new UnimplementedError()
+  async undelete (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    return await ctx.svc(DataFolderService).mayUndelete(folder)
   }
 }
