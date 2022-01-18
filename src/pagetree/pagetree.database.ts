@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { unique } from 'txstate-utils'
-import { Pagetree, PagetreeFilter } from 'internal'
+import { Pagetree, PagetreeFilter, PagetreeType } from 'internal'
 
 function processFilters (filter?: PagetreeFilter) {
   const binds: string[] = []
@@ -51,4 +51,19 @@ export async function getPagetreesByTemplate (templateIds: number[], direct?: bo
       return pagetreesThroughSites.map(row => ({ key: row.templateId, value: new Pagetree(row) }))
     }
   }
+}
+
+export async function renamePagetree (pagetreeId: string, name: string) {
+  return await db.update('UPDATE pagetrees SET name = ? WHERE id = ?', [name, pagetreeId])
+}
+
+export async function promotePagetree (oldPrimaryId: string, newPrimaryId: string) {
+  return await db.transaction(async db => {
+    await db.update('UPDATE pagetrees SET type = ? WHERE id = ?', [PagetreeType.ARCHIVE, oldPrimaryId])
+    await db.update('UPDATE pagetrees SET type = ? WHERE id = ?', [PagetreeType.PRIMARY, newPrimaryId])
+  })
+}
+
+export async function deletePagetree (pagetreeId: string) {
+
 }

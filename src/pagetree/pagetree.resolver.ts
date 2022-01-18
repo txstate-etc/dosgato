@@ -3,7 +3,7 @@ import { isNull } from 'txstate-utils'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import {
   Page, PageService, PageFilter, Role, Site, SiteService, Template, TemplateFilter, TemplateService,
-  Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeType
+  Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, PagetreeType
 } from 'internal'
 
 @Resolver(of => Pagetree)
@@ -50,7 +50,7 @@ export class PagetreeResolver {
 
   @Mutation(returns => PagetreeResponse, { description: 'Update the name of a pagetree' })
   async updatePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string, @Arg('name') name: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(PagetreeService).renamePagetree(pagetreeId, name)
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Soft-delete a pagetree' })
@@ -66,7 +66,7 @@ export class PagetreeResolver {
 
   @Mutation(returns => PagetreeResponse, { description: 'Promote a pagetree from sandbox to primary' })
   async promotePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
-    throw new UnimplementedError()
+    await ctx.svc(PagetreeService).promotePagetree(pagetreeId)
   }
 }
 
@@ -74,21 +74,21 @@ export class PagetreeResolver {
 export class PagetreePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may rename this pagetree.' })
   async rename (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
-    throw new UnimplementedError()
+    return await ctx.svc(PagetreeService).mayRename(pagetree)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may soft-delete this pagetree. Returns false if pagetree is already soft-deleted.' })
   async delete (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
-    throw new UnimplementedError()
+    return await ctx.svc(PagetreeService).mayDelete(pagetree)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may undelete this pagetree. Returns false if pagetree is not in soft-deleted state.' })
   async undelete (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
-    throw new UnimplementedError()
+    return await ctx.svc(PagetreeService).mayUndelete(pagetree)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may promote this pagetree to live. Returns false if pagetree is already live.' })
   async promote (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
-    throw new UnimplementedError()
+    return await ctx.svc(PagetreeService).mayPromote(pagetree)
   }
 }
