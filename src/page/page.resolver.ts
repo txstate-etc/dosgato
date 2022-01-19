@@ -180,7 +180,7 @@ export class PageResolver {
 
   @Mutation(returns => PageResponse)
   async deletePage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).deletePage(pageId)
   }
 
   @Mutation(returns => PageResponse)

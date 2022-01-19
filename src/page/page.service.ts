@@ -3,7 +3,8 @@ import stringify from 'fast-json-stable-stringify'
 import { intersect, isNotNull, unique } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
-  CreatePageInput, PageLinkInput, PageResponse, createPage, getPages, movePage
+  CreatePageInput, PageLinkInput, PageResponse, createPage, getPages, movePage,
+  deletePage
 } from 'internal'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -174,6 +175,23 @@ export class PageService extends DosGatoService {
     // TODO check page template to see if it's permitted
     const page = await createPage(this.svc(VersionedService), this.auth!.login, parent, aboveTarget, args.name, args.templateKey, args.schemaVersion)
     return new PageResponse({ success: true, page })
+  }
+
+  async deletePage (dataId: string) {
+    // TODO: Should they be able to delete the root page of the pagetree?
+    const page = await this.findById(dataId)
+    if (!page) throw new Error('Cannot delete a page that does not exist.')
+    if (!(await this.mayDelete(page))) throw new Error('Current user is not permitted to delete this page')
+    const currentUser = await this.currentUser()
+    try {
+      await deletePage(page, currentUser!.internalId)
+      this.loaders.clear()
+      const updated = await this.findById(dataId)
+      return new PageResponse({ success: true, page: updated })
+    } catch (err: any) {
+      console.log(err)
+      throw new Error('An unknown error ocurred while trying to delete a page.')
+    }
   }
 
   /**

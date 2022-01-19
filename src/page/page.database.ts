@@ -182,3 +182,15 @@ export async function movePage (page: Page, parent: Page, aboveTarget?: Page) {
     return new Page(await db.getrow('SELECT * FROM pages WHERE id=?', [page.internalId]))
   })
 }
+
+export async function deletePage (page: Page, userInternalId: number) {
+  const binds: string[] = []
+  return await db.transaction(async db => {
+    binds.push(String(userInternalId))
+    const children = await getPages({ internalIdPathsRecursive: [`${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`] }, db)
+    const childInternalIds = children.map(c => c.internalId)
+    await db.update(`UPDATE pages SET deletedAt = NOW(), deletedBy = ? WHERE id IN (${db.in(binds, [String(page.internalId), ...childInternalIds])})`, binds)
+    // TODO: handle display order or just leave it? Deleted pages might be displayed in the UI so it might make sense to
+    // maintain their position. Or we might want to adjust the display orders for the sibling pages that come after the deleted page?
+  })
+}
