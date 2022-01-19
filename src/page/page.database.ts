@@ -194,3 +194,7 @@ export async function deletePage (page: Page, userInternalId: number) {
     // maintain their position. Or we might want to adjust the display orders for the sibling pages that come after the deleted page?
   })
 }
+
+export async function renamePage (page: Page, name: string) {
+  return await db.update('UPDATE pages SET name = ? WHERE id = ?', [name, page.internalId])
+}
