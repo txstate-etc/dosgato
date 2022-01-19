@@ -5,7 +5,7 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } fro
 import {
   Pagetree, PagetreeService, Role, JsonData, Site, SiteService, Template, TemplateFilter,
   User, UserService, ObjectVersion, VersionedService, CreatePageInput, Page, PageFilter,
-  PagePermission, PagePermissions, PageResponse, PageService, PageRuleService, RoleService
+  PagePermission, PagePermissions, PageResponse, PageService, PageRuleService, RoleService, PagetreeType
 } from 'internal'
 
 @Resolver(of => Page)
@@ -110,7 +110,14 @@ export class PageResolver {
 
   @FieldResolver(returns => Boolean, { description: 'True if the page is published, part of the active pagetree, and on a site that is currently launched.' })
   async live (@Ctx() ctx: Context, @Root() page: Page) {
-    throw new UnimplementedError()
+    const [published, pagetree] = await Promise.all([
+      this.published(ctx, page),
+      ctx.svc(PagetreeService).findById(page.pagetreeId)
+    ])
+    if (!(published && pagetree!.type === PagetreeType.PRIMARY)) return false
+    const site = await ctx.svc(SiteService).findByPagetreeId(pagetree!.id)
+    if (isNull(site!.url)) return false
+    return true
   }
 
   @FieldResolver(returns => DateTime, { nullable: true, description: 'Null if the page has never been published, but could have a value. ' })
