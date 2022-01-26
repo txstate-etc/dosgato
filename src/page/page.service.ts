@@ -1,10 +1,11 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import stringify from 'fast-json-stable-stringify'
-import { intersect, isNotNull, unique } from 'txstate-utils'
+import { intersect, isNotNull, isNull, unique } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
   CreatePageInput, PageLinkInput, PageResponse, createPage, getPages, movePage,
-  deletePage, renamePage
+  deletePage, renamePage, TemplateService, PagetreeService, SiteService,
+  TemplateFilter, Template
 } from 'internal'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -83,6 +84,31 @@ export class PageService extends DosGatoService {
 
   async getPageAncestors (page: Page) {
     return await this.loaders.loadMany(pagesByInternalIdLoader, page.pathSplit)
+  }
+
+  async getApprovedTemplates (page: Page, filter?: TemplateFilter) {
+    const pageTree = await this.svc(PagetreeService).findById(page.pagetreeId)
+    const site = await this.svc(SiteService).findByPagetreeId(pageTree!.id)
+    const [pagetreeTemplates, siteTemplates] = await Promise.all([
+      this.svc(TemplateService).findByPagetreeId(page.pagetreeId, filter),
+      this.svc(TemplateService).findBySiteId(site!.id, filter)
+    ])
+    let templatesAuthForUser: Template[] = []
+    const templateRules = await this.currentTemplateRules()
+    // If there is a template rule that applies to all templates, this user can use all templates anywhere
+    // TODO: Should this be filtered by template type too? It doesn't make sense to have page templates approved
+    // for use in a page, but this could return all three template types
+    if (templateRules.some(r => isNull(r.templateId) && r.grants.use)) {
+      templatesAuthForUser = await this.svc(TemplateService).find()
+    } else {
+      const rules = templateRules.filter(r => isNotNull(r.templateId) && r.grants.use)
+      let ids = rules.map(r => r.templateId!)
+      if (filter?.ids?.length) {
+        ids = ids.filter(i => filter.ids?.includes(i))
+      }
+      if (ids) templatesAuthForUser = await this.svc(TemplateService).find({ ids })
+    }
+    return unique([...pagetreeTemplates, ...siteTemplates, ...templatesAuthForUser], 'id')
   }
 
   async getRootPage (page: Page) {
