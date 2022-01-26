@@ -1,9 +1,17 @@
-import { OneToManyLoader } from 'dataloader-factory'
+import { ValidatedResponse } from '@txstate-mws/graphql-server'
+import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
   Page, PageService, PagetreeService, DosGatoService, comparePathsWithMode,
-  tooPowerfulHelper, getPageRules, PageRule, RulePathMode, SiteService
+  tooPowerfulHelper, getPageRules, PageRule, RulePathMode, SiteService, CreatePageRuleInput,
+  RoleService, createPageRule, PageRuleResponse
 } from 'internal'
 import { Cache, filterAsync } from 'txstate-utils'
+
+const pageRulesByIdLoader = new PrimaryKeyLoader({
+  fetch: async (ids: number[]) => {
+    return await getPageRules({ ids })
+  }
+})
 
 const pageRulesByRoleLoader = new OneToManyLoader({
   fetch: async (roleIds: string[]) => {
@@ -17,7 +25,7 @@ const pageRulesBySiteLoader = new OneToManyLoader({
   extractKey: r => r.siteId!
 })
 
-const globalPageRulesCache = new Cache(async () => await getPageRules({ siteIds: [null] }), { freshseconds: 3 })
+const globalPageRulesCache = new Cache(async () => await getPageRules({ siteIds: [null], pagetreeIds: [null] }), { freshseconds: 3 })
 
 export class PageRuleService extends DosGatoService {
   async findByRoleId (roleId: string) {
@@ -39,6 +47,23 @@ export class PageRuleService extends DosGatoService {
     const rules = await this.findBySite(site!.id)
     // filter to get the ones that apply to this page
     return await filterAsync(rules, async rule => await this.applies(rule, page))
+  }
+
+  async create (args: CreatePageRuleInput) {
+    const role = await this.svc(RoleService).findById(args.roleId)
+    if (!role) throw new Error('Role to be modified does not exist.')
+    if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
+    const newRule = new PageRule({ id: '0', path: args.path ?? '/', roleId: args.roleId, siteId: args.siteId, pagetreeId: args.pagetreeId, mode: args.mode ?? RulePathMode.SELFANDSUB, ...args.grants })
+    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The proposed rule would have more privilege than you currently have, so you cannot create it.')
+    try {
+      const ruleId = await createPageRule(args)
+      this.loaders.clear()
+      if (!newRule.siteId && !newRule.pagetreeId) await globalPageRulesCache.clear()
+      const rule = await this.loaders.get(pageRulesByIdLoader).load(ruleId)
+      return new PageRuleResponse({ pageRule: rule, success: true })
+    } catch (err: any) {
+      throw new Error('An unknown error occurred while creating the page rule.')
+    }
   }
 
   async applies (rule: PageRule, page: Page) {

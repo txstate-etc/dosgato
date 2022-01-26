@@ -101,6 +101,8 @@ export class PageRule {
 
 @InputType()
 export class PageRuleFilter {
+  ids?: number[]
+
   @Field(type => [ID], { nullable: true })
   roleIds?: string[]
 

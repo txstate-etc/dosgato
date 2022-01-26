@@ -1,11 +1,14 @@
 import db from 'mysql2-async/db'
-import { PageRule, PageRuleFilter } from 'internal'
+import { PageRule, PageRuleFilter, CreatePageRuleInput } from 'internal'
 import { isNotNull } from 'txstate-utils'
 
 function processFilters (filter: PageRuleFilter) {
   const binds: string[] = []
   const where: string[] = []
 
+  if (filter.ids?.length) {
+    where.push(`pagerules.id IN (${db.in(binds, filter.ids)})`)
+  }
   if (filter.roleIds?.length) {
     where.push(`pagerules.roleId IN (${db.in(binds, filter.roleIds)})`)
   }
@@ -84,4 +87,60 @@ export async function getPageRules (filter: PageRuleFilter) {
                                  WHERE (${where.join(') AND (')})
                                  ORDER BY siteId, pagetreeId, path`, binds)
   return rules.map(row => new PageRule(row))
+}
+
+export async function createPageRule (args: CreatePageRuleInput) {
+  const columns: string[] = ['roleId']
+  const binds: string[] = []
+  if (!args.roleId) {
+    throw new Error('Must include a role ID when creating a page rule')
+  }
+  binds.push(args.roleId)
+  if (args.siteId) {
+    columns.push('siteId')
+    binds.push(args.siteId)
+  }
+  if (args.pagetreeId) {
+    columns.push('pagetreeId')
+    binds.push(args.pagetreeId)
+  }
+  if (args.path) {
+    columns.push('path')
+    binds.push(args.path)
+  }
+  if (args.mode) {
+    columns.push('mode')
+    binds.push(args.mode)
+  }
+  if (args.grants) {
+    if (args.grants.create) {
+      columns.push('create')
+      binds.push(String(args.grants.create))
+    }
+    if (args.grants.delete) {
+      columns.push('delete')
+      binds.push(String(args.grants.delete))
+    }
+    if (args.grants.move) {
+      columns.push('move')
+      binds.push(String(args.grants.move))
+    }
+    if (args.grants.publish) {
+      columns.push('publish')
+      binds.push(String(args.grants.publish))
+    }
+    if (args.grants.undelete) {
+      columns.push('undelete')
+      binds.push(String(args.grants.undelete))
+    }
+    if (args.grants.unpublish) {
+      columns.push('unpublish')
+      binds.push(String(args.grants.unpublish))
+    }
+    if (args.grants.update) {
+      columns.push('update')
+      binds.push(String(args.grants.update))
+    }
+  }
+  return await db.insert(`INSERT INTO pagerules (${columns.join(',')}) VALUES(${binds.join(',')})`, binds)
 }
