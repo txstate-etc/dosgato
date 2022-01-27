@@ -3,7 +3,8 @@ import { Arg, Resolver, Ctx, Mutation, FieldResolver, Root } from 'type-graphql'
 import { isNull } from 'txstate-utils'
 import {
   Role, RoleService, Site, SiteService, Template, CreateDataRuleInput,
-  DataRule, DataRulePermissions, DataRuleResponse, UpdateDataRuleInput
+  DataRule, DataRulePermissions, DataRuleResponse, UpdateDataRuleInput,
+  TemplateService
 } from 'internal'
 
 @Resolver(of => DataRule)
@@ -21,7 +22,8 @@ export class DataRuleResolver {
 
   @FieldResolver(returns => Template, { nullable: true, description: 'The data template to which this rule applies. Null if it applies to all data templates.' })
   async template (@Ctx() ctx: Context, @Root() datarule: DataRule) {
-    throw new UnimplementedError()
+    if (isNull(datarule.templateId)) return null
+    else return await ctx.svc(TemplateService).findById(datarule.templateId)
   }
 
   @FieldResolver(returns => DataRulePermissions, {
