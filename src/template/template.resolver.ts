@@ -1,8 +1,8 @@
-import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
-  Data, DataFilter, Page, PageFilter, Pagetree, PagetreeService, Site, SiteService,
-  Template, TemplateArea, TemplateFilter, TemplatePermissions, TemplateService, TemplateType
+  Data, DataFilter, DataService, Page, PageFilter, Pagetree, PagetreeService, Site, SiteService,
+  PageService, Template, TemplateArea, TemplateFilter, TemplatePermissions, TemplateService, TemplateType
 } from 'internal'
 
 @Resolver(of => Template)
@@ -27,7 +27,10 @@ export class TemplateResolver {
 
   @FieldResolver(returns => [Page], { description: 'All pages using this template. Empty array for data templates.' })
   async pages (@Ctx() ctx: Context, @Root() template: Template, @Arg('filter', { nullable: true }) filter?: PageFilter) {
-    throw new UnimplementedError()
+    if (template.type === TemplateType.DATA) return []
+    else {
+      return await ctx.svc(PageService).findByTemplate(template.key, filter)
+    }
   }
 
   @FieldResolver(returns => [Site], { description: 'All sites that are permitted to use this template.' })
@@ -42,7 +45,10 @@ export class TemplateResolver {
 
   @FieldResolver(returns => [Data], { description: 'All data entries that use this template. Empty array for page or component templates.' })
   async data (@Ctx() ctx: Context, @Root() template: Template, @Arg('filter', { nullable: true }) filter?: DataFilter) {
-    throw new UnimplementedError()
+    if (template.type !== TemplateType.DATA) return []
+    else {
+      return await ctx.svc(DataService).findByTemplate(template.key, filter)
+    }
   }
 
   @FieldResolver(returns => TemplatePermissions, {

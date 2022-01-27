@@ -77,6 +77,19 @@ export class PageService extends DosGatoService {
     return await this.loaders.get(pagesInPagetreeLoader, filter).load(id)
   }
 
+  async findByTemplate (key: string, filter?: PageFilter) {
+    const searchRule = { indexName: 'templateKey', equal: key }
+    const [dataIdsLatest, dataIdsPublished] = await Promise.all([
+      this.svc(VersionedService).find([searchRule], 'latest'),
+      this.svc(VersionedService).find([searchRule], 'published')])
+    let dataIds = unique([...dataIdsLatest, ...dataIdsPublished])
+    if (!dataIds.length) return []
+    if (filter?.ids?.length) {
+      dataIds = dataIds.filter(i => filter.ids?.includes(i))
+    }
+    return await this.find({ ids: dataIds })
+  }
+
   async getPageChildren (page: Page, recursive?: boolean) {
     const loader = recursive ? pagesByInternalIdPathRecursiveLoader : pagesByInternalIdPathLoader
     return await this.loaders.get(loader).load(`${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`)

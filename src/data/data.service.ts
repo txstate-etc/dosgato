@@ -45,6 +45,19 @@ export class DataService extends DosGatoService {
     return await this.loaders.get(dataBySiteIdLoader, filter).load(siteId)
   }
 
+  async findByTemplate (key: string, filter?: DataFilter) {
+    const searchRule = { indexName: 'templateKey', equal: key }
+    const [dataIdsLatest, dataIdsPublished] = await Promise.all([
+      this.svc(VersionedService).find([searchRule], 'latest'),
+      this.svc(VersionedService).find([searchRule], 'published')])
+    let dataIds = unique([...dataIdsLatest, ...dataIdsPublished])
+    if (!dataIds.length) return []
+    if (filter?.ids?.length) {
+      dataIds = dataIds.filter(i => filter.ids?.includes(i))
+    }
+    return await this.find({ ids: dataIds })
+  }
+
   async mayView (data: Data) {
     return await this.haveDataPerm(data, 'view')
   }
