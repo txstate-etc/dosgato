@@ -97,10 +97,6 @@ export class SiteService extends DosGatoService {
     return await this.haveSitePerm(site, 'promotePagetree')
   }
 
-  async mayCreateRules (site: Site) {
-    // TODO: Is there some permission needed beyond the global manageUsers?
-  }
-
   async mayDelete (site: Site) {
     return await this.haveSitePerm(site, 'delete')
   }

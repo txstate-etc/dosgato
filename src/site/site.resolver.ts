@@ -140,11 +140,6 @@ export class SitePermissionsResolver {
     return await ctx.svc(SiteService).mayPromotePagetree(site)
   }
 
-  @FieldResolver(returns => Boolean, { description: 'Current user may add authorization rules that target this site.' })
-  async createRules (@Ctx() ctx: Context, @Root() site: Site) {
-    return await ctx.svc(SiteService).mayCreateRules(site)
-  }
-
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to soft-delete this site.' })
   async delete (@Ctx() ctx: Context, @Root() site: Site) {
     return await ctx.svc(SiteService).mayDelete(site)
