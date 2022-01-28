@@ -41,6 +41,21 @@ export class GlobalRule {
   }
 }
 
+@InputType()
+export class GlobalRuleFilter {
+  ids?: number[]
+  roleIds?: string[]
+}
+
+@InputType()
+export class CreateGlobalRuleInput {
+  @Field()
+  roleId!: string
+
+  @Field(type => GlobalRuleGrants, { nullable: true })
+  grants?: GlobalRuleGrants
+}
+
 @ObjectType()
 export class GlobalRuleResponse extends ValidatedResponse {
   @Field({ nullable: true })

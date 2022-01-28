@@ -1,6 +1,9 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
-import { Role, RoleService, GlobalRule, GlobalRuleGrants, GlobalRulePermissions, GlobalRuleResponse } from 'internal'
+import {
+  Role, RoleService, GlobalRule, GlobalRuleGrants, GlobalRulePermissions, CreateGlobalRuleInput,
+  GlobalRuleResponse, GlobalRuleService
+} from 'internal'
 
 @Resolver(of => GlobalRule)
 export class GlobalRuleResolver {
@@ -18,8 +21,8 @@ export class GlobalRuleResolver {
   }
 
   @Mutation(returns => GlobalRuleResponse)
-  async createGlobalRule (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('grants', type => GlobalRuleGrants) grants: GlobalRuleGrants) {
-    throw new UnimplementedError()
+  async createGlobalRule (@Ctx() ctx: Context, @Arg('args', type => CreateGlobalRuleInput) args: CreateGlobalRuleInput) {
+    return await ctx.svc(GlobalRuleService).create(args)
   }
 
   @Mutation(returns => GlobalRuleResponse)
