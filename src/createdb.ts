@@ -488,9 +488,9 @@ export async function init () {
     CREATE TABLE IF NOT EXISTS `globalrules` ( \
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `roleId` MEDIUMINT UNSIGNED NOT NULL, \
-      `manageUsers` TINYINT UNSIGNED NOT NULL, \
-      `createSites` TINYINT UNSIGNED NOT NULL, \
-      `manageGlobalData` TINYINT UNSIGNED NOT NULL, \
+      `manageUsers` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
+      `createSites` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
+      `manageGlobalData` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       PRIMARY KEY (`id`), \
       CONSTRAINT `FK_globalrules_roles` \
         FOREIGN KEY (`roleId`) \
