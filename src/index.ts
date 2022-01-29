@@ -24,7 +24,8 @@ import {
   GlobalRulePermissionsResolver, GlobalRuleResolver,
   VersionResolver, OrganizationResolver,
   AccessResolver,
-  TemplateRulePermissionsResolver, TemplateRuleResolver
+  TemplateRulePermissionsResolver, TemplateRuleResolver,
+  logMutation
 } from 'internal'
 
 async function main () {
@@ -74,7 +75,8 @@ async function main () {
     scalarsMap: [
       { type: UrlSafeString, scalar: UrlSafeStringScalar },
       { type: DateTime, scalar: DateTimeScalar }
-    ]
+    ],
+    after: logMutation
   })
 }
 
