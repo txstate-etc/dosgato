@@ -17,6 +17,8 @@ export class GlobalRuleGrants {
   constructor (row?: any) {
     if (row) {
       this.manageUsers = !!row.manageUsers
+      this.createSites = !!row.createSites
+      this.manageGlobalData = !!row.manageGlobalData
     }
   }
 }
