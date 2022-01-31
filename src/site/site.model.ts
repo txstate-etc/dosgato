@@ -83,20 +83,11 @@ export class CreateSiteInput {
   @Field()
   name!: string
 
-  @Field({ nullable: true })
-  organizationId?: string
+  @Field(type => ID)
+  rootPageTemplateKey!: string
 
-  @Field({ nullable: true })
-  ownerId?: string
-
-  @Field(type => [String], { nullable: true })
-  managerIds?: string[]
-
-  @Field({ nullable: true })
-  launchHost?: string
-
-  @Field({ nullable: true })
-  launchPath?: string
+  @Field({ description: 'The current schema version of the admin UI. Used to tag the root page of the new site.' })
+  schemaVersion!: DateTime
 }
 
 @InputType()

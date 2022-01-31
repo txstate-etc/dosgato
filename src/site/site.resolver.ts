@@ -94,7 +94,7 @@ export class SiteResolver {
   // MUTATIONS
   @Mutation(returns => SiteResponse, { description: 'Create a new site with a pagetree, root page, and asset folder' })
   async createSite (@Ctx() ctx: Context, @Arg('args', type => CreateSiteInput) args: CreateSiteInput) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).create(args)
   }
 
   @Mutation(returns => SiteResponse)

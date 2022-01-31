@@ -1,7 +1,8 @@
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import {
   Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate,
-  PagetreeService, DosGatoService, CreateSiteInput
+  PagetreeService, DosGatoService, CreateSiteInput, createSite, VersionedService,
+  SiteResponse
 } from 'internal'
 
 const siteByOrganizationIdLoader = new OneToManyLoader({
@@ -61,9 +62,22 @@ export class SiteService extends DosGatoService {
     return await this.loaders.get(sitesByAssetRootLoader).load(assetFolderId)
   }
 
-  // async create (args: CreateSiteInput) {
-  //   if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create sites.')
-  // }
+  async create (args: CreateSiteInput) {
+    if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create sites.')
+    try {
+      const versionedService = this.svc(VersionedService)
+      const site = await createSite(versionedService, this.auth!.login, args)
+      return new SiteResponse({ success: true, site })
+    } catch (err: any) {
+      console.error(err)
+      if (err.code === 'ER_DUP_ENTRY') {
+        const response = new SiteResponse({})
+        response.addMessage(`Site ${args.name} already exists.`, 'name')
+        return response
+      }
+      throw new Error('An unknown error occurred while creating the site.')
+    }
+  }
 
   async mayView (): Promise<boolean> {
     return true
