@@ -31,4 +31,6 @@ describe('pagetrees', () => {
   it.skip('should retrieve the date a pagetree was deleted', async () => {})
   it.skip('should retrieve all templates approved for use in a pagetree', async () => {})
   it.skip('should retrieve all templates approved for use in a pagetree, with a template filter applied', async () => {})
+  it.skip('should retrieve roles with any permission on a pagetree', async () => {})
+  it.skip('should retrieve roles with a specific permission on a pagetree', async () => {})
 })

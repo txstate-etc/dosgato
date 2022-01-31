@@ -51,6 +51,8 @@ describe('datafolder', () => {
     expect(colors).to.have.members(['red', 'blue', 'green'])
     expect(colors).to.not.have.members(['orange'])
   })
+  it.skip('should return roles that have any permissions on a datafolder', async () => {})
+  it.skip('should return roles that have a specific permission on a datafolder', async () => {})
 })
 
 describe('data', () => {
@@ -202,6 +204,8 @@ describe('data', () => {
     const sampleEntry = data.find((d: any) => d.data.color === 'blue')
     expect(sampleEntry.modifiedBy.id).to.equal('su01')
   })
+  it.skip('should return roles with any permissions on the data entry', async () => {})
+  it.skip('should return rols with a specific permission on a data entry', async () => {})
   it('should return a list of all versions of a data entry', async () => {
     const { data } = await query('{ data(filter: { deleted:false }) { id data versions { user { id } version data } } }')
     const entryWithVersions = data.find((d: any) => d.data.color === 'red')

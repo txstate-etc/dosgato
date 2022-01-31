@@ -3,6 +3,9 @@ import { expect } from 'chai'
 import { query } from '../common'
 
 describe('pages', () => {
+  it.skip('should get pages, filtered by id', async () => {})
+  it.skip('should get pages filtered by links', async () => {})
+  it.skip('should get pages filtered by pagetree ID', async () => {})
   it('should get pages, filtered by pagetree type', async () => {
     const resp = await query('{ pages(filter: {pagetreeTypes: [SANDBOX]}) { id name pagetree { id type } } }')
     for (const page of resp.pages) {
@@ -71,6 +74,7 @@ describe('pages', () => {
     expect(resp.pages).to.have.lengthOf(2)
   })
   it.skip('should get pages using specific templates', async () => {})
+  it.skip('should get pages, filtered by launched URL', async () => {})
   it('should get the ancestors for a page', async () => {
     const resp = await query('{ pages(filter: {deleted: false}) { name ancestors { id name } } }')
     const peoplePage = resp.pages.find((p: any) => p.name === 'people')
@@ -147,4 +151,19 @@ describe('pages', () => {
   it.skip('should return whether or not a page is live', async () => {})
   it.skip('should return the last modified datetime for a page', async () => {})
   it.skip('should return the user who last modified a page', async () => {})
+  it.skip('should return a page\'s parent page', async () => {})
+  it.skip('should return null for the parent page if the page is a root page', async () => {})
+  it.skip('should return a page\'s root page', async () => {})
+  it.skip('should get return the page itself, when its root page, if it is a root page', async () => {})
+  it.skip('should get a page\'s path', async () => {})
+  it.skip('should get a page\'s pagetree', async () => {})
+  it.skip('should get a page\'s site', async () => {})
+  it.skip('should get the templates approved for a page', async () => {})
+  it.skip('should get the templates approved by a page, including those authorized for the current user', async () => {})
+  it.skip('should return whether or not a page has a published version', async () => {})
+  it.skip('should return the datetime a page was published', async () => {})
+  it.skip('should return the user who most recently published a page', async () => {})
+  it.skip('should return roles with any permissions on the page', async () => {})
+  it.skip('should return roles with a specific permission on a page', async () => {})
+  it.skip('should return a list of all versions of a page', async () => {})
 })

@@ -20,6 +20,7 @@ describe('users mutations', () => {
     const { users } = await query('{ users(filter: { enabled: true }) { name } }')
     expect(users).to.not.deep.include({ name: 'Should Notwork' })
   })
+  it.skip('should not allow an unauthorized user to update a user', async () => {})
   it('should disable a user', async () => {
     const { disableUser: { success } } = await query('mutation DisableUser ($id: String!) { disableUser(userId: $id) { success user { id name } } }', { id: 'ed10' })
     expect(success).to.be.true
@@ -41,4 +42,5 @@ describe('users mutations', () => {
     const { users } = await query('{ users(filter: { enabled: false }) { name } }')
     expect(users).to.not.deep.include({ id: 'fakeuser' })
   })
+  it.skip('should not allow an unauthorized user to disable a user', async () => {})
 })
