@@ -78,7 +78,7 @@ export class PageService extends DosGatoService {
   }
 
   async findByTemplate (key: string, filter?: PageFilter) {
-    const searchRule = { indexName: 'templateKey', equal: key }
+    const searchRule = { indexName: 'template', equal: key }
     const [dataIdsLatest, dataIdsPublished] = await Promise.all([
       this.svc(VersionedService).find([searchRule], 'latest'),
       this.svc(VersionedService).find([searchRule], 'published')])

@@ -248,7 +248,7 @@ export async function fixtures () {
       ]
     },
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp1', 'keyc1', 'keyc2']
     }
   ]
@@ -266,7 +266,7 @@ export async function fixtures () {
       ]
     },
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp1', 'keyc3']
     }
   ]
@@ -282,7 +282,7 @@ export async function fixtures () {
       ]
     },
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp1', 'keyc1']
     }
   ]
@@ -300,7 +300,7 @@ export async function fixtures () {
       ]
     },
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp1', 'keyc1', 'keyc2']
     }
   ]
@@ -309,7 +309,7 @@ export async function fixtures () {
   // faculty page
   indexes = [
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp1', 'keyc3']
     }
   ]
@@ -318,7 +318,7 @@ export async function fixtures () {
   // staff page
   indexes = [
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp1', 'keyc3']
     }
   ]
@@ -336,7 +336,7 @@ export async function fixtures () {
       ]
     },
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp1', 'keyc2']
     }
   ]
@@ -352,7 +352,7 @@ export async function fixtures () {
       ]
     },
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp1', 'keyc3']
     }
   ]
@@ -368,7 +368,7 @@ export async function fixtures () {
       ]
     },
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp1', 'keyc3']
     }
   ]
@@ -377,7 +377,7 @@ export async function fixtures () {
   // contact page
   indexes = [
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp1', 'keyc2', 'keyc3']
     }
   ]
@@ -386,7 +386,7 @@ export async function fixtures () {
   // events page
   indexes = [
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp1', 'keyc1']
     }
   ]
@@ -399,7 +399,7 @@ export async function fixtures () {
   // root
   indexes = [
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp2', 'keyc3']
     }
   ]
@@ -423,7 +423,7 @@ export async function fixtures () {
       ]
     },
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp3', 'keyc1', 'keyc2']
     }
   ]
@@ -431,7 +431,7 @@ export async function fixtures () {
   // about
   indexes = [
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp3', 'keyc2', 'keyc3']
     }
   ]
@@ -439,7 +439,7 @@ export async function fixtures () {
   // site map
   indexes = [
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp3']
     }
   ]
@@ -461,7 +461,7 @@ export async function fixtures () {
       ]
     },
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp2', 'keyc1', 'keyc2']
     }
   ]
@@ -469,14 +469,14 @@ export async function fixtures () {
 
   indexes = [
     {
-      name: 'templateKey',
+      name: 'template',
       values: ['keyp2']
     }
   ]
   await createPage('about', site3AboutPageLinkId, pagetree3sandbox, site3SandboxRoot, 1, { title: 'About Site 3' }, indexes)
 
   /* Site 4 */
-  await createPage('site4', nanoid(10), pagetree4, null, 1, { title: 'Site 4 Home' }, [{ name: 'templateKey', values: ['keyp1'] }])
+  await createPage('site4', nanoid(10), pagetree4, null, 1, { title: 'Site 4 Home' }, [{ name: 'template', values: ['keyp1'] }])
 
   /* Data */
   const [datafolder1, datafolder2, datafolder3] = await Promise.all([
@@ -508,41 +508,41 @@ export async function fixtures () {
   }
 
   // TODO: Add more indexes?
-  const data1Id = await createData('Red Content', 1, { title: 'Red Text', color: 'red', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data1Id = await createData('Red Content', 1, { title: 'Red Text', color: 'red', align: 'center' }, [{ name: 'template', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data1Id])
   const dataIdData1 = await db.getval<string>('SELECT dataId FROM data WHERE id = ?', [data1Id])
-  await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su03', 'updating alignment')
-  await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 'right' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01', 'updating alignment again')
+  await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 'left' }, [{ name: 'template', values: ['keyd1'] }], 'su03', 'updating alignment')
+  await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 'right' }, [{ name: 'template', values: ['keyd1'] }], 'su01', 'updating alignment again')
 
-  const data2Id = await createData('Blue Content', 2, { title: 'Blue Text', color: 'blue', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data2Id = await createData('Blue Content', 2, { title: 'Blue Text', color: 'blue', align: 'left' }, [{ name: 'template', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data2Id])
 
-  const data3Id = await createData('Orange Content', 3, { title: 'Orange Text', color: 'orange', align: 'right' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data3Id = await createData('Orange Content', 3, { title: 'Orange Text', color: 'orange', align: 'right' }, [{ name: 'template', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ?, deletedAt = NOW(), deletedBy = ? WHERE id = ?', [site2, datafolder1, su01, data3Id])
 
-  const data4Id = await createData('Green Content', 4, { title: 'Green Text', color: 'green', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data4Id = await createData('Green Content', 4, { title: 'Green Text', color: 'green', align: 'center' }, [{ name: 'template', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data4Id])
 
   // some global data that does not belong to a site
-  const article1Id = await createData('Car Cleaning', 1, { title: '5 Steps to a Cleaner Car', author: 'Jane Doe' }, [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
+  const article1Id = await createData('Car Cleaning', 1, { title: '5 Steps to a Cleaner Car', author: 'Jane Doe' }, [{ name: 'template', values: ['articledatakey'] }], 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article1Id])
   const dataIdArticle1 = await db.getval<string>('SELECT dataId FROM data WHERE id = ?', [article1Id])
   await tagData(dataIdArticle1!, 'published', 1, 'su02')
 
-  const article2Id = await createData('Trees', 2, { title: 'Trees of Central Texas', author: 'John Smith' }, [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
+  const article2Id = await createData('Trees', 2, { title: 'Trees of Central Texas', author: 'John Smith' }, [{ name: 'template', values: ['articledatakey'] }], 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article2Id])
 
-  const article3Id = await createData('Ladybugs', 3, { title: 'The Secret Lives of Ladybugs', author: 'Jack Frost' }, [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
+  const article3Id = await createData('Ladybugs', 3, { title: 'The Secret Lives of Ladybugs', author: 'Jack Frost' }, [{ name: 'template', values: ['articledatakey'] }], 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article3Id])
 
   // data not in a folder
   await Promise.all([
-    createData('Cottonwood Hall', 1, { name: 'Cottonwood Hall', floors: 3 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01'),
-    createData('Student Center', 2, { name: 'Student Center', floors: 4 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01'),
-    createData('Aquatics Center', 3, { name: 'Aquatics Center', floors: 2 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01')
+    createData('Cottonwood Hall', 1, { name: 'Cottonwood Hall', floors: 3 }, [{ name: 'template', values: ['keyd2'] }], 'su01'),
+    createData('Student Center', 2, { name: 'Student Center', floors: 4 }, [{ name: 'template', values: ['keyd2'] }], 'su01'),
+    createData('Aquatics Center', 3, { name: 'Aquatics Center', floors: 2 }, [{ name: 'template', values: ['keyd2'] }], 'su01')
   ])
 
   // deleted data
-  const deletedDataId = await createData('Purple Content', 5, { title: 'Purple Text', color: 'purple', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su02')
+  const deletedDataId = await createData('Purple Content', 5, { title: 'Purple Text', color: 'purple', align: 'left' }, [{ name: 'template', values: ['keyd1'] }], 'su02')
   await db.update('UPDATE data SET folderId = ?, deletedAt = NOW(), deletedBy = ? WHERE id = ?', [datafolder3, su02, deletedDataId])
 }
