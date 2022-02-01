@@ -73,7 +73,7 @@ export class AssetResolver {
     description: 'The last time this asset or one of its resizes was downloaded by an anonymous user.'
   })
   async downloadedAt (@Ctx() ctx: Context, @Root() asset: Asset) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetService).getLatestDownload(asset)
   }
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this asset, or any permission if null.' })

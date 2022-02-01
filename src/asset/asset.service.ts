@@ -1,5 +1,8 @@
 import { ManyJoinedLoader, OneToManyLoader } from 'dataloader-factory'
-import { Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes, SiteService, DosGatoService } from 'internal'
+import {
+  Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
+  SiteService, DosGatoService, getLatestDownload
+} from 'internal'
 
 const assetsByFolderInternalIdLoader = new OneToManyLoader({
   fetch: async (folderInternalIds: number[]) => await getAssets({ folderInternalIds }),
@@ -42,6 +45,11 @@ export class AssetService extends DosGatoService {
 
   async getResizes (asset: Asset) {
     return await this.loaders.get(resizesByAssetIdLoader).load(asset.id)
+  }
+
+  async getLatestDownload (asset: Asset) {
+    const resizes = await this.getResizes(asset)
+    return await getLatestDownload(asset, resizes.map(r => r.binaryId))
   }
 
   async mayViewManagerUI () {

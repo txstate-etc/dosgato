@@ -1,6 +1,7 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
 import { Asset, AssetFilter, AssetResize } from 'internal'
+import { DateTime } from 'luxon'
 
 function processFilters (filter?: AssetFilter) {
   const binds: string[] = []
@@ -48,6 +49,20 @@ export async function getResizes (assetIds: string[]) {
   const resizes = await db.getall(`SELECT assets.id, resizes.* FROM resizes
   INNER JOIN binaries ON resizes.originalBinaryId = binaries.id
   INNER JOIN assets ON binaries.shashum = assets.shasum
-  WHERE assets.id IN ${db.in(binds, assetIds)}`, binds)
+  WHERE assets.id IN (${db.in(binds, assetIds)})`, binds)
   return resizes.map(row => ({ key: String(row.assetId), value: new AssetResize(row) }))
+}
+
+export async function getLatestDownload (asset: Asset, resizeBinaryIds: number[]) {
+  const binds: number[] = []
+  const binaryId = await db.getval<number>(`SELECT id FROM binaries
+                                  INNER JOIN assets on assets.shasum = binaries.shasum
+                                  WHERE assets.id = ?`, [asset.id])
+  if (binaryId) binds.push(binaryId)
+  const latestDownload = await db.getrow(`SELECT binaryId, year, month, day, CONCAT(year,month,day) AS dateconcat
+                                          FROM downloads
+                                          WHERE binaryId in (${db.in(binds, resizeBinaryIds)})
+                                          ORDER BY dateconcat DESC
+                                          LIMIT 1`, binds)
+  return DateTime.fromObject({ year: latestDownload.year, month: latestDownload.month, day: latestDownload.day })
 }
