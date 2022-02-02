@@ -26,9 +26,29 @@ describe('pagetrees', () => {
     const pagetree1 = site1.pagetrees.find((p: any) => p.name === 'pagetree1')
     expect(pagetree1.pages).to.have.length.greaterThan(0)
   })
-  it.skip('should retrieve the root page of a pagetree', async () => {})
-  it.skip('should retrieve the date a pagetree was archived', async () => {})
-  it.skip('should retrieve the date a pagetree was deleted', async () => {})
+  it('should retrieve the root page of a pagetree', async () => {
+    const { sites } = await query('{ sites { name pagetrees { name rootPage { name } } } }')
+    const site1 = sites.find((s: any) => s.name === 'site1')
+    expect(site1.pagetrees[0].rootPage.name).to.equal('site1')
+  })
+  it('should retrieve the date a pagetree was archived', async () => {
+    const { sites } = await query('{ sites { name pagetrees(filter: { types: [ARCHIVE] }) { name archived } } }')
+    const site4 = sites.find((s: any) => s.name === 'site4')
+    for (const tree of site4.pagetrees) {
+      expect(tree.archived).to.not.be.null
+    }
+  })
+  it('should retrieve the date a pagetree was deleted', async () => {
+    const { sites } = await query('{ sites { name pagetrees { name deleted } } }')
+    const site4 = sites.find((s: any) => s.name === 'site4')
+    for (const tree of site4.pagetrees) {
+      if (tree.name === 'pagetree4deleted') {
+        expect(tree.deleted).to.be.true
+      } else {
+        expect(tree.deleted).to.be.false
+      }
+    }
+  })
   it.skip('should retrieve all templates approved for use in a pagetree', async () => {})
   it.skip('should retrieve all templates approved for use in a pagetree, with a template filter applied', async () => {})
   it.skip('should retrieve roles with any permission on a pagetree', async () => {})

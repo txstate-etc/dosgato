@@ -1,6 +1,7 @@
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
+import { isNotNull } from 'txstate-utils'
 
 export enum PagetreeType {
   PRIMARY = 'primary',
@@ -53,8 +54,8 @@ export class Pagetree {
     this.name = row.name
     this.siteId = String(row.siteId)
     this.created = DateTime.fromJSDate(row.createdAt)
-    this.archived = row.archived ? DateTime.fromJSDate(row.archived) : undefined
-    this.deleted = row.deleted === 1
+    this.archived = row.archivedAt ? DateTime.fromJSDate(row.archivedAt) : undefined
+    this.deleted = isNotNull(row.deletedAt)
     this.deletedBy = row.deletedBy
   }
 }

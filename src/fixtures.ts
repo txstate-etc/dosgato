@@ -101,12 +101,14 @@ export async function fixtures () {
     db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site4', artCollegeOrg, ed10])
   ])
 
-  const [pagetree1, pagetree2, pagetree3sandbox, pagetree3, pagetree4] = await Promise.all([
+  const [pagetree1, pagetree2, pagetree3sandbox, pagetree3, pagetree4, pagetree4archive, pagetree4deleted] = await Promise.all([
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree1', site1, 'primary']),
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree2', site2, 'primary']),
     db.insert('INSERT INTO pagetrees (name, siteId) VALUES (?,?)', ['pagetree3sandbox', site3]),
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES(?,?,?)', ['pagetree3', site3, 'primary']),
-    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree4', site4, 'primary'])
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree4', site4, 'primary']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type, createdAt, archivedAt) VALUES(?, ?, ?, NOW(), NOW())', ['pagetree4archive', site4, 'archive']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type, createdAt, archivedAt, deletedAt, deletedBy) VALUES(?, ?, ?, NOW(), NOW(), NOW(), ?)', ['pagetree4deleted', site4, 'archive', su01])
   ])
 
   const [pagetemplate1, pagetemplate2, pagetemplate3, pagetemplate4, componenttemplate1, componenttemplate2, componenttemplate3, datatemplate1, datatemplate2, articleTemplate] = await Promise.all([
@@ -485,6 +487,8 @@ export async function fixtures () {
 
   /* Site 4 */
   await createPage('site4', nanoid(10), pagetree4, null, 1, { title: 'Site 4 Home' }, [{ name: 'template', values: ['keyp1'] }])
+  await createPage('site4', nanoid(10), pagetree4archive, null, 1, { title: 'Site 4 Home' }, [{ name: 'template', values: ['keyp1'] }])
+  await createPage('site4', nanoid(10), pagetree4deleted, null, 1, { title: 'Site 4 Home' }, [{ name: 'template', values: ['keyp1'] }])
 
   /* Data */
   const [datafolder1, datafolder2, datafolder3] = await Promise.all([
