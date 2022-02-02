@@ -231,6 +231,12 @@ export async function fixtures () {
     return pageId
   }
 
+  async function updatePage (id: string, content: any, indexes: Index[], user?: string, comment?: string) {
+    const ctx = new Context()
+    const versionedService = new VersionedService(ctx)
+    await versionedService.update(id, content, indexes, { user, comment })
+  }
+
   /* Site 1, Pagetree 1 Pages */
   const rootLinkId = nanoid(10)
   const aboutLinkId = nanoid(10)
@@ -323,7 +329,9 @@ export async function fixtures () {
       values: ['keyp1', 'keyc3']
     }
   ]
-  await createPage('faculty', facultyLinkId, pagetree1, site1pagetree1People, 1, { title: 'Faculty' }, indexes)
+  const facultyPageId = await createPage('faculty', facultyLinkId, pagetree1, site1pagetree1People, 1, { title: 'Faculty' }, indexes)
+  const dataIdfacultyPage = await db.getval<string>('SELECT dataId FROM pages WHERE id = ?', [facultyPageId])
+  await updatePage(dataIdfacultyPage!, { title: 'Faculty', hideNav: true }, indexes, 'ed02')
 
   // staff page
   indexes = [

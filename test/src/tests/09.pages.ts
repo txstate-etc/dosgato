@@ -3,9 +3,16 @@ import { expect } from 'chai'
 import { query } from '../common'
 
 describe('pages', () => {
-  it.skip('should get pages, filtered by id', async () => {})
+  it('should get pages, filtered by id', async () => {
+    const { pages } = await query('{ pages(filter: { deleted: false }) { id name } }')
+    const ids = pages.map((p: any) => p.id)
+    const resp = await query(`{ pages(filter: {ids: ["${ids[0]}", "${ids[1]}", "${ids[2]}"] }) { id name} }`)
+    expect(resp.pages).to.have.lengthOf(3)
+    const pageIds = resp.pages.map((p: any) => p.id)
+    expect(pageIds).to.have.members([ids[0], ids[1], ids[2]])
+    expect(pageIds).to.not.have.members([ids[3], ids[4], ids[5]])
+  })
   it.skip('should get pages filtered by links', async () => {})
-  it.skip('should get pages filtered by pagetree ID', async () => {})
   it('should get pages, filtered by pagetree type', async () => {
     const resp = await query('{ pages(filter: {pagetreeTypes: [SANDBOX]}) { id name pagetree { id type } } }')
     for (const page of resp.pages) {
@@ -149,15 +156,52 @@ describe('pages', () => {
     expect(staffPage.linkId).to.have.length.greaterThan(0)
   })
   it.skip('should return whether or not a page is live', async () => {})
-  it.skip('should return the last modified datetime for a page', async () => {})
-  it.skip('should return the user who last modified a page', async () => {})
-  it.skip('should return a page\'s parent page', async () => {})
-  it.skip('should return null for the parent page if the page is a root page', async () => {})
-  it.skip('should return a page\'s root page', async () => {})
-  it.skip('should get return the page itself, when its root page, if it is a root page', async () => {})
-  it.skip('should get a page\'s path', async () => {})
-  it.skip('should get a page\'s pagetree', async () => {})
-  it.skip('should get a page\'s site', async () => {})
+  it('should return the last modified datetime for a page', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: false}) { id name modifiedAt } }')
+    const facultyPage = pages.find((p: any) => p.name === 'faculty')
+    expect(facultyPage.modifiedAt).to.not.be.null
+  })
+  it('should return the user who last modified a page', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: false}) { id name createdBy { id } modifiedBy { id } } }')
+    const facultyPage = pages.find((p: any) => p.name === 'faculty')
+    expect(facultyPage.createdBy.id).to.equal('su01')
+    expect(facultyPage.modifiedBy.id).to.equal('ed02')
+  })
+  it('should return a page\'s parent page', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: false}) { id name parent { id name } } }')
+    const staffPage = pages.find((p: any) => p.name === 'staff')
+    expect(staffPage.parent.name).to.equal('people')
+  })
+  it('should return null for the parent page if the page is a root page', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: false}) { id name parent { id name } } }')
+    const site2Root = pages.find((p: any) => p.name === 'site2')
+    expect(site2Root.parent).to.be.null
+  })
+  it('should return a page\'s root page', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: false}) { id name rootpage { id name } } }')
+    const staffPage = pages.find((p: any) => p.name === 'staff')
+    expect(staffPage.rootpage.name).to.equal('site1')
+  })
+  it('should get return the page itself, when its root page, if it is a root page', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: false}) { id name rootpage { id name } } }')
+    const site2Root = pages.find((p: any) => p.name === 'site2')
+    expect(site2Root.rootpage.name).to.equal('site2')
+  })
+  it('should get a page\'s path', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: false}) { id name path } }')
+    const peoplePage = pages.find((p: any) => p.name === 'people')
+    expect(peoplePage.path).to.equal('/site1/about/people')
+  })
+  it('should get a page\'s pagetree', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: false}) { id name pagetree { id name } } }')
+    const peoplePage = pages.find((p: any) => p.name === 'people')
+    expect(peoplePage.pagetree.name).to.equal('pagetree1')
+  })
+  it('should get a page\'s site', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: false}) { id name site { id name } } }')
+    const peoplePage = pages.find((p: any) => p.name === 'people')
+    expect(peoplePage.site.name).to.equal('site1')
+  })
   it.skip('should get the templates approved for a page', async () => {})
   it.skip('should get the templates approved by a page, including those authorized for the current user', async () => {})
   it.skip('should return whether or not a page has a published version', async () => {})

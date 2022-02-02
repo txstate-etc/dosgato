@@ -53,8 +53,24 @@ describe('templates', () => {
     const siteNames = template2data.sites.map((s: any) => s.name)
     expect(siteNames).to.have.members(['site1', 'site2', 'site3'])
   })
-  it.skip('should retrieve pages using a given template', async () => {})
-  it.skip('should return an empty array if we try to retrieve pages using a data template', async () => {})
-  it.skip('should retrieve data entries using a given template', async () => {})
-  it.skip('should return an empty array if we try to retrieve data using a page or component template', async () => {})
+  it('should retrieve pages using a given template', async () => {
+    const { templates } = await query('{ templates(filter: { keys: ["keyp1"] }) { key name pages { name } } }')
+    const template1data = templates.find((t: any) => t.key === 'keyp1')
+    expect(template1data.pages.map((p: any) => p.name)).to.include.members(['site1', 'site4', 'about', 'programs', 'contact', 'location'])
+  })
+  it('should return an empty array if we try to retrieve pages using a data template', async () => {
+    const { templates } = await query('{ templates(filter: { keys: ["keyd1"] }) { key name pages { name } } }')
+    expect(templates[0].pages).to.have.lengthOf(0)
+  })
+  it('should retrieve data entries using a given template', async () => {
+    const { templates } = await query('{ templates(filter: { keys: ["keyd1"] }) { key name data { name } } }')
+    const template1data = templates.find((t: any) => t.key === 'keyd1')
+    expect(template1data.data.map((d: any) => d.name)).to.include.members(['Red Content', 'Blue Content', 'Orange Content'])
+  })
+  it('should return an empty array if we try to retrieve data using a page or component template', async () => {
+    const { templates } = await query('{ templates(filter: { keys: ["keyp1", "keyc1"] }) { key name data { name } } }')
+    for (const template of templates) {
+      expect(template.data).to.have.lengthOf(0)
+    }
+  })
 })
