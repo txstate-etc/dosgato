@@ -9,7 +9,7 @@ export async function getOrganizations (ids?: string[]) {
   }
   let query = 'SELECT * from organizations'
   if (where.length) {
-    query += `WHERE (${where.join(') AND (')})`
+    query += ` WHERE (${where.join(') AND (')})`
   }
   const orgs = await db.getall(query, binds)
   return orgs.map(org => new Organization(org))
