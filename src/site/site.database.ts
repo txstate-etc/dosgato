@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { unique } from 'txstate-utils'
-import { Site, SiteFilter, CreateSiteInput, PagetreeType, VersionedService } from 'internal'
+import { Site, SiteFilter, CreateSiteInput, PagetreeType, VersionedService, UpdateSiteInput } from 'internal'
 import { nanoid } from 'nanoid'
 
 const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId']
@@ -87,5 +87,71 @@ export async function createSite (versionedService: VersionedService, userId: st
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
       VALUES (?,?,?,?,?,?)`, [args.name, '/', 1, pagetreeId, dataId, nanoid(10)])
     return new Site(await db.getrow('SELECT * FROM sites WHERE id=?', [siteId]))
+  })
+}
+
+export async function updateSite (site: Site, siteArgs: UpdateSiteInput) {
+  const sitesUpdates: string[] = []
+  const sitesBinds: string[] = []
+  if (siteArgs.name) {
+    sitesUpdates.push('name = ?')
+    sitesBinds.push(siteArgs.name)
+  }
+  if (siteArgs.organizationId) {
+    sitesUpdates.push('organizationId = ?')
+    sitesBinds.push(siteArgs.organizationId)
+  }
+  if (siteArgs.launchHost) {
+    sitesUpdates.push('launchHost = ?')
+    sitesBinds.push(siteArgs.launchHost)
+  }
+  if (siteArgs.launchPath) {
+    sitesUpdates.push('launchPath = ?')
+    sitesBinds.push(siteArgs.launchPath)
+  }
+  return await db.transaction(async db => {
+    if (siteArgs.ownerId) {
+      const ownerId = await db.getval<string>('SELECT id FROM users WHERE login = ?', [siteArgs.ownerId])
+      if (ownerId) {
+        sitesUpdates.push('ownerId = ?')
+        sitesBinds.push(ownerId)
+      }
+    }
+    sitesBinds.push(site.id)
+    await db.update(`UPDATE sites
+                      SET ${sitesUpdates.join(', ')}
+                      WHERE id = ?`, sitesBinds)
+    if (siteArgs.name) {
+      // if the site is renamed, the root assetfolder and root page for all the pagetrees in the site need to be renamed too
+      await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [siteArgs.name, site.rootAssetFolderInternalId])
+      await db.update(`UPDATE pages
+                        INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id
+                        INNER JOIN sites ON pagetrees.siteId = sites.id
+                        SET pages.name = ?
+                        WHERE sites.id = ? AND pages.path = '/'`, [siteArgs.name, site.id])
+    }
+    if (siteArgs.siteTemplateKeys?.length) {
+      const templateBinds: string[] = []
+      const templateIds = await db.getvals<string>(`SELECT id FROM templates WHERE \`key\` IN (${db.in(templateBinds, siteArgs.siteTemplateKeys)})`, templateBinds)
+      await db.delete('DELETE FROM sites_templates WHERE siteId = ?', [site.id])
+      const templateInsertBinds: string[] = []
+      for (const id of templateIds) {
+        templateInsertBinds.push(site.id)
+        templateInsertBinds.push(id)
+      }
+      await db.insert(`INSERT INTO sites_templates (siteId, templateId) VALUES ${templateIds.map(t => '(?,?)').join(', ')}`, templateInsertBinds)
+    }
+    if (siteArgs.managerIds?.length) {
+      const userBinds: string[] = []
+      const userIds = await db.getvals<string>(`SELECT id from users WHERE login IN (${db.in(userBinds, siteArgs.managerIds)})`, userBinds)
+      console.log(userIds)
+      await db.delete('DELETE FROM sites_managers WHERE siteId = ?', [site.id])
+      const managerBinds: string[] = []
+      for (const id of userIds) {
+        managerBinds.push(site.id)
+        managerBinds.push(id)
+      }
+      await db.insert(`INSERT INTO sites_managers (siteId, userId) VALUES ${userIds.map(u => '(?,?)').join(', ')}`, managerBinds)
+    }
   })
 }

@@ -101,14 +101,17 @@ export class UpdateSiteInput {
   @Field({ nullable: true })
   ownerId?: string
 
-  @Field(type => [String], { nullable: true })
-  managerIds?: string[]
-
   @Field({ nullable: true })
   launchHost?: string
 
   @Field({ nullable: true })
   launchPath?: string
+
+  @Field(type => [String], { nullable: true })
+  siteTemplateKeys?: string[]
+
+  @Field(type => [String], { nullable: true })
+  managerIds?: string[]
 }
 
 @ObjectType()

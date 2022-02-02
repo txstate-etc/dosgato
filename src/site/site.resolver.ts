@@ -1,6 +1,6 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { isNotNull } from 'txstate-utils'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
+import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
   AssetPermission, AssetFolder, AssetFolderService, Data, DataFilter, DataPermission, DataService,
   DataFolder, DataFolderFilter, DataFolderService, Organization, OrganizationService,
@@ -63,8 +63,8 @@ export class SiteResolver {
 
   @FieldResolver(returns => Organization, { nullable: true })
   async organization (@Ctx() ctx: Context, @Root() site: Site) {
-    if (typeof site.organizationId !== 'undefined') {
-      return await ctx.svc(OrganizationService).find([String(site.organizationId)])
+    if (isNotNull(site.organizationId)) {
+      return await ctx.svc(OrganizationService).findById(String(site.organizationId))
     }
   }
 
@@ -98,8 +98,8 @@ export class SiteResolver {
   }
 
   @Mutation(returns => SiteResponse)
-  async updateSite (@Ctx() ctx: Context, @Arg('siteId') siteId: string, @Arg('args', type => UpdateSiteInput) args: UpdateSiteInput) {
-    throw new UnimplementedError()
+  async updateSite (@Ctx() ctx: Context, @Arg('siteId', type => ID) siteId: string, @Arg('args', type => UpdateSiteInput) args: UpdateSiteInput) {
+    return await ctx.svc(SiteService).update(siteId, args)
   }
 
   @Mutation(returns => SiteResponse)

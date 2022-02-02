@@ -1,8 +1,9 @@
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
+import { optionalString } from 'txstate-utils'
 import {
   Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate,
   PagetreeService, DosGatoService, CreateSiteInput, createSite, VersionedService,
-  SiteResponse
+  SiteResponse, UpdateSiteInput, TemplateService, UserService, updateSite, User
 } from 'internal'
 
 const siteByOrganizationIdLoader = new OneToManyLoader({
@@ -76,6 +77,24 @@ export class SiteService extends DosGatoService {
         return response
       }
       throw new Error('An unknown error occurred while creating the site.')
+    }
+  }
+
+  async update (siteId: string, args: UpdateSiteInput) {
+    const site = await this.findById(siteId)
+    if (!site) throw new Error('Site to be updated does not exist.')
+    if (args.name && !(await this.mayRename(site))) throw new Error('Current user is not authorized to rename this site')
+    if ((args.ownerId ?? args.organizationId ?? args.managerIds?.length) && !(await this.mayManageOwners(site))) throw new Error('Current user is not authorized to update the organization, owner, or managers for this site')
+    if (args.siteTemplateKeys?.length && !(await this.svc(TemplateService).mayAssign())) throw new Error('Current user is not authorized to approve templates for this site')
+    if ((args.launchHost ?? args.launchPath) && !(await this.mayLaunch(site))) throw new Error('Current user is not authorized to update the public URL for this site')
+    try {
+      await updateSite(site, args)
+      this.loaders.clear()
+      const updatedSite = await this.loaders.get(sitesByIdLoader).load(siteId)
+      return new SiteResponse({ success: true, site: updatedSite })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('An error occurred while updating the site')
     }
   }
 
