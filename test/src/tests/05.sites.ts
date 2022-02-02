@@ -15,7 +15,6 @@ describe('sites', () => {
   })
   it.skip('should retrieve sites by launchUrl', async () => {})
   it.skip('should retrieve launched sites', async () => {})
-  it.skip('should retrieve sites by assetRootId', async () => {})
   it('should retrieve site owners', async () => {
     const resp = await query('{ sites { id, name, owner { id name } } }')
     const site2 = resp.sites.find((s: any) => s.name === 'site2')
@@ -72,8 +71,15 @@ describe('sites', () => {
     expect(foldernames).to.include('site2datafolder')
     expect(foldernames).to.not.include('deletedfolder')
   })
-  it.skip('should get the organization responsible for a site', async () => {})
-  it.skip('should get the root asset folder for a site', async () => {})
+  it('should get the organization responsible for a site', async () => {
+    const { sites } = await query('{ sites { id name organization { name } } }')
+    const site2 = sites.find((s: any) => s.name === 'site2')
+    expect(site2.organization.name).to.equal('Department of Mathematics')
+  })
+  it('should get the root asset folder for a site', async () => {
+    const { sites } = await query('{ sites { name assetroot { name } } }')
+    expect(sites).to.deep.include({ name: 'site3', assetroot: { name: 'site3' } })
+  })
   it.skip('should get all the roles with any permissions on a site', async () => {})
   it.skip('should get the roles with a specific permission on a site', async () => {})
   it.skip('should return whether or not a site is launched', async () => {})

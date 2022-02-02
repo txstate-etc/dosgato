@@ -32,7 +32,7 @@ export class AssetFolder {
     this.siteId = String(row.siteId)
     this.path = row.path
     this.pathSplit = row.path.split(/\//).filter(isNotBlank).map(Number)
-    this.parentInternalId = row.pathSplit[row.pathSplit.length - 1]
+    this.parentInternalId = this.pathSplit[this.pathSplit.length - 1]
     this.deleted = isNotNull(row.deleted)
     this.deletedAt = DateTime.fromJSDate(row.deleted)
     this.deletedBy = row.deletedBy
