@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
-import { expect } from 'chai'
-import { query } from '../common'
+import chai, { expect } from 'chai'
+import chaiAsPromised from 'chai-as-promised'
+import { query, queryAs } from '../common'
+
+chai.use(chaiAsPromised)
 
 describe('users mutations', () => {
   it('should update a user\'s name', async () => {
@@ -16,11 +19,13 @@ describe('users mutations', () => {
     expect(users).to.deep.include({ id: 'ed10', name: 'Updated Username', email: 'ed10alias@example.com' })
   })
   it('should not update a non-existent user', async () => {
-    await query('mutation UpdateUser ($id: String!, $input: UpdateUserInput!) { updateUser (userId: $id, args: $input) { success user { id name } } }', { id: 'notreal', input: { name: 'Should Notwork' } })
+    await expect(query('mutation UpdateUser ($id: String!, $input: UpdateUserInput!) { updateUser (userId: $id, args: $input) { success user { id name } } }', { id: 'notreal', input: { name: 'Should Notwork' } })).to.be.rejected
     const { users } = await query('{ users(filter: { enabled: true }) { name } }')
     expect(users).to.not.deep.include({ name: 'Should Notwork' })
   })
-  it.skip('should not allow an unauthorized user to update a user', async () => {})
+  it('should not allow an unauthorized user to update a user', async () => {
+    await expect(queryAs('ed07', 'mutation UpdateUser ($id: String!, $input: UpdateUserInput!) { updateUser (userId: $id, args: $input) { success user { id name } } }', { id: 'ed10', input: { name: 'Updated Username' } })).to.be.rejected
+  })
   it('should disable a user', async () => {
     const { disableUser: { success } } = await query('mutation DisableUser ($id: String!) { disableUser(userId: $id) { success user { id name } } }', { id: 'ed10' })
     expect(success).to.be.true
@@ -38,9 +43,11 @@ describe('users mutations', () => {
     expect(site4.owner).to.be.null
   })
   it('should not disable a non-existent user', async () => {
-    await query('mutation DisableUser ($id: String!) { disableUser(userId: $id) { success user { id name } } }', { id: 'fakeuser' })
+    await expect(query('mutation DisableUser ($id: String!) { disableUser(userId: $id) { success user { id name } } }', { id: 'fakeuser' })).to.be.rejected
     const { users } = await query('{ users(filter: { enabled: false }) { name } }')
     expect(users).to.not.deep.include({ id: 'fakeuser' })
   })
-  it.skip('should not allow an unauthorized user to disable a user', async () => {})
+  it('should not allow an unauthorized user to disable a user', async () => {
+    await expect(queryAs('ed07', 'mutation DisableUser ($id: String!) { disableUser(userId: $id) { success user { id name } } }', { id: 'su01' })).to.be.rejected
+  })
 })

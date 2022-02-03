@@ -204,10 +204,34 @@ describe('pages', () => {
   })
   it.skip('should get the templates approved for a page', async () => {})
   it.skip('should get the templates approved by a page, including those authorized for the current user', async () => {})
-  it.skip('should return whether or not a page has a published version', async () => {})
-  it.skip('should return the datetime a page was published', async () => {})
-  it.skip('should return the user who most recently published a page', async () => {})
+  it('should return whether or not a page has a published version', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: false}) { name published } }')
+    expect(pages).to.deep.include({ name: 'site2', published: true })
+    expect(pages).to.deep.include({ name: 'programs', published: false })
+  })
+  it('should return the datetime a page was published', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: false}) { name publishedAt } }')
+    const site2RootPage = pages.find((p: any) => p.name === 'site2')
+    expect(site2RootPage.publishedAt).to.not.be.null
+  })
+  it('should return the user who most recently published a page', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: false}) { name publishedBy { id } } }')
+    const site2RootPage = pages.find((p: any) => p.name === 'site2')
+    expect(site2RootPage.publishedBy.id).to.equal('su01')
+  })
   it.skip('should return roles with any permissions on the page', async () => {})
   it.skip('should return roles with a specific permission on a page', async () => {})
-  it.skip('should return a list of all versions of a page', async () => {})
+  it('should return a list of all versions of a page', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: false}) { id name versions { version data } } }')
+    const facultyPage = pages.find((p: any) => p.name === 'faculty')
+    expect(facultyPage.versions).to.have.lengthOf(2)
+    for (const version of facultyPage.versions) {
+      if (version.version === 1) {
+        expect(version.data).to.eql({ title: 'Faculty' })
+      }
+      if (version.version === 2) {
+        expect(version.data.hideNav).to.be.true
+      }
+    }
+  })
 })

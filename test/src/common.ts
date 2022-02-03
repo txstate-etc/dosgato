@@ -23,10 +23,8 @@ export async function queryAs (login: string, query: string, variables?: any) {
     })
     if (resp.data.errors?.length) throw new Error(resp.data.errors[0].message)
     return resp.data.data
-  } catch (e) {
-    if (axios.isAxiosError(e)) {
-      if (!e.response) throw e
-      throw new Error(JSON.stringify(e.response.data, undefined, 2))
-    }
+  } catch (e: any) {
+    if (!e.response) throw e
+    throw new Error(JSON.stringify(e.response.data, undefined, 2))
   }
 }

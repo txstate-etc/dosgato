@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
-import { expect } from 'chai'
-import { query } from '../common'
+import chai, { expect } from 'chai'
+import chaiAsPromised from 'chai-as-promised'
+import { query, queryAs } from '../common'
+
+chai.use(chaiAsPromised)
 
 describe('groups mutations', () => {
   it('should create a new group', async () => {
@@ -13,7 +16,9 @@ describe('groups mutations', () => {
     expect(success).to.be.false
     expect(messages).to.have.length.greaterThan(0)
   })
-  it.skip('should not allow an unauthorized user to create a group', async () => {})
+  it('should not allow an unauthorized user to create a group', async () => {
+    await expect(queryAs('ed07', 'mutation CreateGroup ($name: String!) { createGroup (name: $name) { success messages { message } } }', { name: 'doesnotmatter' })).to.be.rejected
+  })
   it('should update a group name', async () => {
     const { createGroup: { group: groupB } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupB' })
     const { updateGroup: { success, group } } = await query('mutation UpdateGroup ($groupId: String!, $name: String!) { updateGroup (groupId: $groupId, name: $name) { success group { id name } } }', { groupId: groupB.id, name: 'groupBUpdated' })
@@ -23,7 +28,10 @@ describe('groups mutations', () => {
     expect(groupNames).to.include('groupBUpdated')
     expect(groupNames).to.not.include('groupB')
   })
-  it.skip('should not allow an unauthorized user to updage a group name', async () => {})
+  it('should not allow an unauthorized user to updage a group name', async () => {
+    const { createGroup: { group: groupBB } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupBB' })
+    await expect(queryAs('ed07', 'mutation UpdateGroup ($groupId: String!, $name: String!) { updateGroup (groupId: $groupId, name: $name) { success group { id name } } }', { groupId: groupBB.id, name: 'groupBBUpdated' })).to.be.rejected
+  })
   it('should not update a group name if the new group name already exists', async () => {
     const { createGroup: { group: groupC } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupC' })
     const { updateGroup: { success, messages } } = await query('mutation UpdateGroup ($groupId: String!, $name: String!) { updateGroup (groupId: $groupId, name: $name) { success messages { message } } }', { groupId: groupC.id, name: 'group1' })
@@ -37,7 +45,10 @@ describe('groups mutations', () => {
     const { groups } = await query('{ groups { id name } }')
     expect(groups.map((g: any) => g.name)).to.not.include('deleteMe')
   })
-  it.skip('should not allow an unauthorized user to delete a group', async () => {})
+  it('should not allow an unauthorized user to delete a group', async () => {
+    const { createGroup: { group: deleteMe } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'deleteMe' })
+    await expect(queryAs('ed07', 'mutation DeleteGroup ($groupId: String!) { deleteGroup (groupId: $groupId) { success } }', { groupId: deleteMe.id })).to.be.rejected
+  })
   it('should add a user to a group', async () => {
     const { createGroup: { group: groupD } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupD' })
     const { addUserToGroup: { success } } = await query('mutation AddUserToGroup ($groupId: String!, $userId: String!) { addUserToGroup (groupId: $groupId, userId: $userId) { success } }', { groupId: groupD.id, userId: 'su03' })
@@ -48,12 +59,15 @@ describe('groups mutations', () => {
   })
   it('should not add a non-existent user to a group', async () => {
     const { createGroup: { group: groupE } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupE' })
-    await query('mutation AddUserToGroup ($groupId: String!, $userId: String!) { addUserToGroup (groupId: $groupId, userId: $userId) { success } }', { groupId: groupE.id, userId: 'fake' })
+    await expect(query('mutation AddUserToGroup ($groupId: String!, $userId: String!) { addUserToGroup (groupId: $groupId, userId: $userId) { success } }', { groupId: groupE.id, userId: 'fake' })).to.be.rejected
     const { groups } = await query('{ groups { id name users { id name } } }')
     const group = groups.find((g: any) => g.id === groupE.id)
     expect(group.users).to.have.lengthOf(0)
   })
-  it.skip('should not allow an unauthorized user to add a user to a group', async () => {})
+  it('should not allow an unauthorized user to add a user to a group', async () => {
+    const { createGroup: { group: groupDD } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupDD' })
+    await expect(queryAs('ed07', 'mutation AddUserToGroup ($groupId: String!, $userId: String!) { addUserToGroup (groupId: $groupId, userId: $userId) { success } }', { groupId: groupDD.id, userId: 'su03' })).to.be.rejected
+  })
   it('should remove a user from a group', async () => {
     const { createGroup: { group: groupF } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupF' })
     const { addUserToGroup: { success: addSuccess } } = await query('mutation AddUserToGroup ($groupId: String!, $userId: String!) { addUserToGroup (groupId: $groupId, userId: $userId) { success } }', { groupId: groupF.id, userId: 'ed01' })
@@ -69,7 +83,10 @@ describe('groups mutations', () => {
     const { removeUserFromGroup: { success } } = await query('mutation RemoveUserFromGroup ($groupId: String!, $userId: String!) { removeUserFromGroup (groupId: $groupId, userId: $userId) { success } }', { groupId: groupG.id, userId: 'ed01' })
     expect(success).to.be.false
   })
-  it.skip('should not allow an unauthorized user to remove a user from a group', async () => {})
+  it('should not allow an unauthorized user to remove a user from a group', async () => {
+    const { createGroup: { group: groupFF } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupFF' })
+    await expect(queryAs('ed07', 'mutation AddUserToGroup ($groupId: String!, $userId: String!) { addUserToGroup (groupId: $groupId, userId: $userId) { success } }', { groupId: groupFF.id, userId: 'ed01' })).to.be.rejected
+  })
   it('should add a group manager', async () => {
     const { createGroup: { group: groupH } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupH' })
     const { addUserToGroup: { success: addSuccess } } = await query('mutation AddUserToGroup ($groupId: String!, $userId: String!) { addUserToGroup (groupId: $groupId, userId: $userId) { success } }', { groupId: groupH.id, userId: 'ed01' })
@@ -79,7 +96,11 @@ describe('groups mutations', () => {
     const group = groups.find((g: any) => g.id === groupH.id)
     expect(group.managers).to.deep.include({ id: 'ed01' })
   })
-  it.skip('should not allow an unauthorized user to add a group manager', async () => {})
+  it('should not allow an unauthorized user to add a group manager', async () => {
+    const { createGroup: { group: groupHH } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupHH' })
+    await query('mutation AddUserToGroup ($groupId: String!, $userId: String!) { addUserToGroup (groupId: $groupId, userId: $userId) { success } }', { groupId: groupHH.id, userId: 'ed01' })
+    await expect(queryAs('ed07', 'mutation SetGroupManager ($groupId: String!, $userId: String!, $manager: Boolean!) { setGroupManager (groupId: $groupId, userId: $userId, manager: $manager) { success } }', { groupId: groupHH.id, userId: 'ed01', manager: true })).to.be.rejected
+  })
   it('should remove a group manager', async () => {
     const { createGroup: { group: groupI } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupI' })
     const { addUserToGroup: { success: addSuccess } } = await query('mutation AddUserToGroup ($groupId: String!, $userId: String!) { addUserToGroup (groupId: $groupId, userId: $userId) { success } }', { groupId: groupI.id, userId: 'ed01' })
@@ -99,7 +120,11 @@ describe('groups mutations', () => {
     const group = groups.find((g: any) => g.id === groupJ.id)
     expect(group.roles).to.deep.include({ id: roles[0].id })
   })
-  it.skip('should not allow an unauthorized user to add a role to a group', async () => {})
+  it('should not allow an unauthorized user to add a role to a group', async () => {
+    const { roles } = await query('{ roles(filter: { ids: [2] }) { id name } }')
+    const { createGroup: { group: groupJJ } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupJJ' })
+    await expect(queryAs('ed07', 'mutation AddRoleToGroup ($groupId: String!, $roleId: String!) { addRoleToGroup (groupId: $groupId, roleId: $roleId) { success } }', { groupId: groupJJ.id, roleId: roles[0].id })).to.be.rejected
+  })
   it('should remove a role from a group', async () => {
     const { roles } = await query('{ roles(filter: { ids: [2] }) { id name } }')
     const { createGroup: { group: groupK } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupK' })
@@ -116,15 +141,19 @@ describe('groups mutations', () => {
     expect(success).to.be.false
   })
   it('should add a subgroup to a group', async () => {
-    const { createGroup: { group: groupM } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupM' })
-    const { createGroup: { group: groupN } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupN' })
+    const { createGroup: { group: groupM } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupMM' })
+    const { createGroup: { group: groupN } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupNN' })
     const { addSubgroup: { success } } = await query('mutation AddSubgroup ($parentGroupId: String!, $childGroupId: String!) { addSubgroup (parentGroupId: $parentGroupId, childGroupId: $childGroupId) { success } }', { parentGroupId: groupM.id, childGroupId: groupN.id })
     expect(success).to.be.true
     const { groups } = await query('{ groups { id name subgroups { id } } }')
     const group = groups.find((g: any) => g.id === groupM.id)
     expect(group.subgroups).to.deep.include({ id: groupN.id })
   })
-  it.skip('should not allow an unauthorized user to add a subgroup to a group', async () => {})
+  it('should not allow an unauthorized user to add a subgroup to a group', async () => {
+    const { createGroup: { group: groupMM } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupM' })
+    const { createGroup: { group: groupNN } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupN' })
+    await expect(queryAs('ed07', 'mutation AddSubgroup ($parentGroupId: String!, $childGroupId: String!) { addSubgroup (parentGroupId: $parentGroupId, childGroupId: $childGroupId) { success } }', { parentGroupId: groupMM.id, childGroupId: groupNN.id })).to.be.rejected
+  })
   it('should remove a subgroup from a group', async () => {
     const { createGroup: { group: groupO } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupO' })
     const { createGroup: { group: groupP } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { success group { id name } } }', { name: 'groupP' })

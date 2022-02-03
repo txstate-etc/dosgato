@@ -332,6 +332,7 @@ export async function fixtures () {
   const facultyPageId = await createPage('faculty', facultyLinkId, pagetree1, site1pagetree1People, 1, { title: 'Faculty' }, indexes)
   const dataIdfacultyPage = await db.getval<string>('SELECT dataId FROM pages WHERE id = ?', [facultyPageId])
   await updatePage(dataIdfacultyPage!, { title: 'Faculty', hideNav: true }, indexes, 'ed02')
+  await updatePage(dataIdfacultyPage!, { title: 'Faculty', hideNav: false }, indexes, 'ed02')
 
   // staff page
   indexes = [
@@ -421,7 +422,9 @@ export async function fixtures () {
       values: ['keyp2', 'keyc3']
     }
   ]
-  await createPage('site2', site2RootLinkId, pagetree2, null, 1, { title: 'Site 2 Home' }, indexes)
+  const site2rootpageid = await createPage('site2', site2RootLinkId, pagetree2, null, 1, { title: 'Site 2 Home' }, indexes)
+  const dataIdSite2Root = await db.getval<string>('SELECT dataId FROM pages WHERE id = ?', [site2rootpageid])
+  await tagData(dataIdSite2Root!, 'published', 1, 'su01')
 
   /* Site 3, Pagetree 3 Pages */
   const site3RootLinkId = nanoid(10)
