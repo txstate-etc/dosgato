@@ -118,17 +118,19 @@ export async function updateSite (site: Site, siteArgs: UpdateSiteInput) {
       }
     }
     sitesBinds.push(site.id)
-    await db.update(`UPDATE sites
-                      SET ${sitesUpdates.join(', ')}
-                      WHERE id = ?`, sitesBinds)
-    if (siteArgs.name) {
-      // if the site is renamed, the root assetfolder and root page for all the pagetrees in the site need to be renamed too
-      await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [siteArgs.name, site.rootAssetFolderInternalId])
-      await db.update(`UPDATE pages
-                        INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id
-                        INNER JOIN sites ON pagetrees.siteId = sites.id
-                        SET pages.name = ?
-                        WHERE sites.id = ? AND pages.path = '/'`, [siteArgs.name, site.id])
+    if (sitesUpdates.length) {
+      await db.update(`UPDATE sites
+                        SET ${sitesUpdates.join(', ')}
+                        WHERE id = ?`, sitesBinds)
+      if (siteArgs.name) {
+        // if the site is renamed, the root assetfolder and root page for all the pagetrees in the site need to be renamed too
+        await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [siteArgs.name, site.rootAssetFolderInternalId])
+        await db.update(`UPDATE pages
+                          INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id
+                          INNER JOIN sites ON pagetrees.siteId = sites.id
+                          SET pages.name = ?
+                          WHERE sites.id = ? AND pages.path = '/'`, [siteArgs.name, site.id])
+      }
     }
     if (siteArgs.siteTemplateKeys?.length) {
       const templateBinds: string[] = []
