@@ -50,7 +50,7 @@ export class Site {
     this.rootAssetFolderInternalId = row.rootAssetFolderId
     this.organizationId = optionalString(row.organizationId)
     this.ownerId = row.ownerId
-    this.deletedAt = DateTime.fromJSDate(row.deleted)
+    this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
   }
 }

@@ -104,12 +104,12 @@ export class SiteResolver {
 
   @Mutation(returns => SiteResponse)
   async deleteSite (@Ctx() ctx: Context, @Arg('siteId') siteId: string, @Arg('hardDelete', { nullable: true, description: 'true if the site should be hard deleted, false for soft deletion' }) hardDelete?: boolean) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).delete(siteId)
   }
 
   @Mutation(returns => SiteResponse)
   async undeleteSite (@Ctx() ctx: Context, @Arg('siteId') siteId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteService).undelete(siteId)
   }
 }
 

@@ -3,7 +3,7 @@ import { unique } from 'txstate-utils'
 import { Site, SiteFilter, CreateSiteInput, PagetreeType, VersionedService, UpdateSiteInput } from 'internal'
 import { nanoid } from 'nanoid'
 
-const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId']
+const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
 
 function processFilters (filter?: SiteFilter) {
   const binds: string[] = []
@@ -146,7 +146,6 @@ export async function updateSite (site: Site, siteArgs: UpdateSiteInput) {
     if (siteArgs.managerIds?.length) {
       const userBinds: string[] = []
       const userIds = await db.getvals<string>(`SELECT id from users WHERE login IN (${db.in(userBinds, siteArgs.managerIds)})`, userBinds)
-      console.log(userIds)
       await db.delete('DELETE FROM sites_managers WHERE siteId = ?', [site.id])
       const managerBinds: string[] = []
       for (const id of userIds) {
@@ -156,4 +155,12 @@ export async function updateSite (site: Site, siteArgs: UpdateSiteInput) {
       await db.insert(`INSERT INTO sites_managers (siteId, userId) VALUES ${userIds.map(u => '(?,?)').join(', ')}`, managerBinds)
     }
   })
+}
+
+export async function deleteSite (site: Site, currentUserInternalId: number) {
+  return await db.update('UPDATE sites SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [currentUserInternalId, site.id])
+}
+
+export async function undeleteSite (site: Site) {
+  return await db.update('UPDATE sites SET deletedAt = NULL, deletedBy = NULL WHERE id = ?', [site.id])
 }

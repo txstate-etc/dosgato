@@ -1,10 +1,10 @@
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
-import { optionalString } from 'txstate-utils'
 import {
   Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate,
   PagetreeService, DosGatoService, CreateSiteInput, createSite, VersionedService,
-  SiteResponse, UpdateSiteInput, TemplateService, UserService, updateSite, User
+  SiteResponse, UpdateSiteInput, TemplateService, updateSite, deleteSite
 } from 'internal'
+import { undeleteSite } from './site.database'
 
 const siteByOrganizationIdLoader = new OneToManyLoader({
   fetch: async (orgIds: string[]) => {
@@ -95,6 +95,37 @@ export class SiteService extends DosGatoService {
     } catch (err: any) {
       console.error(err)
       throw new Error('An error occurred while updating the site')
+    }
+  }
+
+  async delete (siteId: string) {
+    const site = await this.findById(siteId)
+    if (!site) throw new Error('Site to be deleted does not exist.')
+    if (!(await this.mayDelete(site))) throw new Error('Current user is not permitted to delete this site.')
+    const currentUser = await this.currentUser()
+    try {
+      await deleteSite(site, currentUser!.internalId)
+      this.loaders.clear()
+      const deletedSite = await this.loaders.get(sitesByIdLoader).load(siteId)
+      return new SiteResponse({ success: true, site: deletedSite })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('An error occurred while deleting the site')
+    }
+  }
+
+  async undelete (siteId: string) {
+    const site = await this.findById(siteId)
+    if (!site) throw new Error('Site to be restored does not exist.')
+    if (!(await this.mayUndelete(site))) throw new Error('Current user is not permitted to restore this site.')
+    try {
+      await undeleteSite(site)
+      this.loaders.clear()
+      const restoredSite = await this.loaders.get(sitesByIdLoader).load(siteId)
+      return new SiteResponse({ success: true, site: restoredSite })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('An error occurred while restoring the site')
     }
   }
 

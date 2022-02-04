@@ -56,10 +56,33 @@ describe('sites mutations', () => {
     const { sites } = await query(`{ sites(filter: { ids: [${siteG.id}] }) { name managers { id } } }`)
     expect(sites[0].managers.map((m: any) => m.id)).to.have.members(['ed01', 'ed02', 'ed03', 'ed04'])
   })
-  it.skip('should add approved templates to a site', async () => {})
+  it('should add approved templates to a site', async () => {
+    const { createSite: { site: siteH } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name } } }', { args: { name: 'newsiteH', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    const { updateSite: { success, site } } = await query('mutation UpdateSite ($id: ID!, $args: UpdateSiteInput!) { updateSite (siteId:$id, args: $args) { success } }', { id: siteH.id, args: { siteTemplateKeys: ['keyp1', 'keyp2', 'keyp3'] } })
+    expect(success).to.be.true
+    const { sites } = await query(`{ sites(filter: { ids: [${siteH.id}] }) { name templates { key } } }`)
+    expect(sites[0].templates.map((t: any) => t.key)).to.have.members(['keyp1', 'keyp2', 'keyp3'])
+  })
   it.skip('should add a launch URL to a site', async () => {})
-  it.skip('should delete a site', async () => {})
-  it.skip('should not allow an unauthorized user to delete a site', async () => {})
-  it.skip('should undelete a site', async () => {})
-  it.skip('should not allow an unauthorized user to undelete a site', async () => {})
+  it('should delete a site', async () => {
+    const { createSite: { site: siteI } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name } } }', { args: { name: 'newsiteI', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    const { deleteSite: { success, site } } = await query('mutation DeleteSite ($id: ID!) { deleteSite (siteId: $id) { success } }', { id: siteI.id })
+    expect(success).to.be.true
+    const { sites } = await query(`{ sites(filter: { ids: [${siteI.id}] }) { name deletedAt } }`)
+    expect(sites[0].deletedAt).to.not.be.null
+  })
+  it('should not allow an unauthorized user to delete a site', async () => {
+    await expect(queryAs('ed07', 'mutation DeleteSite ($id: ID!) { deleteSite (siteId: $id) { success } }', { id: 1 })).to.be.rejected
+  })
+  it('should undelete a site', async () => {
+    const { createSite: { site: siteJ } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name } } }', { args: { name: 'newsiteJ', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    await query('mutation DeleteSite ($id: ID!) { deleteSite (siteId: $id) { success } }', { id: siteJ.id })
+    const { undeleteSite: { success, site } } = await query('mutation UndeleteSite ($id: ID!) { undeleteSite (siteId: $id) { success  } }', { id: siteJ.id })
+    expect(success).to.be.true
+    const { sites } = await query(`{ sites(filter: { ids: [${siteJ.id}] }) { name deletedAt } }`)
+    expect(sites[0].deletedAt).to.be.null
+  })
+  it('should not allow an unauthorized user to undelete a site', async () => {
+    await expect(queryAs('ed07', 'mutation UndeleteSite ($id: ID!) { undeleteSite (siteId: $id) { success } }', { id: 1 })).to.be.rejected
+  })
 })
