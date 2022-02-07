@@ -4,11 +4,12 @@ import { Cache, filterAsync } from 'txstate-utils'
 import {
   Asset, AssetRule, AssetRuleResponse, AssetService, AssetFolder, AssetFolderService,
   comparePathsWithMode, createAssetRule, CreateAssetRuleInput, DosGatoService,
-  getAssetRules, RulePathMode, RoleService, tooPowerfulHelper
+  getAssetRules, RulePathMode, RoleService, tooPowerfulHelper, UpdateAssetRuleInput,
+  updateAssetRule, deleteAssetRule
 } from 'internal'
 
 const assetRulesByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: number[]) => {
+  fetch: async (ids: string[]) => {
     return await getAssetRules({ ids })
   }
 })
@@ -61,10 +62,51 @@ export class AssetRuleService extends DosGatoService {
       const ruleId = await createAssetRule(args)
       this.loaders.clear()
       if (!newRule.siteId) await globalAssetRulesCache.clear()
-      const rule = await this.loaders.get(assetRulesByIdLoader).load(ruleId)
+      const rule = await this.loaders.get(assetRulesByIdLoader).load(String(ruleId))
       return new AssetRuleResponse({ assetRule: rule, success: true })
     } catch (err: any) {
+      console.error(err)
       throw new Error('An unknown error occurred while creating the role.')
+    }
+  }
+
+  async update (args: UpdateAssetRuleInput) {
+    const rule = await this.loaders.get(assetRulesByIdLoader).load(args.ruleId)
+    if (!rule) throw new Error('Rule to be updated does not exist.')
+    if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this asset rule.')
+    const updatedGrants = { ...rule.grants, ...args.grants }
+    const newRule = new AssetRule({
+      id: '0',
+      roleId: rule.roleId,
+      siteId: args.siteId ?? rule.siteId,
+      path: args.path ?? rule.path,
+      mode: args.mode ?? rule.mode,
+      ...updatedGrants
+    })
+    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The updated rule would have more privilege than you currently have, so you cannot create it.')
+    try {
+      await updateAssetRule(args)
+      this.loaders.clear()
+      if (!rule.siteId || !newRule.siteId) await globalAssetRulesCache.clear()
+      const updatedRule = await this.loaders.get(assetRulesByIdLoader).load(args.ruleId)
+      return new AssetRuleResponse({ assetRule: updatedRule, success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('An error occurred while updating the asset rule.')
+    }
+  }
+
+  async delete (ruleId: string) {
+    const rule = await this.loaders.get(assetRulesByIdLoader).load(ruleId)
+    if (!rule) throw new Error('Rule to be deleted does not exist.')
+    // TODO: what permissions need to be checked for deleting rules?
+    try {
+      await deleteAssetRule(ruleId)
+      this.loaders.clear()
+      if (!rule.siteId) await globalAssetRulesCache.clear()
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      throw new Error('An error occurred while deleting the asset rule.')
     }
   }
 
@@ -99,5 +141,9 @@ export class AssetRuleService extends DosGatoService {
 
   async mayView (): Promise<boolean> {
     return true
+  }
+
+  async mayWrite (rule: AssetRule) {
+    return await this.haveGlobalPerm('manageUsers')
   }
 }

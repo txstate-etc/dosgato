@@ -17,14 +17,8 @@ interface AssetRuleRow {
 }
 
 @ObjectType()
-@InputType('AssetRuleGrantsInput')
-export class AssetRuleGrants {
-  @Field({ description: 'Grants ability to view assets and folders. Always true on every rule since having any other grant implies this one. Do not try to set this in mutations.' })
-  view!: boolean
-
-  @Field({ description: 'Grants ability to view assets in the asset manager UI. Admins do NOT set this directly - it is implied by having other grants.' })
-  viewForEdit!: boolean
-
+@InputType()
+export class AssetRuleGrantsBase {
   @Field({ description: 'Grants ability to create or move assets and folders into folders impacted by this rule.' })
   create!: boolean
 
@@ -47,6 +41,22 @@ export class AssetRuleGrants {
       this.move = !!row.move
       this.delete = !!row.delete
       this.undelete = !!row.undelete
+    }
+  }
+}
+
+@ObjectType()
+@InputType('AssetRuleGrantsInput')
+export class AssetRuleGrants extends AssetRuleGrantsBase {
+  @Field({ description: 'Grants ability to view assets and folders. Always true on every rule since having any other grant implies this one. Do not try to set this in mutations.' })
+  view!: boolean
+
+  @Field({ description: 'Grants ability to view assets in the asset manager UI. Admins do NOT set this directly - it is implied by having other grants.' })
+  viewForEdit!: boolean
+
+  constructor (row?: AssetRuleRow) {
+    super(row)
+    if (row) {
       this.view = true // every rule grants view access
       this.viewForEdit = this.create || this.update || this.move || this.delete || this.undelete
     }
@@ -85,7 +95,7 @@ export class AssetRule {
 
 @InputType()
 export class AssetRuleFilter {
-  ids?: number[]
+  ids?: string[]
 
   @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that are NOT limited to a site.' })
   siteIds?: (string|null)[]
@@ -126,8 +136,8 @@ export class CreateAssetRuleInput {
   @Field(type => RulePathMode, { nullable: true })
   mode?: RulePathMode
 
-  @Field(type => AssetRuleGrants, { nullable: true })
-  grants?: AssetRuleGrants
+  @Field(type => AssetRuleGrantsBase, { nullable: true })
+  grants?: AssetRuleGrantsBase
 }
 
 @InputType()
@@ -144,8 +154,8 @@ export class UpdateAssetRuleInput {
   @Field(type => RulePathMode, { nullable: true })
   mode?: RulePathMode
 
-  @Field(type => AssetRuleGrants, { nullable: true })
-  grants?: AssetRuleGrants
+  @Field(type => AssetRuleGrantsBase, { nullable: true })
+  grants?: AssetRuleGrantsBase
 }
 
 @ObjectType()

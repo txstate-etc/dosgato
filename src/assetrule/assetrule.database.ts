@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
-import { AssetRule, AssetRuleFilter, CreateAssetRuleInput } from 'internal'
+import { AssetRule, AssetRuleFilter, CreateAssetRuleInput, UpdateAssetRuleInput } from 'internal'
 
 function processFilters (filter: AssetRuleFilter) {
   const where: string[] = []
@@ -68,7 +68,7 @@ export async function getAssetRules (filter: AssetRuleFilter) {
 
 export async function createAssetRule (args: CreateAssetRuleInput) {
   const columns: string[] = ['roleId']
-  const binds: string[] = []
+  const binds: (string|boolean)[] = []
   if (!args.roleId) {
     throw new Error('Must include a role ID when creating an asset rule')
   }
@@ -87,26 +87,72 @@ export async function createAssetRule (args: CreateAssetRuleInput) {
   }
   if (args.grants) {
     if (args.grants.create) {
-      columns.push('create')
-      binds.push(String(args.grants.create))
+      columns.push('`create`')
+      binds.push(args.grants.create)
     }
     if (args.grants.update) {
-      columns.push('update')
-      binds.push(String(args.grants.update))
+      columns.push('`update`')
+      binds.push(args.grants.update)
     }
     if (args.grants.move) {
-      columns.push('move')
-      binds.push(String(args.grants.move))
+      columns.push('`move`')
+      binds.push(args.grants.move)
     }
     if (args.grants.delete) {
-      columns.push('delete')
-      binds.push(String(args.grants.delete))
+      columns.push('`delete`')
+      binds.push(args.grants.delete)
     }
     if (args.grants.undelete) {
-      columns.push('undelete')
-      binds.push(String(args.grants.undelete))
+      columns.push('`undelete`')
+      binds.push(args.grants.undelete)
     }
   }
-  console.log(`INSERT INTO assetrules (${columns.join(',')}) VALUES(${binds.join(',')})`)
-  return await db.insert(`INSERT INTO assetrules (${columns.join(',')}) VALUES(${binds.join(',')})`, binds)
+  return await db.insert(`INSERT INTO assetrules (${columns.join(',')}) VALUES(${columns.map((c) => '?').join(',')})`, binds)
+}
+
+export async function updateAssetRule (args: UpdateAssetRuleInput) {
+  const updates: string[] = []
+  const binds: (string|boolean)[] = []
+  if (typeof args.siteId !== 'undefined') {
+    updates.push('siteId = ?')
+    binds.push(args.siteId)
+  }
+  if (args.path) {
+    updates.push('path = ?')
+    binds.push(args.path)
+  }
+  if (args.mode) {
+    updates.push('mode = ?')
+    binds.push(args.mode)
+  }
+  if (args.grants) {
+    if (args.grants.create) {
+      updates.push('`create` = ?')
+      binds.push(args.grants.create)
+    }
+    if (args.grants.update) {
+      updates.push('`update` = ?')
+      binds.push(args.grants.update)
+    }
+    if (args.grants.move) {
+      updates.push('`move` = ?')
+      binds.push(args.grants.move)
+    }
+    if (args.grants.delete) {
+      updates.push('`delete` = ?')
+      binds.push(args.grants.delete)
+    }
+    if (args.grants.undelete) {
+      updates.push('`undelete` = ?')
+      binds.push(args.grants.undelete)
+    }
+  }
+  binds.push(String(args.ruleId))
+  return await db.update(`UPDATE assetrules
+                          SET ${updates.join(', ')}
+                          WHERE id = ?`, binds)
+}
+
+export async function deleteAssetRule (ruleId: string) {
+  return await db.delete('DELETE FROM assetrules WHERE id = ?', [ruleId])
 }

@@ -34,7 +34,7 @@ export class AssetRuleResolver {
 
   @Mutation(returns => AssetRuleResponse)
   async updateAssetRule (@Ctx() ctx: Context, @Arg('args', type => UpdateAssetRuleInput) args: UpdateAssetRuleInput) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetRuleService).update(args)
   }
 }
 
@@ -42,6 +42,6 @@ export class AssetRuleResolver {
 export class AssetRulePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may edit the assettree, path, or grants on this rule.' })
   async write (@Ctx() ctx: Context, @Root() rule: AssetRule) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetRuleService).mayWrite(rule)
   }
 }
