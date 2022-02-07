@@ -20,7 +20,7 @@ describe('global rules', () => {
 
 describe('site rules', () => {
   it('should get the site rules for a role', async () => {
-    const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules { grants { delete launch manageOwners managePagetrees promotePagetree rename undelete } } } }')
+    const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules { grants { delete launch manageOwners managePagetrees promotePagetree rename undelete viewForEdit } } } }')
     const testrole1 = resp.roles.find((r: any) => r.name === 'site1-siterulestest1')
     const siteRules = testrole1.siteRules[0]
     expect(siteRules.grants.delete).to.be.false
@@ -30,6 +30,7 @@ describe('site rules', () => {
     expect(siteRules.grants.promotePagetree).to.be.false
     expect(siteRules.grants.rename).to.be.true
     expect(siteRules.grants.undelete).to.be.false
+    expect(siteRules.grants.viewForEdit).to.be.true
   })
   it.skip('should filter site rules by role ID', async () => {})
   it('should filter site rules by site ID', async () => {
@@ -123,7 +124,9 @@ describe('site rules', () => {
     const roles = resp.roles
     for (const role of roles) {
       const siteRuleRoleNames = role.siteRules.map((r: any) => r.role.name)
-      expect(siteRuleRoleNames).to.have.members([role.name])
+      if (siteRuleRoleNames.length) {
+        expect(siteRuleRoleNames).to.have.members([role.name])
+      }
     }
   })
   it('should get the site targeted by a site rule', async () => {
@@ -143,7 +146,18 @@ describe('site rules', () => {
 })
 
 describe('asset rules', () => {
-  it.skip('should get the asset rules for a role', async () => {})
+  it('should get the asset rules for a role', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed06"] }) { name assetRules { grants { create delete move undelete update view viewForEdit } } } }')
+    const assetruletest1 = roles.find((r: any) => r.name === 'assetrulestest1')
+    const assetRules = assetruletest1.assetRules[0]
+    expect(assetRules.grants.create).to.be.true
+    expect(assetRules.grants.update).to.be.true
+    expect(assetRules.grants.move).to.be.true
+    expect(assetRules.grants.delete).to.be.false
+    expect(assetRules.grants.undelete).to.be.false
+    expect(assetRules.grants.view).to.be.true
+    expect(assetRules.grants.viewForEdit).to.be.true
+  })
   it.skip('should filter asset rules by site ID', async () => {})
   it.skip('should filter asset rules by null site ID', async () => {})
   it.skip('should filter asset rules by role ID', async () => {})
@@ -153,9 +167,28 @@ describe('asset rules', () => {
   it.skip('should return asset rules that grant the "move" permission', async () => {})
   it.skip('should return asset rules that grant the "delete" permission', async () => {})
   it.skip('should return asset rules that grant the "undelete" permission', async () => {})
-  it.skip('should get the role attached to an asset rule', async () => {})
-  it.skip('should get the site targeted by an asset rule', async () => {})
-  it.skip('should return null for the site of an asset rule that targets all sites', async () => {})
+  it('should get the role attached to an asset rule', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed06"] }) { name assetRules { id role { name } } } }')
+    for (const role of roles) {
+      const assetRuleRoleNames = role.assetRules.map((r: any) => r.role.name)
+      if (assetRuleRoleNames.length) {
+        expect(assetRuleRoleNames).to.include.members([role.name])
+      }
+    }
+  })
+  it('should get the site targeted by an asset rule', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed11"] }) { name assetRules { id site { name } } } }')
+    for (const role of roles) {
+      if (role.name === 'assetrulestest3' || role.name === 'assetrulestest4') {
+        expect(role.assetRules[0].site.name).to.equal('site1')
+      }
+    }
+  })
+  it('should return null for the site of an asset rule that targets all sites', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["su01"] }) { name assetRules { id site { name } } } }')
+    const superUserRole = roles.find((r: any) => r.name === 'superuser')
+    expect(superUserRole.assetRules[0].site).to.be.null
+  })
 })
 
 describe('page rules', () => {
