@@ -4,11 +4,8 @@ import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleType } from 'internal'
 
 @ObjectType()
-@InputType('SiteRuleGrantsInput')
-export class SiteRuleGrants {
-  @Field({ description: 'Grants ability to view site in the site manager UI. Any siterule automatically grants this as it is implied by the other grants.' })
-  viewForEdit!: boolean
-
+@InputType()
+export class SiteRuleGrantsBase {
   @Field({ description: 'Grants ability to set or update the public URL for affected sites.' })
   launch!: boolean
 
@@ -39,6 +36,19 @@ export class SiteRuleGrants {
       this.promotePagetree = !!row.promotePagetree
       this.delete = !!row.delete
       this.undelete = !!row.undelete
+    }
+  }
+}
+
+@ObjectType()
+@InputType('SiteRuleGrantsInput')
+export class SiteRuleGrants extends SiteRuleGrantsBase {
+  @Field({ description: 'Grants ability to view site in the site manager UI. Any siterule automatically grants this as it is implied by the other grants.' })
+  viewForEdit!: boolean
+
+  constructor (row?: any) {
+    super(row)
+    if (row) {
       this.viewForEdit = true
     }
   }
@@ -68,11 +78,13 @@ export class SiteRule {
 
 @InputType()
 export class SiteRuleFilter {
+  ids?: string[]
+
   @Field(type => [ID], { nullable: true })
   roleIds?: string[]
 
   @Field(type => [ID], { nullable: true })
-  siteIds?: string[]
+  siteIds?: (string|null)[]
 
   @Field({ nullable: true, description: 'Return rules that grant the launch permission.' })
   launch?: boolean
@@ -104,8 +116,8 @@ export class CreateSiteRuleInput {
   @Field({ nullable: true })
   siteId?: string
 
-  @Field(type => SiteRuleGrants, { nullable: true })
-  grants?: SiteRuleGrants
+  @Field(type => SiteRuleGrantsBase, { nullable: true })
+  grants?: SiteRuleGrantsBase
 }
 
 @InputType()
@@ -116,8 +128,8 @@ export class UpdateSiteRuleInput {
   @Field({ nullable: true })
   siteId?: string
 
-  @Field(type => SiteRuleGrants, { nullable: true })
-  grants?: SiteRuleGrants
+  @Field(type => SiteRuleGrantsBase, { nullable: true })
+  grants?: SiteRuleGrantsBase
 }
 
 @ObjectType()

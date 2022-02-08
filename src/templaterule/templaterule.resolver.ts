@@ -1,4 +1,4 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context } from '@txstate-mws/graphql-server'
 import { isNull } from 'txstate-utils'
 import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
 import {

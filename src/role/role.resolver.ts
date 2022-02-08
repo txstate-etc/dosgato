@@ -111,7 +111,8 @@ export class RoleResolver {
       // case RuleType.DATA:
       // case RuleType.GLOBAL:
       // case RuleType.PAGE:
-      // case RuleType.SITE:
+      case RuleType.SITE:
+        return await ctx.svc(SiteRuleService).delete(ruleId)
       case RuleType.TEMPLATE:
         return await ctx.svc(TemplateRuleService).delete(ruleId)
       default:

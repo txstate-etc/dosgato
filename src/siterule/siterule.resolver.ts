@@ -1,9 +1,9 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context } from '@txstate-mws/graphql-server'
 import { isNull } from 'txstate-utils'
 import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
 import {
   Role, RoleService, Site, SiteService, CreateSiteRuleInput, SiteRule,
-  SiteRulePermissions, SiteRuleResponse, UpdateSiteRuleInput
+  SiteRulePermissions, SiteRuleResponse, UpdateSiteRuleInput, SiteRuleService
 } from 'internal'
 
 @Resolver(of => SiteRule)
@@ -29,12 +29,12 @@ export class SiteRuleResolver {
 
   @Mutation(returns => SiteRuleResponse)
   async createSiteRule (@Ctx() ctx: Context, @Arg('args', type => CreateSiteRuleInput) args: CreateSiteRuleInput) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteRuleService).create(args)
   }
 
   @Mutation(returns => SiteRuleResponse)
   async updateSiteRule (@Ctx() ctx: Context, @Arg('args', type => UpdateSiteRuleInput) args: UpdateSiteRuleInput) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteRuleService).update(args)
   }
 }
 
@@ -42,6 +42,6 @@ export class SiteRuleResolver {
 export class SiteRulePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may edit the grants on this rule.' })
   async write (@Ctx() ctx: Context, @Root() rule: SiteRule) {
-    throw new UnimplementedError()
+    return await ctx.svc(SiteRuleService).mayWrite(rule)
   }
 }
