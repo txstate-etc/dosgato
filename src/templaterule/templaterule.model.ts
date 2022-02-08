@@ -44,14 +44,42 @@ export class TemplateRule {
 
 @InputType()
 export class TemplateRuleFilter {
+  ids?: string[]
+
   @Field(type => [ID], { nullable: true })
   roleIds?: string[]
 
   @Field(type => [ID], { nullable: 'itemsAndList', description: 'Rules targeting all templates will NOT be returned when this filter is used. Include `null` to return those rules.' })
   templateKeys?: (string|null)[]
 
+  templateIds?: (number|null)[]
+
   @Field({ nullable: true, description: 'Return rules that grant the use permission.' })
   use?: boolean
+}
+
+@InputType()
+export class CreateTemplateRuleInput {
+  @Field()
+  roleId!: string
+
+  @Field({ nullable: true })
+  templateId?: string
+
+  @Field(type => TemplateRuleGrants, { nullable: true })
+  grants?: TemplateRuleGrants
+}
+
+@InputType()
+export class UpdateTemplateRuleInput {
+  @Field()
+  ruleId!: string
+
+  @Field({ nullable: true })
+  templateId?: string
+
+  @Field(type => TemplateRuleGrants, { nullable: true })
+  grants?: TemplateRuleGrants
 }
 
 @ObjectType()

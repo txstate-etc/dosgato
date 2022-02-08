@@ -1,7 +1,17 @@
-import { OneToManyLoader } from 'dataloader-factory'
+import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { ValidatedResponse } from '@txstate-mws/graphql-server'
+import { Cache } from 'txstate-utils'
 import {
-  Template, DosGatoService, tooPowerfulHelper, getTemplateRules, TemplateRule, TemplateRuleFilter
+  Template, DosGatoService, tooPowerfulHelper, getTemplateRules, TemplateRule, TemplateRuleFilter,
+  CreateTemplateRuleInput, RoleService, createTemplateRule, TemplateRuleResponse, updateTemplateRule,
+  UpdateTemplateRuleInput, deleteTemplateRule
 } from 'internal'
+
+const templateRulesByIdLoader = new PrimaryKeyLoader({
+  fetch: async (ids: string[]) => {
+    return await getTemplateRules({ ids })
+  }
+})
 
 const templateRulesByRoleLoader = new OneToManyLoader({
   fetch: async (roleIds: string[], filter?: TemplateRuleFilter) => {
@@ -11,9 +21,66 @@ const templateRulesByRoleLoader = new OneToManyLoader({
   keysFromFilter: (filter: TemplateRuleFilter | undefined) => filter?.roleIds ?? []
 })
 
+const globalTemplateRulesCache = new Cache(async () => await getTemplateRules({ templateIds: [null] }), { freshseconds: 3 })
+
 export class TemplateRuleService extends DosGatoService {
   async findByRoleId (roleId: string, filter?: TemplateRuleFilter) {
     return await this.loaders.get(templateRulesByRoleLoader, filter).load(roleId)
+  }
+
+  async create (args: CreateTemplateRuleInput) {
+    const role = await this.svc(RoleService).findById(args.roleId)
+    if (!role) throw new Error('Role to be modified does not exist.')
+    if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
+    const newRule = new TemplateRule({ id: '0', roleId: args.roleId, templateId: args.templateId, ...args.grants })
+    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The proposed rule would have more privilege than you currently have, so you cannot create it.')
+    try {
+      const ruleId = await createTemplateRule(args)
+      this.loaders.clear()
+      if (!newRule.templateId) await globalTemplateRulesCache.clear()
+      const rule = await this.loaders.get(templateRulesByIdLoader).load(String(ruleId))
+      return new TemplateRuleResponse({ success: true, templateRule: rule })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('An unknown error occurred while creating the role.')
+    }
+  }
+
+  async update (args: UpdateTemplateRuleInput) {
+    const rule = await this.loaders.get(templateRulesByIdLoader).load(args.ruleId)
+    if (!rule) throw new Error('Rule to be updated does not exist.')
+    if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this template rule.')
+    const newRule = new TemplateRule({
+      id: '0',
+      roleId: rule.roleId,
+      siteId: args.templateId ?? rule.templateId,
+      grants: { use: args.grants?.use ?? rule.grants.use }
+    })
+    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The updated template rule would have more privilege than you currently have, so you cannot update it.')
+    try {
+      await updateTemplateRule(args)
+      this.loaders.clear()
+      if (!rule.templateId || !newRule.templateId) await globalTemplateRulesCache.clear()
+      const updatedRule = await this.loaders.get(templateRulesByIdLoader).load(args.ruleId)
+      return new TemplateRuleResponse({ templateRule: updatedRule, success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('An error occurred while updating the template rule.')
+    }
+  }
+
+  async delete (ruleId: string) {
+    const rule = await this.loaders.get(templateRulesByIdLoader).load(ruleId)
+    if (!rule) throw new Error('Rule to be deleted does not exist.')
+    // TODO: what permissions need to be checked for deleting rules?
+    try {
+      await deleteTemplateRule(ruleId)
+      this.loaders.clear()
+      if (!rule.templateId) await globalTemplateRulesCache.clear()
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      throw new Error('An error occurred while deleting the template rule.')
+    }
   }
 
   async applies (rule: TemplateRule, template: Template) {
@@ -28,7 +95,11 @@ export class TemplateRuleService extends DosGatoService {
     return tooPowerfulHelper(rule, await this.currentTemplateRules(), this.asOrMorePowerful)
   }
 
-  async mayView (): Promise<boolean> {
+  async mayWrite (rule: TemplateRule) {
+    return await this.haveGlobalPerm('manageUsers')
+  }
+
+  async mayView (rule: TemplateRule) {
     return true
   }
 }
