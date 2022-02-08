@@ -123,6 +123,27 @@ describe('asset rule mutations', () => {
       }
     }`, { args: { ruleId: '1', mode: 'SUB' } })).to.be.rejected
   })
-  it.skip('should delete an asset rule', async () => {})
-  it.skip('should not allow an unauthorized user to delete an asset rule', async () => {})
+  it('should remove an asset rule', async () => {
+    const { createRole: { role } } = await query('mutation CreateRole ($name: String!) { createRole (name: $name) { success role { id name } } }', { name: 'assetrulestestC' })
+    const { sites } = await query('{ sites { id name } }')
+    const site4 = sites.find((s: any) => s.name === 'site4')
+    const { createAssetRule: { assetRule } } = await query(`mutation CreateAssetRule ($args: CreateAssetRuleInput!)
+    {
+      createAssetRule (args: $args) {
+        success
+        assetRule {
+          id
+        }
+      }
+    }`, { args: { roleId: role.id, siteId: site4.id, path: '/', mode: 'SELF', grants: { create: false, update: true, move: false, delete: false, undelete: false } } })
+    const { removeRule: { success } } = await query(`mutation RemoveRule ($id: ID!, $type: RuleType!) {
+      removeRule(ruleId: $id, type: $type) {
+        success
+      }
+    }`, { id: assetRule.id, type: 'ASSET' })
+    expect(success).to.be.true
+    const { roles } = await query(`{ roles(filter: { ids: [${role.id}] }) { name assetRules { id } } }`)
+    expect(roles[0].assetRules).to.not.deep.include({ id: assetRule.id })
+  })
+  it.skip('should not allow an unauthorized user to remove an asset rule', async () => {})
 })
