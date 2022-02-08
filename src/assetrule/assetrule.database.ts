@@ -126,23 +126,23 @@ export async function updateAssetRule (args: UpdateAssetRuleInput) {
     binds.push(args.mode)
   }
   if (args.grants) {
-    if (args.grants.create) {
+    if (isNotNull(args.grants.create)) {
       updates.push('`create` = ?')
       binds.push(args.grants.create)
     }
-    if (args.grants.update) {
+    if (isNotNull(args.grants.update)) {
       updates.push('`update` = ?')
       binds.push(args.grants.update)
     }
-    if (args.grants.move) {
+    if (isNotNull(args.grants.move)) {
       updates.push('`move` = ?')
       binds.push(args.grants.move)
     }
-    if (args.grants.delete) {
+    if (isNotNull(args.grants.delete)) {
       updates.push('`delete` = ?')
       binds.push(args.grants.delete)
     }
-    if (args.grants.undelete) {
+    if (isNotNull(args.grants.undelete)) {
       updates.push('`undelete` = ?')
       binds.push(args.grants.undelete)
     }
