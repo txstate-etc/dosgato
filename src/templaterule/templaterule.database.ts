@@ -75,3 +75,7 @@ export async function updateTemplateRule (args: UpdateTemplateRuleInput) {
                           SET ${updates.join(', ')}
                           WHERE id = ?`, binds)
 }
+
+export async function deleteTemplateRule (ruleId: string) {
+  return await db.delete('DELETE FROM templaterules WHERE id = ?', [ruleId])
+}
