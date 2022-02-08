@@ -1,10 +1,10 @@
-import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
+import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
   AssetRule, AssetRuleService, DataRule, DataRuleService, GlobalRule, GlobalRuleService,
   PageRule, PageRuleService, SiteRule, SiteRuleFilter, SiteRuleService, Group, GroupFilter,
   GroupService, User, UserFilter, UserService, Role, RoleFilter, RolePermissions, RoleResponse,
-  RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService
+  RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType
 } from 'internal'
 
 @Resolver(of => Role)
@@ -104,8 +104,19 @@ export class RoleResolver {
   }
 
   @Mutation(returns => ValidatedResponse)
-  async removeRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string) {
-    throw new UnimplementedError()
+  async removeRule (@Ctx() ctx: Context, @Arg('ruleId', type => ID) ruleId: string, @Arg('type', type => RuleType) type: RuleType) {
+    switch (type) {
+      case RuleType.ASSET:
+        return await ctx.svc(AssetRuleService).delete(ruleId)
+      // case RuleType.DATA:
+      // case RuleType.GLOBAL:
+      // case RuleType.PAGE:
+      // case RuleType.SITE:
+      case RuleType.TEMPLATE:
+        return await ctx.svc(TemplateRuleService).delete(ruleId)
+      default:
+        throw new Error(`Cannot remove rule. Rule type ${type} does not exist.`)
+    }
   }
 }
 
