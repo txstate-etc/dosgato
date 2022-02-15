@@ -1,5 +1,5 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { isNotNull } from 'txstate-utils'
+import { Context } from '@txstate-mws/graphql-server'
+import { isNotNull, unique } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
   AssetPermission, AssetFolder, AssetFolderService, Data, DataFilter, DataPermission, DataService,
@@ -7,7 +7,8 @@ import {
   Page, PageFilter, PagePermission, PageService, Pagetree, PagetreeFilter,
   PagetreeService, Role, Template, TemplateFilter, TemplateService, User, UserService,
   Site, SiteFilter, CreateSiteInput, SitePermission, SitePermissions, SiteResponse,
-  UpdateSiteInput, SiteService
+  UpdateSiteInput, SiteService, AssetRuleService, PageRuleService, SiteRuleService, DataRuleService,
+  RoleService
 } from 'internal'
 
 @Resolver(of => Site)
@@ -51,7 +52,18 @@ export class SiteResolver {
     @Arg('withDataPermission', type => [DataPermission], { nullable: true }) withDataPermission?: DataPermission[],
     @Arg('withPagePermission', type => [PagePermission], { nullable: true }) withPagePermission?: PagePermission[]
   ) {
-    throw new UnimplementedError()
+    let [siteRules, assetRules, dataRules, pageRules] = await Promise.all([
+      ctx.svc(SiteRuleService).findBySiteId(site.id),
+      ctx.svc(AssetRuleService).findBySiteId(site.id),
+      ctx.svc(DataRuleService).findBySiteId(site.id),
+      ctx.svc(PageRuleService).findBySiteId(site.id)
+    ])
+    if (withSitePermission) siteRules = siteRules.filter(r => withSitePermission.some(p => r.grants[p]))
+    if (withAssetPermission) assetRules = assetRules.filter(r => withAssetPermission.some(p => r.grants[p]))
+    if (withDataPermission) dataRules = dataRules.filter(r => withDataPermission.some(p => r.grants[p]))
+    if (withPagePermission) pageRules = pageRules.filter(r => withPagePermission.some(p => r.grants[p]))
+    const ruleIds = [...siteRules.map(r => r.roleId), ...assetRules.map(r => r.roleId), ...dataRules.map(r => r.roleId), ...pageRules.map(r => r.roleId)]
+    return await ctx.svc(RoleService).findByIds(unique(ruleIds))
   }
 
   @FieldResolver(returns => User, { nullable: true })

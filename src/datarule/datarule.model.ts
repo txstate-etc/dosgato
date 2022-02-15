@@ -81,6 +81,13 @@ export class DataRule {
 }
 
 @InputType()
+export class DataRuleFilter {
+  ids?: number[]
+  roleIds?: string[]
+  siteIds?: (string|null)[]
+}
+
+@InputType()
 export class CreateDataRuleInput {
   @Field()
   roleId!: string

@@ -32,7 +32,7 @@ export class PageRuleService extends DosGatoService {
     return await this.loaders.get(pageRulesByRoleLoader).load(roleId)
   }
 
-  async findBySite (siteId?: string) {
+  async findBySiteId (siteId?: string) {
     const pageRulesForSite = siteId ? await this.loaders.get(pageRulesBySiteLoader).load(siteId) : []
     const globalRules = await globalPageRulesCache.get()
     return [...pageRulesForSite, ...globalRules]
@@ -44,7 +44,7 @@ export class PageRuleService extends DosGatoService {
     // TODO: Is it safe to assume that if a PageRule has a pagetreeId, it also has a siteId?
     // Or could there be a rule with a pagetreeId with siteId == null? In that case, we need to
     // find PageRules by pagetreeId too to make sure we get them all.
-    const rules = await this.findBySite(site!.id)
+    const rules = await this.findBySiteId(site!.id)
     // filter to get the ones that apply to this page
     return await filterAsync(rules, async rule => await this.applies(rule, page))
   }

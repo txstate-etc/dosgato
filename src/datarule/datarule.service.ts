@@ -1,16 +1,30 @@
 import { OneToManyLoader } from 'dataloader-factory'
+import { Cache } from 'txstate-utils'
 import { tooPowerfulHelper, DosGatoService, Data, DataService, DataFolder, getDataRules, DataRule } from 'internal'
 
 const dataRulesByRoleLoader = new OneToManyLoader({
   fetch: async (roleIds: string[]) => {
-    return await getDataRules(roleIds)
+    return await getDataRules({ roleIds })
   },
   extractKey: (r: DataRule) => r.roleId
 })
 
+const dataRulesBySiteLoader = new OneToManyLoader({
+  fetch: async (siteIds: string[]) => await getDataRules({ siteIds }),
+  extractKey: r => r.siteId!
+})
+
+const dataRulesForAllSitesCache = new Cache(async () => await getDataRules({ siteIds: [null] }), { freshseconds: 3 })
+
 export class DataRuleService extends DosGatoService {
   async findByRoleId (roleId: string) {
     return await this.loaders.get(dataRulesByRoleLoader).load(roleId)
+  }
+
+  async findBySiteId (siteId?: string) {
+    const dataRulesForSite = siteId ? await this.loaders.get(dataRulesBySiteLoader).load(siteId) : []
+    const globalRules = await dataRulesForAllSitesCache.get()
+    return [...dataRulesForSite, ...globalRules]
   }
 
   async applies (rule: DataRule, item: Data) {

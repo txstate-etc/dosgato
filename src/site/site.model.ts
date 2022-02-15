@@ -134,7 +134,6 @@ export enum SitePermission {
   MANAGE_OWNERS = 'manageOwners',
   MANAGE_PAGETREES = 'managePagetrees',
   PROMOTE_PAGETREE = 'promotePagetree',
-  CREATE_RULES = 'createRules',
   DELETE = 'delete',
   UNDELETE = 'undelete'
 }
