@@ -41,7 +41,7 @@ describe('asset rule mutations', () => {
     expect(assetRule.grants.delete).to.be.false
   })
   it('should not allow an unauthorized user to create an asset rule', async () => {
-    await expect(queryAs('ed11', `mutation CreateAssetRule ($args: CreateAssetRuleInput!)
+    await expect(queryAs('ed07', `mutation CreateAssetRule ($args: CreateAssetRuleInput!)
     {
       createAssetRule (args: $args) {
         success
@@ -54,7 +54,7 @@ describe('asset rule mutations', () => {
           }
         }
       }
-    }`, { args: { roleId: 1, siteId: 1, path: '/', mode: 'SELFANDSUB', grants: { create: true, update: false, move: false, delete: false, undelete: false } } })).to.be.rejected
+    }`, { args: { roleId: '1', siteId: '1', path: '/', mode: 'SELFANDSUB', grants: { create: true, update: false, move: false, delete: false, undelete: false } } })).to.be.rejected
   })
   it('should not allow a user to create an asset rule with more privileges than they currently have', async () => {
     const { sites } = await query('{ sites { id name } }')

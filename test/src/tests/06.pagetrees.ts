@@ -51,6 +51,18 @@ describe('pagetrees', () => {
   })
   it.skip('should retrieve all templates approved for use in a pagetree', async () => {})
   it.skip('should retrieve all templates approved for use in a pagetree, with a template filter applied', async () => {})
-  it.skip('should retrieve roles with any permission on a pagetree', async () => {})
-  it.skip('should retrieve roles with a specific permission on a pagetree', async () => {})
+  it('should retrieve roles with any permission on a pagetree', async () => {
+    const { sites } = await query('{ sites { name pagetrees { name roles { name } } } }')
+    const site5 = sites.find((s: any) => s.name === 'site5')
+    const pagetree = site5.pagetrees[0]
+    expect(pagetree.roles).to.have.deep.members([{ name: 'site5-siterulestest1' }, { name: 'site5-siterulestest2' }, { name: 'superuser' }])
+    expect(pagetree.roles).to.not.have.deep.members([{ name: 'site5-siterulestest3' }])
+  })
+  it('should retrieve roles with a specific permission on a pagetree', async () => {
+    const { sites } = await query('{ sites { name pagetrees { name roles(withPermission:[PROMOTE]) { name } } } }')
+    const site5 = sites.find((s: any) => s.name === 'site5')
+    const pagetree = site5.pagetrees[0]
+    expect(pagetree.roles).to.have.deep.members([{ name: 'site5-siterulestest2' }, { name: 'superuser' }])
+    expect(pagetree.roles).to.not.have.deep.members([{ name: 'site5-siterulestest1' }])
+  })
 })

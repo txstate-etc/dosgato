@@ -5,7 +5,7 @@ import { query } from '../common'
 describe('sites', () => {
   it('should retrieve all sites', async () => {
     const resp = await query('{ sites { id, name } }')
-    expect(resp.sites).to.have.lengthOf(4)
+    expect(resp.sites).to.have.lengthOf(5)
   })
   it('should retrieve sites by id', async () => {
     const resp = await query('{ sites { id, name } }')

@@ -149,14 +149,7 @@ describe('asset rules', () => {
   it('should get the asset rules for a role', async () => {
     const { roles } = await query('{ roles(filter: { users: ["ed06"] }) { name assetRules { grants { create delete move undelete update view viewForEdit } } } }')
     const assetruletest1 = roles.find((r: any) => r.name === 'assetrulestest1')
-    const assetRules = assetruletest1.assetRules[0]
-    expect(assetRules.grants.create).to.be.true
-    expect(assetRules.grants.update).to.be.true
-    expect(assetRules.grants.move).to.be.true
-    expect(assetRules.grants.delete).to.be.false
-    expect(assetRules.grants.undelete).to.be.false
-    expect(assetRules.grants.view).to.be.true
-    expect(assetRules.grants.viewForEdit).to.be.true
+    expect(assetruletest1.assetRules).to.deep.include({ grants: { create: true, update: true, move: true, delete: false, undelete: false, view: true, viewForEdit: true } })
   })
   it.skip('should filter asset rules by site ID', async () => {})
   it.skip('should filter asset rules by null site ID', async () => {})
