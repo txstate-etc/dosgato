@@ -4,7 +4,7 @@ import { Cache } from 'txstate-utils'
 import {
   Site, DosGatoService, tooPowerfulHelper, getSiteRules, SiteRule, SiteRuleFilter,
   CreateSiteRuleInput, RoleService, createSiteRule, SiteRuleResponse, UpdateSiteRuleInput,
-  deleteSiteRule, updateSiteRule
+  deleteSiteRule, updateSiteRule, Pagetree, SiteService
 } from 'internal'
 
 const siteRulesByIdLoader = new PrimaryKeyLoader({
@@ -21,11 +21,30 @@ const siteRulesByRoleLoader = new OneToManyLoader({
   keysFromFilter: (filter: SiteRuleFilter | undefined) => filter?.roleIds ?? []
 })
 
+const siteRulesBySiteLoader = new OneToManyLoader({
+  fetch: async (siteIds: string[]) => await getSiteRules({ siteIds }),
+  extractKey: r => r.siteId!,
+  idLoader: siteRulesByIdLoader
+})
+
 const globalSiteRulesCache = new Cache(async () => await getSiteRules({ siteIds: [null] }), { freshseconds: 3 })
 
 export class SiteRuleService extends DosGatoService {
   async findByRoleId (roleId: string, filter?: SiteRuleFilter) {
     return await this.loaders.get(siteRulesByRoleLoader, filter).load(roleId)
+  }
+
+  async findBySiteId (siteId?: string) {
+    const [siteSpecificSiteRules, globalSiteRules] = await Promise.all([
+      siteId ? this.loaders.get(siteRulesBySiteLoader).load(siteId) : [],
+      globalSiteRulesCache.get()
+    ])
+    return [...siteSpecificSiteRules, ...globalSiteRules]
+  }
+
+  async findByPagetree (pagetree: Pagetree) {
+    // TODO: Do these need to be filtered? Any rules that apply to the site will apply to this pagetree
+    return await this.findBySiteId(pagetree?.siteId)
   }
 
   async create (args: CreateSiteRuleInput) {

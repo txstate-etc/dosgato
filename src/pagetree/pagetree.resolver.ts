@@ -1,9 +1,10 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { isNull } from 'txstate-utils'
+import { isNull, unique } from 'txstate-utils'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import {
   Page, PageService, PageFilter, Role, Site, SiteService, Template, TemplateFilter, TemplateService,
-  Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, PagetreeType
+  Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, PagetreeType,
+  SiteRuleService, RoleService
 } from 'internal'
 
 @Resolver(of => Pagetree)
@@ -29,9 +30,21 @@ export class PagetreeResolver {
     return await ctx.svc(TemplateService).findByPagetreeId(pagetree.id, filter)
   }
 
-  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this page, or any permission if null.' })
-  async roles (@Ctx() ctx: Context, @Root() page: Page, @Arg('withPermission', type => [PagetreePermission], { nullable: true }) withPermission?: PagetreePermission[]) {
-    throw new UnimplementedError()
+  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this pagetree, or any permission if null.' })
+  async roles (@Ctx() ctx: Context, @Root() pagetree: Pagetree, @Arg('withPermission', type => [PagetreePermission], { nullable: true }) withPermission?: PagetreePermission[]) {
+    let rules = await ctx.svc(SiteRuleService).findByPagetree(pagetree)
+    if (withPermission) {
+      rules = rules.filter(r => withPermission.some(p => {
+        if (p === PagetreePermission.PROMOTE) {
+          return r.grants.promotePagetree
+        } else {
+          return r.grants.managePagetrees
+        }
+      }))
+    } else {
+      rules = rules.filter(r => r.grants.promotePagetree || r.grants.managePagetrees)
+    }
+    return await ctx.svc(RoleService).findByIds(unique(rules.map(r => r.roleId)))
   }
 
   @FieldResolver(returns => PagetreePermissions, {
