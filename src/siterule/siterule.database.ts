@@ -94,7 +94,6 @@ export async function createSiteRule (args: CreateSiteRuleInput) {
 }
 
 export async function updateSiteRule (args: UpdateSiteRuleInput) {
-  console.log(args)
   const updates: string[] = []
   const binds: (string|boolean)[] = []
   if (typeof args.siteId !== 'undefined') {
