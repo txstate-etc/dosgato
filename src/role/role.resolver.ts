@@ -109,7 +109,8 @@ export class RoleResolver {
       case RuleType.ASSET:
         return await ctx.svc(AssetRuleService).delete(ruleId)
       // case RuleType.DATA:
-      // case RuleType.GLOBAL:
+      case RuleType.GLOBAL:
+        return await ctx.svc(GlobalRuleService).delete(ruleId)
       case RuleType.PAGE:
         return await ctx.svc(PageRuleService).delete(ruleId)
       case RuleType.SITE:

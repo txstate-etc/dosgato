@@ -2,11 +2,12 @@ import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   getGlobalRules, GlobalRule, DosGatoService, tooPowerfulHelper, RoleService,
-  CreateGlobalRuleInput, createGlobalRule, GlobalRuleResponse
+  CreateGlobalRuleInput, createGlobalRule, GlobalRuleResponse, UpdateGlobalRuleInput,
+  updateGlobalRule, deleteGlobalRule
 } from 'internal'
 
 const globalRulesByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: number[]) => {
+  fetch: async (ids: string[]) => {
     return await getGlobalRules({ ids })
   }
 })
@@ -31,11 +32,46 @@ export class GlobalRuleService extends DosGatoService {
     try {
       const ruleId = await createGlobalRule(args)
       this.loaders.clear()
-      const rule = await this.loaders.get(globalRulesByIdLoader).load(ruleId)
+      const rule = await this.loaders.get(globalRulesByIdLoader).load(String(ruleId))
       return new GlobalRuleResponse({ globalRule: rule, success: true })
     } catch (err) {
       console.error(err)
       throw new Error('An unknown error occurred while creating the global rule.')
+    }
+  }
+
+  async update (args: UpdateGlobalRuleInput) {
+    const rule = await this.loaders.get(globalRulesByIdLoader).load(args.ruleId)
+    if (!rule) throw new Error('Rule to be updated does not exist.')
+    if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this global rule.')
+    const updatedGrants = { ...rule.grants, ...args.grants }
+    const newRule = new GlobalRule({
+      id: '0',
+      roleId: rule.roleId,
+      ...updatedGrants
+    })
+    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The updated rule would have more privilege than you currently have, so you cannot create it.')
+    try {
+      await updateGlobalRule(args)
+      this.loaders.clear()
+      const updatedRule = await this.loaders.get(globalRulesByIdLoader).load(args.ruleId)
+      return new GlobalRuleResponse({ globalRule: updatedRule, success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('An error occurred while updating the global rule.')
+    }
+  }
+
+  async delete (ruleId: string) {
+    const rule = await this.loaders.get(globalRulesByIdLoader).load(ruleId)
+    if (!rule) throw new Error('Rule to be deleted does not exist.')
+    // TODO: what permissions need to be checked for deleting rules?
+    try {
+      await deleteGlobalRule(ruleId)
+      this.loaders.clear()
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      throw new Error('An error occurred while deleting the global rule.')
     }
   }
 
@@ -45,6 +81,10 @@ export class GlobalRuleService extends DosGatoService {
 
   async tooPowerful (rule: GlobalRule) {
     return tooPowerfulHelper(rule, await this.currentGlobalRules(), () => true)
+  }
+
+  async mayWrite (rule: GlobalRule) {
+    return await this.haveGlobalPerm('manageUsers')
   }
 
   async mayView (): Promise<boolean> {

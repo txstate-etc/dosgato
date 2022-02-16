@@ -1,5 +1,6 @@
 import db from 'mysql2-async/db'
-import { GlobalRule, GlobalRuleFilter, CreateGlobalRuleInput } from 'internal'
+import { isNotNull } from 'txstate-utils'
+import { GlobalRule, GlobalRuleFilter, CreateGlobalRuleInput, UpdateGlobalRuleInput } from 'internal'
 
 export async function getGlobalRules (filter: GlobalRuleFilter) {
   const binds: string[] = []
@@ -18,7 +19,7 @@ export async function getGlobalRules (filter: GlobalRuleFilter) {
 
 export async function createGlobalRule (args: CreateGlobalRuleInput) {
   const columns: string[] = ['roleId']
-  const binds: string[] = []
+  const binds: (string|boolean)[] = []
   if (!args.roleId) {
     throw new Error('Must include a role ID when creating a global rule')
   }
@@ -26,16 +27,43 @@ export async function createGlobalRule (args: CreateGlobalRuleInput) {
   if (args.grants) {
     if (args.grants.manageUsers) {
       columns.push('manageUsers')
-      binds.push(String(args.grants.manageUsers))
+      binds.push(args.grants.manageUsers)
     }
     if (args.grants.createSites) {
       columns.push('createSites')
-      binds.push(String(args.grants.createSites))
+      binds.push(args.grants.createSites)
     }
     if (args.grants.manageGlobalData) {
       columns.push('manageGlobalData')
-      binds.push(String(args.grants.manageGlobalData))
+      binds.push(args.grants.manageGlobalData)
     }
   }
-  return await db.insert(`INSERT INTO globalrules (${columns.join(',')}) VALUES(${binds.join(',')})`, binds)
+  return await db.insert(`INSERT INTO globalrules (${columns.join(',')}) VALUES(${columns.map((c) => '?').join(',')})`, binds)
+}
+
+export async function updateGlobalRule (args: UpdateGlobalRuleInput) {
+  const updates: string[] = []
+  const binds: (string|boolean)[] = []
+  if (args.grants) {
+    if (isNotNull(args.grants.manageUsers)) {
+      updates.push('`manageUsers` = ?')
+      binds.push(args.grants.manageUsers)
+    }
+    if (isNotNull(args.grants.createSites)) {
+      updates.push('`createSites` = ?')
+      binds.push(args.grants.createSites)
+    }
+    if (isNotNull(args.grants.manageGlobalData)) {
+      updates.push('`manageGlobalData` = ?')
+      binds.push(args.grants.manageGlobalData)
+    }
+  }
+  binds.push(String(args.ruleId))
+  return await db.update(`UPDATE globalrules
+                          SET ${updates.join(', ')}
+                          WHERE id = ?`, binds)
+}
+
+export async function deleteGlobalRule (ruleId: string) {
+  return await db.delete('DELETE FROM globalrules WHERE id = ?', [ruleId])
 }

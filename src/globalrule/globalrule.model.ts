@@ -45,7 +45,7 @@ export class GlobalRule {
 
 @InputType()
 export class GlobalRuleFilter {
-  ids?: number[]
+  ids?: string[]
   roleIds?: string[]
 }
 
@@ -53,6 +53,15 @@ export class GlobalRuleFilter {
 export class CreateGlobalRuleInput {
   @Field()
   roleId!: string
+
+  @Field(type => GlobalRuleGrants, { nullable: true })
+  grants?: GlobalRuleGrants
+}
+
+@InputType()
+export class UpdateGlobalRuleInput {
+  @Field()
+  ruleId!: string
 
   @Field(type => GlobalRuleGrants, { nullable: true })
   grants?: GlobalRuleGrants

@@ -1,8 +1,8 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
 import {
-  Role, RoleService, GlobalRule, GlobalRuleGrants, GlobalRulePermissions, CreateGlobalRuleInput,
-  GlobalRuleResponse, GlobalRuleService
+  Role, RoleService, GlobalRule, GlobalRulePermissions, CreateGlobalRuleInput,
+  GlobalRuleResponse, GlobalRuleService, UpdateGlobalRuleInput
 } from 'internal'
 
 @Resolver(of => GlobalRule)
@@ -26,8 +26,8 @@ export class GlobalRuleResolver {
   }
 
   @Mutation(returns => GlobalRuleResponse)
-  async updateGlobalRule (@Ctx() ctx: Context, @Arg('ruleId', type => String) ruleId: string, @Arg('grants', type => GlobalRuleGrants) grants: GlobalRuleGrants) {
-    throw new UnimplementedError()
+  async updateGlobalRule (@Ctx() ctx: Context, @Arg('args', type => UpdateGlobalRuleInput) args: UpdateGlobalRuleInput) {
+    return await ctx.svc(GlobalRuleService).update(args)
   }
 }
 
@@ -35,6 +35,6 @@ export class GlobalRuleResolver {
 export class GlobalRulePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may edit the grants on this rule.' })
   async write (@Ctx() ctx: Context, @Root() rule: GlobalRule) {
-    throw new UnimplementedError()
+    return await ctx.svc(GlobalRuleService).mayWrite(rule)
   }
 }
