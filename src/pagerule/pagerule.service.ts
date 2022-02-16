@@ -3,12 +3,12 @@ import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
   Page, PageService, PagetreeService, DosGatoService, comparePathsWithMode,
   tooPowerfulHelper, getPageRules, PageRule, RulePathMode, SiteService, CreatePageRuleInput,
-  RoleService, createPageRule, PageRuleResponse
+  RoleService, createPageRule, PageRuleResponse, UpdatePageRuleInput, updatePageRule, deletePageRule
 } from 'internal'
 import { Cache, filterAsync } from 'txstate-utils'
 
 const pageRulesByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: number[]) => {
+  fetch: async (ids: string[]) => {
     return await getPageRules({ ids })
   }
 })
@@ -54,15 +54,59 @@ export class PageRuleService extends DosGatoService {
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new PageRule({ id: '0', path: args.path ?? '/', roleId: args.roleId, siteId: args.siteId, pagetreeId: args.pagetreeId, mode: args.mode ?? RulePathMode.SELFANDSUB, ...args.grants })
-    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The proposed rule would have more privilege than you currently have, so you cannot create it.')
+    if (await this.tooPowerful(newRule)) {
+      return ValidatedResponse.error('The proposed rule would have more privilege than you currently have, so you cannot create it.')
+    }
     try {
       const ruleId = await createPageRule(args)
       this.loaders.clear()
       if (!newRule.siteId && !newRule.pagetreeId) await globalPageRulesCache.clear()
-      const rule = await this.loaders.get(pageRulesByIdLoader).load(ruleId)
+      const rule = await this.loaders.get(pageRulesByIdLoader).load(String(ruleId))
       return new PageRuleResponse({ pageRule: rule, success: true })
     } catch (err: any) {
+      console.error(err)
       throw new Error('An unknown error occurred while creating the page rule.')
+    }
+  }
+
+  async update (args: UpdatePageRuleInput) {
+    const rule = await this.loaders.get(pageRulesByIdLoader).load(args.ruleId)
+    if (!rule) throw new Error('Rule to be updated does not exist.')
+    if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this page rule.')
+    const updatedGrants = { ...rule.grants, ...args.grants }
+    const newRule = new PageRule({
+      id: '0',
+      roleId: rule.roleId,
+      siteId: args.siteId ?? rule.siteId,
+      pagetreeId: args.pagetreeId ?? rule.pagetreeId,
+      path: args.path ?? rule.path,
+      mode: args.mode ?? rule.mode,
+      ...updatedGrants
+    })
+    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The updated rule would have more privilege than you currently have, so you cannot create it.')
+    try {
+      await updatePageRule(args)
+      this.loaders.clear()
+      if (!rule.siteId || !newRule.siteId) await globalPageRulesCache.clear()
+      const updatedRule = await this.loaders.get(pageRulesByIdLoader).load(args.ruleId)
+      return new PageRuleResponse({ pageRule: updatedRule, success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('An error occurred while updating the page rule.')
+    }
+  }
+
+  async delete (ruleId: string) {
+    const rule = await this.loaders.get(pageRulesByIdLoader).load(ruleId)
+    if (!rule) throw new Error('Rule to be deleted does not exist.')
+    // TODO: what permissions need to be checked for deleting rules?
+    try {
+      await deletePageRule(ruleId)
+      this.loaders.clear()
+      if (!rule.siteId) await globalPageRulesCache.clear()
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      throw new Error('An error occurred while deleting the page rule.')
     }
   }
 
@@ -82,7 +126,7 @@ export class PageRuleService extends DosGatoService {
     return true
   }
 
-  async mayEdit (rule: PageRule) {
+  async mayWrite (rule: PageRule) {
     return await this.haveGlobalPerm('manageUsers')
   }
 

@@ -19,17 +19,8 @@ registerEnumType(RulePathMode, {
 })
 
 @ObjectType()
-@InputType('PageRuleGrantsInput')
-export class PageRuleGrants {
-  @Field({ description: 'Grants ability to view the published version of pages. Admins do NOT set this directly - it is implied by having any applicable pagerule.' })
-  view!: boolean
-
-  @Field({ description: 'Grants ability to view unpublished versions of pages. Admins do NOT set this directly - it is implied by having either update or publish grants.' })
-  viewlatest!: boolean
-
-  @Field({ description: 'Grants ability to view pages in the page editing UI. Admins do NOT set this directly - it is implied by having other grants.' })
-  viewForEdit!: boolean
-
+@InputType()
+export class PageRuleGrantsBase {
   @Field({ description: 'Grants ability to update page date but not necessarily move, rename, or publish them.' })
   update!: boolean
 
@@ -60,6 +51,25 @@ export class PageRuleGrants {
       this.undelete = !!row.undelete
       this.publish = !!row.publish
       this.unpublish = !!row.unpublish
+    }
+  }
+}
+
+@ObjectType()
+@InputType('PageRuleGrantsInput')
+export class PageRuleGrants extends PageRuleGrantsBase {
+  @Field({ description: 'Grants ability to view the published version of pages. Admins do NOT set this directly - it is implied by having any applicable pagerule.' })
+  view!: boolean
+
+  @Field({ description: 'Grants ability to view unpublished versions of pages. Admins do NOT set this directly - it is implied by having either update or publish grants.' })
+  viewlatest!: boolean
+
+  @Field({ description: 'Grants ability to view pages in the page editing UI. Admins do NOT set this directly - it is implied by having other grants.' })
+  viewForEdit!: boolean
+
+  constructor (row?: any) {
+    super(row)
+    if (row) {
       this.view = true // every rule grants view
       this.viewlatest = this.update || this.publish
       this.viewForEdit = this.create || this.update || this.move || this.delete || this.undelete || this.publish || this.unpublish
@@ -101,7 +111,7 @@ export class PageRule {
 
 @InputType()
 export class PageRuleFilter {
-  ids?: number[]
+  ids?: string[]
 
   @Field(type => [ID], { nullable: true })
   roleIds?: string[]
@@ -165,8 +175,8 @@ export class CreatePageRuleInput {
   @Field(type => RulePathMode, { nullable: true })
   mode?: RulePathMode
 
-  @Field(type => PageRuleGrants, { nullable: true })
-  grants?: PageRuleGrants
+  @Field(type => PageRuleGrantsBase, { nullable: true })
+  grants?: PageRuleGrantsBase
 }
 
 @InputType()
@@ -186,8 +196,8 @@ export class UpdatePageRuleInput {
   @Field(type => RulePathMode, { nullable: true })
   mode?: RulePathMode
 
-  @Field(type => PageRuleGrants, { nullable: true })
-  grants?: PageRuleGrants
+  @Field(type => PageRuleGrantsBase, { nullable: true })
+  grants?: PageRuleGrantsBase
 }
 
 @ObjectType()
