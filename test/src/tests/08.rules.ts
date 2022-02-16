@@ -185,12 +185,38 @@ describe('asset rules', () => {
 })
 
 describe('page rules', () => {
-  it.skip('should get the page rules for a role', async () => {})
-  it.skip('should get the role attached to a page rule', async () => {})
-  it.skip('should get the site targeted by a page rule', async () => {})
-  it.skip('should return null for the site of a page rule that targets all sites', async () => {})
-  it.skip('should get the pagetree targeted by a page rule', async () => {})
-  it.skip('should return null for the pagetree of a page rule that targets all pagetrees', async () => {})
+  it('should get the page rules for a role', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed12"] }) { name pageRules { site { name } pagetree { name } path mode grants { view viewlatest viewForEdit update move create publish unpublish delete undelete } } } }')
+    const pageruletest1 = roles.find((r: any) => r.name === 'pagerulestest1')
+    expect(pageruletest1.pageRules).to.deep.include({ site: { name: 'site5' }, pagetree: { name: 'pagetree5' }, path: '/site5', mode: 'SELFANDSUB', grants: { view: true, viewlatest: true, viewForEdit: true, update: true, move: true, create: true, publish: true, unpublish: true, delete: false, undelete: false } })
+  })
+  it('should get the role attached to a page rule', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed12"] }) { name pageRules { id role { name } } } }')
+    const test1role = roles.find((r: any) => r.name === 'pagerulestest1')
+    for (const rule of test1role.pageRules) {
+      expect(rule.role.name).to.equal('pagerulestest1')
+    }
+  })
+  it('should get the site targeted by a page rule', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed12"] }) { name pageRules { id site { name } } } }')
+    const test1role = roles.find((r: any) => r.name === 'pagerulestest1')
+    expect(test1role.pageRules.map((r: any) => r.site.name)).to.have.members(['site5'])
+  })
+  it('should return null for the site of a page rule that targets all sites', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["su01"] }) { name pageRules { id site { name } } } }')
+    const superuserrole = roles.find((r: any) => r.name === 'superuser')
+    expect(superuserrole.pageRules[0].site).to.be.null
+  })
+  it('should get the pagetree targeted by a page rule', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed12"] }) { name pageRules { id pagetree { name } } } }')
+    const test2role = roles.find((r: any) => r.name === 'pagerulestest2')
+    expect(test2role.pageRules.map((r: any) => r.pagetree.name)).to.include.members(['pagetree4'])
+  })
+  it('should return null for the pagetree of a page rule that targets all pagetrees', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["su01"] }) { name pageRules { id pagetree { name } } } }')
+    const superuserrole = roles.find((r: any) => r.name === 'superuser')
+    expect(superuserrole.pageRules[0].pagetree).to.be.null
+  })
 })
 
 describe('data rules', () => {
