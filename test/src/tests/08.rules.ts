@@ -32,7 +32,15 @@ describe('site rules', () => {
     expect(siteRules.grants.undelete).to.be.false
     expect(siteRules.grants.viewForEdit).to.be.true
   })
-  it.skip('should filter site rules by role ID', async () => {})
+  it('should filter site rules by role ID', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed06"] }) { id name } }')
+    const site1siterulestest1 = resp.roles.find((r: any) => r.name === 'site1-siterulestest1')
+    const { roles } = await query(`{ roles(filter: { users: ["su01", "ed06"] }) { id name siteRules(filter: { roleIds: [${site1siterulestest1.id}]}) { grants { delete launch viewForEdit } } } }`)
+    for (const role of roles) {
+      if (role.id === site1siterulestest1.id) expect(role.siteRules.length).to.be.greaterThan(0)
+      else expect(role.siteRules.length).to.equal(0)
+    }
+  })
   it('should filter site rules by site ID', async () => {
     const sitesResp = await query('{ sites { id name } }')
     const site2 = sitesResp.sites.find((s: any) => s.name === 'site2')
@@ -220,12 +228,38 @@ describe('page rules', () => {
 })
 
 describe('data rules', () => {
-  it.skip('should get the data rules for a role', async () => {})
-  it.skip('should get the role attached to a data rule', async () => {})
-  it.skip('should get the site targeted by a data rule', async () => {})
-  it.skip('should return null for the site of a data rule that targets all sites', async () => {})
-  it.skip('should get the data template for which a data rule applies', async () => {})
-  it.skip('should return null for the data template of a data rule that targets all data templates', async () => {})
+  it('should get the data rules for a role', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed14"] }) { name dataRules { path grants { view viewlatest viewForEdit create update move publish unpublish delete undelete } } } }')
+    const dataruletest1 = roles.find((r: any) => r.name === 'datarulestest1')
+    expect(dataruletest1.dataRules).to.deep.include({ path: '/', grants: { view: true, viewlatest: true, viewForEdit: true, create: true, update: true, move: true, publish: false, unpublish: false, delete: false, undelete: false } })
+  })
+  it('should get the role attached to a data rule', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed14"] }) { name dataRules { id role { name } } } }')
+    const test1role = roles.find((r: any) => r.name === 'datarulestest1')
+    for (const rule of test1role.dataRules) {
+      expect(rule.role.name).to.equal('datarulestest1')
+    }
+  })
+  it('should get the site targeted by a data rule', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed14"] }) { name dataRules { id site { name } } } }')
+    const test2role = roles.find((r: any) => r.name === 'datarulestest2')
+    expect(test2role.dataRules.map((r: any) => r.site.name)).to.have.members(['site4'])
+  })
+  it('should return null for the site of a data rule that targets all sites', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["su01"] }) { name dataRules { id site { name } } } }')
+    const superuserrole = roles.find((r: any) => r.name === 'superuser')
+    expect(superuserrole.dataRules[0].site).to.be.null
+  })
+  it('should get the data template for which a data rule applies', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed15"] }) { name dataRules { template { key } } } }')
+    const test4role = roles.find((r: any) => r.name === 'datarulestest4')
+    expect(test4role.dataRules).to.deep.include({ template: { key: 'keyd1' } })
+  })
+  it('should return null for the data template of a data rule that targets all data templates', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["su01"] }) { name dataRules { template { key } } } }')
+    const superuserrole = roles.find((r: any) => r.name === 'superuser')
+    expect(superuserrole.dataRules[0].template).to.be.null
+  })
 })
 
 describe('template rules', () => {

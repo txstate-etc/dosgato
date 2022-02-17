@@ -119,7 +119,7 @@ describe('page rule mutations', () => {
     expect(pageRuleUpdated.grants.create).to.be.true
   })
   it('should not allow an unauthorized user to update a page rule', async () => {
-    await expect(queryAs('ed07', `mutation UpdatePageRule ($args: UpdateAssetRuleInput!) {
+    await expect(queryAs('ed07', `mutation UpdatePageRule ($args: UpdatePageRuleInput!) {
       updatePageRule (args: $args) {
         success
         pageRule {
