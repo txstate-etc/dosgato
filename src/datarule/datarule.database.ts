@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { DataRule, DataRuleFilter } from 'internal'
+import { DataRule, DataRuleFilter, CreateDataRuleInput, UpdateDataRuleInput } from 'internal'
 import { isNotNull } from 'txstate-utils'
 
 function processFilters (filter: DataRuleFilter) {
@@ -27,4 +27,111 @@ export async function getDataRules (filter: DataRuleFilter) {
                                  WHERE (${where.join(') AND (')})
                                  ORDER BY siteId, path`, binds)
   return rules.map(row => new DataRule(row))
+}
+
+export async function createDataRule (args: CreateDataRuleInput) {
+  const columns: string[] = ['roleId']
+  const binds: (string|boolean)[] = []
+  if (!args.roleId) {
+    throw new Error('Must include a role ID when creating an asset rule')
+  }
+  binds.push(args.roleId)
+  if (args.siteId) {
+    columns.push('siteId')
+    binds.push(args.siteId)
+  }
+  if (args.templateId) {
+    columns.push('templateId')
+    binds.push(args.templateId)
+  }
+  if (args.path) {
+    columns.push('path')
+    binds.push(args.path)
+  }
+  if (args.grants) {
+    if (args.grants.create) {
+      columns.push('`create`')
+      binds.push(args.grants.create)
+    }
+    if (args.grants.update) {
+      columns.push('`update`')
+      binds.push(args.grants.update)
+    }
+    if (args.grants.move) {
+      columns.push('`move`')
+      binds.push(args.grants.move)
+    }
+    if (args.grants.publish) {
+      columns.push('`publish`')
+      binds.push(args.grants.publish)
+    }
+    if (args.grants.unpublish) {
+      columns.push('`unpublish`')
+      binds.push(args.grants.unpublish)
+    }
+    if (args.grants.delete) {
+      columns.push('`delete`')
+      binds.push(args.grants.delete)
+    }
+    if (args.grants.undelete) {
+      columns.push('`undelete`')
+      binds.push(args.grants.undelete)
+    }
+  }
+  return await db.insert(`INSERT INTO datarules (${columns.join(',')}) VALUES(${columns.map((c) => '?').join(',')})`, binds)
+}
+
+export async function updateDataRule (args: UpdateDataRuleInput) {
+  const updates: string[] = []
+  const binds: (string|boolean)[] = []
+  if (args.siteId) {
+    updates.push('siteId = ?')
+    binds.push(args.siteId)
+  }
+  if (args.templateId) {
+    updates.push('templateId = ?')
+    binds.push(args.templateId)
+  }
+  if (args.path) {
+    updates.push('path = ?')
+    binds.push(args.path)
+  }
+  if (args.grants) {
+    if (isNotNull(args.grants.create)) {
+      updates.push('`create` = ?')
+      binds.push(args.grants.create)
+    }
+    if (isNotNull(args.grants.update)) {
+      updates.push('`update` = ?')
+      binds.push(args.grants.update)
+    }
+    if (isNotNull(args.grants.move)) {
+      updates.push('`move` = ?')
+      binds.push(args.grants.move)
+    }
+    if (isNotNull(args.grants.publish)) {
+      updates.push('`publish` = ?')
+      binds.push(args.grants.publish)
+    }
+    if (isNotNull(args.grants.unpublish)) {
+      updates.push('`unpublish` = ?')
+      binds.push(args.grants.unpublish)
+    }
+    if (isNotNull(args.grants.delete)) {
+      updates.push('`delete` = ?')
+      binds.push(args.grants.delete)
+    }
+    if (isNotNull(args.grants.undelete)) {
+      updates.push('`undelete` = ?')
+      binds.push(args.grants.undelete)
+    }
+  }
+  binds.push(String(args.ruleId))
+  return await db.update(`UPDATE datarules
+                          SET ${updates.join(', ')}
+                          WHERE id = ?`, binds)
+}
+
+export async function deleteDataRule (ruleId: string) {
+  return await db.delete('DELETE FROM datarules WHERE id = ?', [ruleId])
 }

@@ -108,7 +108,8 @@ export class RoleResolver {
     switch (type) {
       case RuleType.ASSET:
         return await ctx.svc(AssetRuleService).delete(ruleId)
-      // case RuleType.DATA:
+      case RuleType.DATA:
+        return await ctx.svc(DataRuleService).delete(ruleId)
       case RuleType.GLOBAL:
         return await ctx.svc(GlobalRuleService).delete(ruleId)
       case RuleType.PAGE:
@@ -118,7 +119,7 @@ export class RoleResolver {
       case RuleType.TEMPLATE:
         return await ctx.svc(TemplateRuleService).delete(ruleId)
       default:
-        throw new Error(`Cannot remove rule. Rule type ${type} does not exist.`)
+        throw new Error(`Cannot remove rule. Rule type ${type as string} does not exist.`)
     }
   }
 }

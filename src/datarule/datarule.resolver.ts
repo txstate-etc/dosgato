@@ -1,10 +1,10 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context } from '@txstate-mws/graphql-server'
 import { Arg, Resolver, Ctx, Mutation, FieldResolver, Root } from 'type-graphql'
 import { isNull } from 'txstate-utils'
 import {
   Role, RoleService, Site, SiteService, Template, CreateDataRuleInput,
   DataRule, DataRulePermissions, DataRuleResponse, UpdateDataRuleInput,
-  TemplateService
+  TemplateService, DataRuleService
 } from 'internal'
 
 @Resolver(of => DataRule)
@@ -36,12 +36,12 @@ export class DataRuleResolver {
 
   @Mutation(returns => DataRuleResponse)
   async createDataRule (@Ctx() ctx: Context, @Arg('args', type => CreateDataRuleInput) args: CreateDataRuleInput) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataRuleService).create(args)
   }
 
   @Mutation(returns => DataRuleResponse)
   async updateDataRule (@Ctx() ctx: Context, @Arg('args', type => UpdateDataRuleInput) args: UpdateDataRuleInput) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataRuleService).update(args)
   }
 }
 
@@ -49,6 +49,6 @@ export class DataRuleResolver {
 export class DataRulePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may edit the grants on this rule.' })
   async write (@Ctx() ctx: Context, @Root() rule: DataRule) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataRuleService).mayWrite(rule)
   }
 }

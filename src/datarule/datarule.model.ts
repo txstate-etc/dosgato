@@ -4,17 +4,8 @@ import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleType } from 'internal'
 
 @ObjectType()
-@InputType('DataRuleGrantsInput')
-export class DataRuleGrants {
-  @Field({ description: 'Grants ability to view the published version of data. Always true on every rule since having any other grant implies this one. Do not try to set this in mutations.' })
-  view!: boolean
-
-  @Field({ description: 'Grants ability to view unpublished versions of data. Required for data to show up in Admin UI.' })
-  viewlatest!: boolean
-
-  @Field({ description: 'Grants ability to view this data in the data editing UI. Admins do NOT set this directly - it is implied by having other grants.' })
-  viewForEdit!: boolean
-
+@InputType()
+export class DataRuleGrantsBase {
   @Field({ description: 'Grants ability to create data entries of this type in the specified site or folder.' })
   create!: boolean
 
@@ -38,7 +29,6 @@ export class DataRuleGrants {
 
   constructor (row?: any) {
     if (row) {
-      this.view = true
       this.create = !!row.create
       this.update = !!row.update
       this.move = !!row.move
@@ -46,6 +36,26 @@ export class DataRuleGrants {
       this.unpublish = !!row.unpublish
       this.delete = !!row.delete
       this.undelete = !!row.undelete
+    }
+  }
+}
+
+@ObjectType()
+@InputType('DataRuleGrantsInput')
+export class DataRuleGrants extends DataRuleGrantsBase {
+  @Field({ description: 'Grants ability to view the published version of data. Always true on every rule since having any other grant implies this one. Do not try to set this in mutations.' })
+  view!: boolean
+
+  @Field({ description: 'Grants ability to view unpublished versions of data. Required for data to show up in Admin UI.' })
+  viewlatest!: boolean
+
+  @Field({ description: 'Grants ability to view this data in the data editing UI. Admins do NOT set this directly - it is implied by having other grants.' })
+  viewForEdit!: boolean
+
+  constructor (row?: any) {
+    super(row)
+    if (row) {
+      this.view = true
       this.viewlatest = this.update || this.publish
       this.viewForEdit = this.create || this.update || this.move || this.delete || this.undelete || this.publish || this.unpublish
     }
@@ -82,7 +92,7 @@ export class DataRule {
 
 @InputType()
 export class DataRuleFilter {
-  ids?: number[]
+  ids?: string[]
   roleIds?: string[]
   siteIds?: (string|null)[]
 }
@@ -101,8 +111,8 @@ export class CreateDataRuleInput {
   @Field({ nullable: true })
   path?: string
 
-  @Field(type => DataRuleGrants, { nullable: true })
-  grants?: DataRuleGrants
+  @Field(type => DataRuleGrantsBase, { nullable: true })
+  grants?: DataRuleGrantsBase
 }
 
 @InputType()
@@ -119,8 +129,8 @@ export class UpdateDataRuleInput {
   @Field({ nullable: true })
   path?: string
 
-  @Field(type => DataRuleGrants, { nullable: true })
-  grants?: DataRuleGrants
+  @Field(type => DataRuleGrantsBase, { nullable: true })
+  grants?: DataRuleGrantsBase
 }
 
 @ObjectType()

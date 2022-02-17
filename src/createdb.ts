@@ -436,6 +436,7 @@ export async function init () {
       `path` VARCHAR(255) NOT NULL DEFAULT '/', \
       `create` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `update` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
+      `move` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `publish` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `unpublish` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `delete` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
