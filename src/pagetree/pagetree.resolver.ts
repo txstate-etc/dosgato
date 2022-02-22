@@ -78,7 +78,7 @@ export class PagetreeResolver {
 
   @Mutation(returns => PagetreeResponse, { description: 'Promote a pagetree from sandbox to primary' })
   async promotePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
-    await ctx.svc(PagetreeService).promotePagetree(pagetreeId)
+    return await ctx.svc(PagetreeService).promotePagetree(pagetreeId)
   }
 }
 

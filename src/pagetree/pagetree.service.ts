@@ -122,6 +122,7 @@ export class PagetreeService extends DosGatoService {
     const currentPrimaryPagetree = await this.loaders.get(PagetreesByIdLoader).load(site!.primaryPagetreeId)
     try {
       await promotePagetree(currentPrimaryPagetree!.id, pagetreeId)
+      this.loaders.clear()
       const updated = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
       return new PagetreeResponse({ success: true, pagetree: updated })
     } catch (err: any) {
