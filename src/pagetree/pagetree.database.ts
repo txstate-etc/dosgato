@@ -1,6 +1,7 @@
 import db from 'mysql2-async/db'
 import { unique } from 'txstate-utils'
-import { Pagetree, PagetreeFilter, PagetreeType } from 'internal'
+import { nanoid } from 'nanoid'
+import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, CreatePagetreeInput } from 'internal'
 
 function processFilters (filter?: PagetreeFilter) {
   const binds: string[] = []
@@ -53,6 +54,19 @@ export async function getPagetreesByTemplate (templateIds: number[], direct?: bo
   }
 }
 
+export async function createPagetree (versionedService: VersionedService, userId: string, siteName: string, args: CreatePagetreeInput) {
+  return await db.transaction(async db => {
+    // create the pagetree
+    const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt) VALUES (?, ?, ?, NOW())', [args.siteId, PagetreeType.SANDBOX, args.name])
+    // create the root page for the pagetree
+    const dataId = await versionedService.create('page', { templateKey: args.rootPageTemplateKey, savedAtVersion: args.schemaVersion }, [{ name: 'template', values: [args.rootPageTemplateKey] }], userId, db)
+    await db.insert(`
+      INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
+      VALUES (?,?,?,?,?,?)`, [siteName, '/', 1, pagetreeId, dataId, nanoid(10)])
+    return new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE id=?', [pagetreeId]))
+  })
+}
+
 export async function renamePagetree (pagetreeId: string, name: string) {
   return await db.update('UPDATE pagetrees SET name = ? WHERE id = ?', [name, pagetreeId])
 }
@@ -64,6 +78,10 @@ export async function promotePagetree (oldPrimaryId: string, newPrimaryId: strin
   })
 }
 
-export async function deletePagetree (pagetreeId: string) {
+export async function deletePagetree (pagetreeId: string, currentUserInternalId: number) {
+  return await db.update('UPDATE pagetrees SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [currentUserInternalId, pagetreeId])
+}
 
+export async function undeletePagetree (pagetreeId: string) {
+  return await db.update('UPDATE pagetrees SET deletedAt = NULL, deletedBy = NULL WHERE id = ?', [pagetreeId])
 }

@@ -1,9 +1,10 @@
 import { OneToManyLoader, ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   Pagetree, PagetreeFilter, getPagetreesById, getPagetreesBySite, renamePagetree,
   getPagetreesByTemplate, SiteService, DosGatoService, PagetreeType, PagetreeResponse,
-  promotePagetree,
-  Page
+  promotePagetree, createPagetree, CreatePagetreeInput, VersionedService, deletePagetree,
+  undeletePagetree
 } from 'internal'
 
 const PagetreesByIdLoader = new PrimaryKeyLoader({
@@ -39,6 +40,27 @@ export class PagetreeService extends DosGatoService {
     return await this.loaders.get(PagetreesByTemplateIdLoader, direct).load(templateId)
   }
 
+  async create (args: CreatePagetreeInput) {
+    const site = await this.svc(SiteService).findById(args.siteId)
+    if (!site) throw new Error('Pagetree site does not exist.')
+    const currentPagetrees = await this.findBySiteId(args.siteId)
+    if (!(await this.svc(SiteService).mayManagePagetrees(site))) {
+      throw new Error('Current user is not permitted to create pagetrees in this site.')
+    }
+    if (currentPagetrees.some(p => p.name === args.name)) {
+      return ValidatedResponse.error(`Site ${site.name} already has a pagetree with name ${args.name}.`, 'name')
+    }
+    try {
+      const versionedService = this.svc(VersionedService)
+      const pagetree = await createPagetree(versionedService, this.auth!.login, site.name, args)
+      this.loaders.clear()
+      return new PagetreeResponse({ pagetree, success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('Could not create pagetree')
+    }
+  }
+
   async renamePagetree (pagetreeId: string, name: string) {
     const pagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
     if (!pagetree) throw new Error('Pagetree to be renamed does not exist.')
@@ -60,16 +82,36 @@ export class PagetreeService extends DosGatoService {
     return response
   }
 
-  async deletePagetree (pagetreeId: string) {
+  async delete (pagetreeId: string) {
     const pagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
     if (!pagetree) throw new Error('Pagetree to be deleted does not exist.')
     if (!(await this.mayDelete(pagetree))) throw new Error('Current user is not permitted to delete this pagetree.')
-    // TODO: The pages in this pagetree should be deleted as well. Do we need to check if the current user has
-    // permission to delete the pages?
     if (pagetree.type === PagetreeType.PRIMARY) throw new Error('Cannot delete primary pagetree')
-    // TODO: Pagetrees might be referenced in the pagetrees_templates table and the pagerules table. Should the entries
-    // in those tables be deleted? It would be a hard delete, so the undelete Mutation would not completely restore the
-    // pagetree to its pre-deleted state.
+    const currentUser = await this.currentUser()
+    try {
+      await deletePagetree(pagetreeId, currentUser!.internalId)
+      this.loaders.clear()
+      const deletedPagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+      return new PagetreeResponse({ success: true, pagetree: deletedPagetree })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('An unknown error occurred while deleting the pagetree.')
+    }
+  }
+
+  async undelete (pagetreeId: string) {
+    const pagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+    if (!pagetree) throw new Error('Pagetree to be restored does not exist.')
+    if (!(await this.mayUndelete(pagetree))) throw new Error('Current user is not permitted to restore this pagetree.')
+    try {
+      await undeletePagetree(pagetreeId)
+      this.loaders.clear()
+      const restoredPagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+      return new PagetreeResponse({ success: true, pagetree: restoredPagetree })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('An error occurred while restoring the pagetree')
+    }
   }
 
   async promotePagetree (pagetreeId: string) {

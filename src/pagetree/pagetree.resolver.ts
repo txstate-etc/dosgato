@@ -1,10 +1,10 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context } from '@txstate-mws/graphql-server'
 import { isNull, unique } from 'txstate-utils'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import {
   Page, PageService, PageFilter, Role, Site, SiteService, Template, TemplateFilter, TemplateService,
   Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, PagetreeType,
-  SiteRuleService, RoleService
+  SiteRuleService, RoleService, CreatePagetreeInput
 } from 'internal'
 
 @Resolver(of => Pagetree)
@@ -57,8 +57,8 @@ export class PagetreeResolver {
 
   /* Mutations */
   @Mutation(returns => PagetreeResponse, { description: 'Create a pagetree in an existing site' })
-  async createPagetree (@Ctx() ctx: Context, @Arg('siteId') siteId: string, @Arg('name') name: string, @Arg('type', type => PagetreeType, { nullable: true }) type: PagetreeType) {
-    throw new UnimplementedError()
+  async createPagetree (@Ctx() ctx: Context, @Arg('args') args: CreatePagetreeInput) {
+    return await ctx.svc(PagetreeService).create(args)
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Update the name of a pagetree' })
@@ -68,13 +68,12 @@ export class PagetreeResolver {
 
   @Mutation(returns => PagetreeResponse, { description: 'Soft-delete a pagetree' })
   async deletePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
-    // should not be able to delete the primary pagetree?
-    throw new UnimplementedError()
+    return await ctx.svc(PagetreeService).delete(pagetreeId)
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Undo a pagetree delete' })
   async undeletePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(PagetreeService).undelete(pagetreeId)
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Promote a pagetree from sandbox to primary' })

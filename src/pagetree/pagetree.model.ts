@@ -69,6 +69,21 @@ export class PagetreeFilter {
   types?: PagetreeType[]
 }
 
+@InputType()
+export class CreatePagetreeInput {
+  @Field()
+  siteId!: string
+
+  @Field()
+  name!: string
+
+  @Field(type => ID)
+  rootPageTemplateKey!: string
+
+  @Field({ description: 'The current schema version of the admin UI. Used to tag the root page of the new pagetree.' })
+  schemaVersion!: DateTime
+}
+
 @ObjectType()
 export class PagetreeResponse extends ValidatedResponse {
   @Field({ nullable: true })
