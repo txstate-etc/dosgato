@@ -73,9 +73,13 @@ export async function renamePagetree (pagetreeId: string, name: string) {
 
 export async function promotePagetree (oldPrimaryId: string, newPrimaryId: string) {
   return await db.transaction(async db => {
-    await db.update('UPDATE pagetrees SET type = ? WHERE id = ?', [PagetreeType.ARCHIVE, oldPrimaryId])
-    await db.update('UPDATE pagetrees SET type = ? WHERE id = ?', [PagetreeType.PRIMARY, newPrimaryId])
+    await db.update('UPDATE pagetrees SET type = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, oldPrimaryId])
+    await db.update('UPDATE pagetrees SET type = ?, promotedAt = NOW() WHERE id = ?', [PagetreeType.PRIMARY, newPrimaryId])
   })
+}
+
+export async function archivePagetree (pagetreeId: string) {
+  return await db.update('UPDATE pagetrees SET type = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, pagetreeId])
 }
 
 export async function deletePagetree (pagetreeId: string, currentUserInternalId: number) {

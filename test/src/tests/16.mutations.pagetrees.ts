@@ -89,4 +89,22 @@ describe('pagetree mutations', () => {
       await query('mutation CreatePagetree ($args: CreatePagetreeInput!) { createPagetree (args: $args) { success pagetree { id name deleted } } }', { args: { siteId: testSiteId, name: 'sandboxK', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
     await expect(queryAs('ed07', 'mutation PromotePagetree ($id: String!) { promotePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })).to.be.rejected
   })
+  it('should archive a pagetree', async () => {
+    const { createPagetree: { pagetree: newPagetree } } =
+      await query('mutation CreatePagetree ($args: CreatePagetreeInput!) { createPagetree (args: $args) { success pagetree { id name deleted } } }', { args: { siteId: testSiteId, name: 'sandboxL', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    const { archivePagetree: { pagetree, success } } = await query('mutation ArchivePagetree ($id: String!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })
+    expect(success).to.be.true
+    expect(pagetree.type).to.equal('ARCHIVE')
+  })
+  it('should not allow the primary pagetree to be archived', async () => {
+    const { createPagetree: { pagetree: newPagetree } } =
+      await query('mutation CreatePagetree ($args: CreatePagetreeInput!) { createPagetree (args: $args) { success pagetree { id name deleted } } }', { args: { siteId: testSiteId, name: 'sandboxM', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    await query('mutation PromotePagetree ($id: String!) { promotePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })
+    await expect(query('mutation ArchivePagetree ($id: String!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })).to.be.rejected
+  })
+  it('should not allow an unauthorized user to archive a pagetree', async () => {
+    const { createPagetree: { pagetree: newPagetree } } =
+      await query('mutation CreatePagetree ($args: CreatePagetreeInput!) { createPagetree (args: $args) { success pagetree { id name deleted } } }', { args: { siteId: testSiteId, name: 'sandboxN', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    await expect(queryAs('ed07', 'mutation ArchivePagetree ($id: String!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })).to.be.rejected
+  })
 })

@@ -63,7 +63,7 @@ export class PagetreeResolver {
 
   @Mutation(returns => PagetreeResponse, { description: 'Update the name of a pagetree' })
   async updatePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string, @Arg('name') name: string) {
-    return await ctx.svc(PagetreeService).renamePagetree(pagetreeId, name)
+    return await ctx.svc(PagetreeService).rename(pagetreeId, name)
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Soft-delete a pagetree' })
@@ -78,7 +78,12 @@ export class PagetreeResolver {
 
   @Mutation(returns => PagetreeResponse, { description: 'Promote a pagetree from sandbox to primary' })
   async promotePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
-    return await ctx.svc(PagetreeService).promotePagetree(pagetreeId)
+    return await ctx.svc(PagetreeService).promote(pagetreeId)
+  }
+
+  @Mutation(returns => PagetreeResponse, { description: 'Archive a pagetree. Cannot be used on the primary pagetree because a site must always have exactly one primary pagetree.' })
+  async archivePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
+    return await ctx.svc(PagetreeService).archive(pagetreeId)
   }
 }
 
@@ -102,5 +107,10 @@ export class PagetreePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may promote this pagetree to live. Returns false if pagetree is already live.' })
   async promote (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
     return await ctx.svc(PagetreeService).mayPromote(pagetree)
+  }
+
+  @FieldResolver(returns => Boolean, { description: 'User may archive this pagetree. Returns false if pagetree is already archived.'})
+  async archive (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
+    return await ctx.svc(PagetreeService).mayArchive(pagetree)
   }
 }

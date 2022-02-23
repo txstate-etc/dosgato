@@ -4,7 +4,7 @@ import {
   Pagetree, PagetreeFilter, getPagetreesById, getPagetreesBySite, renamePagetree,
   getPagetreesByTemplate, SiteService, DosGatoService, PagetreeType, PagetreeResponse,
   promotePagetree, createPagetree, CreatePagetreeInput, VersionedService, deletePagetree,
-  undeletePagetree
+  undeletePagetree, archivePagetree
 } from 'internal'
 
 const PagetreesByIdLoader = new PrimaryKeyLoader({
@@ -61,7 +61,7 @@ export class PagetreeService extends DosGatoService {
     }
   }
 
-  async renamePagetree (pagetreeId: string, name: string) {
+  async rename (pagetreeId: string, name: string) {
     const pagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
     if (!pagetree) throw new Error('Pagetree to be renamed does not exist.')
     if (!(await this.mayRename(pagetree))) throw new Error('Current user is not permitted to rename this pagetree.')
@@ -114,7 +114,7 @@ export class PagetreeService extends DosGatoService {
     }
   }
 
-  async promotePagetree (pagetreeId: string) {
+  async promote (pagetreeId: string) {
     const pagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
     if (!pagetree) throw new Error('Pagetree to be promoted does not exist.')
     if (!(await this.mayPromote(pagetree))) throw new Error('Current user is not permitted to promote this pagetree.')
@@ -126,7 +126,24 @@ export class PagetreeService extends DosGatoService {
       const updated = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
       return new PagetreeResponse({ success: true, pagetree: updated })
     } catch (err: any) {
+      console.error(err)
       throw new Error('An unknown error occurred while promoting the pagetree.')
+    }
+  }
+
+  async archive (pagetreeId: string) {
+    const pagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+    if (!pagetree) throw new Error('Pagetree to be archived does not exist.')
+    if (pagetree.type === PagetreeType.PRIMARY) throw new Error('Primary pagetree cannot be archived')
+    if (!(await this.mayArchive(pagetree))) throw new Error('Current user is not permitted to archive this pagetree.')
+    try {
+      await archivePagetree(pagetreeId)
+      this.loaders.clear()
+      const updated = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+      return new PagetreeResponse({ success: true, pagetree: updated })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('An unknown error occurred while archiving the pagetree.')
     }
   }
 
@@ -143,6 +160,7 @@ export class PagetreeService extends DosGatoService {
   }
 
   async mayDelete (pagetree: Pagetree) {
+    if (pagetree.deleted) return false
     const site = await this.svc(SiteService).findById(pagetree.siteId)
     if (!site) {
       throw new Error(`Site not found for pagetree ${pagetree.name}`)
@@ -151,6 +169,7 @@ export class PagetreeService extends DosGatoService {
   }
 
   async mayUndelete (pagetree: Pagetree) {
+    if (!pagetree.deleted) return false
     const site = await this.svc(SiteService).findById(pagetree.siteId)
     if (!site) {
       throw new Error(`Site not found for pagetree ${pagetree.name}`)
@@ -159,10 +178,21 @@ export class PagetreeService extends DosGatoService {
   }
 
   async mayPromote (pagetree: Pagetree) {
+    // TODO: It says to return false if the pagetree is live. Do we need to check if the site is launched too?
+    if (pagetree.type === PagetreeType.PRIMARY) return false
     const site = await this.svc(SiteService).findById(pagetree.siteId)
     if (!site) {
       throw new Error(`Site not found for pagetree ${pagetree.name}`)
     }
     return await this.haveSitePerm(site, 'promotePagetree')
+  }
+
+  async mayArchive (pagetree: Pagetree) {
+    if (pagetree.type === PagetreeType.ARCHIVE) return false
+    const site = await this.svc(SiteService).findById(pagetree.siteId)
+    if (!site) {
+      throw new Error(`Site not found for pagetree ${pagetree.name}`)
+    }
+    return await this.haveSitePerm(site, 'managePagetrees')
   }
 }
