@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
-import { query, queryAs } from '../common'
+import { query, queryAs, createRole } from '../common'
 
 chai.use(chaiAsPromised)
 
 describe('asset rule mutations', () => {
   it('should create an asset rule', async () => {
-    const { createRole: { role } } = await query('mutation CreateRole ($name: String!) { createRole (name: $name) { success role { id name } } }', { name: 'assetrulestestA' })
+    const { role } = await createRole('assetrulestestA')
     const { sites } = await query('{ sites { id name } }')
     const site4 = sites.find((s: any) => s.name === 'site4')
     const { createAssetRule: { success, assetRule } } =
@@ -83,7 +83,7 @@ describe('asset rule mutations', () => {
     expect(messages).to.have.length.greaterThan(0)
   })
   it('should update an asset rule', async () => {
-    const { createRole: { role } } = await query('mutation CreateRole ($name: String!) { createRole (name: $name) { success role { id name } } }', { name: 'assetrulestestB' })
+    const { role } = await createRole('assetrulestestB')
     const { sites } = await query('{ sites { id name } }')
     const site4 = sites.find((s: any) => s.name === 'site4')
     const { createAssetRule: { assetRule } } = await query(`mutation CreateAssetRule ($args: CreateAssetRuleInput!)
@@ -124,7 +124,7 @@ describe('asset rule mutations', () => {
     }`, { args: { ruleId: '1', mode: 'SUB' } })).to.be.rejected
   })
   it('should remove an asset rule', async () => {
-    const { createRole: { role } } = await query('mutation CreateRole ($name: String!) { createRole (name: $name) { success role { id name } } }', { name: 'assetrulestestC' })
+    const { role } = await createRole('assetrulestestC')
     const { sites } = await query('{ sites { id name } }')
     const site4 = sites.find((s: any) => s.name === 'site4')
     const { createAssetRule: { assetRule } } = await query(`mutation CreateAssetRule ($args: CreateAssetRuleInput!)

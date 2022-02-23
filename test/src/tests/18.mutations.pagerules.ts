@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
-import { query, queryAs } from '../common'
+import { query, queryAs, createRole } from '../common'
 
 chai.use(chaiAsPromised)
 
 describe('page rule mutations', () => {
   it('should create a page rule', async () => {
-    const { createRole: { role } } = await query('mutation CreateRole ($name: String!) { createRole (name: $name) { success role { id name } } }', { name: 'pagerulestestA' })
+    const { role } = await createRole('pagerulestestA')
     const { sites } = await query('{ sites { id name } }')
     const site5 = sites.find((s: any) => s.name === 'site5')
     const { createPageRule: { success, pageRule } } =
@@ -47,7 +47,7 @@ describe('page rule mutations', () => {
     expect(pageRule.grants.undelete).to.be.false
   })
   it('should not allow an unauthorized user to create a page rule', async () => {
-    const { createRole: { role } } = await query('mutation CreateRole ($name: String!) { createRole (name: $name) { success role { id name } } }', { name: 'pagerulestestB' })
+    const { role } = await createRole('pagerulestestB')
     const { sites } = await query('{ sites { id name } }')
     const site5 = sites.find((s: any) => s.name === 'site5')
     await expect(queryAs('ed07', `mutation CreatePageRule ($args: CreatePageRuleInput!)
@@ -88,7 +88,7 @@ describe('page rule mutations', () => {
     expect(messages[0].message).to.equal('The proposed rule would have more privilege than you currently have, so you cannot create it.')
   })
   it('should update a page rule', async () => {
-    const { createRole: { role } } = await query('mutation CreateRole ($name: String!) { createRole (name: $name) { success role { id name } } }', { name: 'pagerulestestC' })
+    const { role } = await createRole('pagerulestestC')
     const { sites } = await query('{ sites { id name } }')
     const site5 = sites.find((s: any) => s.name === 'site5')
     const { createPageRule: { pageRule } } = await query(`mutation CreatePageRule ($args: CreatePageRuleInput!)
@@ -129,7 +129,7 @@ describe('page rule mutations', () => {
     }`, { args: { ruleId: '1', mode: 'SUB' } })).to.be.rejected
   })
   it('should remove a page rule', async () => {
-    const { createRole: { role } } = await query('mutation CreateRole ($name: String!) { createRole (name: $name) { success role { id name } } }', { name: 'pagerulestestD' })
+    const { role } = await createRole('pagerulestestD')
     const { sites } = await query('{ sites { id name } }')
     const site5 = sites.find((s: any) => s.name === 'site5')
     const { createPageRule: { pageRule } } = await query(`mutation CreatePageRule ($args: CreatePageRuleInput!)
