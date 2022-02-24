@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { UrlSafeString } from 'internal'
 
 @ObjectType({ description: 'An asset folder is a folder that contains assets and other asset folders. Each site has exactly one root asset folder that is nameless and cannot be deleted.' })
@@ -66,6 +67,32 @@ export class AssetFolderFilter {
 
   @Field(type => Boolean, { nullable: false, description: 'true -> return only deleted folders, false -> return only nondeleted folders, undefined -> return all folders' })
   deleted?: boolean
+}
+
+@InputType()
+export class CreateAssetFolderInput {
+  @Field()
+  name!: string
+
+  @Field(type => ID)
+  siteId!: string
+
+  @Field()
+  path!: string
+
+  @Field(type => ID, { description: 'The existing asset folder that will be the new asset folder\'s parent' })
+  parentId!: string // guid
+}
+
+@ObjectType()
+export class AssetFolderResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  assetFolder?: AssetFolder
+
+  constructor (config: ValidatedResponseArgs & { assetFolder?: AssetFolder }) {
+    super(config)
+    this.assetFolder = config.assetFolder
+  }
 }
 
 @ObjectType()

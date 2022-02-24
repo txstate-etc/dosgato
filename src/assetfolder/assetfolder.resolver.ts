@@ -1,9 +1,9 @@
-import { Context } from '@txstate-mws/graphql-server'
-import { Resolver, Arg, Ctx, FieldResolver, Root } from 'type-graphql'
+import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import {
   Asset, AssetFilter, Role, RoleService, User, AssetFolder, AssetFolderFilter,
   AssetFolderPermission, AssetFolderPermissions, AssetFolderService, AssetRuleService,
-  UserService
+  UserService, AssetFolderResponse, CreateAssetFolderInput
 } from 'internal'
 import { isNull } from 'txstate-utils'
 
@@ -56,6 +56,34 @@ export class AssetFolderResolver {
   })
   permissions (@Root() folder: AssetFolder) {
     return folder
+  }
+
+  @Mutation(returns => AssetFolderResponse, { description: 'Create a new asset folder.' })
+  async createAssetFolder (@Ctx() ctx: Context, @Arg('args', type => CreateAssetFolderInput) args: CreateAssetFolderInput) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => AssetFolderResponse)
+  async renameAssetFolder (@Ctx() ctx: Context, @Arg('folderId') folderId: string, @Arg('name') name: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => AssetFolderResponse)
+  async moveAssetFolder (@Ctx() ctx: Context, @Arg('folderId') pageId: string, @Arg('targetId') targetId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => AssetFolderResponse)
+  async deleteAssetFolder (@Ctx() ctx: Context, @Arg('folderId') folderId: string) {
+    // If we delete an asset folder, do we delete all the assets and folders inside it too? Both assets and
+    // asset folders are soft-deleted. How would undeleting work? Would all contents be restored, even if they
+    // were deleted before the parent folder was deleted?
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => AssetFolderResponse)
+  async undeleteAssetFolder (@Ctx() ctx: Context, @Arg('folderId') folderId: string) {
+    throw new UnimplementedError()
   }
 }
 

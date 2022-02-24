@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
 import { isNotNull, optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { UrlSafeString } from 'internal'
 
 @ObjectType({ description: 'A folder that contains data objects. Each folder can only accept data objects with one particular template. Data folders are a single level organizational tool (folders do not contain more folders) and optional (data may not belong to any folder at all).' })
@@ -52,6 +53,29 @@ export class DataFolderFilter {
 
   @Field(type => Boolean, { nullable: false, description: 'true -> return only deleted folders, false -> return only nondeleted folders, undefined -> return all folders' })
   deleted?: boolean
+}
+
+@InputType()
+export class CreateDataFolderInput {
+  @Field()
+  name!: string
+
+  @Field(type => ID)
+  templateId!: string
+
+  @Field(type => ID)
+  siteId?: string
+}
+
+@ObjectType()
+export class DataFolderResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  dataFolder?: DataFolder
+
+  constructor (config: ValidatedResponseArgs & { dataFolder?: DataFolder }) {
+    super(config)
+    this.dataFolder = config.dataFolder
+  }
 }
 
 @ObjectType()
