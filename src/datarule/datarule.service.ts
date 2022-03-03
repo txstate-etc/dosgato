@@ -120,7 +120,8 @@ export class DataRuleService extends DosGatoService {
   }
 
   async mayWrite (rule: DataRule) {
-    return await this.haveGlobalPerm('manageUsers')
+    const role = await this.svc(RoleService).findById(rule.id)
+    return await this.svc(RoleService).mayUpdate(role!)
   }
 
   async mayView (rule: DataRule) {

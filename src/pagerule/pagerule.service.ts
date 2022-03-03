@@ -127,7 +127,8 @@ export class PageRuleService extends DosGatoService {
   }
 
   async mayWrite (rule: PageRule) {
-    return await this.haveGlobalPerm('manageUsers')
+    const role = await this.svc(RoleService).findById(rule.id)
+    return await this.svc(RoleService).mayUpdate(role!)
   }
 
   asOrMorePowerful (ruleA: PageRule, ruleB: PageRule) { // is ruleA equal or more powerful than ruleB?
