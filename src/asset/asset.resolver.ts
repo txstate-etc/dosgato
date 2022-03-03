@@ -1,11 +1,11 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphql'
+import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import { isNull } from 'txstate-utils'
 import {
   AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
-  RoleService
+  RoleService, AssetResponse, CreateAssetInput, UpdateAssetInput
 } from 'internal'
 
 @Resolver(of => Asset)
@@ -95,6 +95,34 @@ export class AssetResolver {
   })
   permissions (@Root() asset: Asset) {
     return asset
+  }
+
+  @Mutation(returns => AssetResponse, { description: 'Create a new asset asset in an asset folder.' })
+  async createAsset (@Ctx() ctx: Context, @Arg('args', type => CreateAssetInput) args: CreateAssetInput) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => AssetResponse, { description: 'Update an asset' })
+  async updateAsset (@Ctx() ctx: Context, @Arg('args', type => UpdateAssetInput) args: UpdateAssetInput) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => AssetResponse)
+  async moveAsset (@Ctx() ctx: Context,
+    @Arg('assetId', type => ID) assetId: string,
+    @Arg('targetFolderId', type => ID) targetFolderId: string
+  ) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => AssetResponse)
+  async deleteAsset (@Ctx() ctx: Context, @Arg('assetId', type => ID) assetId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => AssetResponse)
+  async undeleteAsset (@Ctx() ctx: Context, @Arg('assetId', type => ID) assetId: string) {
+    throw new UnimplementedError()
   }
 }
 

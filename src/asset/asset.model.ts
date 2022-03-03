@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { JsonData, UrlSafeString } from 'internal'
 
 @ObjectType({ description: 'Asset attributes only available for visual inline assets like images, animated GIFS, or videos.' })
@@ -93,6 +94,42 @@ export class AssetFilter {
 
   @Field(type => Boolean, { nullable: true, description: 'true -> return only deleted assets, false -> return only nondeleted assets, null -> return all assets' })
   deleted?: boolean
+}
+
+@InputType()
+export class CreateAssetInput {
+  @Field()
+  name!: string
+
+  @Field(type => ID)
+  folderId!: string
+
+  @Field()
+  checksum!: string
+
+  // TODO: Other fields? Fields for binaries table?
+}
+
+@InputType()
+export class UpdateAssetInput {
+  @Field()
+  name!: string
+
+  @Field()
+  checksum!: string
+
+  // TODO: Other fields? Fields for binaries table?
+}
+
+@ObjectType()
+export class AssetResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  asset?: Asset
+
+  constructor (config: ValidatedResponseArgs & { asset?: Asset }) {
+    super(config)
+    this.asset = config.asset
+  }
 }
 
 @ObjectType()
