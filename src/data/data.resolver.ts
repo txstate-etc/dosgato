@@ -1,11 +1,12 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int } from 'type-graphql'
+import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import { isNull } from 'txstate-utils'
 import {
   DataFolder, DataFolderService, Role, JsonData, Site, SiteService, Template,
   TemplateService, User, UserService, ObjectVersion, VersionedService, Data,
-  DataFilter, DataPermission, DataPermissions, DataService
+  DataFilter, DataPermission, DataPermissions, DataService, DataResponse, CreateDataInput,
+  UpdateDataInput
 } from 'internal'
 
 @Resolver(of => Data)
@@ -99,6 +100,41 @@ export class DataResolver {
   })
   permissions (@Root() data: Data) {
     return data
+  }
+
+  @Mutation(returns => DataResponse, { description: 'Create a new data entry.' })
+  async createDataEntry (@Ctx() ctx: Context, @Arg('args', type => CreateDataInput) args: CreateDataInput) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => DataResponse, { description: 'Update a data entry.' })
+  async updateDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string, @Arg('args', type => UpdateDataInput) args: UpdateDataInput) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => DataResponse, { description: 'Mark the latest version of a data entry "published."' })
+  async publishDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => DataResponse, { description: 'Remove "published" tag from data entry' })
+  async unpublishDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => DataResponse, { description: 'Move data entry into or out of a folder or change display order. Data may only be moved into a folder containing data that uses its template.' })
+  async moveDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => DataResponse)
+  async deleteDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string) {
+    throw new UnimplementedError()
+  }
+
+  @Mutation(returns => DataResponse)
+  async undeleteDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string) {
+    throw new UnimplementedError()
   }
 }
 
