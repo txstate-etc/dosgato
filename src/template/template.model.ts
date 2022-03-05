@@ -1,5 +1,5 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { UrlSafeString } from 'internal'
+import { templateRegistry, JsonData, UrlSafeString } from 'internal'
 
 export enum TemplateType {
   PAGE = 'page',
@@ -45,6 +45,9 @@ export class Template {
   @Field(type => [TemplateArea], { description: 'If this template is a page or component template, areas are the slots it provides for child placement. Each area will have a list of acceptable child component templates. These will be validated when creating a new component on a page.' })
   areas: TemplateArea[]
 
+  @Field(type => JsonData, { nullable: true, description: 'Hard-coded properties that may be set on page templates to influence the rendering of components on the page. For instance, a set of color choices that are customized for each template design. Components on the page may refer to the color information stored in the template during dialogs and while rendering. Changing to a different page template could then result in different color choices for components like buttons. Will be null for non-page templates.' })
+  templateProperties?: any
+
   constructor (row: any) {
     this.id = row.id
     this.key = row.key
@@ -52,7 +55,9 @@ export class Template {
     this.type = row.type
     this.deleted = !!row.deleted
     this.universal = !!row.universal
-    this.areas = [] // TODO Object.values(templateRegistry.get(this.key).areas)
+    const tmpl = templateRegistry.get(this.key)
+    this.areas = Object.entries(tmpl.areas).map(([key, area]) => new TemplateArea(key, area.availableComponents))
+    this.templateProperties = tmpl.templateProperties
   }
 }
 
