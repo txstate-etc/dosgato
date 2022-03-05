@@ -1,12 +1,13 @@
-import { ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Cache, filterAsync } from 'txstate-utils'
 import {
   Asset, AssetRule, AssetRuleResponse, AssetService, AssetFolder, AssetFolderService,
   comparePathsWithMode, createAssetRule, CreateAssetRuleInput, DosGatoService,
   getAssetRules, RulePathMode, RoleService, tooPowerfulHelper, UpdateAssetRuleInput,
-  updateAssetRule, deleteAssetRule
+  updateAssetRule, deleteAssetRule, AssetServiceInternal, AssetFolderServiceInternal, RoleServiceInternal
 } from 'internal'
+import { AssetRuleFilter } from './assetrule.model'
 
 const assetRulesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -15,8 +16,8 @@ const assetRulesByIdLoader = new PrimaryKeyLoader({
 })
 
 const assetRulesByRoleLoader = new OneToManyLoader({
-  fetch: async (roleIds: string[]) => {
-    return await getAssetRules({ roleIds })
+  fetch: async (roleIds: string[], filter?: AssetRuleFilter) => {
+    return await getAssetRules({ ...filter, roleIds })
   },
   extractKey: (r: AssetRule) => r.roleId,
   idLoader: assetRulesByIdLoader
@@ -30,30 +31,61 @@ const assetRulesBySiteLoader = new OneToManyLoader({
 
 const globalAssetRulesCache = new Cache(async () => await getAssetRules({ siteIds: [null] }), { freshseconds: 3 })
 
-export class AssetRuleService extends DosGatoService {
-  async findByRoleId (roleId: string) {
-    return await this.loaders.get(assetRulesByRoleLoader).load(roleId)
+export class AssetRuleServiceInternal extends BaseService {
+  async findById (ruleId: string) {
+    return await this.loaders.get(assetRulesByIdLoader).load(ruleId)
+  }
+
+  async findByRoleId (roleId: string, filter?: AssetRuleFilter) {
+    return await this.loaders.get(assetRulesByRoleLoader, filter).load(roleId)
   }
 
   async findBySiteId (siteId?: string) {
     // dataloader can't handle loading nulls so we have to grab global assetrules separately
-    const [siteRules, globalRules] = await Promise.all([siteId ? this.loaders.get(assetRulesBySiteLoader).load(siteId) : [], globalAssetRulesCache.get()])
+    const [siteRules, globalRules] = await Promise.all([
+      siteId ? this.loaders.get(assetRulesBySiteLoader).load(siteId) : [],
+      globalAssetRulesCache.get()]
+    )
     return [...siteRules, ...globalRules]
   }
 
   async findByAsset (asset: Asset) {
-    const folder = await this.svc(AssetFolderService).findByInternalId(asset.folderInternalId)
+    const folder = await this.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
     const rules = await this.findBySiteId(folder?.siteId)
-    return await filterAsync(rules, async r => await this.applies(r, asset))
+    return await filterAsync(rules, async r => await this.svc(AssetRuleService).applies(r, asset))
   }
 
   async findByAssetFolder (folder: AssetFolder) {
     const rules = await this.findBySiteId(folder?.siteId)
-    return await filterAsync(rules, async r => await this.appliesToFolder(r, folder))
+    return await filterAsync(rules, async r => await this.svc(AssetRuleService).appliesToFolder(r, folder))
+  }
+}
+
+export class AssetRuleService extends DosGatoService<AssetRule> {
+  raw = this.svc(AssetRuleServiceInternal)
+
+  async findById (ruleId: string) {
+    return await this.removeUnauthorized(await this.raw.findById(ruleId))
+  }
+
+  async findByRoleId (roleId: string, filter?: AssetRuleFilter) {
+    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
+  }
+
+  async findBySiteId (siteId?: string) {
+    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId))
+  }
+
+  async findByAsset (asset: Asset) {
+    return await this.removeUnauthorized(await this.raw.findByAsset(asset))
+  }
+
+  async findByAssetFolder (folder: AssetFolder) {
+    return await this.removeUnauthorized(await this.raw.findByAssetFolder(folder))
   }
 
   async create (args: CreateAssetRuleInput) {
-    const role = await this.svc(RoleService).findById(args.roleId)
+    const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new AssetRule({ id: '0', roleId: args.roleId, siteId: args.siteId, path: args.path ?? '/', mode: args.mode ?? RulePathMode.SELFANDSUB, ...args.grants })
@@ -62,7 +94,7 @@ export class AssetRuleService extends DosGatoService {
       const ruleId = await createAssetRule(args)
       this.loaders.clear()
       if (!newRule.siteId) await globalAssetRulesCache.clear()
-      const rule = await this.loaders.get(assetRulesByIdLoader).load(String(ruleId))
+      const rule = await this.raw.findById(String(ruleId))
       return new AssetRuleResponse({ assetRule: rule, success: true })
     } catch (err: any) {
       console.error(err)
@@ -71,7 +103,7 @@ export class AssetRuleService extends DosGatoService {
   }
 
   async update (args: UpdateAssetRuleInput) {
-    const rule = await this.loaders.get(assetRulesByIdLoader).load(args.ruleId)
+    const rule = await this.raw.findById(args.ruleId)
     if (!rule) throw new Error('Rule to be updated does not exist.')
     if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this asset rule.')
     const updatedGrants = { ...rule.grants, ...args.grants }
@@ -88,7 +120,7 @@ export class AssetRuleService extends DosGatoService {
       await updateAssetRule(args)
       this.loaders.clear()
       if (!rule.siteId || !newRule.siteId) await globalAssetRulesCache.clear()
-      const updatedRule = await this.loaders.get(assetRulesByIdLoader).load(args.ruleId)
+      const updatedRule = await this.raw.findById(args.ruleId)
       return new AssetRuleResponse({ assetRule: updatedRule, success: true })
     } catch (err: any) {
       console.error(err)
@@ -111,10 +143,10 @@ export class AssetRuleService extends DosGatoService {
   }
 
   async applies (rule: AssetRule, asset: Asset) {
-    const site = await this.svc(AssetService).getSite(asset)
+    const site = await this.svc(AssetServiceInternal).getSite(asset)
     if (!site) return false
     if (rule.siteId && rule.siteId !== site.id) return false
-    const assetPath = await this.svc(AssetService).getPath(asset)
+    const assetPath = await this.svc(AssetServiceInternal).getPath(asset)
     if (rule.mode === RulePathMode.SELF && rule.path !== assetPath) return false
     if (rule.mode === RulePathMode.SELFANDSUB && !assetPath.startsWith(rule.path)) return false
     if (rule.mode === RulePathMode.SUB && (rule.path === assetPath || !assetPath.startsWith(rule.path))) return false
@@ -123,7 +155,7 @@ export class AssetRuleService extends DosGatoService {
 
   async appliesToFolder (rule: AssetRule, folder: AssetFolder) {
     if (rule.siteId && rule.siteId !== folder.siteId) return false
-    const folderPath = await this.svc(AssetFolderService).getPath(folder)
+    const folderPath = await this.svc(AssetFolderServiceInternal).getPath(folder)
     if (rule.mode === RulePathMode.SELF && rule.path !== folderPath) return false
     if (rule.mode === RulePathMode.SELFANDSUB && !folderPath.startsWith(rule.path)) return false
     if (rule.mode === RulePathMode.SUB && (rule.path === folderPath || !folderPath.startsWith(rule.path))) return false
@@ -139,8 +171,10 @@ export class AssetRuleService extends DosGatoService {
     return tooPowerfulHelper(rule, await this.currentAssetRules(), this.asOrMorePowerful)
   }
 
-  async mayView (): Promise<boolean> {
-    return true
+  async mayView (rule: AssetRule) {
+    if (await this.haveGlobalPerm('manageUsers')) return true
+    const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
+    return !!role
   }
 
   async mayWrite (rule: AssetRule) {

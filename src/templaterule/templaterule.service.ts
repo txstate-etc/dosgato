@@ -1,10 +1,10 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Cache } from 'txstate-utils'
 import {
   Template, DosGatoService, tooPowerfulHelper, getTemplateRules, TemplateRule, TemplateRuleFilter,
   CreateTemplateRuleInput, RoleService, createTemplateRule, TemplateRuleResponse, updateTemplateRule,
-  UpdateTemplateRuleInput, deleteTemplateRule
+  UpdateTemplateRuleInput, deleteTemplateRule, RoleServiceInternal
 } from 'internal'
 
 const templateRulesByIdLoader = new PrimaryKeyLoader({
@@ -23,13 +23,29 @@ const templateRulesByRoleLoader = new OneToManyLoader({
 
 const globalTemplateRulesCache = new Cache(async () => await getTemplateRules({ templateIds: [null] }), { freshseconds: 3 })
 
-export class TemplateRuleService extends DosGatoService {
+export class TemplateRuleServiceInternal extends BaseService {
+  async findById (ruleId: string) {
+    return await this.loaders.get(templateRulesByIdLoader).load(ruleId)
+  }
+
   async findByRoleId (roleId: string, filter?: TemplateRuleFilter) {
     return await this.loaders.get(templateRulesByRoleLoader, filter).load(roleId)
   }
+}
+
+export class TemplateRuleService extends DosGatoService<TemplateRule> {
+  raw = this.svc(TemplateRuleServiceInternal)
+
+  async findById (ruleId: string) {
+    return await this.removeUnauthorized(await this.raw.findById(ruleId))
+  }
+
+  async findByRoleId (roleId: string, filter?: TemplateRuleFilter) {
+    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
+  }
 
   async create (args: CreateTemplateRuleInput) {
-    const role = await this.svc(RoleService).findById(args.roleId)
+    const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new TemplateRule({ id: '0', roleId: args.roleId, templateId: args.templateId, ...args.grants })
@@ -38,7 +54,7 @@ export class TemplateRuleService extends DosGatoService {
       const ruleId = await createTemplateRule(args)
       this.loaders.clear()
       if (!newRule.templateId) await globalTemplateRulesCache.clear()
-      const rule = await this.loaders.get(templateRulesByIdLoader).load(String(ruleId))
+      const rule = await this.raw.findById(String(ruleId))
       return new TemplateRuleResponse({ success: true, templateRule: rule })
     } catch (err: any) {
       console.error(err)
@@ -47,7 +63,7 @@ export class TemplateRuleService extends DosGatoService {
   }
 
   async update (args: UpdateTemplateRuleInput) {
-    const rule = await this.loaders.get(templateRulesByIdLoader).load(args.ruleId)
+    const rule = await this.raw.findById(args.ruleId)
     if (!rule) throw new Error('Rule to be updated does not exist.')
     if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this template rule.')
     const newRule = new TemplateRule({
@@ -61,7 +77,7 @@ export class TemplateRuleService extends DosGatoService {
       await updateTemplateRule(args)
       this.loaders.clear()
       if (!rule.templateId || !newRule.templateId) await globalTemplateRulesCache.clear()
-      const updatedRule = await this.loaders.get(templateRulesByIdLoader).load(args.ruleId)
+      const updatedRule = await this.raw.findById(args.ruleId)
       return new TemplateRuleResponse({ templateRule: updatedRule, success: true })
     } catch (err: any) {
       console.error(err)
@@ -70,9 +86,9 @@ export class TemplateRuleService extends DosGatoService {
   }
 
   async delete (ruleId: string) {
-    const rule = await this.loaders.get(templateRulesByIdLoader).load(ruleId)
+    const rule = await this.raw.findById(ruleId)
     if (!rule) throw new Error('Rule to be deleted does not exist.')
-    // TODO: what permissions need to be checked for deleting rules?
+    if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to remove this template rule.')
     try {
       await deleteTemplateRule(ruleId)
       this.loaders.clear()
@@ -101,6 +117,8 @@ export class TemplateRuleService extends DosGatoService {
   }
 
   async mayView (rule: TemplateRule) {
-    return true
+    if (await this.haveGlobalPerm('manageUsers')) return true
+    const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
+    return !!role
   }
 }

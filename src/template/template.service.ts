@@ -1,9 +1,9 @@
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   Template, TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
   DosGatoService, PagetreeService, authorizeForPagetree, deauthorizeForPagetree,
-  authorizeForSite, deauthorizeForSite, setUniversal, SiteService
+  authorizeForSite, deauthorizeForSite, setUniversal, SiteService, PagetreeServiceInternal, SiteServiceInternal
 } from 'internal'
 
 const templatesByIdLoader = new PrimaryKeyLoader({
@@ -34,9 +34,14 @@ const templatesByPagetreeIdLoader = new ManyJoinedLoader({
   idLoader: [templatesByIdLoader, templatesByKeyLoader]
 })
 
-export class TemplateService extends DosGatoService {
+export class TemplateServiceInternal extends BaseService {
   async find (filter?: TemplateFilter) {
-    return await getTemplates(filter)
+    const templates = await getTemplates(filter)
+    for (const t of templates) {
+      this.loaders.get(templatesByIdLoader).prime(t.id, t)
+      this.loaders.get(templatesByKeyLoader).prime(t.key, t)
+    }
+    return templates
   }
 
   async findById (id: number) {
@@ -58,15 +63,43 @@ export class TemplateService extends DosGatoService {
   async findByPagetreeId (pagetreeId: string, filter?: TemplateFilter) {
     return await this.loaders.get(templatesByPagetreeIdLoader, filter).load(pagetreeId)
   }
+}
+
+export class TemplateService extends DosGatoService<Template> {
+  raw = this.svc(TemplateServiceInternal)
+
+  async find (filter?: TemplateFilter) {
+    return await this.removeUnauthorized(await this.raw.find(filter))
+  }
+
+  async findById (id: number) {
+    return await this.removeUnauthorized(await this.raw.findById(id))
+  }
+
+  async findByKey (key: string) {
+    return await this.removeUnauthorized(await this.raw.findByKey(key))
+  }
+
+  async findByKeys (keys: string[]) {
+    return await this.removeUnauthorized(await this.raw.findByKeys(keys))
+  }
+
+  async findBySiteId (siteId: string, filter?: TemplateFilter) {
+    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId, filter))
+  }
+
+  async findByPagetreeId (pagetreeId: string, filter?: TemplateFilter) {
+    return await this.removeUnauthorized(await this.raw.findByPagetreeId(pagetreeId, filter))
+  }
 
   async authorizeForPagetree (templateId: string, pagetreeId: string) {
     const [template, pagetree] = await Promise.all([
-      this.findById(Number(templateId)),
-      this.svc(PagetreeService).findById(pagetreeId)
+      this.raw.findById(Number(templateId)),
+      this.svc(PagetreeServiceInternal).findById(pagetreeId)
     ])
     if (!template) throw new Error('Template to be authorized does not exist')
     if (!pagetree) throw new Error('Cannot authorize template for a pagetree that does not exist')
-    if (!(await this.mayAssign())) throw new Error('Current user is not permitted to authorize this template for this pagetree.')
+    if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to authorize this template for this pagetree.')
     try {
       await authorizeForPagetree(templateId, pagetreeId)
       return new ValidatedResponse({ success: true })
@@ -78,12 +111,12 @@ export class TemplateService extends DosGatoService {
 
   async deauthorizeForPagetree (templateId: string, pagetreeId: string) {
     const [template, pagetree] = await Promise.all([
-      this.findById(Number(templateId)),
-      this.svc(PagetreeService).findById(pagetreeId)
+      this.raw.findById(Number(templateId)),
+      this.svc(PagetreeServiceInternal).findById(pagetreeId)
     ])
     if (!template) throw new Error('Template to be deauthorized does not exist')
     if (!pagetree) throw new Error('Cannot deauthorize template for a pagetree that does not exist')
-    if (!(await this.mayAssign())) throw new Error('Current user is not permitted to deauthorize this template for this pagetree')
+    if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to deauthorize this template for this pagetree')
     try {
       const removed = await deauthorizeForPagetree(templateId, pagetreeId)
       if (removed) {
@@ -99,12 +132,12 @@ export class TemplateService extends DosGatoService {
 
   async authorizeForSite (templateId: string, siteId: string) {
     const [template, site] = await Promise.all([
-      this.findById(Number(templateId)),
-      this.svc(SiteService).findById(siteId)
+      this.raw.findById(Number(templateId)),
+      this.svc(SiteServiceInternal).findById(siteId)
     ])
     if (!template) throw new Error('Template to be authorized does not exist')
     if (!site) throw new Error('Cannot authorize template for a site that does not exist')
-    if (!(await this.mayAssign())) throw new Error('Current user is not permitted to authorize this template for this site')
+    if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to authorize this template for this site')
     try {
       await authorizeForSite(templateId, siteId)
       return new ValidatedResponse({ success: true })
@@ -116,12 +149,12 @@ export class TemplateService extends DosGatoService {
 
   async deauthorizeForSite (templateId: string, siteId: string) {
     const [template, site] = await Promise.all([
-      this.findById(Number(templateId)),
-      this.svc(SiteService).findById(siteId)
+      this.raw.findById(Number(templateId)),
+      this.svc(SiteServiceInternal).findById(siteId)
     ])
     if (!template) throw new Error('Template to be authorized does not exist')
     if (!site) throw new Error('Cannot authorize template for a site that does not exist')
-    if (!(await this.mayAssign())) throw new Error('Current user is not permitted to deauthorize this template for this site')
+    if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to deauthorize this template for this site')
     try {
       const removed = await deauthorizeForSite(templateId, siteId)
       if (removed) {
@@ -136,9 +169,9 @@ export class TemplateService extends DosGatoService {
   }
 
   async setUniversal (templateId: string, universal: boolean) {
-    const template = await this.findById(Number(templateId))
+    const template = await this.raw.findById(Number(templateId))
     if (!template) throw new Error('Template to be modified does not exist')
-    if (!(await this.maySetUniversal())) throw new Error('Current user is not permitted to change whether or not this template is universal.')
+    if (!(await this.maySetUniversal(template))) throw new Error('Current user is not permitted to change whether or not this template is universal.')
     try {
       await setUniversal(templateId, universal)
       return new ValidatedResponse({ success: true })
@@ -152,11 +185,11 @@ export class TemplateService extends DosGatoService {
     return true
   }
 
-  async mayAssign () {
+  async mayAssign (template: Template) {
     return await this.haveGlobalPerm('manageUsers')
   }
 
-  async maySetUniversal () {
+  async maySetUniversal (template: Template) {
     return await this.haveGlobalPerm('manageUsers')
   }
 }

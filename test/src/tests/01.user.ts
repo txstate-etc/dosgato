@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import { expect } from 'chai'
+import jwt from 'jsonwebtoken'
 import { query } from '../common'
 
-describe('wait for api', () => {
+describe('users', () => {
   before(async () => {
+    console.log(jwt.sign({ login: 'su01' }, process.env.JWT_SECRET ?? ''))
     let success = false
     while (!success) {
       try {
@@ -14,8 +16,7 @@ describe('wait for api', () => {
       }
     }
   })
-}).timeout(10000)
-describe('users', () => {
+
   it('should return the logged in user', async () => {
     const { users } = await query('{ users(filter: { ids: ["self"] }) { id, name, email } }')
     expect(users.length).to.equal(1)

@@ -42,11 +42,11 @@ export class UserResolver {
 export class UserPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'Current user may update this user\'s name or email.' })
   async update (@Ctx() ctx: Context, @Root() user: User) {
-    return await ctx.svc(UserService).mayUpdate()
+    return await ctx.svc(UserService).mayUpdate(user)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user may disable this account and remove all role and group memberships it has. The user row itself will stay in the database for referential integrity.' })
   async disable (@Ctx() ctx: Context, @Root() user: User) {
-    return await ctx.svc(UserService).mayDisable()
+    return await ctx.svc(UserService).mayDisable(user)
   }
 }

@@ -1,11 +1,12 @@
-import { ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
   Page, PageService, PagetreeService, DosGatoService, comparePathsWithMode,
   tooPowerfulHelper, getPageRules, PageRule, RulePathMode, SiteService, CreatePageRuleInput,
-  RoleService, createPageRule, PageRuleResponse, UpdatePageRuleInput, updatePageRule, deletePageRule
+  RoleService, createPageRule, PageRuleResponse, UpdatePageRuleInput, updatePageRule, deletePageRule, RoleServiceInternal, PagetreeServiceInternal, PageServiceInternal
 } from 'internal'
 import { Cache, filterAsync } from 'txstate-utils'
+import { PageRuleFilter } from './pagerule.model'
 
 const pageRulesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -14,8 +15,8 @@ const pageRulesByIdLoader = new PrimaryKeyLoader({
 })
 
 const pageRulesByRoleLoader = new OneToManyLoader({
-  fetch: async (roleIds: string[]) => {
-    return await getPageRules({ roleIds })
+  fetch: async (roleIds: string[], filter?: PageRuleFilter) => {
+    return await getPageRules({ ...filter, roleIds })
   },
   extractKey: (r: PageRule) => r.roleId
 })
@@ -27,9 +28,13 @@ const pageRulesBySiteLoader = new OneToManyLoader({
 
 const globalPageRulesCache = new Cache(async () => await getPageRules({ siteIds: [null], pagetreeIds: [null] }), { freshseconds: 3 })
 
-export class PageRuleService extends DosGatoService {
-  async findByRoleId (roleId: string) {
-    return await this.loaders.get(pageRulesByRoleLoader).load(roleId)
+export class PageRuleServiceInternal extends BaseService {
+  async findById (ruleId: string) {
+    return await this.loaders.get(pageRulesByIdLoader).load(ruleId)
+  }
+
+  async findByRoleId (roleId: string, filter?: PageRuleFilter) {
+    return await this.loaders.get(pageRulesByRoleLoader, filter).load(roleId)
   }
 
   async findBySiteId (siteId?: string) {
@@ -46,11 +51,32 @@ export class PageRuleService extends DosGatoService {
     // find PageRules by pagetreeId too to make sure we get them all.
     const rules = await this.findBySiteId(site!.id)
     // filter to get the ones that apply to this page
-    return await filterAsync(rules, async rule => await this.applies(rule, page))
+    const prService = this.svc(PageRuleService)
+    return await filterAsync(rules, async rule => await prService.applies(rule, page))
+  }
+}
+
+export class PageRuleService extends DosGatoService<PageRule> {
+  raw = this.svc(PageRuleServiceInternal)
+
+  async findById (ruleId: string) {
+    return await this.removeUnauthorized(await this.raw.findById(ruleId))
+  }
+
+  async findByRoleId (roleId: string, filter?: PageRuleFilter) {
+    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
+  }
+
+  async findBySiteId (siteId?: string) {
+    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId))
+  }
+
+  async findByPage (page: Page) {
+    return await this.removeUnauthorized(await this.raw.findByPage(page))
   }
 
   async create (args: CreatePageRuleInput) {
-    const role = await this.svc(RoleService).findById(args.roleId)
+    const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new PageRule({ id: '0', path: args.path ?? '/', roleId: args.roleId, siteId: args.siteId, pagetreeId: args.pagetreeId, mode: args.mode ?? RulePathMode.SELFANDSUB, ...args.grants })
@@ -61,7 +87,7 @@ export class PageRuleService extends DosGatoService {
       const ruleId = await createPageRule(args)
       this.loaders.clear()
       if (!newRule.siteId && !newRule.pagetreeId) await globalPageRulesCache.clear()
-      const rule = await this.loaders.get(pageRulesByIdLoader).load(String(ruleId))
+      const rule = await this.raw.findById(String(ruleId))
       return new PageRuleResponse({ pageRule: rule, success: true })
     } catch (err: any) {
       console.error(err)
@@ -70,7 +96,7 @@ export class PageRuleService extends DosGatoService {
   }
 
   async update (args: UpdatePageRuleInput) {
-    const rule = await this.loaders.get(pageRulesByIdLoader).load(args.ruleId)
+    const rule = await this.raw.findById(args.ruleId)
     if (!rule) throw new Error('Rule to be updated does not exist.')
     if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this page rule.')
     const updatedGrants = { ...rule.grants, ...args.grants }
@@ -88,7 +114,7 @@ export class PageRuleService extends DosGatoService {
       await updatePageRule(args)
       this.loaders.clear()
       if (!rule.siteId || !newRule.siteId) await globalPageRulesCache.clear()
-      const updatedRule = await this.loaders.get(pageRulesByIdLoader).load(args.ruleId)
+      const updatedRule = await this.raw.findById(args.ruleId)
       return new PageRuleResponse({ pageRule: updatedRule, success: true })
     } catch (err: any) {
       console.error(err)
@@ -97,9 +123,9 @@ export class PageRuleService extends DosGatoService {
   }
 
   async delete (ruleId: string) {
-    const rule = await this.loaders.get(pageRulesByIdLoader).load(ruleId)
+    const rule = await this.raw.findById(ruleId)
     if (!rule) throw new Error('Rule to be deleted does not exist.')
-    // TODO: what permissions need to be checked for deleting rules?
+    if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to remove this page rule.')
     try {
       await deletePageRule(ruleId)
       this.loaders.clear()
@@ -112,18 +138,20 @@ export class PageRuleService extends DosGatoService {
 
   async applies (rule: PageRule, page: Page) {
     if (rule.pagetreeId && rule.pagetreeId !== page.pagetreeId) return false
-    const pagetree = await this.svc(PagetreeService).findById(page.pagetreeId)
+    const pagetree = await this.svc(PagetreeServiceInternal).findById(page.pagetreeId)
     if (!pagetree) return false
     if (rule.siteId && rule.siteId !== pagetree.siteId) return false
-    const pagePath = await this.svc(PageService).getPath(page)
+    const pagePath = await this.svc(PageServiceInternal).getPath(page)
     if (rule.mode === RulePathMode.SELF && rule.path !== pagePath) return false
     if (rule.mode === RulePathMode.SELFANDSUB && !pagePath.startsWith(rule.path)) return false
     if (rule.mode === RulePathMode.SUB && (rule.path === pagePath || !pagePath.startsWith(rule.path))) return false
     return true
   }
 
-  async mayView (): Promise<boolean> {
-    return true
+  async mayView (rule: PageRule) {
+    if (await this.haveGlobalPerm('manageUsers')) return true
+    const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
+    return !!role
   }
 
   async mayWrite (rule: PageRule) {

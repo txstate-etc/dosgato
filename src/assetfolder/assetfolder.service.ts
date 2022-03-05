@@ -1,5 +1,6 @@
+import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { AssetService, DosGatoService, getAssetFolders, AssetFolder } from 'internal'
+import { AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal } from 'internal'
 
 const assetFolderByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids }),
@@ -23,7 +24,7 @@ const foldersByInternalIdPathRecursiveLoader = new OneToManyLoader({
   idLoader: assetFolderByInternalIdLoader
 })
 
-export class AssetFolderService extends DosGatoService {
+export class AssetFolderServiceInternal extends BaseService {
   async findByInternalId (id: number) {
     return await this.loaders.get(assetFolderByInternalIdLoader).load(id)
   }
@@ -45,9 +46,9 @@ export class AssetFolderService extends DosGatoService {
   async getChildAssets (folder: AssetFolder, recursive?: boolean) {
     if (recursive) {
       const folders = await this.getChildFolders(folder, true)
-      return await this.svc(AssetService).findByFolders([...folders, folder])
+      return await this.svc(AssetServiceInternal).findByFolders([...folders, folder])
     } else {
-      return await this.svc(AssetService).findByFolder(folder)
+      return await this.svc(AssetServiceInternal).findByFolder(folder)
     }
   }
 
@@ -55,13 +56,41 @@ export class AssetFolderService extends DosGatoService {
     const ancestors = await this.getAncestors(folder)
     return '/' + [...ancestors, folder].map(f => f.name).join('/')
   }
+}
+
+export class AssetFolderService extends DosGatoService<AssetFolder> {
+  raw = this.svc(AssetFolderServiceInternal)
+
+  async findByInternalId (internalId: number) {
+    return await this.removeUnauthorized(await this.raw.findByInternalId(internalId))
+  }
+
+  async getAncestors (folder: AssetFolder) {
+    return await this.removeUnauthorized(await this.raw.getAncestors(folder))
+  }
+
+  async getParent (folder: AssetFolder) {
+    return await this.removeUnauthorized(await this.raw.getParent(folder))
+  }
+
+  async getChildFolders (folder: AssetFolder, recursive?: boolean) {
+    return await this.removeUnauthorized(await this.raw.getChildFolders(folder, recursive))
+  }
+
+  async getChildAssets (folder: AssetFolder, recursive?: boolean) {
+    await this.svc(AssetService).removeUnauthorized(await this.raw.getChildAssets(folder, recursive))
+  }
+
+  async getPath (folder: AssetFolder) {
+    return await this.raw.getPath(folder)
+  }
 
   async mayView (folder: AssetFolder) {
     if (await this.haveAssetFolderPerm(folder, 'view')) return true
     // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
     const [folders, assets] = await Promise.all([
-      this.getChildFolders(folder, true),
-      this.getChildAssets(folder, true)
+      this.raw.getChildFolders(folder, true),
+      this.raw.getChildAssets(folder, true)
     ])
     for (const f of folders) {
       if (await this.haveAssetFolderPerm(f, 'view')) return true
@@ -76,8 +105,8 @@ export class AssetFolderService extends DosGatoService {
     if (await this.haveAssetFolderPerm(folder, 'viewForEdit')) return true
     // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
     const [folders, assets] = await Promise.all([
-      this.getChildFolders(folder, true),
-      this.getChildAssets(folder, true)
+      this.raw.getChildFolders(folder, true),
+      this.raw.getChildAssets(folder, true)
     ])
     for (const f of folders) {
       if (await this.haveAssetFolderPerm(f, 'viewForEdit')) return true

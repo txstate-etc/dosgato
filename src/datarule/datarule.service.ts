@@ -1,11 +1,12 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Cache } from 'txstate-utils'
-import { ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   tooPowerfulHelper, DosGatoService, Data, DataService, DataFolder, getDataRules, DataRule,
   createDataRule, CreateDataRuleInput, updateDataRule, UpdateDataRuleInput, deleteDataRule,
-  RoleService, DataRuleResponse
+  RoleService, DataRuleResponse, RoleServiceInternal, DataServiceInternal
 } from 'internal'
+import { DataRuleFilter } from './datarule.model'
 
 const dataRulesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -14,8 +15,8 @@ const dataRulesByIdLoader = new PrimaryKeyLoader({
 })
 
 const dataRulesByRoleLoader = new OneToManyLoader({
-  fetch: async (roleIds: string[]) => {
-    return await getDataRules({ roleIds })
+  fetch: async (roleIds: string[], filter?: DataRuleFilter) => {
+    return await getDataRules({ ...filter, roleIds })
   },
   extractKey: (r: DataRule) => r.roleId
 })
@@ -27,9 +28,13 @@ const dataRulesBySiteLoader = new OneToManyLoader({
 
 const dataRulesForAllSitesCache = new Cache(async () => await getDataRules({ siteIds: [null] }), { freshseconds: 3 })
 
-export class DataRuleService extends DosGatoService {
-  async findByRoleId (roleId: string) {
-    return await this.loaders.get(dataRulesByRoleLoader).load(roleId)
+export class DataRuleServiceInternal extends BaseService {
+  async findById (ruleId: string) {
+    return await this.loaders.get(dataRulesByIdLoader).load(ruleId)
+  }
+
+  async findByRoleId (roleId: string, filter?: DataRuleFilter) {
+    return await this.loaders.get(dataRulesByRoleLoader, filter).load(roleId)
   }
 
   async findBySiteId (siteId?: string) {
@@ -37,9 +42,25 @@ export class DataRuleService extends DosGatoService {
     const globalRules = await dataRulesForAllSitesCache.get()
     return [...dataRulesForSite, ...globalRules]
   }
+}
+
+export class DataRuleService extends DosGatoService<DataRule> {
+  raw = this.svc(DataRuleServiceInternal)
+
+  async findById (ruleId: string) {
+    return await this.raw.findById(ruleId)
+  }
+
+  async findByRoleId (roleId: string, filter?: DataRuleFilter) {
+    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
+  }
+
+  async findBySiteId (siteId?: string) {
+    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId))
+  }
 
   async create (args: CreateDataRuleInput) {
-    const role = await this.svc(RoleService).findById(args.roleId)
+    const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new DataRule({ id: '0', roleId: args.roleId, siteId: args.siteId, templateId: args.templateId, path: args.path ?? '/', ...args.grants })
@@ -48,7 +69,7 @@ export class DataRuleService extends DosGatoService {
       const ruleId = await createDataRule(args)
       this.loaders.clear()
       if (!newRule.siteId) await dataRulesForAllSitesCache.clear()
-      const rule = await this.loaders.get(dataRulesByIdLoader).load(String(ruleId))
+      const rule = await this.raw.findById(String(ruleId))
       return new DataRuleResponse({ dataRule: rule, success: true })
     } catch (err: any) {
       console.error(err)
@@ -57,7 +78,7 @@ export class DataRuleService extends DosGatoService {
   }
 
   async update (args: UpdateDataRuleInput) {
-    const rule = await this.loaders.get(dataRulesByIdLoader).load(args.ruleId)
+    const rule = await this.raw.findById(args.ruleId)
     if (!rule) throw new Error('Rule to be updated does not exist.')
     if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this data rule.')
     const updatedGrants = { ...rule.grants, ...args.grants }
@@ -74,7 +95,7 @@ export class DataRuleService extends DosGatoService {
       await updateDataRule(args)
       this.loaders.clear()
       if (!rule.siteId || !newRule.siteId) await dataRulesForAllSitesCache.clear()
-      const updatedRule = await this.loaders.get(dataRulesByIdLoader).load(args.ruleId)
+      const updatedRule = await this.raw.findById(args.ruleId)
       return new DataRuleResponse({ dataRule: updatedRule, success: true })
     } catch (err: any) {
       console.error(err)
@@ -85,7 +106,7 @@ export class DataRuleService extends DosGatoService {
   async delete (ruleId: string) {
     const rule = await this.loaders.get(dataRulesByIdLoader).load(ruleId)
     if (!rule) throw new Error('Rule to be deleted does not exist.')
-    // TODO: what permissions need to be checked for deleting rules?
+    if (!(await this.mayWrite(rule))) throw new Error('Current user is not permitted to delete this data rule.')
     try {
       await deleteDataRule(ruleId)
       this.loaders.clear()
@@ -99,7 +120,7 @@ export class DataRuleService extends DosGatoService {
   async applies (rule: DataRule, item: Data) {
     if (!item.siteId && rule.siteId) return false
     if (rule.siteId && rule.siteId !== item.siteId) return false
-    const dataPath = await this.svc(DataService).getPath(item)
+    const dataPath = await this.svc(DataServiceInternal).getPath(item)
     return dataPath.startsWith(rule.path)
   }
 
@@ -125,6 +146,8 @@ export class DataRuleService extends DosGatoService {
   }
 
   async mayView (rule: DataRule) {
-    return true
+    if (await this.haveGlobalPerm('manageUsers')) return true
+    const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
+    return !!role
   }
 }

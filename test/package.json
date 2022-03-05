@@ -9,7 +9,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@txstate-mws/graphql-server": "^1.2.2",
+    "@txstate-mws/graphql-server": "^1.4.2",
     "@types/chai": "^4.2.21",
     "@types/chai-as-promised": "^7.1.4",
     "@types/jsonwebtoken": "^8.5.6",

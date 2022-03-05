@@ -23,6 +23,7 @@ describe('site rules', () => {
     const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules { grants { delete launch manageOwners managePagetrees promotePagetree rename undelete viewForEdit } } } }')
     const testrole1 = resp.roles.find((r: any) => r.name === 'site1-siterulestest1')
     const siteRules = testrole1.siteRules[0]
+    console.log(testrole1.siteRules, siteRules)
     expect(siteRules.grants.delete).to.be.false
     expect(siteRules.grants.launch).to.be.true
     expect(siteRules.grants.manageOwners).to.be.true

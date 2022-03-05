@@ -1,30 +1,36 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { filterAsync } from 'txstate-utils'
 import {
-  Asset, AssetFolder, Data, DataFolder, Page, RoleService, Site, Template, UserService,
+  Asset, AssetFolder, Data, DataFolder, Page, Site, Template, UserService,
   AssetRuleService, AssetRuleGrants, DataRuleService, DataRuleGrants, GlobalRuleService,
   GlobalRuleGrants, PageRuleService, PageRuleGrants, SiteRuleGrants, SiteRuleService,
-  TemplateRuleService, TemplateRuleGrants
+  TemplateRuleService, TemplateRuleGrants, GroupService, RoleServiceInternal,
+  SiteRuleServiceInternal, PageRuleServiceInternal, AssetRuleServiceInternal, DataRuleServiceInternal, GlobalRuleServiceInternal, GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal
 } from 'internal'
 
-export abstract class DosGatoService extends AuthorizedService<{ login: string }> {
+export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ login: string }, ObjType, RedactedType> {
   protected isRenderServer () {
     return this.auth?.login === 'anonymous'
   }
 
   protected async currentUser () {
     if (!this.auth?.login) return undefined
-    return await this.svc(UserService).findById(this.auth.login)
+    return await this.svc(UserServiceInternal).findById(this.auth.login)
   }
 
   protected async currentRoles () {
     if (!this.auth?.login) return []
-    return await this.svc(RoleService).findByUserId(this.auth.login)
+    return await this.svc(RoleServiceInternal).findByUserId(this.auth.login)
+  }
+
+  protected async currentGroups () {
+    if (!this.auth?.login) return []
+    return await this.svc(GroupServiceInternal).findByUserId(this.auth.login)
   }
 
   protected async currentGlobalRules () {
     const roles = await this.currentRoles()
-    return (await Promise.all(roles.map(async r => await this.svc(GlobalRuleService).findByRoleId(r.id)))).flat()
+    return (await Promise.all(roles.map(async r => await this.svc(GlobalRuleServiceInternal).findByRoleId(r.id)))).flat()
   }
 
   protected async haveGlobalPerm (grant: keyof GlobalRuleGrants) {
@@ -36,7 +42,7 @@ export abstract class DosGatoService extends AuthorizedService<{ login: string }
 
   protected async currentSiteRules () {
     const roles = await this.currentRoles()
-    return (await Promise.all(roles.map(async r => await this.svc(SiteRuleService).findByRoleId(r.id)))).flat()
+    return (await Promise.all(roles.map(async r => await this.svc(SiteRuleServiceInternal).findByRoleId(r.id)))).flat()
   }
 
   protected async haveSitePerm (site: Site, grant: keyof SiteRuleGrants) {
@@ -48,7 +54,7 @@ export abstract class DosGatoService extends AuthorizedService<{ login: string }
 
   protected async currentPageRules () {
     const roles = await this.currentRoles()
-    return (await Promise.all(roles.map(async r => await this.svc(PageRuleService).findByRoleId(r.id)))).flat()
+    return (await Promise.all(roles.map(async r => await this.svc(PageRuleServiceInternal).findByRoleId(r.id)))).flat()
   }
 
   protected async havePagePerm (page: Page, grant: keyof PageRuleGrants) {
@@ -61,7 +67,7 @@ export abstract class DosGatoService extends AuthorizedService<{ login: string }
 
   protected async currentAssetRules () {
     const roles = await this.currentRoles()
-    return (await Promise.all(roles.map(async r => await this.svc(AssetRuleService).findByRoleId(r.id)))).flat()
+    return (await Promise.all(roles.map(async r => await this.svc(AssetRuleServiceInternal).findByRoleId(r.id)))).flat()
   }
 
   protected async haveAssetPerm (asset: Asset, grant: keyof AssetRuleGrants) {
@@ -82,7 +88,7 @@ export abstract class DosGatoService extends AuthorizedService<{ login: string }
 
   protected async currentDataRules () {
     const roles = await this.currentRoles()
-    return (await Promise.all(roles.map(async r => await this.svc(DataRuleService).findByRoleId(r.id)))).flat()
+    return (await Promise.all(roles.map(async r => await this.svc(DataRuleServiceInternal).findByRoleId(r.id)))).flat()
   }
 
   protected async haveDataPerm (item: Data, grant: keyof DataRuleGrants) {
@@ -111,7 +117,7 @@ export abstract class DosGatoService extends AuthorizedService<{ login: string }
 
   protected async currentTemplateRules () {
     const roles = await this.currentRoles()
-    return (await Promise.all(roles.map(async r => await this.svc(TemplateRuleService).findByRoleId(r.id)))).flat()
+    return (await Promise.all(roles.map(async r => await this.svc(TemplateRuleServiceInternal).findByRoleId(r.id)))).flat()
   }
 
   protected async haveTemplatePerm (template: Template, grant: keyof TemplateRuleGrants) {

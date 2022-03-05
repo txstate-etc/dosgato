@@ -132,17 +132,6 @@ export async function updateSite (site: Site, siteArgs: UpdateSiteInput) {
                           WHERE sites.id = ? AND pages.path = '/'`, [siteArgs.name, site.id])
       }
     }
-    if (siteArgs.siteTemplateKeys?.length) {
-      const templateBinds: string[] = []
-      const templateIds = await db.getvals<string>(`SELECT id FROM templates WHERE \`key\` IN (${db.in(templateBinds, siteArgs.siteTemplateKeys)})`, templateBinds)
-      await db.delete('DELETE FROM sites_templates WHERE siteId = ?', [site.id])
-      const templateInsertBinds: string[] = []
-      for (const id of templateIds) {
-        templateInsertBinds.push(site.id)
-        templateInsertBinds.push(id)
-      }
-      await db.insert(`INSERT INTO sites_templates (siteId, templateId) VALUES ${templateIds.map(t => '(?,?)').join(', ')}`, templateInsertBinds)
-    }
     if (siteArgs.managerIds?.length) {
       const userBinds: string[] = []
       const userIds = await db.getvals<string>(`SELECT id from users WHERE login IN (${db.in(userBinds, siteArgs.managerIds)})`, userBinds)

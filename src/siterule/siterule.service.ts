@@ -1,10 +1,10 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Cache } from 'txstate-utils'
 import {
   Site, DosGatoService, tooPowerfulHelper, getSiteRules, SiteRule, SiteRuleFilter,
   CreateSiteRuleInput, RoleService, createSiteRule, SiteRuleResponse, UpdateSiteRuleInput,
-  deleteSiteRule, updateSiteRule, Pagetree, SiteService
+  deleteSiteRule, updateSiteRule, Pagetree, SiteService, RoleServiceInternal
 } from 'internal'
 
 const siteRulesByIdLoader = new PrimaryKeyLoader({
@@ -29,7 +29,11 @@ const siteRulesBySiteLoader = new OneToManyLoader({
 
 const globalSiteRulesCache = new Cache(async () => await getSiteRules({ siteIds: [null] }), { freshseconds: 3 })
 
-export class SiteRuleService extends DosGatoService {
+export class SiteRuleServiceInternal extends BaseService {
+  async findById (ruleId: string) {
+    return await this.loaders.get(siteRulesByIdLoader).load(ruleId)
+  }
+
   async findByRoleId (roleId: string, filter?: SiteRuleFilter) {
     return await this.loaders.get(siteRulesByRoleLoader, filter).load(roleId)
   }
@@ -46,9 +50,29 @@ export class SiteRuleService extends DosGatoService {
     // TODO: Do these need to be filtered? Any rules that apply to the site will apply to this pagetree
     return await this.findBySiteId(pagetree?.siteId)
   }
+}
+
+export class SiteRuleService extends DosGatoService<SiteRule> {
+  raw = this.svc(SiteRuleServiceInternal)
+
+  async findById (ruleId: string) {
+    return await this.removeUnauthorized(await this.raw.findById(ruleId))
+  }
+
+  async findByRoleId (roleId: string, filter?: SiteRuleFilter) {
+    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
+  }
+
+  async findBySiteId (siteId?: string) {
+    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId))
+  }
+
+  async findByPagetree (pagetree: Pagetree) {
+    return await this.removeUnauthorized(await this.raw.findByPagetree(pagetree))
+  }
 
   async create (args: CreateSiteRuleInput) {
-    const role = await this.svc(RoleService).findById(args.roleId)
+    const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new SiteRule({ id: '0', roleId: args.roleId, siteId: args.siteId, ...args.grants })
@@ -66,7 +90,7 @@ export class SiteRuleService extends DosGatoService {
   }
 
   async update (args: UpdateSiteRuleInput) {
-    const rule = await this.loaders.get(siteRulesByIdLoader).load(args.ruleId)
+    const rule = await this.raw.findById(args.ruleId)
     if (!rule) throw new Error('Rule to be updated does not exist.')
     if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this site rule.')
     const updatedGrants = { ...rule.grants, ...args.grants }
@@ -81,7 +105,7 @@ export class SiteRuleService extends DosGatoService {
       await updateSiteRule(args)
       this.loaders.clear()
       if (!rule.siteId || !newRule.siteId) await globalSiteRulesCache.clear()
-      const updatedRule = await this.loaders.get(siteRulesByIdLoader).load(args.ruleId)
+      const updatedRule = await this.raw.findById(args.ruleId)
       return new SiteRuleResponse({ siteRule: updatedRule, success: true })
     } catch (err: any) {
       console.error(err)
@@ -90,9 +114,9 @@ export class SiteRuleService extends DosGatoService {
   }
 
   async delete (ruleId: string) {
-    const rule = await this.loaders.get(siteRulesByIdLoader).load(ruleId)
+    const rule = await this.raw.findById(ruleId)
     if (!rule) throw new Error('Rule to be deleted does not exist.')
-    // TODO: what permissions need to be checked for deleting rules?
+    if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to remove this site rule.')
     try {
       await deleteSiteRule(ruleId)
       this.loaders.clear()
@@ -122,6 +146,8 @@ export class SiteRuleService extends DosGatoService {
   }
 
   async mayView (rule: SiteRule) {
-    return true
+    if (await this.haveGlobalPerm('manageUsers')) return true
+    const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
+    return !!role
   }
 }

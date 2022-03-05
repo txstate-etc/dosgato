@@ -7,6 +7,7 @@ import {
   deletePage, renamePage, TemplateService, PagetreeService, SiteService,
   TemplateFilter, Template
 } from 'internal'
+import { BaseService } from '@txstate-mws/graphql-server'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
@@ -49,7 +50,7 @@ const pagesByInternalIdPathRecursiveLoader = new OneToManyLoader({
   idLoader: [pagesByInternalIdLoader, pagesByDataIdLoader]
 })
 
-export class PageService extends DosGatoService {
+export class PageServiceInternal extends BaseService {
   async find (filter: PageFilter) {
     filter = await this.processFilters(filter)
     if (filter.linkIdsReferenced?.length) {
@@ -62,11 +63,20 @@ export class PageService extends DosGatoService {
       else filter.ids = dataIds
       // TODO: look at this in VersionedService. Does tag need to be required in the find method? Can we find multiple tags at once?
     }
-    return await getPages(filter)
+    const pages = await getPages(filter)
+    for (const page of pages) {
+      this.loaders.get(pagesByInternalIdLoader).prime(page.internalId, page)
+      this.loaders.get(pagesByDataIdLoader).prime(page.id, page)
+    }
+    return pages
   }
 
   async findById (id: string) {
     return await this.loaders.get(pagesByDataIdLoader).load(id)
+  }
+
+  async findByIds (ids: string[]) {
+    return await this.loaders.loadMany(pagesByDataIdLoader, ids)
   }
 
   async findByInternalId (id: number) {
@@ -87,7 +97,7 @@ export class PageService extends DosGatoService {
     if (filter?.ids?.length) {
       dataIds = dataIds.filter(i => filter.ids?.includes(i))
     }
-    return await this.find({ ids: dataIds })
+    return await this.findByIds(dataIds)
   }
 
   async getPageChildren (page: Page, recursive?: boolean) {
@@ -97,6 +107,66 @@ export class PageService extends DosGatoService {
 
   async getPageAncestors (page: Page) {
     return await this.loaders.loadMany(pagesByInternalIdLoader, page.pathSplit)
+  }
+
+  async getRootPage (page: Page) {
+    const rootId = page.pathSplit[0]
+    if (!rootId) return page
+    return await this.findByInternalId(rootId)
+  }
+
+  async getPath (page: Page) {
+    const ancestors = await this.getPageAncestors(page)
+    return `/${ancestors.map(a => a.name).join('/')}${ancestors.length ? '/' : ''}${page.name as string}`
+  }
+
+  async processFilters (filter: PageFilter) {
+    if (filter.referencedByPageIds?.length) {
+      const verService = this.svc(VersionedService)
+      const pages = (await Promise.all(filter.referencedByPageIds.map(async id => await this.findById(id)))).filter(isNotNull)
+      const pagedata = (await Promise.all(pages.map(async page => await verService.get(page.dataId, { tag: filter.published ? 'published' : undefined })))).filter(isNotNull)
+      const links = pagedata.flatMap(d => templateRegistry.get(d.data.templateKey).getLinks(d.data)).filter(l => l.type === 'page') as PageLinkInput[]
+      filter.links = intersect({ skipEmpty: true, by: lnk => stringify({ ...lnk, type: 'page' }) }, links, filter.links)
+    }
+    return filter
+  }
+}
+
+export class PageService extends DosGatoService<Page> {
+  raw = this.svc(PageServiceInternal)
+
+  async find (filter: PageFilter) {
+    return await this.removeUnauthorized(await this.raw.find(filter))
+  }
+
+  async findById (id: string) {
+    return await this.removeUnauthorized(await this.raw.findById(id))
+  }
+
+  async findByIds (ids: string[]) {
+    return await this.removeUnauthorized(await this.raw.findByIds(ids))
+  }
+
+  async findByInternalId (internalId: number) {
+    return await this.removeUnauthorized(await this.raw.findByInternalId(internalId))
+  }
+
+  async findByPagetreeId (id: string, filter?: PageFilter) {
+    return await this.removeUnauthorized(await this.raw.findByPagetreeId(id))
+  }
+
+  async findByTemplate (key: string, filter?: PageFilter) {
+    return await this.removeUnauthorized(await this.raw.findByTemplate(key, filter))
+  }
+
+  async getPageChildren (page: Page, recursive?: boolean) {
+    return await this.removeUnauthorized(
+      await this.raw.getPageChildren(page, recursive)
+    )
+  }
+
+  async getPageAncestors (page: Page) {
+    return await this.removeUnauthorized(await this.raw.getPageAncestors(page))
   }
 
   async getApprovedTemplates (page: Page, filter?: TemplateFilter) {
@@ -125,20 +195,17 @@ export class PageService extends DosGatoService {
   }
 
   async getRootPage (page: Page) {
-    const rootId = page.pathSplit[0]
-    if (!rootId) return page
-    return await this.findByInternalId(rootId)
+    return await this.removeUnauthorized(await this.raw.getRootPage(page))
   }
 
   async getPath (page: Page) {
-    const ancestors = await this.getPageAncestors(page)
-    return `/${ancestors.map(a => a.name).join('/')}${ancestors.length ? '/' : ''}${page.name as string}`
+    return await this.raw.getPath(page)
   }
 
   async mayView (page: Page) {
     if (await this.havePagePerm(page, 'view')) return true
     // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
-    const children = await this.getPageChildren(page, true)
+    const children = await this.raw.getPageChildren(page, true)
     for (const c of children) {
       if (await this.havePagePerm(c, 'view')) return true
     }
@@ -186,22 +253,11 @@ export class PageService extends DosGatoService {
     return await this.havePagePerm(page, 'undelete')
   }
 
-  async processFilters (filter: PageFilter) {
-    if (filter.referencedByPageIds?.length) {
-      const verService = this.svc(VersionedService)
-      const pages = (await Promise.all(filter.referencedByPageIds.map(async id => await this.findById(id)))).filter(isNotNull)
-      const pagedata = (await Promise.all(pages.map(async page => await verService.get(page.dataId, { tag: filter.published ? 'published' : undefined })))).filter(isNotNull)
-      const links = pagedata.flatMap(d => templateRegistry.get(d.data.templateKey).getLinks(d.data)).filter(l => l.type === 'page') as PageLinkInput[]
-      filter.links = intersect({ skipEmpty: true, by: lnk => stringify({ ...lnk, type: 'page' }) }, links, filter.links)
-    }
-    return filter
-  }
-
   /**
    * MUTATIONS
    */
   async movePage (dataId: string, targetId: string, above?: boolean) {
-    const [page, { parent, aboveTarget }] = await Promise.all([this.findById(dataId), this.resolveTarget(targetId, above)])
+    const [page, { parent, aboveTarget }] = await Promise.all([this.raw.findById(dataId), this.resolveTarget(targetId, above)])
     if (!page) throw new Error('Cannot move page that does not exist.')
     if (!(await this.mayCreate(parent)) || !(await this.mayMove(page))) throw new Error('Current user is not permitted to perform this move.')
     const newPage = await movePage(page, parent, aboveTarget)
@@ -217,13 +273,13 @@ export class PageService extends DosGatoService {
   }
 
   async renamePage (dataId: string, name: string) {
-    const page = await this.findById(dataId)
+    const page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot rename a page that does not exist.')
     if (!(await this.mayMove(page))) throw new Error('Current user is not permitted to rename this page')
     try {
       await renamePage(page, name)
       this.loaders.clear()
-      const updated = await this.findById(dataId)
+      const updated = await this.raw.findById(dataId)
       return new PageResponse({ success: true, page: updated })
     } catch (err: any) {
       console.log(err)
@@ -233,17 +289,17 @@ export class PageService extends DosGatoService {
 
   async deletePage (dataId: string) {
     // TODO: Should they be able to delete the root page of the pagetree?
-    const page = await this.findById(dataId)
+    const page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot delete a page that does not exist.')
     if (!(await this.mayDelete(page))) throw new Error('Current user is not permitted to delete this page')
     const currentUser = await this.currentUser()
     try {
       await deletePage(page, currentUser!.internalId)
       this.loaders.clear()
-      const updated = await this.findById(dataId)
+      const updated = await this.raw.findById(dataId)
       return new PageResponse({ success: true, page: updated })
     } catch (err: any) {
-      console.log(err)
+      console.error(err)
       throw new Error('An unknown error ocurred while trying to delete a page.')
     }
   }
@@ -251,12 +307,12 @@ export class PageService extends DosGatoService {
   /**
    * Mutation Helpers
    */
-  async resolveTarget (targetId: string, above?: boolean) {
-    const target = await this.findById(targetId)
+  protected async resolveTarget (targetId: string, above?: boolean) {
+    const target = await this.raw.findById(targetId)
     let parent = target
     let aboveTarget
     if (above) {
-      parent = target?.parentInternalId ? await this.findByInternalId(target.parentInternalId) : undefined
+      parent = target?.parentInternalId ? await this.raw.findByInternalId(target.parentInternalId) : undefined
       aboveTarget = target
     }
     if (!parent) throw new Error('Target selection not appropriate.')

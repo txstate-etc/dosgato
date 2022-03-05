@@ -1,8 +1,9 @@
+import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import {
   Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate,
   PagetreeService, DosGatoService, CreateSiteInput, createSite, VersionedService,
-  SiteResponse, UpdateSiteInput, TemplateService, updateSite, deleteSite
+  SiteResponse, UpdateSiteInput, TemplateService, updateSite, deleteSite, PageService, TemplateServiceInternal
 } from 'internal'
 import { undeleteSite } from './site.database'
 
@@ -32,7 +33,7 @@ const sitesByTemplateIdLoader = new ManyJoinedLoader({
   }
 })
 
-export class SiteService extends DosGatoService {
+export class SiteServiceInternal extends BaseService {
   async find (filter?: SiteFilter) {
     const sites = await getSites(filter)
     for (const site of sites) {
@@ -62,6 +63,34 @@ export class SiteService extends DosGatoService {
   async findByAssetRootId (assetFolderId: number) {
     return await this.loaders.get(sitesByAssetRootLoader).load(assetFolderId)
   }
+}
+
+export class SiteService extends DosGatoService<Site> {
+  raw = this.svc(SiteServiceInternal)
+
+  async find (filter?: SiteFilter) {
+    return await this.removeUnauthorized(await this.raw.find(filter))
+  }
+
+  async findById (siteId: string) {
+    return await this.removeUnauthorized(await this.raw.findById(siteId))
+  }
+
+  async findByOrganization (orgId: string) {
+    return await this.removeUnauthorized(await this.raw.findByOrganization(orgId))
+  }
+
+  async findByTemplateId (templateId: number, atLeastOneTree?: boolean) {
+    return await this.removeUnauthorized(await this.raw.findByTemplateId(templateId, atLeastOneTree))
+  }
+
+  async findByPagetreeId (pagetreeId: string) {
+    return await this.removeUnauthorized(await this.raw.findByPagetreeId(pagetreeId))
+  }
+
+  async findByAssetRootId (assetFolderId: number) {
+    return await this.removeUnauthorized(await this.raw.findByAssetRootId(assetFolderId))
+  }
 
   async create (args: CreateSiteInput) {
     if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create sites.')
@@ -81,16 +110,15 @@ export class SiteService extends DosGatoService {
   }
 
   async update (siteId: string, args: UpdateSiteInput) {
-    const site = await this.findById(siteId)
+    const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site to be updated does not exist.')
     if (args.name && !(await this.mayRename(site))) throw new Error('Current user is not authorized to rename this site')
     if ((args.ownerId ?? args.organizationId ?? args.managerIds?.length) && !(await this.mayManageOwners(site))) throw new Error('Current user is not authorized to update the organization, owner, or managers for this site')
-    if (args.siteTemplateKeys?.length && !(await this.svc(TemplateService).mayAssign())) throw new Error('Current user is not authorized to approve templates for this site')
     if ((args.launchHost ?? args.launchPath) && !(await this.mayLaunch(site))) throw new Error('Current user is not authorized to update the public URL for this site')
     try {
       await updateSite(site, args)
       this.loaders.clear()
-      const updatedSite = await this.loaders.get(sitesByIdLoader).load(siteId)
+      const updatedSite = await this.raw.findById(siteId)
       return new SiteResponse({ success: true, site: updatedSite })
     } catch (err: any) {
       console.error(err)
@@ -99,14 +127,14 @@ export class SiteService extends DosGatoService {
   }
 
   async delete (siteId: string) {
-    const site = await this.findById(siteId)
+    const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site to be deleted does not exist.')
     if (!(await this.mayDelete(site))) throw new Error('Current user is not permitted to delete this site.')
     const currentUser = await this.currentUser()
     try {
       await deleteSite(site, currentUser!.internalId)
       this.loaders.clear()
-      const deletedSite = await this.loaders.get(sitesByIdLoader).load(siteId)
+      const deletedSite = await this.raw.findById(siteId)
       return new SiteResponse({ success: true, site: deletedSite })
     } catch (err: any) {
       console.error(err)
@@ -115,13 +143,13 @@ export class SiteService extends DosGatoService {
   }
 
   async undelete (siteId: string) {
-    const site = await this.findById(siteId)
+    const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site to be restored does not exist.')
     if (!(await this.mayUndelete(site))) throw new Error('Current user is not permitted to restore this site.')
     try {
       await undeleteSite(site)
       this.loaders.clear()
-      const restoredSite = await this.loaders.get(sitesByIdLoader).load(siteId)
+      const restoredSite = await this.raw.findById(siteId)
       return new SiteResponse({ success: true, site: restoredSite })
     } catch (err: any) {
       console.error(err)
@@ -129,8 +157,10 @@ export class SiteService extends DosGatoService {
     }
   }
 
-  async mayView (): Promise<boolean> {
-    return true
+  async mayView (site: Site) {
+    // if site is launched then any authenticated user may view it, along with anonymous renders
+    if (site.url != null) return this.isRenderServer() || await this.svc(PageService).mayViewManagerUI()
+    return await this.haveSitePerm(site, 'viewForEdit')
   }
 
   async mayViewManagerUI () {

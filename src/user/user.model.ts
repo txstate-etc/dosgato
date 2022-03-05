@@ -35,6 +35,12 @@ export class User {
   }
 }
 
+export interface RedactedUser {
+  id: string
+  internalId: number
+  name: string
+}
+
 @InputType()
 export class UserFilter {
   internalIds?: number[]

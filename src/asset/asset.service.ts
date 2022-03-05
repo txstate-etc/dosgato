@@ -1,7 +1,8 @@
+import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader } from 'dataloader-factory'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
-  SiteService, DosGatoService, getLatestDownload
+  SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal
 } from 'internal'
 
 const assetsByFolderInternalIdLoader = new OneToManyLoader({
@@ -13,7 +14,7 @@ const resizesByAssetIdLoader = new ManyJoinedLoader({
   fetch: async (assetIds: string[]) => await getResizes(assetIds)
 })
 
-export class AssetService extends DosGatoService {
+export class AssetServiceInternal extends BaseService {
   async find (filter: AssetFilter) {
     return await getAssets(filter)
   }
@@ -27,9 +28,9 @@ export class AssetService extends DosGatoService {
   }
 
   async getAncestors (asset: Asset) {
-    const folder = await this.svc(AssetFolderService).findByInternalId(asset.folderInternalId)
+    const folder = await this.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
     if (!folder) return []
-    return [...await this.svc(AssetFolderService).getAncestors(folder), folder]
+    return [...await this.svc(AssetFolderServiceInternal).getAncestors(folder), folder]
   }
 
   async getSite (asset: Asset) {
@@ -38,9 +39,37 @@ export class AssetService extends DosGatoService {
   }
 
   async getPath (asset: Asset) {
-    const folder = await this.svc(AssetFolderService).findByInternalId(asset.folderInternalId)
+    const folder = await this.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
     if (!folder) return '/'
-    return appendPath(await this.svc(AssetFolderService).getPath(folder), asset.name as string)
+    return appendPath(await this.svc(AssetFolderServiceInternal).getPath(folder), asset.name as string)
+  }
+}
+
+export class AssetService extends DosGatoService<Asset> {
+  raw = this.svc(AssetServiceInternal)
+
+  async find (filter: AssetFilter) {
+    return await this.removeUnauthorized(await this.raw.find(filter))
+  }
+
+  async findByFolder (folder: AssetFolder) {
+    return await this.removeUnauthorized(await this.raw.findByFolder(folder))
+  }
+
+  async findByFolders (folders: AssetFolder[]) {
+    return await this.removeUnauthorized(await this.raw.findByFolders(folders))
+  }
+
+  async getAncestors (asset: Asset) {
+    return await this.svc(AssetFolderService).removeUnauthorized(await this.raw.getAncestors(asset))
+  }
+
+  async getSite (asset: Asset) {
+    return await this.svc(SiteService).removeUnauthorized(await this.raw.getSite(asset))
+  }
+
+  async getPath (asset: Asset) {
+    return await this.raw.getPath(asset)
   }
 
   async getResizes (asset: Asset) {

@@ -5,7 +5,7 @@ import { RuleType } from 'internal'
 
 @ObjectType()
 @InputType()
-export class SiteRuleGrantsBase {
+export class SiteRuleGrantsInput {
   @Field({ description: 'Grants ability to set or update the public URL for affected sites.' })
   launch!: boolean
 
@@ -41,8 +41,7 @@ export class SiteRuleGrantsBase {
 }
 
 @ObjectType()
-@InputType('SiteRuleGrantsInput')
-export class SiteRuleGrants extends SiteRuleGrantsBase {
+export class SiteRuleGrants extends SiteRuleGrantsInput {
   @Field({ description: 'Grants ability to view site in the site manager UI. Any siterule automatically grants this as it is implied by the other grants.' })
   viewForEdit!: boolean
 
@@ -116,8 +115,8 @@ export class CreateSiteRuleInput {
   @Field({ nullable: true })
   siteId?: string
 
-  @Field(type => SiteRuleGrantsBase, { nullable: true })
-  grants?: SiteRuleGrantsBase
+  @Field(type => SiteRuleGrantsInput, { nullable: true })
+  grants?: SiteRuleGrantsInput
 }
 
 @InputType()
@@ -128,8 +127,8 @@ export class UpdateSiteRuleInput {
   @Field({ nullable: true })
   siteId?: string
 
-  @Field(type => SiteRuleGrantsBase, { nullable: true })
-  grants?: SiteRuleGrantsBase
+  @Field(type => SiteRuleGrantsInput, { nullable: true })
+  grants?: SiteRuleGrantsInput
 }
 
 @ObjectType()

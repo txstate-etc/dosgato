@@ -1,10 +1,10 @@
 import { OneToManyLoader, ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   Pagetree, PagetreeFilter, getPagetreesById, getPagetreesBySite, renamePagetree,
   getPagetreesByTemplate, SiteService, DosGatoService, PagetreeType, PagetreeResponse,
   promotePagetree, createPagetree, CreatePagetreeInput, VersionedService, deletePagetree,
-  undeletePagetree, archivePagetree
+  undeletePagetree, archivePagetree, SiteServiceInternal
 } from 'internal'
 
 const PagetreesByIdLoader = new PrimaryKeyLoader({
@@ -27,7 +27,7 @@ const PagetreesByTemplateIdLoader = new ManyJoinedLoader({
   idLoader: PagetreesByIdLoader
 })
 
-export class PagetreeService extends DosGatoService {
+export class PagetreeServiceInternal extends BaseService {
   async findById (id: string) {
     return await this.loaders.get(PagetreesByIdLoader).load(id)
   }
@@ -39,11 +39,27 @@ export class PagetreeService extends DosGatoService {
   async findByTemplateId (templateId: number, direct?: boolean) {
     return await this.loaders.get(PagetreesByTemplateIdLoader, direct).load(templateId)
   }
+}
+
+export class PagetreeService extends DosGatoService<Pagetree> {
+  raw = this.svc(PagetreeServiceInternal)
+
+  async findById (id: string) {
+    return await this.removeUnauthorized(await this.raw.findById(id))
+  }
+
+  async findBySiteId (siteId: string, filter?: PagetreeFilter) {
+    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId, filter))
+  }
+
+  async findByTemplateId (templateId: number, direct?: boolean) {
+    return await this.removeUnauthorized(await this.raw.findByTemplateId(templateId, direct))
+  }
 
   async create (args: CreatePagetreeInput) {
-    const site = await this.svc(SiteService).findById(args.siteId)
+    const site = await this.svc(SiteServiceInternal).findById(args.siteId)
     if (!site) throw new Error('Pagetree site does not exist.')
-    const currentPagetrees = await this.findBySiteId(args.siteId)
+    const currentPagetrees = await this.raw.findBySiteId(args.siteId)
     if (!(await this.svc(SiteService).mayManagePagetrees(site))) {
       throw new Error('Current user is not permitted to create pagetrees in this site.')
     }
@@ -62,16 +78,15 @@ export class PagetreeService extends DosGatoService {
   }
 
   async rename (pagetreeId: string, name: string) {
-    const pagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+    const pagetree = await this.raw.findById(pagetreeId)
     if (!pagetree) throw new Error('Pagetree to be renamed does not exist.')
     if (!(await this.mayRename(pagetree))) throw new Error('Current user is not permitted to rename this pagetree.')
     const response = new PagetreeResponse({})
     try {
       await renamePagetree(pagetreeId, name)
       this.loaders.clear()
-      const updated = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
       response.success = true
-      response.pagetree = updated
+      response.pagetree = await this.raw.findById(pagetreeId)
     } catch (err: any) {
       if (err.code === 'ER_DUP_ENTRY') {
         response.addMessage(`Pagetree with name ${name} already exists.`, 'name')
@@ -83,7 +98,7 @@ export class PagetreeService extends DosGatoService {
   }
 
   async delete (pagetreeId: string) {
-    const pagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+    const pagetree = await this.raw.findById(pagetreeId)
     if (!pagetree) throw new Error('Pagetree to be deleted does not exist.')
     if (!(await this.mayDelete(pagetree))) throw new Error('Current user is not permitted to delete this pagetree.')
     if (pagetree.type === PagetreeType.PRIMARY) throw new Error('Cannot delete primary pagetree')
@@ -91,7 +106,7 @@ export class PagetreeService extends DosGatoService {
     try {
       await deletePagetree(pagetreeId, currentUser!.internalId)
       this.loaders.clear()
-      const deletedPagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+      const deletedPagetree = await this.raw.findById(pagetreeId)
       return new PagetreeResponse({ success: true, pagetree: deletedPagetree })
     } catch (err: any) {
       console.error(err)
@@ -100,13 +115,13 @@ export class PagetreeService extends DosGatoService {
   }
 
   async undelete (pagetreeId: string) {
-    const pagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+    const pagetree = await this.raw.findById(pagetreeId)
     if (!pagetree) throw new Error('Pagetree to be restored does not exist.')
     if (!(await this.mayUndelete(pagetree))) throw new Error('Current user is not permitted to restore this pagetree.')
     try {
       await undeletePagetree(pagetreeId)
       this.loaders.clear()
-      const restoredPagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+      const restoredPagetree = await this.raw.findById(pagetreeId)
       return new PagetreeResponse({ success: true, pagetree: restoredPagetree })
     } catch (err: any) {
       console.error(err)
@@ -115,15 +130,15 @@ export class PagetreeService extends DosGatoService {
   }
 
   async promote (pagetreeId: string) {
-    const pagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+    const pagetree = await this.raw.findById(pagetreeId)
     if (!pagetree) throw new Error('Pagetree to be promoted does not exist.')
     if (!(await this.mayPromote(pagetree))) throw new Error('Current user is not permitted to promote this pagetree.')
-    const site = await this.svc(SiteService).findById(pagetree.siteId)
-    const currentPrimaryPagetree = await this.loaders.get(PagetreesByIdLoader).load(site!.primaryPagetreeId)
+    const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
+    const currentPrimaryPagetree = await this.raw.findById(site.primaryPagetreeId)
     try {
       await promotePagetree(currentPrimaryPagetree!.id, pagetreeId)
       this.loaders.clear()
-      const updated = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+      const updated = await this.raw.findById(pagetreeId)
       return new PagetreeResponse({ success: true, pagetree: updated })
     } catch (err: any) {
       console.error(err)
@@ -132,14 +147,14 @@ export class PagetreeService extends DosGatoService {
   }
 
   async archive (pagetreeId: string) {
-    const pagetree = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+    const pagetree = await this.raw.findById(pagetreeId)
     if (!pagetree) throw new Error('Pagetree to be archived does not exist.')
     if (pagetree.type === PagetreeType.PRIMARY) throw new Error('Primary pagetree cannot be archived')
     if (!(await this.mayArchive(pagetree))) throw new Error('Current user is not permitted to archive this pagetree.')
     try {
       await archivePagetree(pagetreeId)
       this.loaders.clear()
-      const updated = await this.loaders.get(PagetreesByIdLoader).load(pagetreeId)
+      const updated = await this.raw.findById(pagetreeId)
       return new PagetreeResponse({ success: true, pagetree: updated })
     } catch (err: any) {
       console.error(err)
@@ -148,11 +163,15 @@ export class PagetreeService extends DosGatoService {
   }
 
   async mayView (pagetree: Pagetree) {
-    return true
+    if (pagetree.type === PagetreeType.PRIMARY && this.isRenderServer()) return true
+    const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
+    if (!site) return false
+    if (pagetree.type === PagetreeType.PRIMARY) return true
+    return await this.haveSitePerm(site, 'viewForEdit')
   }
 
   async mayRename (pagetree: Pagetree) {
-    const site = await this.svc(SiteService).findById(pagetree.siteId)
+    const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
     if (!site) {
       throw new Error(`Site not found for pagetree ${pagetree.name}`)
     }
@@ -161,7 +180,7 @@ export class PagetreeService extends DosGatoService {
 
   async mayDelete (pagetree: Pagetree) {
     if (pagetree.deleted) return false
-    const site = await this.svc(SiteService).findById(pagetree.siteId)
+    const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
     if (!site) {
       throw new Error(`Site not found for pagetree ${pagetree.name}`)
     }
@@ -170,7 +189,7 @@ export class PagetreeService extends DosGatoService {
 
   async mayUndelete (pagetree: Pagetree) {
     if (!pagetree.deleted) return false
-    const site = await this.svc(SiteService).findById(pagetree.siteId)
+    const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
     if (!site) {
       throw new Error(`Site not found for pagetree ${pagetree.name}`)
     }
@@ -180,7 +199,7 @@ export class PagetreeService extends DosGatoService {
   async mayPromote (pagetree: Pagetree) {
     // TODO: It says to return false if the pagetree is live. Do we need to check if the site is launched too?
     if (pagetree.type === PagetreeType.PRIMARY) return false
-    const site = await this.svc(SiteService).findById(pagetree.siteId)
+    const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
     if (!site) {
       throw new Error(`Site not found for pagetree ${pagetree.name}`)
     }
@@ -189,7 +208,7 @@ export class PagetreeService extends DosGatoService {
 
   async mayArchive (pagetree: Pagetree) {
     if (pagetree.type === PagetreeType.ARCHIVE) return false
-    const site = await this.svc(SiteService).findById(pagetree.siteId)
+    const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
     if (!site) {
       throw new Error(`Site not found for pagetree ${pagetree.name}`)
     }

@@ -1,9 +1,9 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   getGlobalRules, GlobalRule, DosGatoService, tooPowerfulHelper, RoleService,
   CreateGlobalRuleInput, createGlobalRule, GlobalRuleResponse, UpdateGlobalRuleInput,
-  updateGlobalRule, deleteGlobalRule
+  updateGlobalRule, deleteGlobalRule, RoleServiceInternal
 } from 'internal'
 
 const globalRulesByIdLoader = new PrimaryKeyLoader({
@@ -18,13 +18,29 @@ const globalRulesByRoleLoader = new OneToManyLoader({
   extractKey: (r: GlobalRule) => r.roleId
 })
 
-export class GlobalRuleService extends DosGatoService {
+export class GlobalRuleServiceInternal extends BaseService {
+  async findById (ruleId: string) {
+    return await this.loaders.get(globalRulesByIdLoader).load(ruleId)
+  }
+
   async findByRoleId (roleId: string) {
     return await this.loaders.get(globalRulesByRoleLoader).load(roleId)
   }
+}
+
+export class GlobalRuleService extends DosGatoService<GlobalRule> {
+  raw = this.svc(GlobalRuleServiceInternal)
+
+  async findById (ruleId: string) {
+    return await this.removeUnauthorized(await this.raw.findById(ruleId))
+  }
+
+  async findByRoleId (roleId: string) {
+    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId))
+  }
 
   async create (args: CreateGlobalRuleInput) {
-    const role = await this.svc(RoleService).findById(args.roleId)
+    const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new GlobalRule({ roleId: args.roleId, ...args.grants })
@@ -32,7 +48,7 @@ export class GlobalRuleService extends DosGatoService {
     try {
       const ruleId = await createGlobalRule(args)
       this.loaders.clear()
-      const rule = await this.loaders.get(globalRulesByIdLoader).load(String(ruleId))
+      const rule = await this.raw.findById(String(ruleId))
       return new GlobalRuleResponse({ globalRule: rule, success: true })
     } catch (err) {
       console.error(err)
@@ -41,7 +57,7 @@ export class GlobalRuleService extends DosGatoService {
   }
 
   async update (args: UpdateGlobalRuleInput) {
-    const rule = await this.loaders.get(globalRulesByIdLoader).load(args.ruleId)
+    const rule = await this.raw.findById(args.ruleId)
     if (!rule) throw new Error('Rule to be updated does not exist.')
     if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this global rule.')
     const updatedGrants = { ...rule.grants, ...args.grants }
@@ -54,7 +70,7 @@ export class GlobalRuleService extends DosGatoService {
     try {
       await updateGlobalRule(args)
       this.loaders.clear()
-      const updatedRule = await this.loaders.get(globalRulesByIdLoader).load(args.ruleId)
+      const updatedRule = await this.raw.findById(args.ruleId)
       return new GlobalRuleResponse({ globalRule: updatedRule, success: true })
     } catch (err: any) {
       console.error(err)
@@ -63,9 +79,9 @@ export class GlobalRuleService extends DosGatoService {
   }
 
   async delete (ruleId: string) {
-    const rule = await this.loaders.get(globalRulesByIdLoader).load(ruleId)
+    const rule = await this.raw.findById(ruleId)
     if (!rule) throw new Error('Rule to be deleted does not exist.')
-    // TODO: what permissions need to be checked for deleting rules?
+    if (!(await this.mayWrite(rule))) throw new Error('Current user is not permitted to delete this global rule.')
     try {
       await deleteGlobalRule(ruleId)
       this.loaders.clear()
@@ -88,7 +104,9 @@ export class GlobalRuleService extends DosGatoService {
     return await this.svc(RoleService).mayUpdate(role!)
   }
 
-  async mayView (): Promise<boolean> {
-    return true
+  async mayView (rule: GlobalRule) {
+    if (await this.haveGlobalPerm('manageUsers')) return true
+    const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
+    return !!role
   }
 }

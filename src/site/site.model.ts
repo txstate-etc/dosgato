@@ -108,9 +108,6 @@ export class UpdateSiteInput {
   launchPath?: string
 
   @Field(type => [String], { nullable: true })
-  siteTemplateKeys?: string[]
-
-  @Field(type => [String], { nullable: true })
   managerIds?: string[]
 }
 

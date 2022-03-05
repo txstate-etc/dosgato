@@ -1,11 +1,11 @@
-import { ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { unique, filterConcurrent } from 'txstate-utils'
 import {
   Group, GroupFilter, GroupResponse, getGroups, getGroupsWithUser, getGroupsWithRole,
   groupManagerCache, groupHierarchyCache, createGroup, updateGroup, deleteGroup,
   addUserToGroup, removeUserFromGroup, setGroupManager, removeSubgroup, addSubgroup,
-  UserService, DosGatoService
+  UserService, DosGatoService, UserServiceInternal
 } from 'internal'
 
 const groupsByIdLoader = new PrimaryKeyLoader({
@@ -28,9 +28,11 @@ const groupsByRoleIdLoader = new ManyJoinedLoader({
   idLoader: groupsByIdLoader
 })
 
-export class GroupService extends DosGatoService {
-  async find () {
-    return await getGroups()
+export class GroupServiceInternal extends BaseService {
+  async find (filter?: GroupFilter) {
+    const groups = await getGroups(filter)
+    for (const group of groups) this.loaders.get(groupsByIdLoader).prime(group.id, group)
+    return groups
   }
 
   async findById (id: string) {
@@ -39,17 +41,17 @@ export class GroupService extends DosGatoService {
 
   async findByUserId (userId: string, direct?: boolean) {
     const directGroups = await this.loaders.get(groupsByUserIdLoader).load(userId)
-    if (typeof direct !== 'undefined' && direct) {
-      return directGroups
-    } else {
+    let ret = directGroups
+    if (!direct) {
       const directGroupIds = directGroups.map(d => d.id)
       const indirectGroups = await this.getAllSupers(directGroupIds)
       if (typeof direct === 'undefined') {
-        return unique([...directGroups, ...indirectGroups], 'id')
+        ret = unique([...directGroups, ...indirectGroups], 'id')
       } else {
-        return indirectGroups
+        ret = indirectGroups
       }
     }
+    return ret
   }
 
   async findByManagerId (managerId: string) {
@@ -60,8 +62,10 @@ export class GroupService extends DosGatoService {
     const groupMap = await groupHierarchyCache.get()
     const group = groupMap[groupId]
     if (!group) return []
-    if (recursive) return Array.from(group.descendantIds()).map(id => groupMap[id])
-    else return group.children as Group[]
+    const subgroups = recursive
+      ? Array.from(group.descendantIds()).map(id => groupMap[id])
+      : group.children as Group[]
+    return subgroups
   }
 
   async getAllSubs (groupIds: string[]) {
@@ -72,8 +76,10 @@ export class GroupService extends DosGatoService {
     const groupMap = await groupHierarchyCache.get()
     const group = groupMap[groupId]
     if (!group) return []
-    if (recursive) return Array.from(group.ancestorIds()).map(id => groupMap[id])
-    else return group.parents as Group[]
+    const supergroups = recursive
+      ? Array.from(group.ancestorIds()).map(id => groupMap[id])
+      : group.parents as Group[]
+    return supergroups
   }
 
   async getAllSupers (groupIds: string[]) {
@@ -81,13 +87,14 @@ export class GroupService extends DosGatoService {
   }
 
   async findByRoleId (roleId: string, direct?: boolean, filter?: GroupFilter) {
+    let ret: Group[]
     if (direct) {
-      return await this.loaders.get(groupsByRoleIdLoader, filter).load(roleId)
+      ret = await this.loaders.get(groupsByRoleIdLoader, filter).load(roleId)
     } else {
       // need to get all of the groups and subgroups and THEN filter them
       const groups = await this.loaders.get(groupsByRoleIdLoader).load(roleId)
       const subgroups = await this.getAllSubs(groups.map(g => g.id))
-      let ret = (typeof direct === 'undefined') ? unique([...groups, ...subgroups], 'id') : subgroups
+      ret = (typeof direct === 'undefined') ? unique([...groups, ...subgroups], 'id') : subgroups
       if (filter?.ids?.length) {
         const lookingFor = new Set(filter.ids)
         ret = ret.filter(sg => lookingFor.has(sg.id))
@@ -99,14 +106,58 @@ export class GroupService extends DosGatoService {
           return managers.some(manager => lookingFor.has(manager.id))
         })
       }
-      return ret
     }
+    return ret
   }
 
   async getGroupManagers (groupId: string) {
     const managerIds = await groupManagerCache.get(groupId)
-    if (managerIds.length) return await this.svc(UserService).find({ internalIds: managerIds })
+    if (managerIds.length) return await this.svc(UserServiceInternal).find({ internalIds: managerIds })
     else return []
+  }
+}
+
+export class GroupService extends DosGatoService<Group> {
+  raw = this.svc(GroupServiceInternal)
+
+  async find (filter?: GroupFilter) {
+    return await this.removeUnauthorized(await this.raw.find(filter))
+  }
+
+  async findById (id: string) {
+    return await this.removeUnauthorized(await this.raw.findById(id))
+  }
+
+  async findByUserId (userId: string, direct?: boolean) {
+    return await this.removeUnauthorized(await this.raw.findByUserId(userId, direct))
+  }
+
+  async findByManagerId (managerId: string) {
+    return await this.removeUnauthorized(await this.raw.findByManagerId(managerId))
+  }
+
+  async getSubgroups (groupId: string, recursive: boolean = true) {
+    return await this.removeUnauthorized(await this.raw.getSubgroups(groupId, recursive))
+  }
+
+  async getAllSubs (groupIds: string[]) {
+    return await this.removeUnauthorized(await this.raw.getAllSubs(groupIds))
+  }
+
+  async getSuperGroups (groupId: string, recursive = true) {
+    return await this.removeUnauthorized(await this.raw.getSuperGroups(groupId, recursive))
+  }
+
+  async getAllSupers (groupIds: string[]) {
+    return await this.removeUnauthorized(await this.raw.getAllSupers(groupIds))
+  }
+
+  async findByRoleId (roleId: string, direct?: boolean, filter?: GroupFilter) {
+    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, direct, filter))
+  }
+
+  async getGroupManagers (groupId: string) {
+    return await this.svc(UserService).removeUnauthorized(await this.raw.getGroupManagers(groupId))
   }
 
   async create (name: string) {
@@ -252,8 +303,15 @@ export class GroupService extends DosGatoService {
     }
   }
 
+  protected currentGroupsSet?: Set<string>
   async mayView (group: Group) {
-    return true
+    const user = await this.currentUser()
+    if (!user) return false
+    if (await this.haveGlobalPerm('manageUsers')) return true
+    this.currentGroupsSet ??= new Set((await this.currentGroups()).map(g => g.id))
+    if (this.currentGroupsSet.has(group.id)) return true
+    const managerIds = await groupManagerCache.get(group.id)
+    return managerIds.some(u => u.id === user.id)
   }
 
   async mayViewManagerUI () {

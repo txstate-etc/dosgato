@@ -1,12 +1,22 @@
+import { BaseService } from '@txstate-mws/graphql-server'
 import { PrimaryKeyLoader, OneToManyLoader } from 'dataloader-factory'
-import { DataFolder, DataFolderFilter, DosGatoService, getDataFolders, DataService } from 'internal'
+import { DataFolder, DataFolderFilter, DosGatoService, getDataFolders, DataService, DataServiceInternal } from 'internal'
+
+const dataFoldersByIdLoader = new PrimaryKeyLoader({
+  fetch: async (ids: string[]) => {
+    return await getDataFolders({ ids })
+  },
+  extractId: (item: DataFolder) => item.id
+})
 
 const dataFoldersByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
     return await getDataFolders({ internalIds })
   },
-  extractId: (item: DataFolder) => item.internalId
+  extractId: (item: DataFolder) => item.internalId,
+  idLoader: dataFoldersByIdLoader
 })
+dataFoldersByIdLoader.addIdLoader(dataFoldersByInternalIdLoader)
 
 const dataFoldersBySiteIdLoader = new OneToManyLoader({
   fetch: async (siteIds: string[], filter?: DataFolderFilter) => {
@@ -16,9 +26,13 @@ const dataFoldersBySiteIdLoader = new OneToManyLoader({
   keysFromFilter: (filter: DataFolderFilter | undefined) => filter?.siteIds ?? []
 })
 
-export class DataFolderService extends DosGatoService {
-  async findByInternalId (id: number) {
-    return await this.loaders.get(dataFoldersByInternalIdLoader).load(id)
+export class DataFolderServiceInternal extends BaseService {
+  async findById (id: string) {
+    return await this.loaders.get(dataFoldersByIdLoader).load(id)
+  }
+
+  async findByInternalId (internalId: number) {
+    return await this.loaders.get(dataFoldersByInternalIdLoader).load(internalId)
   }
 
   async findBySiteId (siteId: string, filter?: DataFolderFilter) {
@@ -28,10 +42,30 @@ export class DataFolderService extends DosGatoService {
   async getPath (folder: DataFolder) {
     return '/' + (folder.name as string)
   }
+}
+
+export class DataFolderService extends DosGatoService<DataFolder> {
+  raw = this.svc(DataFolderServiceInternal)
+
+  async findById (id: string) {
+    return await this.removeUnauthorized(await this.raw.findById(id))
+  }
+
+  async findByInternalId (internalId: number) {
+    return await this.removeUnauthorized(await this.raw.findByInternalId(internalId))
+  }
+
+  async findBySiteId (siteId: string, filter?: DataFolderFilter) {
+    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId, filter))
+  }
+
+  async getPath (folder: DataFolder) {
+    return await this.raw.getPath(folder)
+  }
 
   async mayView (folder: DataFolder) {
     if (await this.haveDataFolderPerm(folder, 'view')) return true
-    const dataEntries = await this.svc(DataService).findByFolderInternalId(folder.internalId)
+    const dataEntries = await this.svc(DataServiceInternal).findByFolderInternalId(folder.internalId)
     for (const d of dataEntries) {
       if (await this.haveDataPerm(d, 'view')) return true
     }

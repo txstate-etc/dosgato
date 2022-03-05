@@ -1,10 +1,10 @@
-import { ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { unique } from 'txstate-utils'
 import {
   DosGatoService, GroupService, UserService, Role, RoleFilter, RoleResponse,
   assignRoleToUser, createRole, deleteRole, getRoles, getRolesWithGroup,
-  getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup
+  getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup, GroupServiceInternal
 } from 'internal'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
@@ -27,7 +27,7 @@ const rolesByUserIdLoader = new ManyJoinedLoader({
   idLoader: rolesByIdLoader
 })
 
-export class RoleService extends DosGatoService {
+export class RoleServiceInternal extends BaseService {
   async find (filter: RoleFilter) {
     const roles = await getRoles(filter)
     for (const role of roles) {
@@ -45,12 +45,10 @@ export class RoleService extends DosGatoService {
   }
 
   async findByGroupId (groupId: string, direct?: boolean) {
-    const roles = await this.loaders.get(rolesByGroupIdLoader).load(groupId)
-    if (typeof direct !== 'undefined' && direct) {
-      return roles
-    } else {
+    let roles = await this.loaders.get(rolesByGroupIdLoader).load(groupId)
+    if (!direct) {
       // get parent groups
-      const parentGroups = await this.svc(GroupService).getSuperGroups(groupId)
+      const parentGroups = await this.svc(GroupServiceInternal).getSuperGroups(groupId)
       // get the roles for those groups
       const result = await Promise.all(
         parentGroups.map(async pg => {
@@ -59,11 +57,12 @@ export class RoleService extends DosGatoService {
       )
       const parentGroupRoles = unique(result.flat(), 'id')
       if (typeof direct === 'undefined') {
-        return unique([...roles, ...parentGroupRoles], 'id')
+        roles = unique([...roles, ...parentGroupRoles], 'id')
       } else {
-        return parentGroupRoles
+        roles = parentGroupRoles
       }
     }
+    return roles
   }
 
   async findByUserId (userId: string, direct?: boolean) {
@@ -71,7 +70,7 @@ export class RoleService extends DosGatoService {
       return await this.loaders.get(rolesByUserIdLoader).load(userId)
     } else {
       // get the user's groups
-      const groups = await this.svc(GroupService).findByUserId(userId)
+      const groups = await this.svc(GroupServiceInternal).findByUserId(userId)
       // get the roles for those groups
       const [roles, ...indirectRolesUnflattened] = await Promise.all([
         this.loaders.get(rolesByUserIdLoader).load(userId),
@@ -85,13 +84,37 @@ export class RoleService extends DosGatoService {
       }
     }
   }
+}
+
+export class RoleService extends DosGatoService<Role> {
+  raw = this.svc(RoleServiceInternal)
+
+  async find (filter: RoleFilter) {
+    return await this.removeUnauthorized(await this.raw.find(filter))
+  }
+
+  async findById (id: string) {
+    return await this.removeUnauthorized(await this.raw.findById(id))
+  }
+
+  async findByIds (ids: string[]) {
+    return await this.removeUnauthorized(await this.raw.findByIds(ids))
+  }
+
+  async findByGroupId (groupId: string, direct?: boolean) {
+    return await this.removeUnauthorized(await this.raw.findByGroupId(groupId, direct))
+  }
+
+  async findByUserId (userId: string, direct?: boolean) {
+    return await this.removeUnauthorized(await this.raw.findByUserId(userId, direct))
+  }
 
   async create (name: string) {
     if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create roles.')
     const response = new RoleResponse({})
     try {
       const id = await createRole(name)
-      const role = await this.findById(String(id))
+      const role = await this.raw.findById(String(id))
       response.success = true
       response.role = role
     } catch (err: any) {
@@ -105,15 +128,15 @@ export class RoleService extends DosGatoService {
   }
 
   async update (id: string, name: string) {
-    const role = await this.findById(id)
+    const role = await this.raw.findById(id)
     if (!role) throw new Error('Role to be edited does not exist.')
     if (!(await this.mayUpdate(role))) throw new Error('Current user is not permitted to update role names.')
     const response = new RoleResponse({})
     try {
       await updateRole(id, name)
-      const updated = await this.loaders.get(rolesByIdLoader).load(id)
+      this.loaders.clear()
       response.success = true
-      response.role = updated
+      response.role = await this.raw.findById(id)
     } catch (err: any) {
       if (err.code === 'ER_DUP_ENTRY') {
         response.addMessage(`${name} role already exists.`, 'name')
@@ -204,8 +227,11 @@ export class RoleService extends DosGatoService {
     return await this.loaders.get(rolesByIdLoader).load(roleId)
   }
 
+  protected currentRolesSet?: Set<string>
   async mayView (role: Role): Promise<boolean> {
-    return true
+    if (await this.haveGlobalPerm('manageUsers')) return true
+    this.currentRolesSet ??= new Set((await this.currentRoles()).map(r => r.id))
+    return this.currentRolesSet.has(role.id)
   }
 
   async mayViewManagerUI () {
