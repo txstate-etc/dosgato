@@ -77,9 +77,6 @@ export class CreateAssetFolderInput {
   @Field(type => ID)
   siteId!: string
 
-  @Field()
-  path!: string
-
   @Field(type => ID, { description: 'The existing asset folder that will be the new asset folder\'s parent' })
   parentId!: string // guid
 }

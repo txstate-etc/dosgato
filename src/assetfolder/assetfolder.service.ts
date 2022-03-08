@@ -1,18 +1,28 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal } from 'internal'
+import {
+  AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
+  CreateAssetFolderInput, createAssetFolder, AssetFolderResponse
+} from 'internal'
 
 const assetFolderByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids }),
   extractId: af => af.internalId
 })
 
+const assetFolderByIdLoader = new PrimaryKeyLoader({
+  fetch: async (ids: string[]) => await getAssetFolders({ ids }),
+  idLoader: assetFolderByInternalIdLoader
+})
+
+assetFolderByInternalIdLoader.addIdLoader(assetFolderByIdLoader)
+
 const foldersByInternalIdPathLoader = new OneToManyLoader({
   fetch: async (internalIdPaths: string[]) => {
     return await getAssetFolders({ internalIdPaths })
   },
   extractKey: (f: AssetFolder) => f.path,
-  idLoader: assetFolderByInternalIdLoader
+  idLoader: [assetFolderByInternalIdLoader, assetFolderByIdLoader]
 })
 
 const foldersByInternalIdPathRecursiveLoader = new OneToManyLoader({
@@ -21,7 +31,7 @@ const foldersByInternalIdPathRecursiveLoader = new OneToManyLoader({
     return pages
   },
   matchKey: (path: string, f: AssetFolder) => f.path.startsWith(path),
-  idLoader: assetFolderByInternalIdLoader
+  idLoader: [assetFolderByInternalIdLoader, assetFolderByIdLoader]
 })
 
 export class AssetFolderServiceInternal extends BaseService {
@@ -83,6 +93,20 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
 
   async getPath (folder: AssetFolder) {
     return await this.raw.getPath(folder)
+  }
+
+  async create (args: CreateAssetFolderInput) {
+    const parentFolder = await this.loaders.get(assetFolderByIdLoader).load(args.parentId)
+    if (!parentFolder) throw new Error('Parent folder does not exist.')
+    if (!(await this.haveAssetFolderPerm(parentFolder, 'create'))) throw new Error(`Current user is not permitted to create folders in ${String(parentFolder.name)}.`)
+    try {
+      const assetfolder = await createAssetFolder(args)
+      this.loaders.clear()
+      return new AssetFolderResponse({ assetFolder: assetfolder, success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('Could not create asset folder')
+    }
   }
 
   async mayView (folder: AssetFolder) {

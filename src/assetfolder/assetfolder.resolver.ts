@@ -60,7 +60,7 @@ export class AssetFolderResolver {
 
   @Mutation(returns => AssetFolderResponse, { description: 'Create a new asset folder.' })
   async createAssetFolder (@Ctx() ctx: Context, @Arg('args', type => CreateAssetFolderInput) args: CreateAssetFolderInput) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetFolderService).create(args)
   }
 
   @Mutation(returns => AssetFolderResponse)
