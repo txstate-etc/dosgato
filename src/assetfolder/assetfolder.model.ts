@@ -34,8 +34,8 @@ export class AssetFolder {
     this.path = row.path
     this.pathSplit = row.path.split(/\//).filter(isNotBlank).map(Number)
     this.parentInternalId = this.pathSplit[this.pathSplit.length - 1]
-    this.deleted = isNotNull(row.deleted)
-    this.deletedAt = DateTime.fromJSDate(row.deleted)
+    this.deleted = isNotNull(row.deletedAt)
+    this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
   }
 }

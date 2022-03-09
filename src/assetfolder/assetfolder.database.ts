@@ -37,3 +37,15 @@ export async function createAssetFolder (args: CreateAssetFolderInput) {
     return new AssetFolder(await db.getrow('SELECT * FROM assetfolders WHERE id=?', [newInternalId]))
   })
 }
+
+export async function renameAssetFolder (id: number, name: string) {
+  return await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [name, id])
+}
+
+export async function deleteAssetFolder (id: number, userInternalId: number) {
+  return await db.update('UPDATE assetfolders SET deletedBy = ?, deletedAt = NOW() WHERE id = ?', [userInternalId, id])
+}
+
+export async function undeleteAssetFolder (id: number) {
+  return await db.update('UPDATE assetfolders SET deletedBy = null, deletedAt = null WHERE id = ?', [id])
+}

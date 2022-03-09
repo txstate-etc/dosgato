@@ -1,5 +1,5 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
+import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
   Asset, AssetFilter, Role, RoleService, User, AssetFolder, AssetFolderFilter,
   AssetFolderPermission, AssetFolderPermissions, AssetFolderService, AssetRuleService,
@@ -64,26 +64,23 @@ export class AssetFolderResolver {
   }
 
   @Mutation(returns => AssetFolderResponse)
-  async renameAssetFolder (@Ctx() ctx: Context, @Arg('folderId') folderId: string, @Arg('name') name: string) {
+  async renameAssetFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string, @Arg('name') name: string) {
+    return await ctx.svc(AssetFolderService).rename(folderId, name)
+  }
+
+  @Mutation(returns => AssetFolderResponse)
+  async moveAssetFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) pageId: string, @Arg('targetId') targetId: string) {
     throw new UnimplementedError()
   }
 
   @Mutation(returns => AssetFolderResponse)
-  async moveAssetFolder (@Ctx() ctx: Context, @Arg('folderId') pageId: string, @Arg('targetId') targetId: string) {
-    throw new UnimplementedError()
-  }
-
-  @Mutation(returns => AssetFolderResponse)
-  async deleteAssetFolder (@Ctx() ctx: Context, @Arg('folderId') folderId: string) {
-    // If we delete an asset folder, do we delete all the assets and folders inside it too? Both assets and
-    // asset folders are soft-deleted. How would undeleting work? Would all contents be restored, even if they
-    // were deleted before the parent folder was deleted?
-    throw new UnimplementedError()
+  async deleteAssetFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string) {
+    return await ctx.svc(AssetFolderService).delete(folderId)
   }
 
   @Mutation(returns => AssetFolderResponse)
   async undeleteAssetFolder (@Ctx() ctx: Context, @Arg('folderId') folderId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetFolderService).undelete(folderId)
   }
 }
 
@@ -99,17 +96,17 @@ export class AssetFolderPermissionsResolver {
     return await ctx.svc(AssetFolderService).mayUpdate(folder)
   }
 
-  @FieldResolver(returns => Boolean, { description: 'User may move this asset beneath a folder for which they have the `create` permission.' })
+  @FieldResolver(returns => Boolean, { description: 'User may move this asset folder beneath a folder for which they have the `create` permission.' })
   async move (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
     return await ctx.svc(AssetFolderService).mayMove(folder)
   }
 
-  @FieldResolver(returns => Boolean, { description: 'User may soft-delete this asset.' })
+  @FieldResolver(returns => Boolean, { description: 'User may soft-delete this asset folder.' })
   async delete (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
     return await ctx.svc(AssetFolderService).mayDelete(folder)
   }
 
-  @FieldResolver(returns => Boolean, { description: 'User may undelete this asset. Returns false when the asset is not deleted.' })
+  @FieldResolver(returns => Boolean, { description: 'User may undelete this asset folder. Returns false when the asset folder is not deleted.' })
   async undelete (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
     return await ctx.svc(AssetFolderService).mayUndelete(folder)
   }

@@ -2,8 +2,10 @@ import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
   AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
-  CreateAssetFolderInput, createAssetFolder, AssetFolderResponse
+  CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
+  deleteAssetFolder, undeleteAssetFolder
 } from 'internal'
+import { isNull } from 'txstate-utils'
 
 const assetFolderByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids }),
@@ -37,6 +39,10 @@ const foldersByInternalIdPathRecursiveLoader = new OneToManyLoader({
 export class AssetFolderServiceInternal extends BaseService {
   async findByInternalId (id: number) {
     return await this.loaders.get(assetFolderByInternalIdLoader).load(id)
+  }
+
+  async findById (id: string) {
+    return await this.loaders.get(assetFolderByIdLoader).load(id)
   }
 
   async getAncestors (folder: AssetFolder) {
@@ -75,6 +81,10 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     return await this.removeUnauthorized(await this.raw.findByInternalId(internalId))
   }
 
+  async findById (id: string) {
+    return await this.removeUnauthorized(await this.raw.findById(id))
+  }
+
   async getAncestors (folder: AssetFolder) {
     return await this.removeUnauthorized(await this.raw.getAncestors(folder))
   }
@@ -106,6 +116,54 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     } catch (err: any) {
       console.error(err)
       throw new Error('Could not create asset folder')
+    }
+  }
+
+  async rename (folderId: string, name: string) {
+    const folder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
+    if (!folder) throw new Error('Folder to be renamed does not exist')
+    if (isNull(folder.parentInternalId)) throw new Error('Root asset folders cannot be renamed.')
+    if (!(await this.haveAssetFolderPerm(folder, 'update'))) throw new Error(`Current user is not permitted to rename folder ${String(folder.name)}.`)
+    try {
+      await renameAssetFolder(folder.internalId, name)
+      this.loaders.clear()
+      const updatedFolder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
+      return new AssetFolderResponse({ assetFolder: updatedFolder, success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('Could not rename asset folder')
+    }
+  }
+
+  async delete (folderId: string) {
+    const folder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
+    if (!folder) throw new Error('Folder to be deleted does not exist')
+    if (isNull(folder.parentInternalId)) throw new Error('Root asset folders cannot be deleted.')
+    if (!(await this.haveAssetFolderPerm(folder, 'delete'))) throw new Error(`Current user is not permitted to delete folder ${String(folder.name)}.`)
+    const currentUser = await this.currentUser()
+    try {
+      await deleteAssetFolder(folder.internalId, currentUser!.internalId)
+      this.loaders.clear()
+      const deletedfolder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
+      return new AssetFolderResponse({ assetFolder: deletedfolder, success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('Could not delete asset folder')
+    }
+  }
+
+  async undelete (folderId: string) {
+    const folder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
+    if (!folder) throw new Error('Folder to be restored does not exist')
+    if (!(await this.haveAssetFolderPerm(folder, 'undelete'))) throw new Error(`Current user is not permitted to restore folder ${String(folder.name)}.`)
+    try {
+      await undeleteAssetFolder(folder.internalId)
+      this.loaders.clear()
+      const restoredfolder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
+      return new AssetFolderResponse({ assetFolder: restoredfolder, success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('Could not restore asset folder')
     }
   }
 
