@@ -5,7 +5,8 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } fro
 import {
   Pagetree, PagetreeService, Role, JsonData, Site, SiteService, Template, TemplateFilter,
   User, UserService, ObjectVersion, VersionedService, CreatePageInput, Page, PageFilter,
-  PagePermission, PagePermissions, PageResponse, PageService, PageRuleService, RoleService, PagetreeType
+  PagePermission, PagePermissions, PageResponse, PageService, PageRuleService, RoleService,
+  PagetreeType, UpdatePageInput
 } from 'internal'
 
 @Resolver(of => Page)
@@ -159,6 +160,11 @@ export class PageResolver {
   @Mutation(returns => PageResponse, { description: 'Create a new page.' })
   async createPage (@Ctx() ctx: Context, @Arg('args', type => CreatePageInput) args: CreatePageInput) {
     // return await ctx.svc(PageService).createPage(args)
+  }
+
+  @Mutation(returns => PageResponse)
+  async updatePage (@Ctx() ctx: Context, @Arg('pageId', type => ID) pageId: string, @Arg('args', type => UpdatePageInput) args: UpdatePageInput) {
+    return await ctx.svc(PageService).updatePage(pageId, args)
   }
 
   @Mutation(returns => PageResponse)

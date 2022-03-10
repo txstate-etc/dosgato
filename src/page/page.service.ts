@@ -5,7 +5,7 @@ import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
   CreatePageInput, PageLinkInput, PageResponse, createPage, getPages, movePage,
   deletePage, renamePage, TemplateService, PagetreeService, SiteService,
-  TemplateFilter, Template
+  TemplateFilter, Template, getPageIndexes, UpdatePageInput
 } from 'internal'
 import { BaseService } from '@txstate-mws/graphql-server'
 
@@ -267,14 +267,38 @@ export class PageService extends DosGatoService<Page> {
   async createPage (args: CreatePageInput) {
     const { parent, aboveTarget } = await this.resolveTarget(args.targetId, args.above)
     if (!(await this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
-    // TODO check page template to see if it's permitted
+    const template = await this.svc(TemplateService).findByKey(args.templateKey)
+    if (!template) throw new Error('Cannot find template.')
+    // TODO is it a correct assumption that the approved templates for the new page will match its parent's approved templates?
+    const approvedTemplates = await this.getApprovedTemplates(parent)
+    if (approvedTemplates.find(t => t.id === template.id)) {
+      throw new Error(`Template ${template.name} is not approved for use in this site or pagetree.`)
+    }
     const page = await createPage(this.svc(VersionedService), this.auth!.login, parent, aboveTarget, args.name, args.templateKey, args.schemaVersion)
     return new PageResponse({ success: true, page })
+  }
+
+  async updatePage (dataId: string, args: UpdatePageInput) {
+    const page = await this.raw.findById(dataId)
+    if (!page) throw new Error('Cannot update a page that does not exist.')
+    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    try {
+      // TODO: What else needs to happen here? Is this where validatePage gets called?
+      const indexes = getPageIndexes(args.data)
+      await this.svc(VersionedService).update(dataId, args.data, indexes, { user: this.auth!.login, comment: args.comment, version: args.dataVersion })
+      this.loaders.clear()
+      const updated = await this.raw.findById(dataId)
+      return new PageResponse({ success: true, page: updated })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error(`Could not update page ${String(page.name)}`)
+    }
   }
 
   async renamePage (dataId: string, name: string) {
     const page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot rename a page that does not exist.')
+    if (page.path === '/') throw new Error('Cannot rename the root page') // TODO: Does this check belong in mayMove()? Editors shouldn't move the root page either
     if (!(await this.mayMove(page))) throw new Error('Current user is not permitted to rename this page')
     try {
       await renamePage(page, name)
@@ -283,7 +307,7 @@ export class PageService extends DosGatoService<Page> {
       return new PageResponse({ success: true, page: updated })
     } catch (err: any) {
       console.log(err)
-      throw new Error('An unknown error ocurred while trying to delete a page.')
+      throw new Error('An unknown error ocurred while trying to rename a page.')
     }
   }
 

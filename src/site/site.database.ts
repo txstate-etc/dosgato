@@ -19,7 +19,7 @@ function processFilters (filter?: SiteFilter) {
     }
   }
   if (filter?.assetRootIds?.length) {
-    where.push(`sites.rootAssetFolderId IN ${db.in(binds, filter.assetRootIds)}`)
+    where.push(`sites.rootAssetFolderId IN (${db.in(binds, filter.assetRootIds)})`)
   }
   return { where, binds }
 }
