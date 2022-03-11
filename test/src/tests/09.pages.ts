@@ -227,7 +227,8 @@ describe('pages', () => {
     expect(facultyPage.versions).to.have.lengthOf(2)
     for (const version of facultyPage.versions) {
       if (version.version === 1) {
-        expect(version.data).to.eql({ title: 'Faculty' })
+        expect(version.data.title).to.equal('Faculty')
+        expect(version.data).to.not.have.property('hideNav')
       }
       if (version.version === 2) {
         expect(version.data.hideNav).to.be.true
