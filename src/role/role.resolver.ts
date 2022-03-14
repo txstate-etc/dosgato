@@ -1,7 +1,7 @@
 import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
-  AssetRule, AssetRuleService, DataRule, DataRuleService, GlobalRule, GlobalRuleService,
+  AssetRule, AssetRuleService, AssetRuleFilter, DataRule, DataRuleService, GlobalRule, GlobalRuleService,
   PageRule, PageRuleService, SiteRule, SiteRuleFilter, SiteRuleService, Group, GroupFilter,
   GroupService, User, UserFilter, UserService, Role, RoleFilter, RolePermissions, RoleResponse,
   RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType
@@ -25,8 +25,8 @@ export class RoleResolver {
   }
 
   @FieldResolver(returns => [AssetRule])
-  async assetRules (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(AssetRuleService).findByRoleId(role.id)
+  async assetRules (@Ctx() ctx: Context, @Root() role: Role, @Arg('filter', { nullable: true }) filter?: AssetRuleFilter) {
+    return await ctx.svc(AssetRuleService).findByRoleId(role.id, filter)
   }
 
   @FieldResolver(returns => [DataRule])

@@ -83,7 +83,7 @@ export async function fixtures () {
   const [superuserRole, editorRole, site1editorRole, site2editorRole, site3editorRole, group6Role, group7Role,
     site1siterulestest1, site1siterulestest2, site2siterulestest1, site5siterulestest1, site5siterulestest2,
     site5siterulestest3, siteLauncherRole, templaterulestest1, templaterulestest2, assetrulestest1, assetrulestest2,
-    assetrulestest3, assetrulestest4, pagerulestest1, pagerulestest2, pagerulestest3, pagerulestest4,
+    assetrulestest3, assetrulestest4, assetrulestest5, pagerulestest1, pagerulestest2, pagerulestest3, pagerulestest4,
     datarulestest1, datarulestest2, datarulestest3, datarulestest4] = await Promise.all([
     db.insert('INSERT INTO roles (name) VALUES ("superuser")'),
     db.insert('INSERT INTO roles (name) VALUES ("editor")'),
@@ -105,6 +105,7 @@ export async function fixtures () {
     db.insert('INSERT INTO roles (name) VALUES ("assetrulestest2")'),
     db.insert('INSERT INTO roles (name) VALUES ("assetrulestest3")'),
     db.insert('INSERT INTO roles (name) VALUES ("assetrulestest4")'),
+    db.insert('INSERT INTO roles (name) VALUES ("assetrulestest5")'),
     db.insert('INSERT INTO roles (name) VALUES ("pagerulestest1")'),
     db.insert('INSERT INTO roles (name) VALUES ("pagerulestest2")'),
     db.insert('INSERT INTO roles (name) VALUES ("pagerulestest3")'),
@@ -164,6 +165,7 @@ export async function fixtures () {
     db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?, ?, ?, ?)', [site4, '/', 'site4', nanoid(10)]),
     db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?, ?, ?, ?)', [site5, '/', 'site5', nanoid(10)])
   ])
+  await db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?, ?, ?, ?)', [site1, `/${site1AssetRoot}`, 'images', nanoid(10)])
 
   await Promise.all([
     db.update('UPDATE sites SET primaryPagetreeId = ?, rootAssetFolderid = ? WHERE id = ?', [pagetree1, site1AssetRoot, site1]),
@@ -209,6 +211,7 @@ export async function fixtures () {
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed06, assetrulestest2]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed11, assetrulestest3]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed11, assetrulestest4]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed06, assetrulestest5]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed12, pagerulestest1]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed12, pagerulestest2]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed13, pagerulestest3]),
@@ -264,7 +267,10 @@ export async function fixtures () {
     db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `create`, `update`, `move`) VALUES (?,?,?,?,?)', [assetrulestest1, site1, 1, 1, 1]),
     db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `create`, `update`, `move`, `undelete`) VALUES (?,?,?,?,?,?)', [assetrulestest1, site2, 1, 1, 1, 1]),
     db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `delete`, `undelete`) VALUES (?,?,?,?)', [assetrulestest3, site1, 1, 1]),
-    db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `create`, `update`) VALUES (?,?,?,?)', [assetrulestest4, site1, 1, 1])
+    db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `create`, `update`) VALUES (?,?,?,?)', [assetrulestest4, site1, 1, 1]),
+    db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `delete`, `undelete`) VALUES (?,?,?,?)', [assetrulestest5, site2, 1, 1]),
+    db.insert('INSERT INTO assetrules (`roleId`, `move`) VALUES (?,?)', [assetrulestest5, 1]),
+    db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `path`, `mode`, `create`, `update`, `move`) VALUES (?,?,?,?,?,?,?)', [assetrulestest5, site1, '/site1/images', 'self', 1, 1, 1])
   ])
   await Promise.all([
     db.insert('INSERT INTO pagerules (`roleId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1, 1, 1]),

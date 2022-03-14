@@ -19,6 +19,7 @@ const assetRulesByRoleLoader = new OneToManyLoader({
   fetch: async (roleIds: string[], filter?: AssetRuleFilter) => {
     return await getAssetRules({ ...filter, roleIds })
   },
+  keysFromFilter: (filter: AssetRuleFilter | undefined) => filter?.roleIds ?? [],
   extractKey: (r: AssetRule) => r.roleId,
   idLoader: assetRulesByIdLoader
 })

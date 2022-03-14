@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import { expect } from 'chai'
 import { query } from '../common'
+import { hashify } from 'txstate-utils'
 
 describe('global rules', () => {
   it('should get global rules for a role', async () => {
@@ -23,7 +24,6 @@ describe('site rules', () => {
     const resp = await query('{ roles(filter: { users: ["ed06"] }) { name siteRules { grants { delete launch manageOwners managePagetrees promotePagetree rename undelete viewForEdit } } } }')
     const testrole1 = resp.roles.find((r: any) => r.name === 'site1-siterulestest1')
     const siteRules = testrole1.siteRules[0]
-    console.log(testrole1.siteRules, siteRules)
     expect(siteRules.grants.delete).to.be.false
     expect(siteRules.grants.launch).to.be.true
     expect(siteRules.grants.manageOwners).to.be.true
@@ -160,15 +160,81 @@ describe('asset rules', () => {
     const assetruletest1 = roles.find((r: any) => r.name === 'assetrulestest1')
     expect(assetruletest1.assetRules).to.deep.include({ grants: { create: true, update: true, move: true, delete: false, undelete: false, view: true, viewForEdit: true } })
   })
-  it.skip('should filter asset rules by site ID', async () => {})
-  it.skip('should filter asset rules by null site ID', async () => {})
-  it.skip('should filter asset rules by role ID', async () => {})
-  it.skip('should filter asset rules by path', async () => {})
-  it.skip('should return asset rules that grant the "create" permission', async () => {})
-  it.skip('should return asset rules that grant the "update" permission', async () => {})
-  it.skip('should return asset rules that grant the "move" permission', async () => {})
-  it.skip('should return asset rules that grant the "delete" permission', async () => {})
-  it.skip('should return asset rules that grant the "undelete" permission', async () => {})
+  it('should filter asset rules by site ID', async () => {
+    const { sites } = await query('{ sites { id name } }')
+    const site1 = sites.find((s: any) => s.name === 'site1')
+    const { roles } = await query(`{ roles(filter: { users: ["ed06"] }) { name assetRules(filter: { siteIds: [${site1.id}]}) {site { id name } } } }`)
+    const assetruletest1 = roles.find((r: any) => r.name === 'assetrulestest1')
+    for (const rule of assetruletest1.assetRules) {
+      expect(rule.site.name).to.equal('site1')
+    }
+  })
+  it('should filter asset rules by null site ID', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed06"] }) { name assetRules(filter: { siteIds: [null]}) {site { id name } grants { create move } } } }')
+    const assetruletest5 = roles.find((r: any) => r.name === 'assetrulestest5')
+    for (const rule of assetruletest5.assetRules) {
+      expect(rule.site).to.be.null
+      expect(rule.grants.create).to.be.false
+      expect(rule.grants.move).to.be.true
+    }
+  })
+  it('should filter asset rules by role ID', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed06"] }) { id name } }')
+    const assetruletest1 = resp.roles.find((r: any) => r.name === 'assetrulestest1')
+    const { roles } = await query(`{ roles(filter: { users: ["ed06"] }) { name assetRules(filter: { roleIds: [${assetruletest1.id}] }) { role { id name } grants { create delete move undelete update view viewForEdit } } } }`)
+    for (const role of roles) {
+      for (const rule of role.assetRules) {
+        expect(rule.role.name).to.equal('assetrulestest1')
+      }
+    }
+  })
+  it('should filter asset rules by path', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed06"] }) { name assetRules(filter: { paths: ["/site1/images"]}) { path grants { create update move delete undelete } } } }')
+    const assetruletest5 = roles.find((r: any) => r.name === 'assetrulestest5')
+    for (const rule of assetruletest5.assetRules) {
+      expect(rule.path).to.equal('/site1/images')
+    }
+  })
+  it('should return asset rules that grant the "create" permission', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed11"] }) { name assetRules(filter: { create: true }) { grants { create update move delete undelete } } } }')
+    for (const role of roles) {
+      for (const rule of role.assetRules) {
+        expect(rule.grants.create).to.be.true
+      }
+    }
+  })
+  it('should return asset rules that grant the "update" permission', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed11"] }) { name assetRules(filter: { update: true }) { grants { create update move delete undelete } } } }')
+    for (const role of roles) {
+      for (const rule of role.assetRules) {
+        expect(rule.grants.update).to.be.true
+      }
+    }
+  })
+  it('should return asset rules that grant the "move" permission', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed11"] }) { name assetRules(filter: { move: true }) { grants { create update move delete undelete } } } }')
+    for (const role of roles) {
+      for (const rule of role.assetRules) {
+        expect(rule.grants.move).to.be.true
+      }
+    }
+  })
+  it('should return asset rules that grant the "delete" permission', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed11"] }) { name assetRules(filter: { delete: true }) { grants { create update move delete undelete } } } }')
+    for (const role of roles) {
+      for (const rule of role.assetRules) {
+        expect(rule.grants.delete).to.be.true
+      }
+    }
+  })
+  it('should return asset rules that grant the "undelete" permission', async () => {
+    const { roles } = await query('{ roles(filter: { users: ["ed11"] }) { name assetRules(filter: { undelete: true }) { grants { create update move delete undelete } } } }')
+    for (const role of roles) {
+      for (const rule of role.assetRules) {
+        expect(rule.grants.undelete).to.be.true
+      }
+    }
+  })
   it('should get the role attached to an asset rule', async () => {
     const { roles } = await query('{ roles(filter: { users: ["ed06"] }) { name assetRules { id role { name } } } }')
     for (const role of roles) {
@@ -270,7 +336,16 @@ describe('template rules', () => {
     const templates = test1role.templateRules.map((r: any) => r.template.name)
     expect(templates).to.have.members(['pagetemplate1', 'pagetemplate2', 'pagetemplate3'])
   })
-  it.skip('should filter template rules by role ID', async () => {})
+  it('should filter template rules by role ID', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed07"] }) { id name } }')
+    const templateruletest1 = resp.roles.find((r: any) => r.name === 'templaterulestest1')
+    const { roles } = await query(`{ roles(filter: { users: ["ed07"] }) { name templateRules(filter: { roleIds: [${templateruletest1.id}] }) { role { id name } grants { use } } } }`)
+    for (const role of roles) {
+      for (const rule of role.templateRules) {
+        expect(rule.role.name).to.equal('templaterulestest1')
+      }
+    }
+  })
   it('should filter template rules by template key', async () => {
     const resp = await query('{ roles(filter: { users: ["ed07"] }) { name templateRules(filter: {templateKeys: ["keyp1"]}) { id template { name } } } }')
     const test1role = resp.roles.find((r: any) => r.name === 'templaterulestest1')
