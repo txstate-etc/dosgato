@@ -99,7 +99,7 @@ export class AssetResolver {
 
   @Mutation(returns => AssetResponse, { description: 'Create a new asset asset in an asset folder.' })
   async createAsset (@Ctx() ctx: Context, @Arg('args', type => CreateAssetInput) args: CreateAssetInput) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetService).create(args)
   }
 
   @Mutation(returns => AssetResponse, { description: 'Update an asset' })

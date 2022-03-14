@@ -5,6 +5,7 @@ export * from './registry'
 export * from './rules'
 export * from './sharedtypes'
 export * from './mutationlogger'
+export * from './filehandler'
 
 export function normalizePath (path: string) {
   return (path.startsWith('/') ? '' : '/') + (path.endsWith('/') ? path.substr(0, -1) : path)

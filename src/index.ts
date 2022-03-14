@@ -3,6 +3,8 @@ import { install } from 'source-map-support'
 install()
 import { GQLServer } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
+import multipart from 'fastify-multipart'
+import { promises as fsp } from 'fs'
 import { migrations } from './migrations'
 import {
   DateTimeScalar, UrlSafeString, UrlSafeStringScalar,
@@ -25,12 +27,19 @@ import {
   VersionResolver, OrganizationResolver,
   AccessResolver,
   TemplateRulePermissionsResolver, TemplateRuleResolver,
-  logMutation
+  logMutation, handleUpload
 } from 'internal'
 
 async function main () {
   await migrations()
   const server = new GQLServer()
+  await server.app.register(multipart)
+  await fsp.mkdir('/files/tmp', { recursive: true })
+  server.app.post('/assets', async (req, res) => {
+    // TODO: restrict this endpoint to logged in users
+    const files = await handleUpload(req, res)
+    return files
+  })
   await server.start({
     resolvers: [
       AccessResolver,

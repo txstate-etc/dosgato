@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
+import { extension } from 'mime-types'
 import { JsonData, UrlSafeString } from 'internal'
 
 @ObjectType({ description: 'Asset attributes only available for visual inline assets like images, animated GIFS, or videos.' })
@@ -63,13 +64,13 @@ export class Asset {
     this.name = row.name
     this.size = row.filesize
     this.mime = row.mime // should be detected upon upload
-    this.extension = row.extension // prefer to use a library here that takes this.mime as input
+    this.extension = extension(this.mime) || '' // TODO: extension can return false if mime is blank, not a string, or unrecognized. What should the extension be in that case?
     this.box = BoxAttributes.hasBox(row) ? new BoxAttributes(row) : undefined
     this.folderInternalId = row.folderId
     this.dataId = row.dataId
     this.lastRawDownload = row.lastDownload
-    this.deleted = isNotNull(row.deleted)
-    this.deletedAt = DateTime.fromJSDate(row.deleted)
+    this.deleted = isNotNull(row.deletedAt)
+    this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
   }
 }
@@ -106,6 +107,12 @@ export class CreateAssetInput {
 
   @Field()
   checksum!: string
+
+  @Field()
+  mime!: string
+
+  @Field()
+  size!: number
 
   // TODO: Other fields? Fields for binaries table?
 }

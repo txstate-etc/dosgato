@@ -2,7 +2,8 @@ import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader } from 'dataloader-factory'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
-  SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal
+  SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, CreateAssetInput,
+  createAsset, VersionedService, AssetResponse, FileSystemHandler
 } from 'internal'
 
 const assetsByFolderInternalIdLoader = new OneToManyLoader({
@@ -79,6 +80,23 @@ export class AssetService extends DosGatoService<Asset> {
   async getLatestDownload (asset: Asset) {
     const resizes = await this.getResizes(asset)
     return await getLatestDownload(asset, resizes.map(r => r.binaryId))
+  }
+
+  async create (args: CreateAssetInput) {
+    const folder = await this.svc(AssetFolderService).findById(args.folderId)
+    if (!folder) throw new Error('Specified folder does not exist')
+    if (!(await this.haveAssetFolderPerm(folder, 'create'))) throw new Error(`Current user is not permitted to add assets to folder ${String(folder.name)}.`)
+    try {
+      await FileSystemHandler.moveToPermLocation(args.checksum)
+      const versionedService = this.svc(VersionedService)
+      const asset = await createAsset(versionedService, this.auth!.login, args)
+      this.loaders.clear()
+      return new AssetResponse({ asset, success: true })
+    } catch (err: any) {
+      console.error(err)
+      // TODO: Need to distinguish between errors that happen when moving the file and errors releated to the database
+      throw new Error('Could not create asset')
+    }
   }
 
   async mayViewManagerUI () {
