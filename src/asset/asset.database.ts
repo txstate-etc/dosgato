@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
-import { Asset, AssetFilter, AssetResize, VersionedService, CreateAssetInput } from 'internal'
+import { Asset, AssetFilter, AssetResize, VersionedService, CreateAssetInput, AssetFolder } from 'internal'
 import { DateTime } from 'luxon'
 import stringify from 'fast-json-stable-stringify'
 
@@ -99,4 +99,22 @@ export async function createAsset (versionedService: VersionedService, userId: s
       VALUES(?, ?, ?, ?)`, [args.name, folderInternalId!, dataId, args.checksum])
     return new Asset(await db.getrow('SELECT * FROM assets WHERE id=?', [newInternalId]))
   })
+}
+
+export async function moveAsset (id: number, targetFolder: AssetFolder, targetFolderParent: AssetFolder) {
+  return await db.transaction(async db => {
+    const folder = new AssetFolder(await db.getrow('SELECT * FROM assetfolders WHERE id = ?', [targetFolder.internalId]))
+    // Ensure the target folder has not moved.
+    // Someone else may have moved it somewhere the current user does not have permission to create assets
+    if (folder.parentInternalId !== targetFolderParent.internalId) throw new Error('Target folder has moved since the mutation began.')
+    return await db.update('UPDATE assets set folderId = ? WHERE id = ?', [targetFolder.internalId, id])
+  })
+}
+
+export async function deleteAsset (id: number, userInternalId: number) {
+  return await db.update('UPDATE assets SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [userInternalId, id])
+}
+
+export async function undeleteAsset (id: number) {
+  return await db.update('UPDATE assets SET deletedBy = null, deletedAt = null WHERE id = ?', [id])
 }

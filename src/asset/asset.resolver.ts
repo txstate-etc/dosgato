@@ -112,17 +112,17 @@ export class AssetResolver {
     @Arg('assetId', type => ID) assetId: string,
     @Arg('targetFolderId', type => ID) targetFolderId: string
   ) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetService).move(assetId, targetFolderId)
   }
 
   @Mutation(returns => AssetResponse)
   async deleteAsset (@Ctx() ctx: Context, @Arg('assetId', type => ID) assetId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetService).delete(assetId)
   }
 
   @Mutation(returns => AssetResponse)
   async undeleteAsset (@Ctx() ctx: Context, @Arg('assetId', type => ID) assetId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(AssetService).undelete(assetId)
   }
 }
 
