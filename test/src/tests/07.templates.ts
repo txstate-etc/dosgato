@@ -7,7 +7,6 @@ describe('templates', () => {
     const resp = await query('{ templates { key name } }')
     expect(resp.templates).to.have.lengthOf(10)
   })
-  it.skip('should retrieve template by id', async () => {})
   it('should retrieve templates by keys', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp1", "keyc1", "keyd1"] }) { key name } }')
     expect(resp.templates.length).to.equal(3)
