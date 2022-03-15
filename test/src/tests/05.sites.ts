@@ -1,35 +1,62 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import { expect } from 'chai'
 import { query } from '../common'
+import { hashify } from 'txstate-utils'
 
 describe('sites', () => {
+  let sitehash: any
+  let sites: any
+  before(async () => {
+    const resp = await query(`
+    {
+      sites {
+        id
+        name
+        owner { id name }
+        managers { id name }
+        pagetrees { id name type }
+        templates { key name }
+        pageroot { id name }
+        datafolders { id name }
+        organization { id name }
+        assetroot { id name }
+        launched
+        roles { id name }
+      }
+    }`)
+    sites = resp.sites
+    sitehash = hashify(sites, 'name')
+  })
   it('should retrieve all sites', async () => {
-    const resp = await query('{ sites { id, name } }')
-    expect(resp.sites).to.have.lengthOf(5)
+    expect(sites).to.have.lengthOf(6)
   })
   it('should retrieve sites by id', async () => {
-    const resp = await query('{ sites { id, name } }')
-    const ids = resp.sites.map((s: any) => s.id)
+    const ids = sites.map((s: any) => s.id)
     const resp2 = await query(`{ sites(filter: { ids: [${ids.join(',')}] }) { id, name } }`)
     expect(resp2.sites).to.have.lengthOf(ids.length)
   })
-  it.skip('should retrieve sites by launchUrl', async () => {})
-  it.skip('should retrieve launched sites', async () => {})
+  it('should retrieve sites by launchUrl', async () => {
+    const { sites } = await query('{ sites(filter: {launchUrls: [{host: "www.example.com", path: "/site3/"}]}) { id name url { host path } } }')
+    for (const site of sites) {
+      expect(site.url.host).to.equal('www.example.com')
+      expect(site.url.path.indexOf('/site3/')).to.be.greaterThan(-1)
+    }
+  })
+  it('should retrieve launched sites', async () => {
+    const { sites } = await query('{ sites(filter: {launched: true}) { id name launched } }')
+    for (const site of sites) {
+      expect(site.launched).to.be.true
+    }
+  })
   it('should retrieve site owners', async () => {
-    const resp = await query('{ sites { id, name, owner { id name } } }')
-    const site2 = resp.sites.find((s: any) => s.name === 'site2')
-    expect(site2.owner.name).to.equal('Michael Scott')
+    expect(sitehash.site2.owner.name).to.equal('Michael Scott')
   })
   it('should retrieve site managers', async () => {
-    const resp = await query('{ sites { id, name, managers { id name } } }')
-    const site3 = resp.sites.find((s: any) => s.name === 'site3')
-    const managerNames = site3.managers.map((m: any) => m.name)
+    const managerNames = sitehash.site3.managers.map((m: any) => m.name)
     expect(managerNames).to.have.members(['Draco Malfoy', 'Luke Skywalker'])
   })
   it('should get pagetrees for sites', async () => {
-    const resp = await query('{ sites { id name pagetrees { id name type } } }')
-    const site3 = resp.sites.find((s: any) => s.name === 'site3')
-    const pagetreeNames = site3.pagetrees.map((p: any) => p.name)
+    const pagetreeNames = sitehash.site3.pagetrees.map((p: any) => p.name)
     expect(pagetreeNames).to.have.members(['pagetree3', 'pagetree3sandbox'])
   })
   it('should get filtered pagetrees for sites', async () => {
@@ -40,9 +67,7 @@ describe('sites', () => {
     expect(pagetreeNames).to.not.have.members(['pagetree3sandbox'])
   })
   it('should get templates for sites', async () => {
-    const resp = await query('{ sites { id name templates { key name } } }')
-    const site2 = resp.sites.find((s: any) => s.name === 'site2')
-    const templateNames = site2.templates.map((t: any) => t.key)
+    const templateNames = sitehash.site2.templates.map((t: any) => t.key)
     expect(templateNames).to.have.members(['keyp1'])
   })
   it('should get filtered templates for sites', async () => {
@@ -54,14 +79,10 @@ describe('sites', () => {
     expect(templateNames).to.have.members(['keyp3'])
   })
   it('should get the root page for a site', async () => {
-    const { sites } = await query('{ sites { id name pageroot { id name } } }')
-    const site2 = sites.find((s: any) => s.name === 'site2')
-    expect(site2.pageroot.name).to.equal('site2')
+    expect(sitehash.site2.pageroot.name).to.equal('site2')
   })
   it('should get the datafolders for a site', async () => {
-    const { sites } = await query(' { sites { id name datafolders { id name } } }')
-    const site2 = sites.find((s: any) => s.name === 'site2')
-    const foldernames = site2.datafolders.map((f: any) => f.name)
+    const foldernames = sitehash.site2.datafolders.map((f: any) => f.name)
     expect(foldernames).to.have.members(['site2datafolder', 'deletedfolder'])
   })
   it('should get the datafolders for a site, with a filter', async () => {
@@ -72,15 +93,34 @@ describe('sites', () => {
     expect(foldernames).to.not.include('deletedfolder')
   })
   it('should get the organization responsible for a site', async () => {
-    const { sites } = await query('{ sites { id name organization { name } } }')
-    const site2 = sites.find((s: any) => s.name === 'site2')
-    expect(site2.organization.name).to.equal('Department of Mathematics')
+    expect(sitehash.site2.organization.name).to.equal('Department of Mathematics')
   })
   it('should get the root asset folder for a site', async () => {
-    const { sites } = await query('{ sites { name assetroot { name } } }')
-    expect(sites).to.deep.include({ name: 'site3', assetroot: { name: 'site3' } })
+    expect(sitehash.site3.assetroot).to.not.be.null
+    expect(sitehash.site3.assetroot.name).to.equal('site3')
   })
-  it.skip('should get all the roles with any permissions on a site', async () => {})
-  it.skip('should get the roles with a specific permission on a site', async () => {})
-  it.skip('should return whether or not a site is launched', async () => {})
+  it('should get all the roles with any permissions on a site', async () => {
+    const roleNames6 = sitehash.site6.roles.map((r: any) => r.name)
+    expect(roleNames6).to.include.members(['siterolestest1', 'siterolestest2'])
+    const roleNames1 = sitehash.site1.roles.map((r: any) => r.name)
+    expect(roleNames1).to.not.include.members(['siterolestest1', 'siterolestest2'])
+  })
+  it('should get the roles with a specific permission on a site', async () => {
+    const resp = await query(`
+    {
+      sites(filter: { ids: [${sitehash.site6.id}] }) {
+        id
+        name
+        roles(withAssetPermission: [DELETE], withPagePermission: [DELETE], withSitePermission: [DELETE], withDataPermission: [DELETE]) {
+          name
+        }
+      }
+    }`)
+    expect(resp.sites[0].roles).to.deep.include({ name: 'siterolestest1' })
+    expect(resp.sites[0].roles).to.not.deep.include({ name: 'siterolestest2' })
+  })
+  it('should return whether or not a site is launched', async () => {
+    expect(sitehash.site1.launched).to.be.true
+    expect(sitehash.site2.launched).to.be.false
+  })
 })

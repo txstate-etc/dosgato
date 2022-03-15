@@ -3,7 +3,7 @@ import { unique } from 'txstate-utils'
 import { Site, SiteFilter, CreateSiteInput, PagetreeType, VersionedService, UpdateSiteInput } from 'internal'
 import { nanoid } from 'nanoid'
 
-const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
+const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
 
 function processFilters (filter?: SiteFilter) {
   const binds: string[] = []
@@ -17,6 +17,14 @@ function processFilters (filter?: SiteFilter) {
     } else {
       where.push('sites.launchHost IS NULL')
     }
+  }
+  if (filter?.launchUrls?.length) {
+    const ors = []
+    for (const launchUrl of filter.launchUrls) {
+      ors.push('(sites.launchHost = ? AND sites.launchPath like ?)')
+      db.in(binds, [launchUrl.host, `${launchUrl.path}%`])
+    }
+    where.push(ors.join(' OR '))
   }
   if (filter?.assetRootIds?.length) {
     where.push(`sites.rootAssetFolderId IN (${db.in(binds, filter.assetRootIds)})`)
