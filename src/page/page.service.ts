@@ -5,9 +5,9 @@ import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
   CreatePageInput, PageLinkInput, PageResponse, createPage, getPages, movePage,
   deletePage, renamePage, TemplateService, PagetreeService, SiteService,
-  TemplateFilter, Template, getPageIndexes, UpdatePageInput
+  TemplateFilter, Template, getPageIndexes, UpdatePageInput, undeletePage
 } from 'internal'
-import { BaseService } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
@@ -271,7 +271,7 @@ export class PageService extends DosGatoService<Page> {
     if (!template) throw new Error('Cannot find template.')
     // TODO is it a correct assumption that the approved templates for the new page will match its parent's approved templates?
     const approvedTemplates = await this.getApprovedTemplates(parent)
-    if (approvedTemplates.find(t => t.id === template.id)) {
+    if (!approvedTemplates.find(t => t.id === template.id)) {
       throw new Error(`Template ${template.name} is not approved for use in this site or pagetree.`)
     }
     const page = await createPage(this.svc(VersionedService), this.auth!.login, parent, aboveTarget, args.name, args.templateKey, args.schemaVersion)
@@ -325,6 +325,35 @@ export class PageService extends DosGatoService<Page> {
     } catch (err: any) {
       console.error(err)
       throw new Error('An unknown error ocurred while trying to delete a page.')
+    }
+  }
+
+  async undeletePage (dataId: string) {
+    const page = await this.raw.findById(dataId)
+    if (!page) throw new Error('Cannot restore a page that does not exist.')
+    if (!(await this.mayUndelete(page))) throw new Error('Current user is not permitted to restore this page')
+    try {
+      await undeletePage(page)
+      this.loaders.clear()
+      const restored = await this.raw.findById(dataId)
+      return new PageResponse({ success: true, page: restored})
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('Unable to restore page')
+    }
+  }
+
+  async publishPage (dataId: string) {
+    const page = await this.raw.findById(dataId)
+    if (!page) throw new Error('Cannot publish a page that does not exist.')
+    if (!(await this.mayPublish(page))) throw new Error('Current user is not permitted to publish this page')
+    try {
+      await this.svc(VersionedService).tag(dataId, 'published')
+      this.loaders.clear()
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error(`Unable to publish page ${String(page.name)}.`)
     }
   }
 

@@ -159,7 +159,7 @@ export class PageResolver {
   // Mutations
   @Mutation(returns => PageResponse, { description: 'Create a new page.' })
   async createPage (@Ctx() ctx: Context, @Arg('args', type => CreatePageInput) args: CreatePageInput) {
-    // return await ctx.svc(PageService).createPage(args)
+    return await ctx.svc(PageService).createPage(args)
   }
 
   @Mutation(returns => PageResponse)
@@ -183,7 +183,7 @@ export class PageResolver {
 
   @Mutation(returns => ValidatedResponse)
   async publishPage (@Ctx() ctx: Context, @Arg('pageId', type => ID) pageId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).publishPage(pageId)
   }
 
   @Mutation(returns => ValidatedResponse)
@@ -198,7 +198,7 @@ export class PageResolver {
 
   @Mutation(returns => PageResponse)
   async undeletePage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).undeletePage(pageId)
   }
 }
 

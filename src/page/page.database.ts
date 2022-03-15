@@ -8,8 +8,7 @@ import { Page, PageFilter, VersionedService, normalizePath } from 'internal'
 async function processFilters (filter: PageFilter) {
   const binds: string[] = []
   const where: string[] = []
-  const joins: string[] = []
-  const joined = new Map<string, boolean>()
+  const joins = new Map<string, string>()
 
   // deleted
   if (isNotNull(filter.deleted)) {
@@ -55,18 +54,16 @@ async function processFilters (filter: PageFilter) {
   // pagetreeTypes
   if (filter.pagetreeTypes?.length) {
     where.push(`pagetrees.type IN (${db.in(binds, filter.pagetreeTypes)})`)
-    if (!joined.has('pagetrees')) {
-      joins.push('INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id')
-      joined.set('pagetrees', true)
+    if (!joins.has('pagetrees')) {
+      joins.set('pagetrees', 'INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id')
     }
   }
 
   // siteIds
   if (filter.siteIds?.length) {
     where.push(`pagetrees.siteId IN (${db.in(binds, filter.siteIds)})`)
-    if (!joined.has('pagetrees')) {
-      joins.push('INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id')
-      joined.set('pagetrees', true)
+    if (!joins.has('pagetrees')) {
+      joins.set('pagetrees', 'INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id')
     }
   }
 
@@ -105,7 +102,7 @@ async function processFilters (filter: PageFilter) {
 export async function getPages (filter: PageFilter, tdb: Queryable = db) {
   const { binds, where, joins } = await processFilters(filter)
   const pages = await tdb.getall(`SELECT pages.* FROM pages
-                           ${joins.join('\n')}
+                           ${joins.size ? Array.from(joins.values()).join('\n') : ''}
                            ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
                            ORDER BY \`path\`, displayOrder`, binds)
   return pages.map(p => new Page(p))
@@ -184,15 +181,19 @@ export async function movePage (page: Page, parent: Page, aboveTarget?: Page) {
 }
 
 export async function deletePage (page: Page, userInternalId: number) {
-  const binds: string[] = []
+  const binds: (string | number)[] = []
   return await db.transaction(async db => {
     binds.push(String(userInternalId))
     const children = await getPages({ internalIdPathsRecursive: [`${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`] }, db)
     const childInternalIds = children.map(c => c.internalId)
-    await db.update(`UPDATE pages SET deletedAt = NOW(), deletedBy = ? WHERE id IN (${db.in(binds, [String(page.internalId), ...childInternalIds])})`, binds)
+    await db.update(`UPDATE pages SET deletedAt = NOW(), deletedBy = ? WHERE id IN (${db.in(binds, [page.internalId, ...childInternalIds])})`, binds)
     // TODO: handle display order or just leave it? Deleted pages might be displayed in the UI so it might make sense to
     // maintain their position. Or we might want to adjust the display orders for the sibling pages that come after the deleted page?
   })
+}
+
+export async function undeletePage (page: Page) {
+  return await db.update('UPDATE pages set deletedAt = NULL, deletedBy = NULL where id = ?', [page.internalId])
 }
 
 export async function renamePage (page: Page, name: string) {
