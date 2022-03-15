@@ -7,6 +7,7 @@ import {
 import { Context } from '@txstate-mws/graphql-server'
 import stringify from 'fast-json-stable-stringify'
 import { nanoid } from 'nanoid'
+import { existsSync } from 'fs'
 
 export async function fixtures () {
   console.log('running fixtures()')
@@ -301,7 +302,7 @@ export async function fixtures () {
     const pageId = await db.transaction(async db => {
       const parentsPath = parentId && await db.getval<string>('SELECT p.path FROM pages p WHERE p.id=?', [parentId])
       const path = `${parentsPath ?? ''}${parentsPath === '/' ? '' : '/'}${parentId ?? ''}`
-      const dataId = await versionedService.create('testdata_page', pageData, indexes, 'su01')
+      const dataId = await versionedService.create('testdata_page', pageData, indexes, 'su01', db)
       return await db.insert('INSERT INTO pages (name, pagetreeId, path, displayOrder, dataId, linkId) VALUES (?,?,?,?,?,?)', [name, pagetreeId, path, displayOrder, dataId, linkId])
     })
     return pageId
@@ -590,7 +591,7 @@ export async function fixtures () {
     const ctx = new Context()
     const versionedService = new VersionedService(ctx)
     const id = await db.transaction(async db => {
-      const dataId = await versionedService.create('testdata_data', content, indexes, creator)
+      const dataId = await versionedService.create('testdata_data', content, indexes, creator, db)
       return await db.insert('INSERT INTO data (dataId, name, displayOrder) VALUES (?, ?, ?)', [dataId, name, displayOrder])
     })
     return id
@@ -646,6 +647,22 @@ export async function fixtures () {
   // deleted data
   const deletedDataId = await createData('Purple Content', 5, { title: 'Purple Text', color: 'purple', align: 'left' }, [{ name: 'template', values: ['keyd1'] }], 'su02')
   await db.update('UPDATE data SET folderId = ?, deletedAt = NOW(), deletedBy = ? WHERE id = ?', [datafolder3, su02, deletedDataId])
+
+  async function createAsset (name: string, folder: number, checksum: string, mime: string, size: number, content: any, indexes: Index[], creator: string) {
+    const ctx = new Context()
+    const versionedService = new VersionedService(ctx)
+    const id = await db.transaction(async db => {
+      const dataId = await versionedService.create('testdata_asset', content, indexes, creator, db)
+      await db.insert('INSERT INTO binaries (shasum, mime, meta, bytes) VALUES (?,?,?,?)', [checksum, mime, stringify({}), size])
+      await db.insert('INSERT INTO assets (name, folderId, dataId, shasum) VALUES (?,?,?,?)', [name, folder, dataId, checksum])
+    })
+    return id
+  }
+
+  if (existsSync('/files/storage')) {
+    await createAsset('blankpdf', site1AssetRoot, 'd731d520ca21a90b2ca28b5068cfdd678dbd3ace', 'application/pdf', 1264, { checksum: 'd731d520ca21a90b2ca28b5068cfdd678dbd3ace' }, [{ name: 'type', values: ['application/pdf'] }], 'su01')
+    await createAsset('bobcat', site1AssetRoot, '6ce119a866c6821764edcdd5b30395d0997c8aff', 'image/jpeg', 3793056, { checksum: '6ce119a866c6821764edcdd5b30395d0997c8aff' }, [{ name: 'type', values: ['image/jpeg'] }], 'su01')
+  }
 
   // register some templates
   templateRegistry.register(PageTemplate1)

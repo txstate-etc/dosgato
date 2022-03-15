@@ -1,5 +1,8 @@
 import axios from 'axios'
 import jwt from 'jsonwebtoken'
+import FormData from 'form-data'
+import fs from 'fs'
+import path from 'path'
 
 const client = axios.create({
   baseURL: 'http://dosgato-api'
@@ -32,4 +35,22 @@ export async function queryAs (login: string, query: string, variables?: any) {
 export async function createRole (name: string, username?: string) {
   const { createRole: { success, role, messages } } = await queryAs((username ?? 'su01'), 'mutation CreateRole ($name: String!) { createRole (name: $name) { success messages { message } role { id name } } }', { name })
   return { success, role, messages }
+}
+
+export async function postMultipart (endpoint: string, payload: any, filepath: string, username: string) {
+  try {
+    const formdata = new FormData()
+    formdata.append('data', JSON.stringify(payload))
+    formdata.append('uploads', fs.createReadStream(filepath))
+    // TODO: The endpoint needs to be restricted to authenticated users. Need to pass a cookie or bearer token here.
+    const config = {
+      headers: {
+        ...formdata.getHeaders()
+      }
+    }
+    return (await client.post(endpoint, formdata, config)).data
+  } catch (err: any) {
+    console.log(err)
+    throw new Error('Could not post form data')
+  }
 }
