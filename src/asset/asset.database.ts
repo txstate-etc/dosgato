@@ -101,12 +101,12 @@ export async function createAsset (versionedService: VersionedService, userId: s
   })
 }
 
-export async function moveAsset (id: number, targetFolder: AssetFolder, targetFolderParent: AssetFolder) {
+export async function moveAsset (id: number, targetFolder: AssetFolder) {
   return await db.transaction(async db => {
     const folder = new AssetFolder(await db.getrow('SELECT * FROM assetfolders WHERE id = ?', [targetFolder.internalId]))
     // Ensure the target folder has not moved.
     // Someone else may have moved it somewhere the current user does not have permission to create assets
-    if (folder.parentInternalId !== targetFolderParent.internalId) throw new Error('Target folder has moved since the mutation began.')
+    if (folder.path !== targetFolder.path) throw new Error('Target folder has moved since the mutation began.')
     return await db.update('UPDATE assets set folderId = ? WHERE id = ?', [targetFolder.internalId, id])
   })
 }

@@ -42,6 +42,14 @@ export async function renameAssetFolder (id: number, name: string) {
   return await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [name, id])
 }
 
+export async function moveAssetFolder (id: number, targetFolder: AssetFolder) {
+  return await db.transaction(async db => {
+    const folder = new AssetFolder(await db.getrow('SELECT * FROM assetfolders WHERE id = ?', [targetFolder.internalId]))
+    if (folder.path !== targetFolder.path) throw new Error('Target folder has moved since the mutation began.')
+    return await db.update('UPDATE assetfolders SET path = ? WHERE id = ?', [`/${[...targetFolder.pathSplit, targetFolder.internalId].join('/')}`, id])
+  })
+}
+
 export async function deleteAssetFolder (id: number, userInternalId: number) {
   return await db.update('UPDATE assetfolders SET deletedBy = ?, deletedAt = NOW() WHERE id = ?', [userInternalId, id])
 }

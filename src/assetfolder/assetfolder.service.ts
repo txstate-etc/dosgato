@@ -3,7 +3,7 @@ import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
   AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
   CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
-  deleteAssetFolder, undeleteAssetFolder
+  moveAssetFolder, deleteAssetFolder, undeleteAssetFolder
 } from 'internal'
 import { isNull } from 'txstate-utils'
 
@@ -132,6 +132,28 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     } catch (err: any) {
       console.error(err)
       throw new Error('Could not rename asset folder')
+    }
+  }
+
+  async move (folderId: string, targetFolderId: string) {
+    const [folder, targetFolder] = await Promise.all([
+      this.loaders.get(assetFolderByIdLoader).load(folderId),
+      this.loaders.get(assetFolderByIdLoader).load(targetFolderId)
+    ])
+    if (!folder) throw new Error('Folder to be moved does not exist')
+    if (!targetFolder) throw new Error('Target folder does not exist')
+    if (isNull(folder.parentInternalId)) throw new Error('Root asset folders cannot be moved.')
+    if (targetFolder.path.startsWith(`${folder.path}/${folder.internalId}`)) throw new Error('Cannot move an asset folder into its own subtree')
+    if (!(await this.haveAssetFolderPerm(folder, 'move'))) throw new Error(`Current user is not permitted to move folder ${String(folder.name)}.`)
+    if (!(await this.haveAssetFolderPerm(targetFolder, 'create'))) throw new Error(`Current user is not permitted to move folders to folder ${String(targetFolder.name)}.`)
+    try {
+      await moveAssetFolder(folder.internalId, targetFolder)
+      this.loaders.clear()
+      const movedFolder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
+      return new AssetFolderResponse({ assetFolder: movedFolder, success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('Could not move asset folder')
     }
   }
 

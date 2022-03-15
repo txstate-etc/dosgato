@@ -69,8 +69,8 @@ export class AssetFolderResolver {
   }
 
   @Mutation(returns => AssetFolderResponse)
-  async moveAssetFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) pageId: string, @Arg('targetId') targetId: string) {
-    throw new UnimplementedError()
+  async moveAssetFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string, @Arg('targetId', type => ID) targetId: string) {
+    return await ctx.svc(AssetFolderService).move(folderId, targetId)
   }
 
   @Mutation(returns => AssetFolderResponse)

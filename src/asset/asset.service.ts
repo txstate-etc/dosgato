@@ -114,9 +114,8 @@ export class AssetService extends DosGatoService<Asset> {
     if (!folder) throw new Error('Target asset folder does not exist')
     if (!(await this.haveAssetPerm(asset, 'move'))) throw new Error(`Current user is not permitted to move asset ${String(asset.name)}.${asset.extension}.`)
     if (!(await this.haveAssetFolderPerm(folder, 'create'))) throw new Error(`Current user is not permitted to move files to folder ${String(folder.name)}`)
-    const targetFolderParent = await this.svc(AssetFolderService).findByInternalId(folder.internalId)
     try {
-      await moveAsset(asset.internalId, folder, targetFolderParent!)
+      await moveAsset(asset.internalId, folder)
       this.loaders.clear()
       const movedAsset = await this.loaders.get(assetsByIdLoader).load(dataId)
       return new AssetResponse({ asset: movedAsset, success: true })
