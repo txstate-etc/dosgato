@@ -86,7 +86,8 @@ export async function fixtures () {
     site1siterulestest1, site1siterulestest2, site2siterulestest1, site5siterulestest1, site5siterulestest2,
     site5siterulestest3, siteLauncherRole, templaterulestest1, templaterulestest2, assetrulestest1, assetrulestest2,
     assetrulestest3, assetrulestest4, assetrulestest5, pagerulestest1, pagerulestest2, pagerulestest3, pagerulestest4,
-    datarulestest1, datarulestest2, datarulestest3, datarulestest4, siterolestest1, siterolestest2] = await Promise.all([
+    datarulestest1, datarulestest2, datarulestest3, datarulestest4, siterolestest1, siterolestest2,
+    datarolestest1, datarolestest2] = await Promise.all([
     db.insert('INSERT INTO roles (name) VALUES ("superuser")'),
     db.insert('INSERT INTO roles (name) VALUES ("editor")'),
     db.insert('INSERT INTO roles (name) VALUES ("site1-editor")'),
@@ -117,7 +118,9 @@ export async function fixtures () {
     db.insert('INSERT INTO roles (name) VALUES ("datarulestest3")'),
     db.insert('INSERT INTO roles (name) VALUES ("datarulestest4")'),
     db.insert('INSERT INTO roles (name) VALUES ("siterolestest1")'),
-    db.insert('INSERT INTO roles (name) VALUES ("siterolestest2")')
+    db.insert('INSERT INTO roles (name) VALUES ("siterolestest2")'),
+    db.insert('INSERT INTO roles (name) VALUES ("datarolestest1")'),
+    db.insert('INSERT INTO roles (name) VALUES ("datarolestest2")')
   ])
 
   const [artCollegeOrg, mathDeptOrg, officeOrg] = await Promise.all([
@@ -302,7 +305,9 @@ export async function fixtures () {
     db.insert('INSERT INTO datarules (`roleId`, `create`) VALUES (?,?)', [datarulestest3, 1]),
     db.insert('INSERT INTO datarules (`roleId`, `templateId`, `create`, `update`, `move`) VALUES (?,?,?,?,?)', [datarulestest4, datatemplate1, 1, 1, 1]),
     db.insert('INSERT INTO datarules (`roleId`, `siteId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?)', [siterolestest1, site6, 1, 1, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO datarules (`roleId`, `siteId`, `create`, `update`, `move`) VALUES (?,?,?,?,?)', [siterolestest2, site6, 1, 1, 1])
+    db.insert('INSERT INTO datarules (`roleId`, `siteId`, `create`, `update`, `move`) VALUES (?,?,?,?,?)', [siterolestest2, site6, 1, 1, 1]),
+    db.insert('INSERT INTO datarules (`roleId`, `siteId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?)', [datarolestest1, site2, 1, 1, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO datarules (`roleId`, `siteId`, `create`, `update`, `move`) VALUES (?,?,?,?,?)', [datarolestest2, site2, 1, 1, 1])
   ])
   await Promise.all([
     db.insert('INSERT INTO templaterules (`roleId`, `use`) VALUES (?,?)', [superuserRole, 1]),

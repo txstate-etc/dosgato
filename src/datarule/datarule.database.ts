@@ -18,6 +18,13 @@ function processFilters (filter: DataRuleFilter) {
     if (siteIds.length) ors.push(`datarules.siteId IN (${db.in(binds, siteIds)})`)
     where.push(ors.join('OR'))
   }
+  if (filter?.templateIds?.length) {
+    const ors = []
+    if (filter.templateIds.some(id => !id)) ors.push('datarules.templateID IS NULL')
+    const templateIds = filter.templateIds.filter(isNotNull)
+    if (templateIds.length) ors.push(`datarules.templateId IN (${db.in(binds, templateIds)})`)
+    where.push(ors.join('OR'))
+  }
   return { binds, where }
 }
 

@@ -51,8 +51,36 @@ describe('datafolder', () => {
     expect(colors).to.have.members(['red', 'blue', 'green'])
     expect(colors).to.not.have.members(['orange'])
   })
-  it.skip('should return roles that have any permissions on a datafolder', async () => {})
-  it.skip('should return roles that have a specific permission on a datafolder', async () => {})
+  it('should return roles that have any permissions on a datafolder', async () => {
+    const { data } = await query(`
+      {
+        data(filter: { deleted: false }) {
+          id
+          folder {
+            name
+            roles { id name }
+          }
+        }
+      }`)
+    const site2data = data.find((d: any) => d.folder?.name === 'site2datafolder')
+    expect(site2data.folder.roles.map((r: any) => r.name)).to.include.members(['datarolestest1', 'datarolestest2'])
+  })
+  it('should return roles that have a specific permission on a datafolder', async () => {
+    const { data } = await query(`
+      {
+        data(filter: { deleted: false }) {
+          id
+          folder {
+            name
+            roles(withPermission: [DELETE]) { id name }
+          }
+        }
+      }`)
+    const site2data = data.find((d: any) => d.folder?.name === 'site2datafolder')
+    const roleNames = site2data.folder.roles.map((r: any) => r.name)
+    expect(roleNames).to.include.members(['datarolestest1'])
+    expect(roleNames).to.not.have.members(['datarolestest2'])
+  })
 })
 
 describe('data', () => {
@@ -204,8 +232,38 @@ describe('data', () => {
     const sampleEntry = data.find((d: any) => d.data.color === 'blue')
     expect(sampleEntry.modifiedBy.id).to.equal('su01')
   })
-  it.skip('should return roles with any permissions on the data entry', async () => {})
-  it.skip('should return rols with a specific permission on a data entry', async () => {})
+  it('should return roles with any permissions on the data entry', async () => {
+    const { data } = await query(`
+      {
+        data(filter: { deleted: false }) {
+          id
+          name
+          roles {
+            id
+            name
+          }
+        }
+      }`)
+    const blueItem = data.find((d: any) => d.name === 'Blue Content')
+    expect(blueItem.roles.map((r: any) => r.name)).to.include.members(['datarolestest1', 'datarolestest2'])
+  })
+  it('should return rols with a specific permission on a data entry', async () => {
+    const { data } = await query(`
+      {
+        data(filter: { deleted: false }) {
+          id
+          name
+          roles(withPermission: [DELETE]) {
+            id
+            name
+          }
+        }
+      }`)
+    const blueItem = data.find((d: any) => d.name === 'Blue Content')
+    const roleNames = blueItem.roles.map((r: any) => r.name)
+    expect(roleNames).to.include.members(['datarolestest1'])
+    expect(roleNames).to.not.include.members(['datarolestest2'])
+  })
   it('should return a list of all versions of a data entry', async () => {
     const { data } = await query('{ data(filter: { deleted:false }) { id data versions { user { id } version data } } }')
     const entryWithVersions = data.find((d: any) => d.data.color === 'red')

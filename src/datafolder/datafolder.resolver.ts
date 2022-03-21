@@ -1,10 +1,11 @@
 import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
-import { isNull } from 'txstate-utils'
+import { isNull, unique } from 'txstate-utils'
 import {
   Data, DataFilter, DataService, Site, SiteService, Template, TemplateService,
   User, UserService, Role, DataFolder, DataFolderPermission, DataFolderPermissions,
-  DataFolderService, CreateDataFolderInput, DataFolderResponse
+  DataFolderService, CreateDataFolderInput, DataFolderResponse, DataRuleService,
+  RoleService
 } from 'internal'
 
 @Resolver(of => DataFolder)
@@ -37,7 +38,9 @@ export class DataFolderResolver {
   async roles (@Ctx() ctx: Context, @Root() folder: DataFolder,
     @Arg('withPermission', type => [DataFolderPermission], { nullable: true }) withPermission?: DataFolderPermission[]
   ) {
-    throw new UnimplementedError()
+    let rules = await ctx.svc(DataRuleService).findByDataFolder(folder)
+    if (withPermission) rules = rules.filter(r => withPermission.some(p => r.grants[p]))
+    return await ctx.svc(RoleService).findByIds(unique(rules.map(r => r.roleId)))
   }
 
   @FieldResolver(returns => DataFolderPermissions, {

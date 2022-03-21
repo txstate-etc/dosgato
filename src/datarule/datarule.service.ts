@@ -1,10 +1,10 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { Cache } from 'txstate-utils'
+import { Cache, filterAsync } from 'txstate-utils'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   tooPowerfulHelper, DosGatoService, Data, DataService, DataFolder, getDataRules, DataRule,
   createDataRule, CreateDataRuleInput, updateDataRule, UpdateDataRuleInput, deleteDataRule,
-  RoleService, DataRuleResponse, RoleServiceInternal, DataServiceInternal
+  RoleService, DataRuleResponse, RoleServiceInternal, DataServiceInternal, DataFolderService
 } from 'internal'
 import { DataRuleFilter } from './datarule.model'
 
@@ -26,7 +26,13 @@ const dataRulesBySiteLoader = new OneToManyLoader({
   extractKey: r => r.siteId!
 })
 
+const dataRulesByTemplateLoader = new OneToManyLoader({
+  fetch: async (templateIds: string[]) => await getDataRules({ templateIds }),
+  extractKey: (r: DataRule) => String(r.templateId!)
+})
+
 const dataRulesForAllSitesCache = new Cache(async () => await getDataRules({ siteIds: [null] }), { freshseconds: 3 })
+const dataRulesForAllTemplatesCache = new Cache(async () => await getDataRules({ templateIds: [null] }), { freshseconds: 3 })
 
 export class DataRuleServiceInternal extends BaseService {
   async findById (ruleId: string) {
@@ -41,6 +47,36 @@ export class DataRuleServiceInternal extends BaseService {
     const dataRulesForSite = siteId ? await this.loaders.get(dataRulesBySiteLoader).load(siteId) : []
     const globalRules = await dataRulesForAllSitesCache.get()
     return [...dataRulesForSite, ...globalRules]
+  }
+
+  async findByTemplateId (templateId?: string) {
+    const dataRulesForTemplate = templateId ? await this.loaders.get(dataRulesByTemplateLoader).load(templateId) : []
+    const globalRules = await dataRulesForAllTemplatesCache.get()
+    return [...dataRulesForTemplate, ...globalRules]
+  }
+
+  async findByDataEntry (data: Data) {
+    // a data entry can have a site, folder, or neither
+    let folderRules: DataRule[] = []
+    if (data.folderInternalId) {
+      const folder = await this.svc(DataFolderService).findByInternalId(data.folderInternalId)
+      folderRules = await this.findByDataFolder(folder!)
+    } else {
+      // TODO: What if the data is not in a folder?
+    }
+    const siteDataRules = await this.findBySiteId(data.siteId)
+    const drService = this.svc(DataRuleService)
+    return await filterAsync([...folderRules, ...siteDataRules], async rule => await drService.applies(rule, data))
+  }
+
+  async findByDataFolder (folder: DataFolder) {
+    const [siteRules, templateRules] = await Promise.all([
+      this.findBySiteId(folder.siteId),
+      this.findByTemplateId(String(folder.templateId))
+    ])
+    const drService = this.svc(DataRuleService)
+    // TODO: Should appliesToFolder be looking at the template ID for the rule and the folder to see if they match?
+    return await filterAsync([...siteRules, ...templateRules], async rule => await drService.appliesToFolder(rule, folder))
   }
 }
 
@@ -57,6 +93,14 @@ export class DataRuleService extends DosGatoService<DataRule> {
 
   async findBySiteId (siteId?: string) {
     return await this.removeUnauthorized(await this.raw.findBySiteId(siteId))
+  }
+
+  async findByDataEntry (data: Data) {
+    return await this.removeUnauthorized(await this.raw.findByDataEntry(data))
+  }
+
+  async findByDataFolder (folder: DataFolder) {
+    return await this.removeUnauthorized(await this.raw.findByDataFolder(folder))
   }
 
   async create (args: CreateDataRuleInput) {
