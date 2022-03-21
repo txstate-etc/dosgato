@@ -188,7 +188,7 @@ export class PageResolver {
 
   @Mutation(returns => ValidatedResponse)
   async unpublishPage (@Ctx() ctx: Context, @Arg('pageId', type => ID) pageId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).unpublishPage(pageId)
   }
 
   @Mutation(returns => PageResponse)

@@ -96,6 +96,17 @@ describe('pages mutations', () => {
     const { page: testpage } = await createPage('testpage10', testSite6PageRootId, 'keyp3')
     await expect(queryAs('ed07', 'mutation PublishPage ($pageId: ID!) {publishPage (pageId: $pageId) { success } }', { pageId: testpage.id })).to.be.rejected
   })
-  it.skip('should unpublish a page', async () => {})
-  it.skip('should not allow an unauthorized user to unpublish a page', async () => {})
+  it('should unpublish a page', async () => {
+    const { page: testpage } = await createPage('testpage11', testSite6PageRootId, 'keyp3')
+    await query('mutation PublishPage ($pageId: ID!) {publishPage (pageId: $pageId) { success } }', { pageId: testpage.id })
+    const { unpublishPage: { success } } = await query('mutation UnpublishPage ($pageId: ID!) { unpublishPage (pageId: $pageId) { success } }', { pageId: testpage.id })
+    expect(success).to.be.true
+    const { pages } = await query(`{ pages(filter: { ids: ["${testpage.id}"] }) { id name published }}`)
+    expect(pages[0].published).to.be.false
+  })
+  it('should not allow an unauthorized user to unpublish a page', async () => {
+    const { page: testpage } = await createPage('testpage12', testSite6PageRootId, 'keyp3')
+    await query('mutation PublishPage ($pageId: ID!) {publishPage (pageId: $pageId) { success } }', { pageId: testpage.id })
+    await expect(queryAs('ed07', 'mutation UnpublishPage ($pageId: ID!) { unpublishPage (pageId: $pageId) { success } }', { pageId: testpage.id })).to.be.rejected
+  })
 })

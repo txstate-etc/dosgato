@@ -357,6 +357,21 @@ export class PageService extends DosGatoService<Page> {
     }
   }
 
+  // TODO: Do we need to unpublish the page's subpages?
+  async unpublishPage (dataId: string) {
+    const page = await this.raw.findById(dataId)
+    if (!page) throw new Error('Cannont unpublish a page that does not exist.')
+    if (!(await this.mayUnpublish(page))) throw new Error('Current user is not permitted to unpublish this page')
+    try {
+      await this.svc(VersionedService).removeTag(dataId, 'published')
+      this.loaders.clear()
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error(`Unable to unpublish page ${String(page.name)}`)
+    }
+  }
+
   /**
    * Mutation Helpers
    */
