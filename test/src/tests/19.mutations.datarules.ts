@@ -2,14 +2,26 @@
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs, createRole } from '../common'
+import { hashify } from 'txstate-utils'
 
 chai.use(chaiAsPromised)
 
 describe('data rule mutations', () => {
+  let sitehash: any
+  let sites: any
+  before(async () => {
+    const resp = await query(`
+    {
+      sites {
+        id
+        name
+      }
+    }`)
+    sites = resp.sites
+    sitehash = hashify(sites, 'name')
+  })
   it('should create a data rule', async () => {
     const { role } = await createRole('datarulestestA')
-    const { sites } = await query('{ sites { id name } }')
-    const site5 = sites.find((s: any) => s.name === 'site5')
     const { createDataRule: { success, dataRule } } =
     await query(`mutation CreateDataRule ($args: CreateDataRuleInput!)
     {
@@ -34,7 +46,7 @@ describe('data rule mutations', () => {
           }
         }
       }
-    }`, { args: { roleId: role.id, siteId: site5.id, path: '/', grants: { create: false, update: true, delete: false, move: false, publish: true, unpublish: true, undelete: false } } })
+    }`, { args: { roleId: role.id, siteId: sitehash.site5.id, path: '/', grants: { create: false, update: true, delete: false, move: false, publish: true, unpublish: true, undelete: false } } })
     expect(success).to.be.true
     expect(dataRule.role.name).to.equal('datarulestestA')
     expect(dataRule.site.name).to.equal('site5')
@@ -46,8 +58,6 @@ describe('data rule mutations', () => {
   })
   it('should not allow an unauthorized user to create a data rule', async () => {
     const { role } = await createRole('datarulestestB')
-    const { sites } = await query('{ sites { id name } }')
-    const site5 = sites.find((s: any) => s.name === 'site5')
     await expect(queryAs('ed07', `mutation CreateDataRule ($args: CreateDataRuleInput!)
     {
       createDataRule (args: $args) {
@@ -61,7 +71,7 @@ describe('data rule mutations', () => {
           }
         }
       }
-    }`, { args: { roleId: role.id, siteId: site5.id } })).to.be.rejected
+    }`, { args: { roleId: role.id, siteId: sitehash.site5.id } })).to.be.rejected
   })
   it('should not allow a user to create a data rule with more privileges than they currently have', async () => {
     const { createDataRule: { success, messages } } = await queryAs('ed15', `mutation CreateDataRule ($args: CreateDataRuleInput!)
@@ -145,5 +155,21 @@ describe('data rule mutations', () => {
     const { roles } = await query(`{ roles(filter: { ids: [${role.id}] }) { name dataRules { id } } }`)
     expect(roles[0].dataRules).to.not.deep.include({ id: dataRule.id })
   })
-  it.skip('should not allow an unauthorized user to remove a data rule', async () => {})
+  it('should not allow an unauthorized user to remove a data rule', async () => {
+    const { role } = await createRole('datarulestestE')
+    const { createDataRule: { dataRule } } = await query(`mutation CreateDataRule ($args: CreateDataRuleInput!)
+    {
+      createDataRule (args: $args) {
+        success
+        dataRule {
+          id
+        }
+      }
+    }`, { args: { roleId: role.id, grants: { create: true, update: true, delete: true, move: true, publish: false, unpublish: false, undelete: true } } })
+    await expect(queryAs('ed07', `mutation RemoveRule ($id: ID!, $type: RuleType!) {
+      removeRule(ruleId: $id, type: $type) {
+        success
+      }
+    }`, { id: dataRule.id, type: 'DATA' })).to.be.rejected
+  })
 })

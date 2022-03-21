@@ -2,14 +2,26 @@
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs, createRole } from '../common'
+import { hashify } from 'txstate-utils'
 
 chai.use(chaiAsPromised)
 
 describe('page rule mutations', () => {
+  let sitehash: any
+  let sites: any
+  before(async () => {
+    const resp = await query(`
+    {
+      sites {
+        id
+        name
+      }
+    }`)
+    sites = resp.sites
+    sitehash = hashify(sites, 'name')
+  })
   it('should create a page rule', async () => {
     const { role } = await createRole('pagerulestestA')
-    const { sites } = await query('{ sites { id name } }')
-    const site5 = sites.find((s: any) => s.name === 'site5')
     const { createPageRule: { success, pageRule } } =
     await query(`mutation CreatePageRule ($args: CreatePageRuleInput!)
     {
@@ -36,7 +48,7 @@ describe('page rule mutations', () => {
           }
         }
       }
-    }`, { args: { roleId: role.id, siteId: site5.id, path: '/', mode: 'SELFANDSUB', grants: { create: false, update: true, delete: false, move: false, publish: true, unpublish: true, undelete: false } } })
+    }`, { args: { roleId: role.id, siteId: sitehash.site5.id, path: '/', mode: 'SELFANDSUB', grants: { create: false, update: true, delete: false, move: false, publish: true, unpublish: true, undelete: false } } })
     expect(success).to.be.true
     expect(pageRule.role.name).to.equal('pagerulestestA')
     expect(pageRule.site.name).to.equal('site5')
@@ -48,8 +60,6 @@ describe('page rule mutations', () => {
   })
   it('should not allow an unauthorized user to create a page rule', async () => {
     const { role } = await createRole('pagerulestestB')
-    const { sites } = await query('{ sites { id name } }')
-    const site5 = sites.find((s: any) => s.name === 'site5')
     await expect(queryAs('ed07', `mutation CreatePageRule ($args: CreatePageRuleInput!)
     {
       createPageRule (args: $args) {
@@ -63,7 +73,7 @@ describe('page rule mutations', () => {
           }
         }
       }
-    }`, { args: { roleId: role.id, siteId: site5.id, path: '/', mode: 'SELFANDSUB' } })).to.be.rejected
+    }`, { args: { roleId: role.id, siteId: sitehash.site5.id, path: '/', mode: 'SELFANDSUB' } })).to.be.rejected
   })
   it('should not allow a user to create a page rule with more privileges than they currently have', async () => {
     const { createPageRule: { success, messages } } = await queryAs('ed13', `mutation CreatePageRule ($args: CreatePageRuleInput!)
@@ -89,8 +99,6 @@ describe('page rule mutations', () => {
   })
   it('should update a page rule', async () => {
     const { role } = await createRole('pagerulestestC')
-    const { sites } = await query('{ sites { id name } }')
-    const site5 = sites.find((s: any) => s.name === 'site5')
     const { createPageRule: { pageRule } } = await query(`mutation CreatePageRule ($args: CreatePageRuleInput!)
     {
       createPageRule (args: $args) {
@@ -99,7 +107,7 @@ describe('page rule mutations', () => {
           id
         }
       }
-    }`, { args: { roleId: role.id, siteId: site5.id, path: '/', mode: 'SELF', grants: { create: false, update: true, delete: false, move: false, publish: false, unpublish: false, undelete: false } } })
+    }`, { args: { roleId: role.id, siteId: sitehash.site5.id, path: '/', mode: 'SELF', grants: { create: false, update: true, delete: false, move: false, publish: false, unpublish: false, undelete: false } } })
     const { updatePageRule: { success, pageRule: pageRuleUpdated } } = await query(`mutation UpdatePageRule ($args: UpdatePageRuleInput!) {
       updatePageRule (args: $args) {
         success
@@ -130,8 +138,6 @@ describe('page rule mutations', () => {
   })
   it('should remove a page rule', async () => {
     const { role } = await createRole('pagerulestestD')
-    const { sites } = await query('{ sites { id name } }')
-    const site5 = sites.find((s: any) => s.name === 'site5')
     const { createPageRule: { pageRule } } = await query(`mutation CreatePageRule ($args: CreatePageRuleInput!)
     {
       createPageRule (args: $args) {
@@ -140,7 +146,7 @@ describe('page rule mutations', () => {
           id
         }
       }
-    }`, { args: { roleId: role.id, siteId: site5.id, path: '/', mode: 'SELF', grants: { create: true, update: true, delete: false, move: true, publish: true, unpublish: true, undelete: false } } })
+    }`, { args: { roleId: role.id, siteId: sitehash.site5.id, path: '/', mode: 'SELF', grants: { create: true, update: true, delete: false, move: true, publish: true, unpublish: true, undelete: false } } })
     const { removeRule: { success } } = await query(`mutation RemoveRule ($id: ID!, $type: RuleType!) {
       removeRule(ruleId: $id, type: $type) {
         success
@@ -150,5 +156,21 @@ describe('page rule mutations', () => {
     const { roles } = await query(`{ roles(filter: { ids: [${role.id}] }) { name pageRules { id } } }`)
     expect(roles[0].pageRules).to.not.deep.include({ id: pageRule.id })
   })
-  it.skip('should not allow an unauthorized user to remove a page rule', async () => {})
+  it('should not allow an unauthorized user to remove a page rule', async () => {
+    const { role } = await createRole('pagerulestestE')
+    const { createPageRule: { pageRule } } = await query(`mutation CreatePageRule ($args: CreatePageRuleInput!)
+    {
+      createPageRule (args: $args) {
+        success
+        pageRule {
+          id
+        }
+      }
+    }`, { args: { roleId: role.id, siteId: sitehash.site5.id, path: '/', mode: 'SELF', grants: { create: true, update: false, delete: false, move: false, publish: false, unpublish: false, undelete: false } } })
+    await expect(queryAs('ed07', `mutation RemoveRule ($id: ID!, $type: RuleType!) {
+      removeRule(ruleId: $id, type: $type) {
+        success
+      }
+    }`, { id: pageRule.id, type: 'PAGE' })).to.be.rejected
+  })
 })

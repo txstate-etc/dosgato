@@ -132,7 +132,7 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
   async delete (ruleId: string) {
     const rule = await this.loaders.get(assetRulesByIdLoader).load(ruleId)
     if (!rule) throw new Error('Rule to be deleted does not exist.')
-    // TODO: what permissions need to be checked for deleting rules?
+    if (!(await this.mayWrite(rule))) throw new Error('Current user is not permitted to delete this asset rule.')
     try {
       await deleteAssetRule(ruleId)
       this.loaders.clear()
