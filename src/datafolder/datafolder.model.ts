@@ -30,8 +30,8 @@ export class DataFolder {
     this.name = row.name
     this.templateId = row.templateId
     this.siteId = optionalString(row.siteId)
-    this.deleted = isNotNull(row.deleted)
-    this.deletedAt = DateTime.fromJSDate(row.deleted)
+    this.deleted = isNotNull(row.deletedAt)
+    this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
   }
 }
@@ -63,7 +63,7 @@ export class CreateDataFolderInput {
   @Field(type => ID)
   templateId!: string
 
-  @Field(type => ID)
+  @Field(type => ID, { nullable: true })
   siteId?: string
 }
 

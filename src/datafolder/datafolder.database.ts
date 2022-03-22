@@ -1,6 +1,7 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
-import { DataFolder, DataFolderFilter } from 'internal'
+import { nanoid } from 'nanoid'
+import { DataFolder, DataFolderFilter, CreateDataFolderInput } from 'internal'
 
 export async function getDataFolders (filter: DataFolderFilter) {
   const where: string[] = []
@@ -35,4 +36,29 @@ export async function getDataFolders (filter: DataFolderFilter) {
   }
   const folders = await db.getall(`SELECT * FROM datafolders WHERE (${where.join(') AND (')})`, binds)
   return folders.map(f => new DataFolder(f))
+}
+
+export async function createDataFolder (name: string, templateInternalId: number, siteId?: string) {
+  const columns = ['name', 'guid', 'templateId']
+  const binds = [name, nanoid(10), templateInternalId]
+  if (siteId) {
+    columns.push('siteId')
+    binds.push(siteId)
+  }
+  const newInternalId = await db.insert(`
+    INSERT INTO datafolders (${columns.join(', ')})
+    VALUES(${columns.map(c => '?').join(',')})`, binds)
+  return new DataFolder(await db.getrow('SELECT * FROM datafolders WHERE id=?', [newInternalId]))
+}
+
+export async function renameDataFolder (folderId: string, name: string) {
+  return await db.update('UPDATE datafolders SET name = ? WHERE guid = ?', [name, folderId])
+}
+
+export async function deleteDataFolder (folderId: string, userInternalId: number) {
+  return await db.update('UPDATE datafolders SET deletedBy = ?, deletedAt = NOW() WHERE guid = ?', [userInternalId, folderId])
+}
+
+export async function undeleteDataFolder (folderId: string) {
+  return await db.update('UPDATE datafolders SET deletedBy = null, deletedAt = null WHERE guid = ?', [folderId])
 }

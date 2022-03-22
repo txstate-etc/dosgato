@@ -1,5 +1,5 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
+import { Context } from '@txstate-mws/graphql-server'
+import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import { isNull, unique } from 'txstate-utils'
 import {
   Data, DataFilter, DataService, Site, SiteService, Template, TemplateService,
@@ -53,23 +53,22 @@ export class DataFolderResolver {
 
   @Mutation(returns => DataFolderResponse, { description: 'Create a new data folder.' })
   async createDataFolder (@Ctx() ctx: Context, @Arg('args', type => CreateDataFolderInput) args: CreateDataFolderInput) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataFolderService).create(args)
   }
 
   @Mutation(returns => DataFolderResponse)
-  async renameDataFolder (@Ctx() ctx: Context, @Arg('folderId') folderId: string, @Arg('name') name: string) {
-    throw new UnimplementedError()
+  async renameDataFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string, @Arg('name') name: string) {
+    return await ctx.svc(DataFolderService).rename(folderId, name)
   }
 
   @Mutation(returns => DataFolderResponse)
-  async deleteDataFolder (@Ctx() ctx: Context, @Arg('folderId') folderId: string) {
-    // If we delete a data folder, do we delete all the data inside it too?
-    throw new UnimplementedError()
+  async deleteDataFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string) {
+    return await ctx.svc(DataFolderService).delete(folderId)
   }
 
   @Mutation(returns => DataFolderResponse)
-  async undeleteDataFolder (@Ctx() ctx: Context, @Arg('folderId') folderId: string) {
-    throw new UnimplementedError()
+  async undeleteDataFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string) {
+    return await ctx.svc(DataFolderService).undelete(folderId)
   }
 }
 
