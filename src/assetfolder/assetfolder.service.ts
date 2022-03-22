@@ -120,7 +120,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   }
 
   async rename (folderId: string, name: string) {
-    const folder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
+    const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Folder to be renamed does not exist')
     if (isNull(folder.parentInternalId)) throw new Error('Root asset folders cannot be renamed.')
     if (!(await this.haveAssetFolderPerm(folder, 'update'))) throw new Error(`Current user is not permitted to rename folder ${String(folder.name)}.`)
@@ -137,8 +137,8 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
 
   async move (folderId: string, targetFolderId: string) {
     const [folder, targetFolder] = await Promise.all([
-      this.loaders.get(assetFolderByIdLoader).load(folderId),
-      this.loaders.get(assetFolderByIdLoader).load(targetFolderId)
+      this.raw.findById(folderId),
+      this.raw.findById(targetFolderId)
     ])
     if (!folder) throw new Error('Folder to be moved does not exist')
     if (!targetFolder) throw new Error('Target folder does not exist')
@@ -158,7 +158,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   }
 
   async delete (folderId: string) {
-    const folder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
+    const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Folder to be deleted does not exist')
     if (isNull(folder.parentInternalId)) throw new Error('Root asset folders cannot be deleted.')
     if (!(await this.haveAssetFolderPerm(folder, 'delete'))) throw new Error(`Current user is not permitted to delete folder ${String(folder.name)}.`)
@@ -175,7 +175,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   }
 
   async undelete (folderId: string) {
-    const folder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
+    const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Folder to be restored does not exist')
     if (!(await this.haveAssetFolderPerm(folder, 'undelete'))) throw new Error(`Current user is not permitted to restore folder ${String(folder.name)}.`)
     try {
