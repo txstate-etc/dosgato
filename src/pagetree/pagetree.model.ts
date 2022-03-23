@@ -36,8 +36,10 @@ export class Pagetree {
   @Field()
   name: string
 
-  @Field()
+  @Field({ description: 'Pagetree has been soft-deleted but is still recoverable.' })
   deleted: boolean
+
+  deletedAt?: DateTime
 
   @Field({ description: 'Date this pagetree was created. If it matches the site created date, it is the pagetree that was automatically created to be the site\'s PRIMARY.' })
   created: DateTime
@@ -56,6 +58,7 @@ export class Pagetree {
     this.created = DateTime.fromJSDate(row.createdAt)
     this.archived = row.archivedAt ? DateTime.fromJSDate(row.archivedAt) : undefined
     this.deleted = isNotNull(row.deletedAt)
+    this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
   }
 }

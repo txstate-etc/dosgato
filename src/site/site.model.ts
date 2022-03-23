@@ -1,6 +1,6 @@
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import { optionalString } from 'txstate-utils'
+import { optionalString, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 
 @ObjectType()
@@ -37,6 +37,9 @@ export class Site {
   @Field({ nullable: true, description: 'URL outside the editing host that points to this site. Null if the site is not launched.' })
   url?: LaunchURL
 
+  @Field({ description: 'Site has been soft-deleted but is still recoverable.' })
+  deleted: boolean
+
   @Field({ nullable: true, description: 'Date this site was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
@@ -50,6 +53,7 @@ export class Site {
     this.rootAssetFolderInternalId = row.rootAssetFolderId
     this.organizationId = optionalString(row.organizationId)
     this.ownerId = row.ownerId
+    this.deleted = isNotNull(row.deletedAt)
     this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
   }
