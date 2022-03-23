@@ -83,10 +83,10 @@ export class CreateDataInput {
   @Field(type => JsonData)
   data!: any
 
-  @Field(type => ID)
+  @Field(type => ID, { nullable: true })
   siteId?: string
 
-  @Field(type => ID)
+  @Field(type => ID, { nullable: true })
   folderId?: string
 }
 

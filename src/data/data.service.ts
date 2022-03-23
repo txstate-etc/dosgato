@@ -1,7 +1,12 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { unique } from 'txstate-utils'
-import { Data, DataFilter, getData, VersionedService, appendPath, DosGatoService, DataFolderServiceInternal } from 'internal'
+import { DateTime } from 'luxon'
+import {
+  Data, DataFilter, getData, VersionedService, appendPath, DosGatoService,
+  DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
+  createDataEntry, DataResponse
+} from 'internal'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => await getData({ internalIds }),
@@ -105,6 +110,29 @@ export class DataService extends DosGatoService<Data> {
 
   async getPath (data: Data) {
     return await this.raw.getPath(data)
+  }
+
+  async create (args: CreateDataInput) {
+    if (args.folderId) {
+      const folder = await this.svc(DataFolderServiceInternal).findById(args.folderId)
+      if (!folder) throw new Error('Data cannot be created in a data folder that does not exist.')
+      if (!(await this.svc(DataFolderService).mayCreate(folder))) throw new Error(`Current user is not permitted to create data in folder ${String(folder.name)}`)
+    } else if (args.siteId) {
+      const site = await this.svc(SiteServiceInternal).findById(args.siteId)
+      if (!site) throw new Error('Data cannot be created in a site that does not exist.')
+      // TODO: Does the current user have permission to create data for the site?
+    } else {
+      // global data
+      if (!(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to create global data entries.')
+    }
+    try {
+      const versionedService = this.svc(VersionedService)
+      const data = await createDataEntry(versionedService, this.auth!.login, args)
+      return new DataResponse({ success: true, data })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('Unable to create data entry')
+    }
   }
 
   async mayView (data: Data) {

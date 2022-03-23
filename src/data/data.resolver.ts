@@ -106,7 +106,7 @@ export class DataResolver {
 
   @Mutation(returns => DataResponse, { description: 'Create a new data entry.' })
   async createDataEntry (@Ctx() ctx: Context, @Arg('args', type => CreateDataInput) args: CreateDataInput) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).create(args)
   }
 
   @Mutation(returns => DataResponse, { description: 'Update a data entry.' })
