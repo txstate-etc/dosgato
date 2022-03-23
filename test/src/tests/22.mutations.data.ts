@@ -5,7 +5,7 @@ import { query, queryAs } from '../common'
 
 chai.use(chaiAsPromised)
 
-async function createDataFolder (name: string, templateId: string, siteId?: string, username?: string) {
+async function createDataFolder (name: string, templateKey: string, siteId?: string, username?: string) {
   const { createDataFolder: { success, messages, dataFolder } } = await queryAs((username ?? 'su01'), `
     mutation CreateDataFolder ($args: CreateDataFolderInput!) {
       createDataFolder (args: $args) {
@@ -17,7 +17,7 @@ async function createDataFolder (name: string, templateId: string, siteId?: stri
           folder { id name }
         }
       }
-    }`, { args: { siteId, name, templateId } })
+    }`, { args: { siteId, name, templateKey } })
   return { success, messages, dataFolder }
 }
 

@@ -61,7 +61,7 @@ export class CreateDataFolderInput {
   name!: string
 
   @Field(type => ID)
-  templateId!: string
+  templateKey!: string
 
   @Field(type => ID, { nullable: true })
   siteId?: string
