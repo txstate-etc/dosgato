@@ -1,4 +1,4 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import { isNull, unique } from 'txstate-utils'
@@ -114,14 +114,14 @@ export class DataResolver {
     throw new UnimplementedError()
   }
 
-  @Mutation(returns => DataResponse, { description: 'Mark the latest version of a data entry "published."' })
+  @Mutation(returns => ValidatedResponse, { description: 'Mark the latest version of a data entry "published."' })
   async publishDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).publish(dataId)
   }
 
   @Mutation(returns => DataResponse, { description: 'Remove "published" tag from data entry' })
   async unpublishDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).unpublish(dataId)
   }
 
   @Mutation(returns => DataResponse, { description: 'Move data entry into or out of a folder or change display order. Data may only be moved into a folder containing data that uses its template.' })

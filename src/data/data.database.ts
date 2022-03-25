@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
 import { Queryable } from 'mysql2-async'
-import { Data, DataFilter, VersionedService, CreateDataInput } from 'internal'
+import { Data, DataFilter, VersionedService, CreateDataInput, DataServiceInternal } from 'internal'
 
 function processFilters (filter?: DataFilter) {
   const where: string[] = []
@@ -62,25 +62,30 @@ export async function getData (filter?: DataFilter) {
   return data.map(d => new Data(d))
 }
 
-// TODO: If data is not in a folder, does the displayOrder need to take into account the data template?
-// Should the display order for global data be such that there's an item with displayOrder: 1 for each data template used?
-// Or count from 1 to n, regardless of template?
-async function handleDisplayOrder (db: Queryable, dataFolderInternalId?: string, siteId?: string) {
+async function handleDisplayOrder (db: Queryable, versionedService: VersionedService, dataServiceInternal: DataServiceInternal, templateKey: string, dataFolderInternalId?: string, siteId?: string) {
   let maxDisplayOrder
   if (dataFolderInternalId) {
     maxDisplayOrder = await db.getval<number>('SELECT MAX(displayOrder) FROM data WHERE folderId = ?', [dataFolderInternalId])
-  } else if (siteId) {
-    maxDisplayOrder = await db.getval<number>('SELECT MAX(displayOrder) FROM data WHERE folderId IS NULL AND siteId = ?', [siteId])
   } else {
-    maxDisplayOrder = await db.getval<number>('SELECT MAX(displayOrder) FROM data WHERE folderId IS NULL AND siteId IS NULL')
+    const entriesWithTemplate = await dataServiceInternal.findByTemplate(templateKey)
+    const binds: string[] = []
+    if (siteId) {
+      // site level data, not in a folder
+      binds.push(siteId)
+      console.log(`SELECT MAX(displayOrder) FROM data WHERE folderId IS NULL AND siteId = ? AND id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})`)
+      maxDisplayOrder = await db.getval<number>(`SELECT MAX(displayOrder) FROM data WHERE folderId IS NULL AND siteId = ? AND id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})`, binds)
+    } else {
+      // global data, not in a folder
+      maxDisplayOrder = await db.getval<number>(`SELECT MAX(displayOrder) FROM data WHERE folderId IS NULL AND siteId IS NULL AND id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})`, binds)
+    }
   }
   return (maxDisplayOrder ?? 0) + 1
 }
 
-export async function createDataEntry (versionedService: VersionedService, userId: string, args: CreateDataInput) {
+export async function createDataEntry (versionedService: VersionedService, dataServiceInternal: DataServiceInternal, userId: string, args: CreateDataInput) {
   return await db.transaction(async db => {
     const dataFolderInternalId = args.folderId ? await db.getval<string>('SELECT id FROM datafolders WHERE guid = ?', [args.folderId]) : undefined
-    const displayOrder = await handleDisplayOrder(db, dataFolderInternalId, args.siteId)
+    const displayOrder = await handleDisplayOrder(db, versionedService, dataServiceInternal, args.templateKey, dataFolderInternalId, args.siteId)
     const data = Object.assign({}, args.data, { templateKey: args.templateKey, savedAtVersion: args.schemaVersion })
     const indexes = [{ name: 'template', values: [args.templateKey] }]
     // TODO: What other indexes are needed?

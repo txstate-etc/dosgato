@@ -1,7 +1,6 @@
-import { BaseService } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { unique } from 'txstate-utils'
-import { DateTime } from 'luxon'
 import {
   Data, DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
@@ -50,6 +49,10 @@ export class DataServiceInternal extends BaseService {
 
   async findByFolderInternalId (folderId: number, filter?: DataFilter) {
     return await this.loaders.get(dataByFolderInternalIdLoader, filter).load(folderId)
+  }
+
+  async findById (dataId: string) {
+    return await this.loaders.get(dataByIdLoader).load(dataId)
   }
 
   async findBySiteId (siteId: string, filter?: DataFilter) {
@@ -127,11 +130,39 @@ export class DataService extends DosGatoService<Data> {
     }
     try {
       const versionedService = this.svc(VersionedService)
-      const data = await createDataEntry(versionedService, this.auth!.login, args)
+      const data = await createDataEntry(versionedService, this.raw, this.auth!.login, args)
       return new DataResponse({ success: true, data })
     } catch (err: any) {
       console.error(err)
       throw new Error('Unable to create data entry')
+    }
+  }
+
+  async publish (dataId: string) {
+    const data = await this.raw.findById(dataId)
+    if (!data) throw new Error('Data entry to be published does not exist')
+    if (!(await this.mayPublish(data))) throw new Error('Current user is not permitted to publish this data entry.')
+    try {
+      await this.svc(VersionedService).tag(dataId, 'published')
+      this.loaders.clear()
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error(`Unable to publish data entry ${String(data.name)}`)
+    }
+  }
+
+  async unpublish (dataId: string) {
+    const data = await this.raw.findById(dataId)
+    if (!data) throw new Error('Data entry to be restored does not exist.')
+    if (!(await this.mayUnpublish(data))) throw new Error('Current user is not permitted to unpublish this data entry')
+    try {
+      await this.svc(VersionedService).removeTag(dataId, 'published')
+      this.loaders.clear()
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error(`Unable to unpublish data entry ${String(data.name)}`)
     }
   }
 
