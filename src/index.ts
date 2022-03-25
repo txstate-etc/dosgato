@@ -1,7 +1,7 @@
 /* eslint-disable import/first */
 import { install } from 'source-map-support'
 install()
-import { GQLServer } from '@txstate-mws/graphql-server'
+import { Context, GQLServer, AuthError } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import multipart from 'fastify-multipart'
 import { promises as fsp } from 'fs'
@@ -35,11 +35,14 @@ async function main () {
   const server = new GQLServer()
   await server.app.register(multipart)
   await fsp.mkdir('/files/tmp', { recursive: true })
-  server.app.post('/assets', async (req, res) => {
-    // TODO: restrict this endpoint to logged in users
+  server.app.post('/files', async (req, res) => {
+    const context = new Context()
+    const auth = await context.authFromReq(req)
+    if (!auth?.login) throw new AuthError()
     const files = await handleUpload(req, res)
     return files
   })
+  // TODO: Add endpoint for getting assets. /assets/:id or /files/:id
   await server.start({
     resolvers: [
       AccessResolver,

@@ -94,7 +94,7 @@ describe('asset mutations', () => {
   })
 
   it('should create an asset', async () => {
-    const uploadResult = await postMultipart('/assets', {}, '/usr/app/files/blank.jpg', 'su01')
+    const uploadResult = await postMultipart('/files', {}, '/usr/app/files/blank.jpg', 'su01')
     const upload = uploadResult[0]
     expect(upload.filename).to.equal('blank.jpg')
     expect(upload.mime).to.equal('image/jpeg')

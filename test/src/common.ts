@@ -37,15 +37,16 @@ export async function createRole (name: string, username?: string) {
   return { success, role, messages }
 }
 
-export async function postMultipart (endpoint: string, payload: any, filepath: string, username: string) {
+export async function postMultipart (endpoint: string, payload: any, filepath: string, login: string) {
+  tokenCache[login] ??= jwt.sign({ login: login }, process.env.JWT_SECRET ?? '')
   try {
     const formdata = new FormData()
     formdata.append('data', JSON.stringify(payload))
     formdata.append('uploads', fs.createReadStream(filepath))
-    // TODO: The endpoint needs to be restricted to authenticated users. Need to pass a cookie or bearer token here.
     const config = {
       headers: {
-        ...formdata.getHeaders()
+        ...formdata.getHeaders(),
+        authorization: `Bearer ${tokenCache[login]}`
       }
     }
     return (await client.post(endpoint, formdata, config)).data
