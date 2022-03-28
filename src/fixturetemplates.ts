@@ -1,4 +1,5 @@
-import { APITemplateType } from '@dosgato/templating'
+import { APITemplateType, WebLink } from '@dosgato/templating'
+import { isNull } from 'txstate-utils'
 
 export const PageTemplate1 = {
   type: 'page' as APITemplateType,
@@ -137,12 +138,24 @@ export const BuildingData = {
   name: 'datatemplate2',
   areas: {},
   migrations: [],
-  getLinks: (data: any) => [],
+  getLinks: (data: any) => {
+    const links: WebLink[] = []
+    links.push({ type: 'url', url: 'https://www.google.com' })
+    links.push({ type: 'url', url: 'https://www.apple.com' })
+    return links
+  },
   getFulltext: (data: any) => {
     return [data.name]
   },
   validate: async (data: any) => {
-    return {}
+    const ret: Record<string, string[]> = {}
+    if (isNull(data.name)) {
+      ret.name = ['Building name is required', 'You can not leave the building name blank.']
+    }
+    if (data.floors && data.floors > 5) {
+      ret.floors = ['Building is too tall. Too many stairs to climb']
+    }
+    return ret
   }
 }
 

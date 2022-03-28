@@ -11,3 +11,7 @@ export interface ComponentData {
 export interface PageData extends ComponentData {
   savedAtVersion: Date
 }
+
+export interface DataEntryData {
+  templateKey: string
+}

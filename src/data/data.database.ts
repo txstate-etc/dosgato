@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
 import { Queryable } from 'mysql2-async'
-import { Data, DataFilter, VersionedService, CreateDataInput, DataServiceInternal } from 'internal'
+import { Data, DataFilter, VersionedService, CreateDataInput, DataServiceInternal, getDataIndexes } from 'internal'
 
 function processFilters (filter?: DataFilter) {
   const where: string[] = []
@@ -86,10 +86,9 @@ export async function createDataEntry (versionedService: VersionedService, dataS
   return await db.transaction(async db => {
     const dataFolderInternalId = args.folderId ? await db.getval<string>('SELECT id FROM datafolders WHERE guid = ?', [args.folderId]) : undefined
     const displayOrder = await handleDisplayOrder(db, versionedService, dataServiceInternal, args.templateKey, dataFolderInternalId, args.siteId)
+    // TODO: Assuming the template key and schema version are passed in as separate arguments, but maybe they are already in the data?
     const data = Object.assign({}, args.data, { templateKey: args.templateKey, savedAtVersion: args.schemaVersion })
-    const indexes = [{ name: 'template', values: [args.templateKey] }]
-    // TODO: What other indexes are needed?
-    // Data objects could have links or images. Would the rendering component index the data entry?
+    const indexes = await getDataIndexes(data)
     const dataId = await versionedService.create('data', data, indexes, userId, db)
     const columns = ['dataId', 'name', 'displayOrder']
     const binds = [dataId, args.name, displayOrder]

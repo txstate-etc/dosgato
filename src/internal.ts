@@ -48,6 +48,8 @@ export * from './page/page.indexing'
 export * from './page/page.migrations'
 export * from './page/page.validation'
 
+export * from './data/data.indexing'
+
 export * from './asset/asset.service'
 export * from './assetfolder/assetfolder.service'
 export * from './data/data.service'

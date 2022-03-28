@@ -3,7 +3,7 @@ import stringify from 'fast-json-stable-stringify'
 import { stopwords } from './stopwords'
 
 export function extractLinksFromText (text: string) {
-  const matches = text.matchAll(/{.*\btype:\s+'\w+'.*?}/i)
+  const matches = text.matchAll(/{.*\btype:\s+'\w+'.*?}/gi)
   return Array.from(matches).map(m => JSON.parse(m[0])) as LinkDefinition[]
 }
 

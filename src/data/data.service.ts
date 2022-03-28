@@ -1,10 +1,10 @@
-import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { unique } from 'txstate-utils'
 import {
   Data, DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
-  createDataEntry, DataResponse
+  createDataEntry, DataResponse, templateRegistry
 } from 'internal'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
@@ -116,6 +116,7 @@ export class DataService extends DosGatoService<Data> {
   }
 
   async create (args: CreateDataInput) {
+    const response = new DataResponse({})
     if (args.folderId) {
       const folder = await this.svc(DataFolderServiceInternal).findById(args.folderId)
       if (!folder) throw new Error('Data cannot be created in a data folder that does not exist.')
@@ -124,14 +125,32 @@ export class DataService extends DosGatoService<Data> {
       const site = await this.svc(SiteServiceInternal).findById(args.siteId)
       if (!site) throw new Error('Data cannot be created in a site that does not exist.')
       // TODO: Does the current user have permission to create data for the site?
+      const data = new Data({ id: 0, siteId: args.siteId })
+      if (!(await this.haveDataPerm(data, 'create'))) throw new Error(`Current user is not permitted to create data in site ${String(site.name)}.`)
     } else {
       // global data
       if (!(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to create global data entries.')
     }
     try {
+      // validate data
+      const validator = templateRegistry.get(args.templateKey).validate
+      const messages = await validator(args.data)
+      if (Object.keys(messages).length) {
+        for (const key of Object.keys(messages)) {
+          // TODO: Not sure about this. The validator can return an array of message for each field, but MutationMessage has one
+          // message per field.
+          for (const message of messages[key]) {
+            response.addMessage(message, key, MutationMessageType.error)
+          }
+        }
+        return response
+      }
+      // passed validation, save it
       const versionedService = this.svc(VersionedService)
       const data = await createDataEntry(versionedService, this.raw, this.auth!.login, args)
-      return new DataResponse({ success: true, data })
+      response.success = true
+      response.data = data
+      return response
     } catch (err: any) {
       console.error(err)
       throw new Error('Unable to create data entry')
