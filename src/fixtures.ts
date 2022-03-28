@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { VersionedService, Index, templateRegistry } from 'internal'
+import { VersionedService, Index, templateRegistry, syncRegistryWithDB } from 'internal'
 import {
   LinkComponent, PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, PanelComponent,
   QuoteComponent, ColorData, ArticleData, BuildingData
@@ -150,21 +150,34 @@ export async function fixtures () {
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree6', site6, 'primary'])
   ])
 
-  const [pagetemplate1, pagetemplate2, pagetemplate3, pagetemplate4, componenttemplate1, componenttemplate2, componenttemplate3, datatemplate1, datatemplate2, articleTemplate] = await Promise.all([
-    db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyp1", "pagetemplate1", "page", 0)'),
-    db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyp2", "pagetemplate2", "page", 0)'),
-    db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyp3", "pagetemplate3", "page", 0)'),
-    db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyp4", "pagetemplate4", "page", 1)'),
-    db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyc1", "componenttemplate1", "component", 0)'),
-    db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyc2", "componenttemplate2", "component", 0)'),
-    db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyc3", "componenttemplate3", "component", 0)'),
-    db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyd1", "datatemplate1", "data", 0)'),
-    db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("keyd2", "datatemplate2", "data", 0)'),
-    db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("articledatakey", "articledata", "data", 0)')
+  await db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("toberemoved", "unusedtemplate", "page", 0)')
+  await db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("alsotoberemoved", "oldtemplate", "component", 0)')
+
+  // register some templates
+  templateRegistry.register(PageTemplate1)
+  templateRegistry.register(PageTemplate2)
+  templateRegistry.register(PageTemplate3)
+  templateRegistry.register(PageTemplate4)
+  templateRegistry.register(LinkComponent)
+  templateRegistry.register(PanelComponent)
+  templateRegistry.register(QuoteComponent)
+  templateRegistry.register(ColorData)
+  templateRegistry.register(BuildingData)
+  templateRegistry.register(ArticleData)
+
+  // sync templates with database
+  await syncRegistryWithDB()
+
+  const [pagetemplate1, pagetemplate2, pagetemplate3, datatemplate1, articleTemplate] = await Promise.all([
+    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp1']),
+    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp2']),
+    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp3']),
+    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyd1']),
+    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['articledatakey'])
   ])
 
   await Promise.all([
-    db.insert('INSERT INTO templaterules (`roleId`, `templateId`, `use`) VALUES (?, ?, 1)', [superuserRole, pagetemplate1])
+    db.insert('INSERT INTO templaterules (`roleId`, `templateId`, `use`) VALUES (?, ?, 1)', [superuserRole, pagetemplate1!])
   ])
 
   const [site1AssetRoot, site2AssetRoot, site3AssetRoot, site4AssetRoot, site5AssetRoot, site6AssetRoot] = await Promise.all([
@@ -231,6 +244,7 @@ export async function fixtures () {
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed15, datarulestest3]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed15, datarulestest4]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed16, siterolestest1]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed09, siterolestest2]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group3, site2editorRole]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group1, site3editorRole]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group3, editorRole]),
@@ -242,15 +256,15 @@ export async function fixtures () {
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site3, ed01]),
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site3, ed03]),
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site2, ed10]),
-    db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree1, pagetemplate1]),
-    db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree2, pagetemplate2]),
-    db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree3sandbox, pagetemplate2]),
-    db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree3, pagetemplate3]),
-    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site2, pagetemplate1]),
-    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site1, pagetemplate2]),
-    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site3, pagetemplate3]),
-    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site1, pagetemplate3]),
-    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site6, pagetemplate3])
+    db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree1, pagetemplate1!]),
+    db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree2, pagetemplate2!]),
+    db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree3sandbox, pagetemplate2!]),
+    db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree3, pagetemplate3!]),
+    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site2, pagetemplate1!]),
+    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site1, pagetemplate2!]),
+    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site3, pagetemplate3!]),
+    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site1, pagetemplate3!]),
+    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site6, pagetemplate3!])
   ])
 
   await Promise.all([
@@ -303,7 +317,7 @@ export async function fixtures () {
     db.insert('INSERT INTO datarules (`roleId`, `create`, `update`, `move`) VALUES (?,?,?,?)', [datarulestest1, 1, 1, 1]),
     db.insert('INSERT INTO datarules (`roleId`, `siteId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?)', [datarulestest2, site4, 1, 1, 1, 1, 1, 1, 1]),
     db.insert('INSERT INTO datarules (`roleId`, `create`) VALUES (?,?)', [datarulestest3, 1]),
-    db.insert('INSERT INTO datarules (`roleId`, `templateId`, `create`, `update`, `move`) VALUES (?,?,?,?,?)', [datarulestest4, datatemplate1, 1, 1, 1]),
+    db.insert('INSERT INTO datarules (`roleId`, `templateId`, `create`, `update`, `move`) VALUES (?,?,?,?,?)', [datarulestest4, datatemplate1!, 1, 1, 1]),
     db.insert('INSERT INTO datarules (`roleId`, `siteId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?)', [siterolestest1, site6, 1, 1, 1, 1, 1, 1, 1]),
     db.insert('INSERT INTO datarules (`roleId`, `siteId`, `create`, `update`, `move`) VALUES (?,?,?,?,?)', [siterolestest2, site6, 1, 1, 1]),
     db.insert('INSERT INTO datarules (`roleId`, `siteId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?)', [datarolestest1, site2, 1, 1, 1, 1, 1, 1, 1]),
@@ -311,9 +325,9 @@ export async function fixtures () {
   ])
   await Promise.all([
     db.insert('INSERT INTO templaterules (`roleId`, `use`) VALUES (?,?)', [superuserRole, 1]),
-    db.insert('INSERT INTO templaterules (`roleId`, `templateId`, `use`) VALUES (?,?,?)', [templaterulestest1, pagetemplate1, 1]),
-    db.insert('INSERT INTO templaterules (`roleId`, `templateId`, `use`) VALUES (?,?,?)', [templaterulestest1, pagetemplate2, 1]),
-    db.insert('INSERT INTO templaterules (`roleId`, `templateId`, `use`) VALUES (?,?,?)', [templaterulestest1, pagetemplate3, 0]),
+    db.insert('INSERT INTO templaterules (`roleId`, `templateId`, `use`) VALUES (?,?,?)', [templaterulestest1, pagetemplate1!, 1]),
+    db.insert('INSERT INTO templaterules (`roleId`, `templateId`, `use`) VALUES (?,?,?)', [templaterulestest1, pagetemplate2!, 1]),
+    db.insert('INSERT INTO templaterules (`roleId`, `templateId`, `use`) VALUES (?,?,?)', [templaterulestest1, pagetemplate3!, 0]),
     db.insert('INSERT INTO templaterules (`roleId`, `use`) VALUES (?,?)', [templaterulestest2, 1])
   ])
 
@@ -607,9 +621,9 @@ export async function fixtures () {
 
   /* Data */
   const [datafolder1, datafolder2, datafolder3] = await Promise.all([
-    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site2datafolder', nanoid(10), site2, datatemplate1]),
-    db.insert('INSERT INTO datafolders (name, guid, templateId) VALUES (?,?,?)', ['globaldatafolder', nanoid(10), articleTemplate]),
-    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deletedAt, deletedBy) VALUES (?,?,?,?,NOW(),?)', ['deletedfolder', nanoid(10), site2, datatemplate1, su03])
+    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site2datafolder', nanoid(10), site2, datatemplate1!]),
+    db.insert('INSERT INTO datafolders (name, guid, templateId) VALUES (?,?,?)', ['globaldatafolder', nanoid(10), articleTemplate!]),
+    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deletedAt, deletedBy) VALUES (?,?,?,?,NOW(),?)', ['deletedfolder', nanoid(10), site2, datatemplate1!, su03])
   ])
 
   async function createData (name: string, displayOrder: number, content: any, indexes: Index[], creator: string) {
@@ -688,18 +702,6 @@ export async function fixtures () {
     await createAsset('blankpdf', site1AssetRoot, 'd731d520ca21a90b2ca28b5068cfdd678dbd3ace', 'application/pdf', 1264, { checksum: 'd731d520ca21a90b2ca28b5068cfdd678dbd3ace' }, [{ name: 'type', values: ['application/pdf'] }], 'su01')
     await createAsset('bobcat', site1AssetRoot, '6ce119a866c6821764edcdd5b30395d0997c8aff', 'image/jpeg', 3793056, { checksum: '6ce119a866c6821764edcdd5b30395d0997c8aff' }, [{ name: 'type', values: ['image/jpeg'] }], 'su01')
   }
-
-  // register some templates
-  templateRegistry.register(PageTemplate1)
-  templateRegistry.register(PageTemplate2)
-  templateRegistry.register(PageTemplate3)
-  templateRegistry.register(PageTemplate4)
-  templateRegistry.register(LinkComponent)
-  templateRegistry.register(PanelComponent)
-  templateRegistry.register(QuoteComponent)
-  templateRegistry.register(ColorData)
-  templateRegistry.register(BuildingData)
-  templateRegistry.register(ArticleData)
 
   console.log('finished fixtures()')
 }
