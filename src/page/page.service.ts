@@ -5,9 +5,10 @@ import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
   CreatePageInput, PageLinkInput, PageResponse, createPage, getPages, movePage,
   deletePage, renamePage, TemplateService, PagetreeService, SiteService,
-  TemplateFilter, Template, getPageIndexes, UpdatePageInput, undeletePage
+  TemplateFilter, Template, getPageIndexes, UpdatePageInput, undeletePage,
+  validatePage
 } from 'internal'
-import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
@@ -279,16 +280,27 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async updatePage (dataId: string, args: UpdatePageInput) {
+    const response = new PageResponse({})
     const page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
     try {
-      // TODO: What else needs to happen here? Is this where validatePage gets called?
+      const messages = await validatePage(args.data)
+      if (Object.keys(messages).length) {
+        for (const key of Object.keys(messages)) {
+          for (const message of messages[key]) {
+            response.addMessage(message, key, MutationMessageType.error)
+          }
+        }
+        return response
+      }
       const indexes = getPageIndexes(args.data)
       await this.svc(VersionedService).update(dataId, args.data, indexes, { user: this.auth!.login, comment: args.comment, version: args.dataVersion })
       this.loaders.clear()
       const updated = await this.raw.findById(dataId)
-      return new PageResponse({ success: true, page: updated })
+      response.success = true
+      response.page = updated
+      return response
     } catch (err: any) {
       console.error(err)
       throw new Error(`Could not update page ${String(page.name)}`)

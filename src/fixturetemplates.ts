@@ -27,12 +27,21 @@ export const PageTemplate2 = {
     content: ['keyc1', 'keyc2', 'keyc3']
   },
   migrations: [],
-  getLinks: (data: any) => [],
+  getLinks: (data: any) => {
+    const links: WebLink[] = []
+    links.push({ type: 'url', url: 'https://www.google.com' })
+    links.push({ type: 'url', url: 'https://www.apple.com' })
+    return links
+  },
   getFulltext: (data: any) => {
     return [data.title]
   },
   validate: async (data: any) => {
-    return {}
+    const ret: Record<string, string[]> = {}
+    if (isNull(data.title)) {
+      ret.title = ['Page title is required.']
+    }
+    return ret
   }
 }
 
