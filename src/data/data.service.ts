@@ -5,7 +5,7 @@ import {
   Data, DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, templateRegistry, UpdateDataInput, getDataIndexes,
-  renameDataEntry
+  renameDataEntry, deleteDataEntry, undeleteDataEntry
 } from 'internal'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
@@ -227,6 +227,37 @@ export class DataService extends DosGatoService<Data> {
     } catch (err: any) {
       console.error(err)
       throw new Error(`Unable to unpublish data entry ${String(data.name)}`)
+    }
+  }
+
+  async delete (dataId: string) {
+    const data = await this.raw.findById(dataId)
+    if (!data) throw new Error('Data entry to be deleted does not exist.')
+    if (!(await this.mayDelete(data))) throw new Error('Current user is not permitted to delete this data entry')
+    const currentUser = await this.currentUser()
+    try {
+      await deleteDataEntry(dataId, currentUser!.internalId)
+      this.loaders.clear()
+      const updated = await this.raw.findById(dataId)
+      return new DataResponse({ success: true, data: updated })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error(`Unable to delete data entry ${String(data.name)}`)
+    }
+  }
+
+  async undelete (dataId: string) {
+    const data = await this.raw.findById(dataId)
+    if (!data) throw new Error('Cannot restore a data entry that does not exist.')
+    if (!(await this.mayUndelete(data))) throw new Error('Current user is not permitted to restore this data entry')
+    try {
+      await undeleteDataEntry(dataId)
+      this.loaders.clear()
+      const restored = await this.raw.findById(dataId)
+      return new DataResponse({ success: true, data: restored })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('Unable to restore data entry')
     }
   }
 

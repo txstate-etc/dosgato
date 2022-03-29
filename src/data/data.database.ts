@@ -110,3 +110,11 @@ export async function createDataEntry (versionedService: VersionedService, dataS
 export async function renameDataEntry (dataId: string, name: string) {
   return await db.update('UPDATE data SET name = ? WHERE dataId = ?', [name, dataId])
 }
+
+export async function deleteDataEntry (dataId: string, userInternalId: number) {
+  return await db.update('UPDATE data SET deletedAt = NOW(), deletedBy = ? WHERE dataId = ?', [userInternalId, dataId])
+}
+
+export async function undeleteDataEntry (dataId: string) {
+  return await db.update('UPDATE data set deletedAt = NULL, deletedBy = NULL where id = ?', [dataId])
+}

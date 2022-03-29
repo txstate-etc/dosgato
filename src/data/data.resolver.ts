@@ -136,12 +136,12 @@ export class DataResolver {
 
   @Mutation(returns => DataResponse)
   async deleteDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).delete(dataId)
   }
 
   @Mutation(returns => DataResponse)
   async undeleteDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).undelete(dataId)
   }
 }
 
