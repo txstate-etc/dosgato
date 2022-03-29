@@ -4,7 +4,8 @@ import { unique } from 'txstate-utils'
 import {
   Data, DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
-  createDataEntry, DataResponse, templateRegistry
+  createDataEntry, DataResponse, templateRegistry, UpdateDataInput, getDataIndexes,
+  renameDataEntry
 } from 'internal'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
@@ -154,6 +155,50 @@ export class DataService extends DosGatoService<Data> {
     } catch (err: any) {
       console.error(err)
       throw new Error('Unable to create data entry')
+    }
+  }
+
+  async update (dataId: string, args: UpdateDataInput) {
+    const response = new DataResponse({})
+    const data = await this.raw.findById(dataId)
+    if (!data) throw new Error('Data entry to be updated does not exist')
+    if (!(await this.mayUpdate(data))) throw new Error('Current user is not permitted to update this data entry.')
+    try {
+      const validator = templateRegistry.get(args.data.templateKey).validate
+      const messages = await validator(args.data)
+      if (Object.keys(messages).length) {
+        for (const key of Object.keys(messages)) {
+          for (const message of messages[key]) {
+            response.addMessage(message, key, MutationMessageType.error)
+          }
+        }
+        return response
+      }
+      const indexes = getDataIndexes(args.data)
+      await this.svc(VersionedService).update(dataId, args.data, indexes, { user: this.auth!.login, comment: args.comment, version: args.dataVersion })
+      this.loaders.clear()
+      const updated = await this.raw.findById(dataId)
+      response.success = true
+      response.data = updated
+      return response
+    } catch (err: any) {
+      console.error(err)
+      throw new Error(`Unable to update data entry ${String(data.name)}`)
+    }
+  }
+
+  async rename (dataId: string, name: string) {
+    const data = await this.raw.findById(dataId)
+    if (!data) throw new Error('Data entry to be renamed does not exist')
+    if (!(await this.mayUpdate(data))) throw new Error('Current user is not permitted to rename this data entry.')
+    try {
+      await renameDataEntry(dataId, name)
+      this.loaders.clear()
+      const updated = await this.raw.findById(dataId)
+      return new DataResponse({ success: true, data: updated })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error(`Unable to rename data entry ${String(data.name)}`)
     }
   }
 

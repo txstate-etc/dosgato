@@ -92,20 +92,17 @@ export class CreateDataInput {
 
 @InputType()
 export class UpdateDataInput {
-  @Field()
-  name?: string
-
   @Field({ description: 'The current schema version of the admin UI.' })
   schemaVersion!: DateTime
 
   @Field(type => JsonData)
   data!: any
 
-  @Field(type => ID)
-  siteId?: string
+  @Field(type => Number, { description: 'The version of the data you had when you started the update' })
+  dataVersion?: number
 
-  @Field(type => ID)
-  folderId?: string
+  @Field({ description: 'An optional comment describing the update' })
+  comment?: string
 }
 
 @ObjectType()

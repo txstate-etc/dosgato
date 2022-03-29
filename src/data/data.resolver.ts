@@ -109,9 +109,14 @@ export class DataResolver {
     return await ctx.svc(DataService).create(args)
   }
 
+  @Mutation(returns => DataResponse)
+  async renameDataEntry (@Ctx() ctx: Context, @Arg('dataId') dataId: string, @Arg('name') name: string) {
+    return await ctx.svc(DataService).rename(dataId, name)
+  }
+
   @Mutation(returns => DataResponse, { description: 'Update a data entry.' })
   async updateDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string, @Arg('args', type => UpdateDataInput) args: UpdateDataInput) {
-    throw new UnimplementedError()
+    return await ctx.svc(DataService).update(dataId, args)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Mark the latest version of a data entry "published."' })

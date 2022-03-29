@@ -106,3 +106,7 @@ export async function createDataEntry (versionedService: VersionedService, dataS
     return new Data(await db.getrow('SELECT * FROM data WHERE id=?', [newInternalId]))
   })
 }
+
+export async function renameDataEntry (dataId: string, name: string) {
+  return await db.update('UPDATE data SET name = ? WHERE dataId = ?', [name, dataId])
+}
