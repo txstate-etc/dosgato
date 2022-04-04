@@ -32,8 +32,6 @@ import {
 import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData } from 'fixturetemplates'
 
 async function main () {
-  await migrations()
-
   // register some templates
   // in the future we will take the templates as input, but for now we just need test components
   templateRegistry.register(PageTemplate1)
@@ -48,6 +46,8 @@ async function main () {
   templateRegistry.register(ArticleData)
   // sync templates with database
   await syncRegistryWithDB()
+
+  await migrations()
 
   const server = new GQLServer()
   await server.app.register(multipart)

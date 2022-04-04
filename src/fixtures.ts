@@ -33,7 +33,7 @@ export async function fixtures () {
       db.execute('TRUNCATE TABLE pages'),
       db.execute('TRUNCATE TABLE roles'),
       db.execute('TRUNCATE TABLE groups'),
-      db.execute('TRUNCATE TABLE templates'),
+      // db.execute('TRUNCATE TABLE templates'),
       db.execute('TRUNCATE TABLE pagetrees'),
       db.execute('TRUNCATE TABLE assetfolders'),
       db.execute('TRUNCATE TABLE organizations'),
@@ -145,9 +145,6 @@ export async function fixtures () {
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree5', site5, 'primary']),
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree6', site6, 'primary'])
   ])
-
-  await db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("toberemoved", "unusedtemplate", "page", 0)')
-  await db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("alsotoberemoved", "oldtemplate", "component", 0)')
 
   const [pagetemplate1, pagetemplate2, pagetemplate3, datatemplate1, articleTemplate] = await Promise.all([
     await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp1']),
