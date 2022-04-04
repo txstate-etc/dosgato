@@ -663,7 +663,7 @@ export async function fixtures () {
 
   // deleted data
   const deletedDataId = await createData('Purple Content', 5, { title: 'Purple Text', color: 'purple', align: 'left' }, [{ name: 'template', values: ['keyd1'] }], 'su02')
-  await db.update('UPDATE data SET folderId = ?, deletedAt = NOW(), deletedBy = ? WHERE id = ?', [datafolder3, su02, deletedDataId])
+  await db.update('UPDATE data SET folderId = ?, deletedAt = NOW(), deletedBy = ?, displayOrder = ? WHERE id = ?', [datafolder3, su02, 1, deletedDataId])
 
   async function createAsset (name: string, folder: number, checksum: string, mime: string, size: number, content: any, indexes: Index[], creator: string) {
     const ctx = new Context()

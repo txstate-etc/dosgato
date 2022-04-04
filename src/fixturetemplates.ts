@@ -137,7 +137,11 @@ export const ColorData = {
     return [data.title]
   },
   validate: async (data: any) => {
-    return {}
+    const ret: Record<string, string[]> = {}
+    if (isNull(data.title)) {
+      ret.title = ['Title is required']
+    }
+    return ret
   }
 }
 
