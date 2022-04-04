@@ -44,6 +44,7 @@ async function main () {
   })
   // TODO: Add endpoint for getting assets. /assets/:id or /files/:id
   await server.start({
+    send401: true,
     resolvers: [
       AccessResolver,
       AssetResolver,
