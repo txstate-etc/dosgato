@@ -315,7 +315,7 @@ export class GroupService extends DosGatoService<Group> {
   }
 
   async mayViewManagerUI () {
-    return (await this.haveGlobalPerm('manageUsers')) || (this.auth?.login && await this.findByManagerId(this.auth.login))
+    return (await this.haveGlobalPerm('manageUsers')) || (this.login && await this.findByManagerId(this.login))
   }
 
   async mayCreate () {

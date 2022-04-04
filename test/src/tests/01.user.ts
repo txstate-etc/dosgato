@@ -5,7 +5,7 @@ import { query } from '../common'
 
 describe('users', () => {
   before(async () => {
-    console.log(jwt.sign({ login: 'su01' }, process.env.JWT_SECRET ?? ''))
+    console.log(jwt.sign({ sub: 'su01' }, process.env.JWT_SECRET ?? ''))
     let success = false
     while (!success) {
       try {

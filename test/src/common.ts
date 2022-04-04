@@ -2,7 +2,6 @@ import axios from 'axios'
 import jwt from 'jsonwebtoken'
 import FormData from 'form-data'
 import fs from 'fs'
-import path from 'path'
 
 const client = axios.create({
   baseURL: 'http://dosgato-api'
@@ -14,7 +13,7 @@ export async function query (query: string, variables?: any) {
 
 const tokenCache: Record<string, string> = {}
 export async function queryAs (login: string, query: string, variables?: any) {
-  tokenCache[login] ??= jwt.sign({ login: login }, process.env.JWT_SECRET ?? '')
+  tokenCache[login] ??= jwt.sign({ sub: login }, process.env.JWT_SECRET ?? '')
   try {
     const resp = await client.post('graphql', {
       query,
@@ -38,7 +37,7 @@ export async function createRole (name: string, username?: string) {
 }
 
 export async function postMultipart (endpoint: string, payload: any, filepath: string, login: string) {
-  tokenCache[login] ??= jwt.sign({ login: login }, process.env.JWT_SECRET ?? '')
+  tokenCache[login] ??= jwt.sign({ sub: login }, process.env.JWT_SECRET ?? '')
   try {
     const formdata = new FormData()
     formdata.append('data', JSON.stringify(payload))

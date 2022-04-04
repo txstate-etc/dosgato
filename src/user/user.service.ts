@@ -1,6 +1,6 @@
 
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique } from 'txstate-utils'
+import { isNotBlank, unique } from 'txstate-utils'
 import {
   DosGatoService, GroupService, User, UserFilter, UserResponse, getUsers,
   getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId,
@@ -45,13 +45,6 @@ const usersBySiteIdLoader = new ManyJoinedLoader({
 
 export class UserServiceInternal extends BaseService {
   async find (filter: UserFilter) {
-    if (filter.ids?.length) {
-      const index = filter.ids?.indexOf('self')
-      if (index > -1) {
-        if (this.auth?.login?.length) filter.ids[index] = this.auth.login
-        else filter.ids.splice(index, 1)
-      }
-    }
     const users = await getUsers(filter)
     for (const user of users) {
       this.loaders.get(usersByIdLoader).prime(user.id, user)
@@ -120,6 +113,10 @@ export class UserService extends DosGatoService<User, RedactedUser|User> {
 
   async find (filter: UserFilter) {
     if (!(await this.haveGlobalPerm('manageUsers'))) filter.ids = ['self']
+    if (filter.ids?.length) {
+      console.log(filter.ids, this.auth)
+      filter.ids = filter.ids.map(id => id === 'self' ? this.login : id).filter(isNotBlank)
+    }
     return await this.removeUnauthorized(await this.raw.find(filter))
   }
 

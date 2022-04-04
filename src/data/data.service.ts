@@ -148,7 +148,7 @@ export class DataService extends DosGatoService<Data> {
       }
       // passed validation, save it
       const versionedService = this.svc(VersionedService)
-      const data = await createDataEntry(versionedService, this.raw, this.auth!.login, args)
+      const data = await createDataEntry(versionedService, this.raw, this.login!, args)
       response.success = true
       response.data = data
       return response
@@ -175,7 +175,7 @@ export class DataService extends DosGatoService<Data> {
         return response
       }
       const indexes = getDataIndexes(args.data)
-      await this.svc(VersionedService).update(dataId, args.data, indexes, { user: this.auth!.login, comment: args.comment, version: args.dataVersion })
+      await this.svc(VersionedService).update(dataId, args.data, indexes, { user: this.login, comment: args.comment, version: args.dataVersion })
       this.loaders.clear()
       const updated = await this.raw.findById(dataId)
       response.success = true

@@ -275,7 +275,7 @@ export class PageService extends DosGatoService<Page> {
     if (!approvedTemplates.find(t => t.id === template.id)) {
       throw new Error(`Template ${template.name} is not approved for use in this site or pagetree.`)
     }
-    const page = await createPage(this.svc(VersionedService), this.auth!.login, parent, aboveTarget, args.name, args.templateKey, args.schemaVersion)
+    const page = await createPage(this.svc(VersionedService), this.login!, parent, aboveTarget, args.name, args.templateKey, args.schemaVersion)
     return new PageResponse({ success: true, page })
   }
 
@@ -295,7 +295,7 @@ export class PageService extends DosGatoService<Page> {
         return response
       }
       const indexes = getPageIndexes(args.data)
-      await this.svc(VersionedService).update(dataId, args.data, indexes, { user: this.auth!.login, comment: args.comment, version: args.dataVersion })
+      await this.svc(VersionedService).update(dataId, args.data, indexes, { user: this.login, comment: args.comment, version: args.dataVersion })
       this.loaders.clear()
       const updated = await this.raw.findById(dataId)
       response.success = true
@@ -348,7 +348,7 @@ export class PageService extends DosGatoService<Page> {
       await undeletePage(page)
       this.loaders.clear()
       const restored = await this.raw.findById(dataId)
-      return new PageResponse({ success: true, page: restored})
+      return new PageResponse({ success: true, page: restored })
     } catch (err: any) {
       console.error(err)
       throw new Error('Unable to restore page')

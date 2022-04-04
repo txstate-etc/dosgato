@@ -95,7 +95,7 @@ export class AssetService extends DosGatoService<Asset> {
     try {
       await FileSystemHandler.moveToPermLocation(args.checksum)
       const versionedService = this.svc(VersionedService)
-      const asset = await createAsset(versionedService, this.auth!.login, args)
+      const asset = await createAsset(versionedService, this.auth!.sub, args)
       this.loaders.clear()
       return new AssetResponse({ asset, success: true })
     } catch (err: any) {

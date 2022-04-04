@@ -1,31 +1,36 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { filterAsync } from 'txstate-utils'
 import {
-  Asset, AssetFolder, Data, DataFolder, Page, Site, Template, UserService,
+  Asset, AssetFolder, Data, DataFolder, Page, Site, Template,
   AssetRuleService, AssetRuleGrants, DataRuleService, DataRuleGrants, GlobalRuleService,
   GlobalRuleGrants, PageRuleService, PageRuleGrants, SiteRuleGrants, SiteRuleService,
-  TemplateRuleService, TemplateRuleGrants, GroupService, RoleServiceInternal,
-  SiteRuleServiceInternal, PageRuleServiceInternal, AssetRuleServiceInternal, DataRuleServiceInternal, GlobalRuleServiceInternal, GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal
+  TemplateRuleService, TemplateRuleGrants, RoleServiceInternal,
+  SiteRuleServiceInternal, PageRuleServiceInternal, AssetRuleServiceInternal, DataRuleServiceInternal,
+  GlobalRuleServiceInternal, GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal
 } from 'internal'
 
-export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ login: string }, ObjType, RedactedType> {
+export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ sub: string }, ObjType, RedactedType> {
+  protected get login () {
+    return this.auth?.sub
+  }
+
   protected isRenderServer () {
-    return this.auth?.login === 'anonymous'
+    return this.login === 'anonymous'
   }
 
   protected async currentUser () {
-    if (!this.auth?.login) return undefined
-    return await this.svc(UserServiceInternal).findById(this.auth.login)
+    if (!this.login) return undefined
+    return await this.svc(UserServiceInternal).findById(this.login)
   }
 
   protected async currentRoles () {
-    if (!this.auth?.login) return []
-    return await this.svc(RoleServiceInternal).findByUserId(this.auth.login)
+    if (!this.login) return []
+    return await this.svc(RoleServiceInternal).findByUserId(this.login)
   }
 
   protected async currentGroups () {
-    if (!this.auth?.login) return []
-    return await this.svc(GroupServiceInternal).findByUserId(this.auth.login)
+    if (!this.login) return []
+    return await this.svc(GroupServiceInternal).findByUserId(this.login)
   }
 
   protected async currentGlobalRules () {

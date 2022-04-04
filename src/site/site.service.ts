@@ -96,7 +96,7 @@ export class SiteService extends DosGatoService<Site> {
     if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create sites.')
     try {
       const versionedService = this.svc(VersionedService)
-      const site = await createSite(versionedService, this.auth!.login, args)
+      const site = await createSite(versionedService, this.login!, args)
       return new SiteResponse({ success: true, site })
     } catch (err: any) {
       console.error(err)
