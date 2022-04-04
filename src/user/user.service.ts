@@ -114,7 +114,6 @@ export class UserService extends DosGatoService<User, RedactedUser|User> {
   async find (filter: UserFilter) {
     if (!(await this.haveGlobalPerm('manageUsers'))) filter.ids = ['self']
     if (filter.ids?.length) {
-      console.log(filter.ids, this.auth)
       filter.ids = filter.ids.map(id => id === 'self' ? this.login : id).filter(isNotBlank)
     }
     return await this.removeUnauthorized(await this.raw.find(filter))
