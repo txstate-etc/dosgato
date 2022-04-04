@@ -27,11 +27,28 @@ import {
   VersionResolver, OrganizationResolver,
   AccessResolver,
   TemplateRulePermissionsResolver, TemplateRuleResolver,
-  logMutation, handleUpload
+  logMutation, handleUpload, templateRegistry, syncRegistryWithDB
 } from 'internal'
+import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData } from 'fixturetemplates'
 
 async function main () {
   await migrations()
+
+  // register some templates
+  // in the future we will take the templates as input, but for now we just need test components
+  templateRegistry.register(PageTemplate1)
+  templateRegistry.register(PageTemplate2)
+  templateRegistry.register(PageTemplate3)
+  templateRegistry.register(PageTemplate4)
+  templateRegistry.register(LinkComponent)
+  templateRegistry.register(PanelComponent)
+  templateRegistry.register(QuoteComponent)
+  templateRegistry.register(ColorData)
+  templateRegistry.register(BuildingData)
+  templateRegistry.register(ArticleData)
+  // sync templates with database
+  await syncRegistryWithDB()
+
   const server = new GQLServer()
   await server.app.register(multipart)
   await fsp.mkdir('/files/tmp', { recursive: true })

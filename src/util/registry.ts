@@ -1,5 +1,5 @@
 import { APITemplateType, APITemplate } from '@dosgato/templating'
-import { hashify, eachConcurrent } from 'txstate-utils'
+import { eachConcurrent, keyby } from 'txstate-utils'
 import db from 'mysql2-async/db'
 import { TemplateArea } from 'internal'
 
@@ -47,7 +47,7 @@ class TemplateRegistry {
 export const templateRegistry = new TemplateRegistry()
 
 export async function syncRegistryWithDB () {
-  const templatesInDB = hashify(await db.getall('SELECT * FROM templates'), 'key')
+  const templatesInDB = keyby(await db.getall('SELECT * FROM templates'), 'key')
   const registryTemplates = [...templateRegistry.getType('page'), ...templateRegistry.getType('component'), ...templateRegistry.getType('data')]
   const found = new Set<string>()
   await eachConcurrent(registryTemplates, async (template) => {
@@ -63,7 +63,9 @@ export async function syncRegistryWithDB () {
   // Does anything need to happen with the datarules or datafolders associated with deleted templates?
   // Also need to consider the pagetrees_templates and sites_templates tables. What happens if an allowed template is deleted?
   const notInRegistry = Object.keys(templatesInDB).filter((t) => !found.has(t))
-  const deleteTemplateBinds: string[] = []
-  const numDeleted = await db.update(`UPDATE templates SET deleted = true WHERE \`key\` IN (${db.in(deleteTemplateBinds, notInRegistry)})`, deleteTemplateBinds)
-  console.log(`${numDeleted} templates not found in template registry.`)
+  if (notInRegistry.length > 0) {
+    const deleteTemplateBinds: string[] = []
+    const numDeleted = await db.update(`UPDATE templates SET deleted = true WHERE \`key\` IN (${db.in(deleteTemplateBinds, notInRegistry)})`, deleteTemplateBinds)
+    if (numDeleted > 0) console.info(`${numDeleted} templates marked deleted because they were not found in template registry.`)
+  }
 }

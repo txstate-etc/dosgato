@@ -1,13 +1,9 @@
-import db from 'mysql2-async/db'
-import { VersionedService, Index, templateRegistry, syncRegistryWithDB } from 'internal'
-import {
-  LinkComponent, PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, PanelComponent,
-  QuoteComponent, ColorData, ArticleData, BuildingData
-} from './fixturetemplates'
 import { Context } from '@txstate-mws/graphql-server'
 import stringify from 'fast-json-stable-stringify'
-import { nanoid } from 'nanoid'
 import { existsSync } from 'fs'
+import db from 'mysql2-async/db'
+import { nanoid } from 'nanoid'
+import { VersionedService, Index } from 'internal'
 
 export async function fixtures () {
   console.log('running fixtures()')
@@ -152,21 +148,6 @@ export async function fixtures () {
 
   await db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("toberemoved", "unusedtemplate", "page", 0)')
   await db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES ("alsotoberemoved", "oldtemplate", "component", 0)')
-
-  // register some templates
-  templateRegistry.register(PageTemplate1)
-  templateRegistry.register(PageTemplate2)
-  templateRegistry.register(PageTemplate3)
-  templateRegistry.register(PageTemplate4)
-  templateRegistry.register(LinkComponent)
-  templateRegistry.register(PanelComponent)
-  templateRegistry.register(QuoteComponent)
-  templateRegistry.register(ColorData)
-  templateRegistry.register(BuildingData)
-  templateRegistry.register(ArticleData)
-
-  // sync templates with database
-  await syncRegistryWithDB()
 
   const [pagetemplate1, pagetemplate2, pagetemplate3, datatemplate1, articleTemplate] = await Promise.all([
     await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp1']),
