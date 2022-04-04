@@ -36,9 +36,9 @@ async function main () {
   await server.app.register(multipart)
   await fsp.mkdir('/files/tmp', { recursive: true })
   server.app.post('/files', async (req, res) => {
-    const context = new Context()
-    const auth = await context.authFromReq(req)
-    if (!auth?.login) throw new AuthError()
+    const ctx = new Context(req)
+    await ctx.waitForAuth()
+    if (!ctx.auth?.sub) throw new AuthError()
     const files = await handleUpload(req, res)
     return files
   })
