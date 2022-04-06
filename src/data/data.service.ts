@@ -1,3 +1,4 @@
+/* eslint-disable no-trailing-spaces */
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { unique } from 'txstate-utils'
@@ -5,7 +6,8 @@ import {
   Data, DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, templateRegistry, UpdateDataInput, getDataIndexes,
-  renameDataEntry, deleteDataEntry, undeleteDataEntry
+  renameDataEntry, deleteDataEntry, undeleteDataEntry, MoveDataTarget, moveDataEntry,
+  DataFolder, Site, TemplateService
 } from 'internal'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
@@ -122,6 +124,10 @@ export class DataService extends DosGatoService<Data> {
       const folder = await this.svc(DataFolderServiceInternal).findById(args.folderId)
       if (!folder) throw new Error('Data cannot be created in a data folder that does not exist.')
       if (!(await this.svc(DataFolderService).mayCreate(folder))) throw new Error(`Current user is not permitted to create data in folder ${String(folder.name)}`)
+      const template = await this.svc(TemplateService).findByKey(args.templateKey)
+      if (folder.templateId !== template!.id) {
+        throw new Error('Data cannot be created in a folder using a different data template.')
+      }
     } else if (args.siteId) {
       const site = await this.svc(SiteServiceInternal).findById(args.siteId)
       if (!site) throw new Error('Data cannot be created in a site that does not exist.')
@@ -199,6 +205,49 @@ export class DataService extends DosGatoService<Data> {
     } catch (err: any) {
       console.error(err)
       throw new Error(`Unable to rename data entry ${String(data.name)}`)
+    }
+  }
+
+  async move (dataId: string, target: MoveDataTarget) {
+    const data = await this.raw.findById(dataId)
+    if (!data) throw new Error('Data entry to be moved does not exist')
+    if (!(await this.mayMove(data))) throw new Error('Current user is not permitted to move this data entry.')
+    // get the template for the data being moved
+    const versioned = await this.svc(VersionedService).get(dataId)
+    const indexes = await this.svc(VersionedService).getIndexes(dataId, versioned!.version)
+    const templateKeyIndex = indexes.find(i => i.name === 'template')
+    const templateKey = templateKeyIndex!.values[0]
+    const template = await this.svc(TemplateService).findByKey(templateKey)
+    let folder: DataFolder|undefined
+    if (target.folderId) {
+      folder = await this.svc(DataFolderServiceInternal).findById(target.folderId)
+      if (!folder) throw new Error('Data cannot be moved to a data folder that does not exist.')
+      if (!(await this.svc(DataFolderService).mayCreate(folder))) throw new Error(`Current user is not permitted to move data to folder ${String(folder.name)}`)
+      if (folder.templateId !== template!.id) throw new Error('Data can only be moved to a folder using the same template.')
+    }
+    let site: Site|undefined
+    if (target.siteId) {
+      site = await this.svc(SiteServiceInternal).findById(target.siteId)
+      if (!site) throw new Error('Data cannot be moved to a site that does not exist.')
+      // TODO: Does the current user have permission to move data to this site?
+      const tempdata = new Data({ id: 0, siteId: target.siteId })
+      if (!(await this.haveDataPerm(tempdata, 'move'))) throw new Error(`Current user is not permitted to move data to site ${String(site.name)}.`)
+    }
+    let aboveTarget: Data|undefined
+    if (target.aboveTarget) {
+      aboveTarget = await this.raw.findById(target.aboveTarget)
+      if (!aboveTarget) throw new Error('Data entry cannont be moved above a data entry that does not exist')
+    }
+    // if none of these are provided, they are moving the data to global data
+    if (!target.folderId && !target.siteId && !target.aboveTarget && !(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to update global data entries.')
+    try {
+      await moveDataEntry(this.raw, data, templateKey, this.login!, folder, site, aboveTarget)
+      this.loaders.clear()
+      const updated = await this.raw.findById(dataId)
+      return new DataResponse({ success: true, data: updated })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error(`Unable to move data entry ${String(data.name)}`)
     }
   }
 

@@ -105,6 +105,18 @@ export class UpdateDataInput {
   comment?: string
 }
 
+@InputType()
+export class MoveDataTarget {
+  @Field(type => ID, { nullable: true, description: 'Data entry should be placed before the data entry with this id in display order' })
+  aboveTarget?: string
+
+  @Field(type => ID, { nullable: true, description: 'The folder to which the data entry is moving. Will be ignored if aboveTarget is provided' })
+  folderId?: string
+
+  @Field(type => ID, { nullable: true, description: 'The site to which the data entry is moving. Will be ignored if aboveTarget or folderId is provided.' })
+  siteId?: string
+}
+
 @ObjectType()
 export class DataResponse extends ValidatedResponse {
   @Field({ nullable: true })

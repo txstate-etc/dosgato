@@ -2,6 +2,8 @@
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common'
+import db from 'mysql2-async/db'
+import { sleep } from 'txstate-utils'
 
 chai.use(chaiAsPromised)
 
@@ -44,15 +46,33 @@ async function createDataEntry (name: string, templateKey: string, content: any,
 }
 
 describe('data mutations', () => {
-  let dataTemplate1Id
-  before(async () => {})
+  let datatestsite1Id: string
+  let datatestsite2Id: string
+  before(async () => {
+    let resp = await query(`
+      mutation CreateSite ($args: CreateSiteInput!) {
+        createSite (args: $args) {
+          success
+          site { id name }
+        }
+      }`, { args: { name: 'datatestsite1', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    datatestsite1Id = resp.createSite.site.id
+    resp = await query(`
+      mutation CreateSite ($args: CreateSiteInput!) {
+        createSite (args: $args) {
+          success
+          site { id name }
+        }
+      }`, { args: { name: 'datatestsite2', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    datatestsite2Id = resp.createSite.site.id
+  })
   it('should create a data folder', async () => {
     const { success, dataFolder } = await createDataFolder('datafolderA', 'keyd1')
     expect(success).to.be.true
     expect(dataFolder.name).to.equal('datafolderA')
   })
   it('should not allow an unauthorized user to create a data folder', async () => {
-    await expect(createDataFolder('test', 'keyd1', 'ed07')).to.be.rejected
+    await expect(createDataFolder('test', 'keyd1', undefined, 'ed07')).to.be.rejected
   })
   it('should rename a data folder', async () => {
     const { dataFolder: folder } = await createDataFolder('datafolderB', 'keyd1')
@@ -176,12 +196,11 @@ describe('data mutations', () => {
     expect(siteData).to.deep.include({ name: 'SiteBuilding1' })
   })
   it('should create a data entry in a folder', async () => {
-    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name } } }', { args: { name: 'datatestsite1', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
-    const { dataFolder: folder } = await createDataFolder('datafolderH', 'keyd2', site.id)
-    const { success, data } = await createDataEntry('FolderBuilding1', 'keyd2', { name: 'Green Hall', floors: 5 }, site.id, folder.id)
+    const { dataFolder: folder } = await createDataFolder('datafolderH', 'keyd2', datatestsite1Id)
+    const { success, data } = await createDataEntry('FolderBuilding1', 'keyd2', { name: 'Green Hall', floors: 5 }, datatestsite1Id, folder.id)
     expect(success).to.be.true
     expect(data.name).to.equal('FolderBuilding1')
-    const { sites } = await query(`{ sites(filter: { ids: [${site.id}] }) { id name datafolders { data { name } } } }`)
+    const { sites } = await query(`{ sites(filter: { ids: [${datatestsite1Id}] }) { id name datafolders { data { name } } } }`)
     const datafolder = sites[0].datafolders[0]
     expect(datafolder.data[0]).to.deep.include({ name: 'FolderBuilding1' })
   })
@@ -395,15 +414,345 @@ describe('data mutations', () => {
       }
     `, { dataId: dataEntry.id })).to.be.rejected
   })
-  it.skip('should move data within a data folder', async () => {})
-  it.skip('should move data out of a folder to a site', async () => {})
-  it.skip('should move data out of a folder to global data', async () => {})
-  it.skip('should move site-level data within a site', async () => {})
-  it.skip('should move site-level data to a folder', async () => {})
-  it.skip('should move site-level data to global data', async () => {})
-  it.skip('should update the display order of global data', async () => {})
-  it.skip('should move global data to a folder', async () => {})
-  it.skip('should move data from global data to a site', async () => {})
-  it.skip('should move data from one folder to another', async () => {})
-  it.skip('should move data from one site to another', async () => {})
+  it('should move data within a data folder', async () => {
+    const { dataFolder: folder } = await createDataFolder('datafolderJ', 'keyd1', datatestsite1Id)
+    const { data: data1 } = await createDataEntry('Silver', 'keyd1', { title: 'Silver Text', color: 'silver', align: 'center' }, datatestsite1Id, folder.id)
+    const { data: data2 } = await createDataEntry('Gold', 'keyd1', { title: 'Gold Text', color: 'gold', align: 'center' }, datatestsite1Id, folder.id)
+    const { data: data3 } = await createDataEntry('Bronze', 'keyd1', { title: 'Bronze Text', color: 'bronze', align: 'center' }, datatestsite1Id, folder.id)
+    const { moveDataEntry: { success, data } } = await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          success
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data2.id, target: { aboveTarget: data1.id, siteId: datatestsite1Id } })
+    expect(success).to.be.true
+    const { data: sortedData } = await query(`{ data(filter: {folderIds: ["${folder.id}"]}) { id } }`)
+    const ids = sortedData.map((d: any) => d.id)
+    expect(ids).to.have.ordered.members([data2.id, data1.id, data3.id])
+  })
+  it('should move data out of a folder to a site', async () => {
+    const { dataFolder: folder } = await createDataFolder('datafolderK', 'keyd1', datatestsite1Id)
+    const { data: data1 } = await createDataEntry('Blue', 'keyd1', { title: 'Blue Text', color: 'blue', align: 'center' }, datatestsite1Id, folder.id)
+    const { data: data2 } = await createDataEntry('Green', 'keyd1', { title: 'Green Text', color: 'green', align: 'center' }, datatestsite1Id, folder.id)
+    const { data: data3 } = await createDataEntry('Purple', 'keyd1', { title: 'Purple Text', color: 'purple', align: 'center' }, datatestsite1Id, folder.id)
+    const { moveDataEntry: { success, data } } = await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          success
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data2.id, target: { siteId: datatestsite2Id } })
+    expect(data.folder).to.be.null
+    expect(data.site.id).to.equal(datatestsite2Id)
+    expect(success).to.be.true
+    const { sites } = await query(`{ sites(filter: {ids: [${datatestsite2Id}]}) { data { name }}}`)
+    expect(sites[0].data.map((d: any) => d.name)).to.include('Green')
+    const remaining = await db.getall(`
+      SELECT dataId, displayOrder FROM data
+      INNER JOIN datafolders ON data.folderId = datafolders.id
+      WHERE datafolders.guid = ?`, [folder.id])
+    expect(remaining[1].dataId).to.equal(data3.id)
+    expect(remaining[1].displayOrder).to.equal(2)
+  })
+  it('should move data out of a folder to global data', async () => {
+    const { dataFolder: folder } = await createDataFolder('datafolderL', 'keyd1', datatestsite1Id)
+    const { data: data1 } = await createDataEntry('Yellow', 'keyd1', { title: 'Yellow Text', color: 'yellow', align: 'left' }, datatestsite1Id, folder.id)
+    const { data: data2 } = await createDataEntry('Orange', 'keyd1', { title: 'Orange Text', color: 'orange', align: 'left' }, datatestsite1Id, folder.id)
+    const { data: data3 } = await createDataEntry('Red', 'keyd1', { title: 'Red Text', color: 'red', align: 'left' }, datatestsite1Id, folder.id)
+    const { moveDataEntry: { success, data } } = await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          success
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data1.id, target: {} })
+    expect(success).to.be.true
+    const { data: globaldata } = await query('{ data(filter: {global: true }) { name } }')
+    expect(globaldata.map((d: any) => d.name)).to.include('Yellow')
+    const remaining = await db.getall(`
+      SELECT dataId, displayOrder FROM data
+      INNER JOIN datafolders ON data.folderId = datafolders.id
+      WHERE datafolders.guid = ?`, [folder.id])
+    expect(remaining[0].dataId).to.equal(data2.id)
+    expect(remaining[0].displayOrder).to.equal(1)
+  })
+  it('should move site-level data within a site', async () => {
+    const { createSite: { site } } = await query(`
+    mutation CreateSite ($args: CreateSiteInput!) {
+      createSite (args: $args) {
+        success
+        site { id name }
+      }
+    }`, { args: { name: 'datatestsite3', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    const { data: data1 } = await createDataEntry('Medium Gray', 'keyd1', { title: 'Medium Gray Text', color: 'mdgray', align: 'left' }, site.id)
+    const { data: data2 } = await createDataEntry('Dark Gray', 'keyd1', { title: 'Dark Gray Text', color: 'dkgray', align: 'left' }, site.id)
+    const { data: data3 } = await createDataEntry('Light Gray', 'keyd1', { title: 'Light Gray Text', color: 'ltgray', align: 'left' }, site.id)
+    const { moveDataEntry: { success, data } } = await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          success
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data3.id, target: { aboveTarget: data1.id } })
+    expect(success).to.be.true
+    const { data: sortedData } = await query(`{ data(filter: {siteIds: [${site.id}]}) { id } }`)
+    const ids = sortedData.map((d: any) => d.id)
+    expect(ids).to.have.ordered.members([data3.id, data1.id, data2.id])
+  })
+  it('should move site-level data to a folder', async () => {
+    const { createSite: { site } } = await query(`
+    mutation CreateSite ($args: CreateSiteInput!) {
+      createSite (args: $args) {
+        success
+        site { id name }
+      }
+    }`, { args: { name: 'datatestsite4', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    const { dataFolder: folder } = await createDataFolder('datafolderM', 'keyd1', site.id)
+    const { data: data1 } = await createDataEntry('Pink', 'keyd1', { title: 'Pink Text', color: 'pink', align: 'right' }, site.id)
+    const { data: data2 } = await createDataEntry('Lavender', 'keyd1', { title: 'Lavender Text', color: 'lavender', align: 'right' }, site.id)
+    const { data: data3 } = await createDataEntry('Cream', 'keyd1', { title: 'Cream Text', color: 'cream', align: 'right' }, site.id)
+    const { data: data4 } = await createDataEntry('Mint', 'keyd1', { title: 'Mint Text', color: 'mint', align: 'right' }, site.id)
+    const { moveDataEntry: { success, data } } = await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          success
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data2.id, target: { folderId: folder.id } })
+    expect(success).to.be.true
+    await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          success
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data4.id, target: { aboveTarget: data2.id } })
+    const { data: sortedData } = await query(`{ data(filter: {folderIds: ["${folder.id}"]}) { id } }`)
+    const ids = sortedData.map((d: any) => d.id)
+    expect(ids).to.have.ordered.members([data4.id, data2.id])
+    const remaining = await db.getall('SELECT dataId, displayOrder FROM data WHERE folderId IS NULL and siteId = ?', [site.id])
+    expect(remaining[1].dataId).to.equal(data3.id)
+    expect(remaining[1].displayOrder).to.equal(2)
+  })
+  it('should move site-level data to global data', async () => {
+    const { createSite: { site } } = await query(`
+    mutation CreateSite ($args: CreateSiteInput!) {
+      createSite (args: $args) {
+        site { id name }
+      }
+    }`, { args: { name: 'datatestsite5', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    const { data: data1 } = await createDataEntry('Black', 'keyd1', { title: 'Black Text', color: 'black', align: 'center' }, site.id)
+    const { data: data2 } = await createDataEntry('Brown', 'keyd1', { title: 'Brown Text', color: 'brown', align: 'right' }, site.id)
+    const { data: data3 } = await createDataEntry('Lime', 'keyd1', { title: 'Lime Text', color: 'lime', align: 'left' }, site.id)
+    const { data: data4 } = await createDataEntry('Cyan', 'keyd1', { title: 'Cyan Text', color: 'cyan', align: 'right' }, site.id)
+    const { moveDataEntry: { success, data } } = await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          success
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data3.id, target: {} })
+    expect(success).to.be.true
+    await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data1.id, target: { aboveTarget: data3.id } })
+    const { data: globaldata } = await query('{ data(filter: {global: true }) { name } }')
+    const globaldatanames = globaldata.map((d: any) => d.name)
+    expect(globaldatanames).to.include('Lime')
+    const position: number = globaldatanames.indexOf('Lime')
+    expect(globaldatanames.indexOf('Black')).to.be.lessThan(position)
+    const remaining = await db.getall('SELECT dataId, displayOrder FROM data WHERE folderId IS NULL AND siteId = ?', [site.id])
+    expect(remaining[1].dataId).to.equal(data4.id)
+    expect(remaining[1].displayOrder).to.equal(2)
+  })
+  it('should update the display order of global data', async () => {
+    const { data: data1 } = await createDataEntry('Maroon', 'keyd1', { title: 'Maroon Text', color: 'maroon', align: 'center' })
+    const { data: data2 } = await createDataEntry('Magenta', 'keyd1', { title: 'Magenta Text', color: 'magenta', align: 'right' })
+    const { moveDataEntry: { success } } = await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          success
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data2.id, target: { aboveTarget: data1.id } })
+    expect(success).to.be.true
+    const { data: globaldata } = await query('{ data(filter: {global: true }) { name } }')
+    const globaldatanames = globaldata.map((d: any) => d.name)
+    expect(globaldatanames).to.include('Lime')
+    expect(globaldatanames.indexOf('Magenta')).to.be.lessThan(globaldatanames.indexOf('Maroon'))
+  })
+  it('should move global data to a folder', async () => {
+    const { data: data1 } = await createDataEntry('Raspberry', 'keyd1', { title: 'Raspberry Text', color: 'raspberry', align: 'center' })
+    const { data: data2 } = await createDataEntry('Cherry', 'keyd1', { title: 'Cherry Text', color: 'cherry', align: 'right' })
+    const { data: data3 } = await createDataEntry('Mauve', 'keyd1', { title: 'Mauve Text', color: 'mauve', align: 'right' })
+    const { data: data4 } = await createDataEntry('Sky Blue', 'keyd1', { title: 'Sky Blue Text', color: 'skyblue', align: 'right' })
+    const { dataFolder: folder } = await createDataFolder('datafolderN', 'keyd1', datatestsite2Id)
+    const { moveDataEntry: { success } } = await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          success
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data1.id, target: { folderId: folder.id } })
+    expect(success).to.be.true
+    await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          success
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data3.id, target: { aboveTarget: data1.id } })
+    const { data: sortedData } = await query(`{ data(filter: {folderIds: ["${folder.id}"]}) { id } }`)
+    const ids = sortedData.map((d: any) => d.id)
+    expect(ids).to.have.ordered.members([data3.id, data1.id])
+  })
+  it('should move data from global data to a site', async () => {
+    const { data: data1 } = await createDataEntry('Teal', 'keyd1', { title: 'Teal Text', color: 'teal', align: 'center' })
+    const { data: data2 } = await createDataEntry('Tangerine', 'keyd1', { title: 'Tangerine Text', color: 'tangerine', align: 'right' })
+    const { data: data3 } = await createDataEntry('Navy', 'keyd1', { title: 'Navy Text', color: 'navy', align: 'left' })
+    const { createSite: { site } } = await query(`
+    mutation CreateSite ($args: CreateSiteInput!) {
+      createSite (args: $args) {
+        site { id name }
+      }
+    }`, { args: { name: 'datatestsite6', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    const { moveDataEntry: { success } } = await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          success
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data1.id, target: { siteId: site.id } })
+    expect(success).to.be.true
+    const { sites } = await query(`{ sites(filter: {ids: [${site.id}]}) { data { name }}}`)
+    expect(sites[0].data.map((d: any) => d.name)).to.include('Teal')
+  })
+  it('should move data from one folder to another', async () => {
+    const { dataFolder: folderO } = await createDataFolder('datafolderO', 'keyd1', datatestsite2Id)
+    const { dataFolder: folderP } = await createDataFolder('datafolderP', 'keyd1', datatestsite2Id)
+    const { data: data1 } = await createDataEntry('Evergreen', 'keyd1', { title: 'Evergreen Text', color: 'evergreen', align: 'center' }, undefined, folderO.id)
+    const { data: data2 } = await createDataEntry('Lemon', 'keyd1', { title: 'Lemon Text', color: 'lemon', align: 'right' }, undefined, folderO.id)
+    const { data: data3 } = await createDataEntry('Olive', 'keyd1', { title: 'Olive Text', color: 'olive', align: 'right' }, undefined, folderO.id)
+    const { data: data4 } = await createDataEntry('Indigo', 'keyd1', { title: 'Indigo Text', color: 'indigo', align: 'left' }, undefined, folderP.id)
+    const { moveDataEntry: { success } } = await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          success
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data2.id, target: { folderId: folderP.id } })
+    expect(success).to.be.true
+    const { data: sortedDataO } = await query(`{ data(filter: {folderIds: ["${folderO.id}"]}) { id } }`)
+    expect(sortedDataO.map((d: any) => d.id)).to.have.ordered.members([data1.id, data3.id])
+    const { data: sortedDataP } = await query(`{ data(filter: {folderIds: ["${folderP.id}"]}) { id } }`)
+    expect(sortedDataP.map((d: any) => d.id)).to.have.ordered.members([data4.id, data2.id])
+  })
+  it('should move data from one site to another', async () => {
+    const { createSite: { site: site7 } } = await query(`
+      mutation CreateSite ($args: CreateSiteInput!) {
+        createSite (args: $args) {
+          site { id name }
+        }
+      }`, { args: { name: 'datatestsite7', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    const { createSite: { site: site8 } } = await query(`
+      mutation CreateSite ($args: CreateSiteInput!) {
+        createSite (args: $args) {
+          site { id name }
+        }
+      }`, { args: { name: 'datatestsite8', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    const { data: data1 } = await createDataEntry('Hot Pink', 'keyd1', { title: 'Hot Pink Text', color: 'hotpink', align: 'center' }, site7.id)
+    const { data: data2 } = await createDataEntry('Rose', 'keyd1', { title: 'Rose Text', color: 'rose', align: 'right' }, site7.id)
+    const { data: data3 } = await createDataEntry('Tomato', 'keyd1', { title: 'Tomato Text', color: 'tomato', align: 'right' }, site7.id)
+    const { data: data4 } = await createDataEntry('Brick', 'keyd1', { title: 'Brick Text', color: 'brick', align: 'left' }, site8.id)
+    const { moveDataEntry: { success } } = await query(`
+      mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
+        moveDataEntry (dataId: $dataId, target: $target) {
+          success
+          data {
+            id
+            name
+            site { id name }
+            folder { id name }
+          }
+        }
+      }`, { dataId: data2.id, target: { siteId: site8.id } })
+    expect(success).to.be.true
+    const { sites } = await query(`{ sites(filter: {ids: [${site7.id}, ${site8.id}]}) { id data { name }}}`)
+    for (const site of sites) {
+      if (site.id === site7.id) {
+        expect(site.data.map((d: any) => d.name)).to.include.members(['Hot Pink', 'Tomato'])
+      } else {
+        expect(site.data.map((d: any) => d.name)).to.include.members(['Rose', 'Brick'])
+      }
+    }
+  })
 })
