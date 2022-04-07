@@ -4,7 +4,7 @@ import { TemplateFilter, Template } from 'internal'
 const columns = ['templates.id', 'templates.key', 'templates.name', 'templates.type', 'templates.deleted']
 
 function processFilters (filter?: TemplateFilter) {
-  const where: string[] = []
+  const where: string[] = ['deleted = 0']
   const binds: string[] = []
 
   if (filter?.ids?.length) {
