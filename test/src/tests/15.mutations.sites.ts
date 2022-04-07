@@ -61,7 +61,16 @@ describe('sites mutations', () => {
     const { sites } = await query(`{ sites(filter: { ids: [${siteG.id}] }) { name managers { id } } }`)
     expect(sites[0].managers.map((m: any) => m.id)).to.have.members(['ed01', 'ed02', 'ed03', 'ed04'])
   })
-  it.skip('should add a launch URL to a site', async () => {})
+  it('should add a launch URL to a site', async () => {
+    const { site: siteH } = await createSite('newsiteH')
+    const { updateSite: { success } } = await query('mutation UpdateSite ($id: ID!, $args: UpdateSiteInput!) { updateSite (siteId:$id, args: $args) { success } }', { id: siteH.id, args: { launchHost: 'www.example.com', launchPath: '/departmentH/' } })
+    expect(success).to.be.true
+    const { sites } = await query(`{ sites(filter: { ids: [${siteH.id}] }) { launched url { host path prefix } } }`)
+    expect(sites[0].launched).to.be.true
+    expect(sites[0].url.host).to.equal('www.example.com')
+    expect(sites[0].url.path).to.equal('/departmentH/')
+    expect(sites[0].url.prefix).to.equal('https://www.example.com/departmentH/')
+  })
   it('should delete a site', async () => {
     const { site: siteI } = await createSite('newsiteI')
     const { deleteSite: { success } } = await query('mutation DeleteSite ($id: ID!) { deleteSite (siteId: $id) { success } }', { id: siteI.id })
