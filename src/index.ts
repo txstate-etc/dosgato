@@ -6,6 +6,7 @@ import { DateTime } from 'luxon'
 import multipart from 'fastify-multipart'
 import { promises as fsp } from 'fs'
 import { migrations } from './migrations'
+import { fixtures } from './fixtures'
 import {
   DateTimeScalar, UrlSafeString, UrlSafeStringScalar,
   AssetPermissionsResolver, AssetResolver,
@@ -44,10 +45,15 @@ async function main () {
   templateRegistry.register(ColorData)
   templateRegistry.register(BuildingData)
   templateRegistry.register(ArticleData)
+
+  await migrations()
+
   // sync templates with database
   await syncRegistryWithDB()
 
-  await migrations()
+  if (process.env.NODE_ENV === 'development' && process.env.RESET_DB_ON_STARTUP === 'true') {
+    await fixtures()
+  }
 
   const server = new GQLServer()
   await server.app.register(multipart)

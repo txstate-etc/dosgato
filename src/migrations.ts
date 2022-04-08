@@ -1,7 +1,6 @@
 import db from 'mysql2-async/db'
 import { init } from './createdb'
 import { VersionedService } from 'internal'
-import { fixtures } from './fixtures'
 
 export async function migrations () {
   await db.wait()
@@ -17,8 +16,5 @@ export async function migrations () {
       ) ENGINE InnoDB
     `)
     await db.insert('INSERT INTO dbversion values (1)')
-  }
-  if (process.env.RESET_DB_ON_STARTUP === 'true') {
-    await fixtures()
   }
 }
