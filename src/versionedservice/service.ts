@@ -94,6 +94,8 @@ export class VersionedService extends BaseService {
    * Indexed search for objects. Tag required, use 'latest' for current version.
    */
   async find (rules: SearchRule[], tag: string, type?: string) {
+    // TODO: This is not working the way it should. It needs to take into account the indexName
+    // for the rules. There's also a problem on line 143. Search will be too strict?
     const binds: string[] = []
     const where: string[] = []
     const join: string[] = []
