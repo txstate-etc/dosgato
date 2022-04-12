@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { unique } from 'txstate-utils'
-import { Site, SiteFilter, CreateSiteInput, PagetreeType, VersionedService, UpdateSiteInput } from 'internal'
+import { Site, SiteFilter, CreateSiteInput, PagetreeType, VersionedService, UpdateSiteInput, formatSavedAtVersion } from 'internal'
 import { nanoid } from 'nanoid'
 
 const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
@@ -90,7 +90,7 @@ export async function createSite (versionedService: VersionedService, userId: st
     ])
     await db.update('UPDATE sites SET primaryPagetreeId = ?, rootAssetFolderId = ? WHERE id = ?', [pagetreeId, folderId, siteId])
     // create the root page.
-    const dataId = await versionedService.create('page', { templateKey: args.rootPageTemplateKey, savedAtVersion: args.schemaVersion }, [{ name: 'template', values: [args.rootPageTemplateKey] }], userId, db)
+    const dataId = await versionedService.create('page', { templateKey: args.rootPageTemplateKey, savedAtVersion: formatSavedAtVersion(args.schemaVersion) }, [{ name: 'template', values: [args.rootPageTemplateKey] }], userId, db)
     await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
       VALUES (?,?,?,?,?,?)`, [args.name, '/', 1, pagetreeId, dataId, nanoid(10)])

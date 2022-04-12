@@ -2,11 +2,12 @@
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common'
+import { DateTime } from 'luxon'
 
 chai.use(chaiAsPromised)
 
 async function createSite (name: string, username?: string) {
-  const { createSite: { success, site, messages } } = await queryAs((username ?? 'su01'), 'mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success messages { message } site { id name } } }', { args: { name, rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+  const { createSite: { success, site, messages } } = await queryAs((username ?? 'su01'), 'mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success messages { message } site { id name } } }', { args: { name, rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
   return { success, site, messages }
 }
 

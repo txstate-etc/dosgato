@@ -3,7 +3,7 @@ import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common'
 import db from 'mysql2-async/db'
-import { sleep } from 'txstate-utils'
+import { DateTime } from 'luxon'
 
 chai.use(chaiAsPromised)
 
@@ -41,7 +41,7 @@ async function createDataEntry (name: string, templateKey: string, content: any,
           published
         }
       }
-    }`, { args: { name, templateKey, schemaVersion: Date.now(), data: content, siteId, folderId } })
+    }`, { args: { name, templateKey, schemaVersion: DateTime.utc(), data: content, siteId, folderId } })
   return { success, messages, data }
 }
 
@@ -55,7 +55,7 @@ describe('data mutations', () => {
           success
           site { id name }
         }
-      }`, { args: { name: 'datatestsite1', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+      }`, { args: { name: 'datatestsite1', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
     datatestsite1Id = resp.createSite.site.id
     resp = await query(`
       mutation CreateSite ($args: CreateSiteInput!) {
@@ -63,7 +63,7 @@ describe('data mutations', () => {
           success
           site { id name }
         }
-      }`, { args: { name: 'datatestsite2', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+      }`, { args: { name: 'datatestsite2', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
     datatestsite2Id = resp.createSite.site.id
   })
   it('should create a data folder', async () => {
@@ -248,7 +248,7 @@ describe('data mutations', () => {
           }
         }
       }
-    `, { dataId: dataEntry.id, args: { schemaVersion: Date.now(), data: { name: 'Student Building', floors: 3, templateKey: 'keyd2' }, dataVersion: 1, comment: 'Fix spelling error' } })
+    `, { dataId: dataEntry.id, args: { schemaVersion: DateTime.utc(), data: { name: 'Student Building', floors: 3, templateKey: 'keyd2' }, dataVersion: 1, comment: 'Fix spelling error' } })
     expect(success).to.be.true
     expect(data.data.name).to.equal('Student Building')
   })
@@ -263,7 +263,7 @@ describe('data mutations', () => {
           }
         }
       }
-    `, { dataId: dataEntry.id, args: { schemaVersion: Date.now(), data: { name: 'Oak Hall', floors: 8, templateKey: 'keyd2' }, dataVersion: 1, comment: 'Building remodled' } })
+    `, { dataId: dataEntry.id, args: { schemaVersion: DateTime.utc(), data: { name: 'Oak Hall', floors: 8, templateKey: 'keyd2' }, dataVersion: 1, comment: 'Building remodled' } })
     expect(success).to.be.false
     expect(messages).to.have.length.greaterThan(0)
   })
@@ -275,7 +275,7 @@ describe('data mutations', () => {
         success
       }
     }
-  `, { dataId: dataEntry.id, args: { schemaVersion: Date.now(), data: { name: 'Building', floors: 6, templateKey: 'keyd2' }, dataVersion: 1, comment: 'Should not work' } })).to.be.rejected
+  `, { dataId: dataEntry.id, args: { schemaVersion: DateTime.utc(), data: { name: 'Building', floors: 6, templateKey: 'keyd2' }, dataVersion: 1, comment: 'Should not work' } })).to.be.rejected
   })
   it('should publish a data entry', async () => {
     const { data: dataEntry } = await createDataEntry('GlobalBuilding7', 'keyd2', { name: 'James Hall', floors: 2 })
@@ -499,7 +499,7 @@ describe('data mutations', () => {
         success
         site { id name }
       }
-    }`, { args: { name: 'datatestsite3', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    }`, { args: { name: 'datatestsite3', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
     const { data: data1 } = await createDataEntry('Medium Gray', 'keyd1', { title: 'Medium Gray Text', color: 'mdgray', align: 'left' }, site.id)
     const { data: data2 } = await createDataEntry('Dark Gray', 'keyd1', { title: 'Dark Gray Text', color: 'dkgray', align: 'left' }, site.id)
     const { data: data3 } = await createDataEntry('Light Gray', 'keyd1', { title: 'Light Gray Text', color: 'ltgray', align: 'left' }, site.id)
@@ -527,7 +527,7 @@ describe('data mutations', () => {
         success
         site { id name }
       }
-    }`, { args: { name: 'datatestsite4', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    }`, { args: { name: 'datatestsite4', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
     const { dataFolder: folder } = await createDataFolder('datafolderM', 'keyd1', site.id)
     const { data: data1 } = await createDataEntry('Pink', 'keyd1', { title: 'Pink Text', color: 'pink', align: 'right' }, site.id)
     const { data: data2 } = await createDataEntry('Lavender', 'keyd1', { title: 'Lavender Text', color: 'lavender', align: 'right' }, site.id)
@@ -571,7 +571,7 @@ describe('data mutations', () => {
       createSite (args: $args) {
         site { id name }
       }
-    }`, { args: { name: 'datatestsite5', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    }`, { args: { name: 'datatestsite5', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
     const { data: data1 } = await createDataEntry('Black', 'keyd1', { title: 'Black Text', color: 'black', align: 'center' }, site.id)
     const { data: data2 } = await createDataEntry('Brown', 'keyd1', { title: 'Brown Text', color: 'brown', align: 'right' }, site.id)
     const { data: data3 } = await createDataEntry('Lime', 'keyd1', { title: 'Lime Text', color: 'lime', align: 'left' }, site.id)
@@ -674,7 +674,7 @@ describe('data mutations', () => {
       createSite (args: $args) {
         site { id name }
       }
-    }`, { args: { name: 'datatestsite6', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    }`, { args: { name: 'datatestsite6', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
     const { moveDataEntry: { success } } = await query(`
       mutation MoveDataEntry ($dataId: ID!, $target: MoveDataTarget!) {
         moveDataEntry (dataId: $dataId, target: $target) {
@@ -722,13 +722,13 @@ describe('data mutations', () => {
         createSite (args: $args) {
           site { id name }
         }
-      }`, { args: { name: 'datatestsite7', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+      }`, { args: { name: 'datatestsite7', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
     const { createSite: { site: site8 } } = await query(`
       mutation CreateSite ($args: CreateSiteInput!) {
         createSite (args: $args) {
           site { id name }
         }
-      }`, { args: { name: 'datatestsite8', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+      }`, { args: { name: 'datatestsite8', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
     const { data: data1 } = await createDataEntry('Hot Pink', 'keyd1', { title: 'Hot Pink Text', color: 'hotpink', align: 'center' }, site7.id)
     const { data: data2 } = await createDataEntry('Rose', 'keyd1', { title: 'Rose Text', color: 'rose', align: 'right' }, site7.id)
     const { data: data3 } = await createDataEntry('Tomato', 'keyd1', { title: 'Tomato Text', color: 'tomato', align: 'right' }, site7.id)

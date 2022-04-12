@@ -2,18 +2,19 @@
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common'
+import { DateTime } from 'luxon'
 
 chai.use(chaiAsPromised)
 
 async function createPagetree (name: string, siteId: string, username?: string) {
-  const { createPagetree: { success, messages, pagetree } } = await queryAs((username ?? 'su01'), 'mutation CreatePagetree ($args: CreatePagetreeInput!) { createPagetree (args: $args) { success messages { message } pagetree { id name type deleted } } }', { args: { siteId, name, rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+  const { createPagetree: { success, messages, pagetree } } = await queryAs((username ?? 'su01'), 'mutation CreatePagetree ($args: CreatePagetreeInput!) { createPagetree (args: $args) { success messages { message } pagetree { id name type deleted } } }', { args: { siteId, name, rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
   return { success, messages, pagetree }
 }
 
 describe('pagetree mutations', () => {
   let testSiteId: string
   before(async () => {
-    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name } } }', { args: { name: 'pagetreetestsite', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name } } }', { args: { name: 'pagetreetestsite', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
     testSiteId = site.id
   })
   it('should create a pagetree', async () => {

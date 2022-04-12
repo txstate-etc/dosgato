@@ -2,7 +2,7 @@
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs, postMultipart } from '../common'
-import { sleep } from 'txstate-utils'
+import { DateTime } from 'luxon'
 
 chai.use(chaiAsPromised)
 
@@ -15,7 +15,7 @@ describe('asset mutations', () => {
   let testSiteAId: string
   let siteAAssetRootId: string
   before(async () => {
-    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name assetroot { id } } } }', { args: { name: 'assetTestSiteA', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name assetroot { id } } } }', { args: { name: 'assetTestSiteA', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
     testSiteAId = site.id
     siteAAssetRootId = site.assetroot.id
   })
@@ -78,7 +78,7 @@ describe('asset mutations', () => {
     expect(assetFolder.folder.id).to.equal(targetFolder.id)
   })
   it('should not allow the root asset folder to be moved', async () => {
-    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name assetroot { id } } } }', { args: { name: 'assetTestSiteB', rootPageTemplateKey: 'keyp1', schemaVersion: Date.now() } })
+    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name assetroot { id } } } }', { args: { name: 'assetTestSiteB', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
     const { assetFolder: targetFolder } = await createAssetFolder('childfolder9', site.id, site.assetroot.id)
     await expect(query('mutation MoveAssetFolder ($folderId: ID!, $targetId: ID!) { moveAssetFolder (folderId: $folderId, targetId: $targetId) { success assetFolder { id name folder { id name } } } }', { folderId: siteAAssetRootId, targetId: targetFolder.id })).to.be.rejected
   })

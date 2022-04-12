@@ -3,6 +3,7 @@ import stringify from 'fast-json-stable-stringify'
 import { existsSync } from 'fs'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
+import { DateTime } from 'luxon'
 import { VersionedService, Index } from 'internal'
 
 export async function fixtures () {
@@ -322,6 +323,10 @@ export async function fixtures () {
     return pageId
   }
 
+  function getSavedAtVersion () {
+    return DateTime.utc().toFormat('yLLddHHmmss')
+  }
+
   async function updatePage (id: string, content: any, indexes: Index[], user?: string, comment?: string) {
     const ctx = new Context()
     const versionedService = new VersionedService(ctx)
@@ -359,7 +364,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc1', 'keyc2']
     }
   ]
-  const site1pagetree1Root = await createPage('site1', rootLinkId, pagetree1, null, 1, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Basketry Home', areas: { links: [], main: [] } }, indexes)
+  const site1pagetree1Root = await createPage('site1', rootLinkId, pagetree1, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Basketry Home', areas: { links: [], main: [] } }, indexes)
 
   // about page
   indexes = [
@@ -377,7 +382,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc3']
     }
   ]
-  const site1pagetree1About = await createPage('about', aboutLinkId, pagetree1, site1pagetree1Root, 1, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'About', areas: { links: [], main: [] } }, indexes)
+  const site1pagetree1About = await createPage('about', aboutLinkId, pagetree1, site1pagetree1Root, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'About', areas: { links: [], main: [] } }, indexes)
 
   // location page
   indexes = [
@@ -393,7 +398,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc1']
     }
   ]
-  await createPage('location', locationLinkId, pagetree1, site1pagetree1About, 1, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Location', areas: { links: [], main: [] } }, indexes)
+  await createPage('location', locationLinkId, pagetree1, site1pagetree1About, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Location', areas: { links: [], main: [] } }, indexes)
 
   // people page
   indexes = [
@@ -411,7 +416,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc1', 'keyc2']
     }
   ]
-  const site1pagetree1People = await createPage('people', peopleLinkId, pagetree1, site1pagetree1About, 2, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'People', areas: { links: [], main: [] } }, indexes)
+  const site1pagetree1People = await createPage('people', peopleLinkId, pagetree1, site1pagetree1About, 2, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'People', areas: { links: [], main: [] } }, indexes)
 
   // faculty page
   indexes = [
@@ -420,10 +425,10 @@ export async function fixtures () {
       values: ['keyp1', 'keyc3']
     }
   ]
-  const facultyPageId = await createPage('faculty', facultyLinkId, pagetree1, site1pagetree1People, 1, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Faculty', areas: { links: [], main: [] } }, indexes)
+  const facultyPageId = await createPage('faculty', facultyLinkId, pagetree1, site1pagetree1People, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Faculty', areas: { links: [], main: [] } }, indexes)
   const dataIdfacultyPage = await db.getval<string>('SELECT dataId FROM pages WHERE id = ?', [facultyPageId])
-  await updatePage(dataIdfacultyPage!, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Faculty', hideNav: true, areas: { links: [], main: [] } }, indexes, 'ed02')
-  await updatePage(dataIdfacultyPage!, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Faculty', hideNav: false, areas: { links: [], main: [] } }, indexes, 'ed02')
+  await updatePage(dataIdfacultyPage!, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Faculty', hideNav: true, areas: { links: [], main: [] } }, indexes, 'ed02')
+  await updatePage(dataIdfacultyPage!, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Faculty', hideNav: false, areas: { links: [], main: [] } }, indexes, 'ed02')
 
   // staff page
   indexes = [
@@ -432,7 +437,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc3']
     }
   ]
-  await createPage('staff', staffLinkId, pagetree1, site1pagetree1People, 2, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Staff', areas: { links: [], main: [] } }, indexes)
+  await createPage('staff', staffLinkId, pagetree1, site1pagetree1People, 2, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Staff', areas: { links: [], main: [] } }, indexes)
 
   // programs page
   indexes = [
@@ -450,7 +455,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc2']
     }
   ]
-  const site1pagetree1Programs = await createPage('programs', programsLinkId, pagetree1, site1pagetree1Root, 2, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Programs', areas: { links: [], main: [] } }, indexes)
+  const site1pagetree1Programs = await createPage('programs', programsLinkId, pagetree1, site1pagetree1Root, 2, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Programs', areas: { links: [], main: [] } }, indexes)
 
   // undergrad page
   indexes = [
@@ -466,7 +471,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc3']
     }
   ]
-  await createPage('undergrad', ugradLinkId, pagetree1, site1pagetree1Programs, 1, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Undergraduate Programs', areas: { links: [], main: [] } }, indexes)
+  await createPage('undergrad', ugradLinkId, pagetree1, site1pagetree1Programs, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Undergraduate Programs', areas: { links: [], main: [] } }, indexes)
 
   // grad page
   indexes = [
@@ -482,7 +487,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc3']
     }
   ]
-  await createPage('grad', gradLinkId, pagetree1, site1pagetree1Programs, 2, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Graduate Programs', areas: { links: [], main: [] } }, indexes)
+  await createPage('grad', gradLinkId, pagetree1, site1pagetree1Programs, 2, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Graduate Programs', areas: { links: [], main: [] } }, indexes)
 
   // contact page
   indexes = [
@@ -491,7 +496,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc2', 'keyc3']
     }
   ]
-  await createPage('contact', contactLinkId, pagetree1, site1pagetree1Root, 3, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Contact Us', areas: { links: [], main: [] } }, indexes)
+  await createPage('contact', contactLinkId, pagetree1, site1pagetree1Root, 3, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Contact Us', areas: { links: [], main: [] } }, indexes)
 
   // events page
   indexes = [
@@ -500,7 +505,7 @@ export async function fixtures () {
       values: ['keyp1', 'keyc1']
     }
   ]
-  const site1pagetree1Events = await createPage('events', eventsLinkId, pagetree1, site1pagetree1About, 3, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Special Events', areas: { links: [], main: [] } }, indexes)
+  const site1pagetree1Events = await createPage('events', eventsLinkId, pagetree1, site1pagetree1About, 3, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Special Events', areas: { links: [], main: [] } }, indexes)
   await db.update('UPDATE pages SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [su01, site1pagetree1Events])
 
   /* Site 2, Pagetree 2 Pages */
@@ -512,7 +517,7 @@ export async function fixtures () {
       values: ['keyp2', 'keyc3']
     }
   ]
-  const site2rootpageid = await createPage('site2', site2RootLinkId, pagetree2, null, 1, { templateKey: 'keyp2', savedAtVersion: Date.now(), title: 'Site 2 Home', areas: { content: [] } }, indexes)
+  const site2rootpageid = await createPage('site2', site2RootLinkId, pagetree2, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 2 Home', areas: { content: [] } }, indexes)
   const dataIdSite2Root = await db.getval<string>('SELECT dataId FROM pages WHERE id = ?', [site2rootpageid])
   await tagData(dataIdSite2Root!, 'published', 1, 'su01')
 
@@ -538,7 +543,7 @@ export async function fixtures () {
       values: ['keyp3', 'keyc1', 'keyc2']
     }
   ]
-  const site3pagetree3Root = await createPage('site3', site3RootLinkId, pagetree3, null, 1, { templateKey: 'keyp3', savedAtVersion: Date.now(), title: 'Site 3 Home', areas: { content: [] } }, indexes)
+  const site3pagetree3Root = await createPage('site3', site3RootLinkId, pagetree3, null, 1, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Site 3 Home', areas: { content: [] } }, indexes)
   // about
   indexes = [
     {
@@ -546,7 +551,7 @@ export async function fixtures () {
       values: ['keyp3', 'keyc2', 'keyc3']
     }
   ]
-  await createPage('about', site3AboutLinkId, pagetree3, site3pagetree3Root, 1, { templateKey: 'keyp3', savedAtVersion: Date.now(), title: 'About Us', areas: { content: [] } }, indexes)
+  await createPage('about', site3AboutLinkId, pagetree3, site3pagetree3Root, 1, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'About Us', areas: { content: [] } }, indexes)
   // site map
   indexes = [
     {
@@ -554,7 +559,7 @@ export async function fixtures () {
       values: ['keyp3']
     }
   ]
-  await createPage('sitemap', site3SiteMapLinkId, pagetree3, site3pagetree3Root, 2, { templateKey: 'keyp3', savedAtVersion: Date.now(), title: 'Site Map', areas: { content: [] } }, indexes)
+  await createPage('sitemap', site3SiteMapLinkId, pagetree3, site3pagetree3Root, 2, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Site Map', areas: { content: [] } }, indexes)
 
   /* Site 3, Sandbox Pages */
   const site3SandboxRootLinkId = nanoid(10)
@@ -576,7 +581,7 @@ export async function fixtures () {
       values: ['keyp2', 'keyc1', 'keyc2']
     }
   ]
-  const site3SandboxRoot = await createPage('site3', site3SandboxRootLinkId, pagetree3sandbox, null, 1, { templateKey: 'keyp2', savedAtVersion: Date.now(), title: 'Site 3 Home', areas: { content: [] } }, indexes)
+  const site3SandboxRoot = await createPage('site3', site3SandboxRootLinkId, pagetree3sandbox, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 3 Home', areas: { content: [] } }, indexes)
 
   indexes = [
     {
@@ -584,18 +589,18 @@ export async function fixtures () {
       values: ['keyp2']
     }
   ]
-  await createPage('about', site3AboutPageLinkId, pagetree3sandbox, site3SandboxRoot, 1, { templateKey: 'keyp2', savedAtVersion: Date.now(), title: 'About Site 3', areas: { content: [] } }, indexes)
+  await createPage('about', site3AboutPageLinkId, pagetree3sandbox, site3SandboxRoot, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'About Site 3', areas: { content: [] } }, indexes)
 
   /* Site 4 */
-  await createPage('site4', nanoid(10), pagetree4, null, 1, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
-  await createPage('site4', nanoid(10), pagetree4archive, null, 1, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
-  await createPage('site4', nanoid(10), pagetree4deleted, null, 1, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
+  await createPage('site4', nanoid(10), pagetree4, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
+  await createPage('site4', nanoid(10), pagetree4archive, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
+  await createPage('site4', nanoid(10), pagetree4deleted, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
 
   /* Site 5 */
-  await createPage('site5', nanoid(10), pagetree5, null, 1, { templateKey: 'keyp1', savedAtVersion: Date.now(), title: 'Site 5 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
+  await createPage('site5', nanoid(10), pagetree5, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 5 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
 
   /* Site 6 */
-  await createPage('site6', nanoid(10), pagetree6, null, 1, { templateKey: 'key2', savedAtVersion: Date.now(), title: 'Site 6 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp2'] }])
+  await createPage('site6', nanoid(10), pagetree6, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 6 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp2'] }])
 
   /* Data */
   const [datafolder1, datafolder2, datafolder3] = await Promise.all([
@@ -604,11 +609,12 @@ export async function fixtures () {
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deletedAt, deletedBy) VALUES (?,?,?,?,NOW(),?)', ['deletedfolder', nanoid(10), site2, datatemplate1!, su03])
   ])
 
-  async function createData (name: string, displayOrder: number, content: any, indexes: Index[], creator: string) {
+  async function createData (name: string, displayOrder: number, templateKey: string, content: any, indexes: Index[], creator: string) {
     const ctx = new Context()
     const versionedService = new VersionedService(ctx)
+    const entryContent = Object.assign({}, content, { templateKey, savedAtVersion: getSavedAtVersion() })
     const id = await db.transaction(async db => {
-      const dataId = await versionedService.create('testdata_data', content, indexes, creator, db)
+      const dataId = await versionedService.create('testdata_data', entryContent, indexes, creator, db)
       return await db.insert('INSERT INTO data (dataId, name, displayOrder) VALUES (?, ?, ?)', [dataId, name, displayOrder])
     })
     return id
@@ -627,42 +633,42 @@ export async function fixtures () {
   }
 
   // TODO: Add more indexes?
-  const data1Id = await createData('Red Content', 1, { title: 'Red Text', color: 'red', align: 'center' }, [{ name: 'template', values: ['keyd1'] }], 'su01')
+  const data1Id = await createData('Red Content', 1, 'keyd1', { title: 'Red Text', color: 'red', align: 'center' }, [{ name: 'template', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data1Id])
   const dataIdData1 = await db.getval<string>('SELECT dataId FROM data WHERE id = ?', [data1Id])
   await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 'left' }, [{ name: 'template', values: ['keyd1'] }], 'su03', 'updating alignment')
   await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 'right' }, [{ name: 'template', values: ['keyd1'] }], 'su01', 'updating alignment again')
 
-  const data2Id = await createData('Blue Content', 2, { title: 'Blue Text', color: 'blue', align: 'left' }, [{ name: 'template', values: ['keyd1'] }], 'su01')
+  const data2Id = await createData('Blue Content', 2, 'keyd1', { title: 'Blue Text', color: 'blue', align: 'left' }, [{ name: 'template', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data2Id])
 
-  const data3Id = await createData('Orange Content', 3, { title: 'Orange Text', color: 'orange', align: 'right' }, [{ name: 'template', values: ['keyd1'] }], 'su01')
+  const data3Id = await createData('Orange Content', 3, 'keyd1', { title: 'Orange Text', color: 'orange', align: 'right' }, [{ name: 'template', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ?, deletedAt = NOW(), deletedBy = ? WHERE id = ?', [site2, datafolder1, su01, data3Id])
 
-  const data4Id = await createData('Green Content', 4, { title: 'Green Text', color: 'green', align: 'center' }, [{ name: 'template', values: ['keyd1'] }], 'su01')
+  const data4Id = await createData('Green Content', 4, 'keyd1', { title: 'Green Text', color: 'green', align: 'center' }, [{ name: 'template', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data4Id])
 
   // some global data that does not belong to a site
-  const article1Id = await createData('Car Cleaning', 1, { title: '5 Steps to a Cleaner Car', author: 'Jane Doe' }, [{ name: 'template', values: ['articledatakey'] }], 'su01')
+  const article1Id = await createData('Car Cleaning', 1, 'articledatakey', { title: '5 Steps to a Cleaner Car', author: 'Jane Doe' }, [{ name: 'template', values: ['articledatakey'] }], 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article1Id])
   const dataIdArticle1 = await db.getval<string>('SELECT dataId FROM data WHERE id = ?', [article1Id])
   await tagData(dataIdArticle1!, 'published', 1, 'su02')
 
-  const article2Id = await createData('Trees', 2, { title: 'Trees of Central Texas', author: 'John Smith' }, [{ name: 'template', values: ['articledatakey'] }], 'su01')
+  const article2Id = await createData('Trees', 2, 'articledatakey', { title: 'Trees of Central Texas', author: 'John Smith' }, [{ name: 'template', values: ['articledatakey'] }], 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article2Id])
 
-  const article3Id = await createData('Ladybugs', 3, { title: 'The Secret Lives of Ladybugs', author: 'Jack Frost' }, [{ name: 'template', values: ['articledatakey'] }], 'su01')
+  const article3Id = await createData('Ladybugs', 3, 'articledatakey', { title: 'The Secret Lives of Ladybugs', author: 'Jack Frost' }, [{ name: 'template', values: ['articledatakey'] }], 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article3Id])
 
   // data not in a folder
   await Promise.all([
-    createData('Cottonwood Hall', 1, { name: 'Cottonwood Hall', floors: 3 }, [{ name: 'template', values: ['keyd2'] }], 'su01'),
-    createData('Student Center', 2, { name: 'Student Center', floors: 4 }, [{ name: 'template', values: ['keyd2'] }], 'su01'),
-    createData('Aquatics Center', 3, { name: 'Aquatics Center', floors: 2 }, [{ name: 'template', values: ['keyd2'] }], 'su01')
+    createData('Cottonwood Hall', 1, 'keyd2', { name: 'Cottonwood Hall', floors: 3 }, [{ name: 'template', values: ['keyd2'] }], 'su01'),
+    createData('Student Center', 2, 'keyd2', { name: 'Student Center', floors: 4 }, [{ name: 'template', values: ['keyd2'] }], 'su01'),
+    createData('Aquatics Center', 3, 'keyd2', { name: 'Aquatics Center', floors: 2 }, [{ name: 'template', values: ['keyd2'] }], 'su01')
   ])
 
   // deleted data
-  const deletedDataId = await createData('Purple Content', 5, { title: 'Purple Text', color: 'purple', align: 'left' }, [{ name: 'template', values: ['keyd1'] }], 'su02')
+  const deletedDataId = await createData('Purple Content', 5, 'keyd1', { title: 'Purple Text', color: 'purple', align: 'left' }, [{ name: 'template', values: ['keyd1'] }], 'su02')
   await db.update('UPDATE data SET folderId = ?, deletedAt = NOW(), deletedBy = ?, displayOrder = ? WHERE id = ?', [datafolder3, su02, 1, deletedDataId])
 
   async function createAsset (name: string, folder: number, checksum: string, mime: string, size: number, content: any, indexes: Index[], creator: string) {

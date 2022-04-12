@@ -2,8 +2,8 @@ import db from 'mysql2-async/db'
 import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
-import { hashify, isNotBlank, isNotNull } from 'txstate-utils'
-import { Page, PageFilter, VersionedService, normalizePath } from 'internal'
+import { isNotBlank, isNotNull, keyby } from 'txstate-utils'
+import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion } from 'internal'
 
 async function processFilters (filter: PageFilter) {
   const binds: string[] = []
@@ -109,7 +109,7 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db) {
 }
 
 async function refetch (db: Queryable, ...pages: (Page|undefined)[]) {
-  const refetched = hashify(await getPages({ internalIds: pages.filter(isNotNull).map(p => p.internalId) }, db), 'internalId')
+  const refetched = keyby(await getPages({ internalIds: pages.filter(isNotNull).map(p => p.internalId) }, db), 'internalId')
   return pages.map(p => refetched[p?.internalId ?? 0])
 }
 
@@ -133,7 +133,7 @@ export async function createPage (versionedService: VersionedService, userId: st
       throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
     }
     const displayOrder = await handleDisplayOrder(db, parent, aboveTarget)
-    const dataId = await versionedService.create('page', { templateKey, savedAtVersion: schemaVersion }, [{ name: 'template', values: [templateKey] }], userId, db)
+    const dataId = await versionedService.create('page', { templateKey, savedAtVersion: formatSavedAtVersion(schemaVersion) }, [{ name: 'template', values: [templateKey] }], userId, db)
     const newInternalId = await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
       VALUES (?,?,?,?,?,?)

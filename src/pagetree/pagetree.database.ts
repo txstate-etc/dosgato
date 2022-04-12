@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { unique } from 'txstate-utils'
 import { nanoid } from 'nanoid'
-import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, CreatePagetreeInput } from 'internal'
+import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, CreatePagetreeInput, formatSavedAtVersion } from 'internal'
 
 function processFilters (filter?: PagetreeFilter) {
   const binds: string[] = []
@@ -59,7 +59,7 @@ export async function createPagetree (versionedService: VersionedService, userId
     // create the pagetree
     const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt) VALUES (?, ?, ?, NOW())', [args.siteId, PagetreeType.SANDBOX, args.name])
     // create the root page for the pagetree
-    const dataId = await versionedService.create('page', { templateKey: args.rootPageTemplateKey, savedAtVersion: args.schemaVersion }, [{ name: 'template', values: [args.rootPageTemplateKey] }], userId, db)
+    const dataId = await versionedService.create('page', { templateKey: args.rootPageTemplateKey, savedAtVersion: formatSavedAtVersion(args.schemaVersion) }, [{ name: 'template', values: [args.rootPageTemplateKey] }], userId, db)
     await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
       VALUES (?,?,?,?,?,?)`, [siteName, '/', 1, pagetreeId, dataId, nanoid(10)])
