@@ -219,8 +219,21 @@ describe('pages', () => {
     const site2RootPage = pages.find((p: any) => p.name === 'site2')
     expect(site2RootPage.publishedBy.id).to.equal('su01')
   })
-  it.skip('should return roles with any permissions on the page', async () => {})
-  it.skip('should return roles with a specific permission on a page', async () => {})
+  it('should return roles with any permissions on the page', async () => {
+    const { sites } = await query('{ sites { id name } }')
+    const site7 = sites.find((s: any) => s.name === 'site7')
+    const { pages } = await query(`{ pages(filter: { siteIds: [${site7.id}] }) { name roles { id name } } }`)
+    const roleNames = pages[0].roles.map((r: any) => r.name)
+    expect(roleNames).to.include.members(['pagerolestest1', 'pagerolestest2'])
+  })
+  it('should return roles with a specific permission on a page', async () => {
+    const { sites } = await query('{ sites { id name } }')
+    const site7 = sites.find((s: any) => s.name === 'site7')
+    const { pages } = await query(`{ pages(filter: { siteIds: [${site7.id}] }) { name roles(withPermission: PUBLISH) { id name } } }`)
+    const roleNames = pages[0].roles.map((r: any) => r.name)
+    expect(roleNames).to.include('pagerolestest1')
+    expect(roleNames).to.not.include('pagerolestest2')
+  })
   it('should return a list of all versions of a page', async () => {
     const { pages } = await query('{ pages(filter: {deleted: false}) { id name versions { version data } } }')
     const facultyPage = pages.find((p: any) => p.name === 'faculty')
