@@ -65,7 +65,7 @@ export class AssetFolderFilter {
   @Field(type => Boolean, { nullable: true, description: 'Return folders that are the root folder of a site.' })
   root?: boolean
 
-  @Field(type => Boolean, { nullable: false, description: 'true -> return only deleted folders, false -> return only nondeleted folders, undefined -> return all folders' })
+  @Field(type => Boolean, { nullable: true, description: 'true -> return only deleted folders, false -> return only nondeleted folders, undefined -> return all folders' })
   deleted?: boolean
 }
 

@@ -51,7 +51,7 @@ export class DataFolderFilter {
   @Field(type => [ID], { nullable: true, description: 'Return folders that are associated with one of the given sites.' })
   siteIds?: string[]
 
-  @Field(type => Boolean, { nullable: false, description: 'true -> return only deleted folders, false -> return only nondeleted folders, undefined -> return all folders' })
+  @Field(type => Boolean, { nullable: true, description: 'true -> return only deleted folders, false -> return only nondeleted folders, undefined -> return all folders' })
   deleted?: boolean
 }
 
