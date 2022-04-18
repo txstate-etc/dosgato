@@ -41,11 +41,23 @@ export class DataFolderServiceInternal extends BaseService {
   }
 
   async findBySiteId (siteId: string, filter?: DataFolderFilter) {
+    filter = await this.processFilters(filter)
     return await this.loaders.get(dataFoldersBySiteIdLoader, filter).load(siteId)
   }
 
   async getPath (folder: DataFolder) {
     return '/' + (folder.name as string)
+  }
+
+  async processFilters (filter?: DataFolderFilter) {
+    if (filter?.templateKeys) {
+      const templates = await this.svc(TemplateService).findByKeys(filter.templateKeys)
+      const ids = templates.map(t => t.id)
+      if (filter.templateIds) {
+        filter.templateIds.push(...ids)
+      } else filter.templateIds = ids
+    }
+    return filter
   }
 }
 

@@ -153,11 +153,12 @@ export async function fixtures () {
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree7', site7, 'primary'])
   ])
 
-  const [pagetemplate1, pagetemplate2, pagetemplate3, datatemplate1, articleTemplate] = await Promise.all([
+  const [pagetemplate1, pagetemplate2, pagetemplate3, datatemplate1, datatemplate2, articleTemplate] = await Promise.all([
     await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp1']),
     await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp2']),
     await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp3']),
     await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyd1']),
+    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyd2']),
     await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['articledatakey'])
   ])
 
@@ -621,7 +622,10 @@ export async function fixtures () {
   const [datafolder1, datafolder2, datafolder3] = await Promise.all([
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site2datafolder', nanoid(10), site2, datatemplate1!]),
     db.insert('INSERT INTO datafolders (name, guid, templateId) VALUES (?,?,?)', ['globaldatafolder', nanoid(10), articleTemplate!]),
-    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deletedAt, deletedBy) VALUES (?,?,?,?,NOW(),?)', ['deletedfolder', nanoid(10), site2, datatemplate1!, su03])
+    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deletedAt, deletedBy) VALUES (?,?,?,?,NOW(),?)', ['deletedfolder', nanoid(10), site2, datatemplate1!, su03]),
+    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site5datafolder1', nanoid(10), site5, datatemplate1!]),
+    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site5datafolder2', nanoid(10), site5, datatemplate2!]),
+    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deletedAt, deletedBy) VALUES (?,?,?,?,NOW(),?)', ['site5datafolder3', nanoid(10), site5, datatemplate1!, su01])
   ])
 
   async function createData (name: string, displayOrder: number, templateKey: string, content: any, indexes: Index[], creator: string) {
