@@ -38,7 +38,7 @@ export async function getSites (filter?: SiteFilter) {
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`
   }
-  const sites = await db.getall(query, binds)
+  const sites = await db.getall(query + ' ORDER BY sites.name', binds)
   return sites.map(s => new Site(s))
 }
 

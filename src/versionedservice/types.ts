@@ -8,8 +8,8 @@ interface VersionedCommon {
   modifiedBy: string
   comment: string
 }
-export interface Versioned extends VersionedCommon {
-  data: any
+export interface Versioned<DataType = any> extends VersionedCommon {
+  data: DataType
 }
 export interface VersionedStorage extends VersionedCommon {
   data: string

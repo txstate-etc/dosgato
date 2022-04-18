@@ -109,7 +109,7 @@ export class PagetreePermissionsResolver {
     return await ctx.svc(PagetreeService).mayPromote(pagetree)
   }
 
-  @FieldResolver(returns => Boolean, { description: 'User may archive this pagetree. Returns false if pagetree is already archived.'})
+  @FieldResolver(returns => Boolean, { description: 'User may archive this pagetree. Returns false if pagetree is already archived.' })
   async archive (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
     return await ctx.svc(PagetreeService).mayArchive(pagetree)
   }

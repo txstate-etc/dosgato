@@ -66,7 +66,7 @@ export class VersionedService extends BaseService {
    *
    * If you ask for a specific tag that doesn't exist, you'll receive undefined.
    */
-  async get (id: string, { version, tag }: { version?: number, tag?: string } = {}) {
+  async get <DataType = any> (id: string, { version, tag }: { version?: number, tag?: string } = {}) {
     let versioned = await this.loaders.get(storageLoader).load(id)
     if (!versioned) return undefined
     if (tag && tag !== 'latest') {
@@ -87,7 +87,7 @@ export class VersionedService extends BaseService {
       versioned.version = lastEntry.version
       if (versioned.version !== version) return undefined
     }
-    return versioned
+    return versioned as Versioned<DataType>
   }
 
   /**

@@ -1,4 +1,4 @@
-import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { isNull } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
@@ -6,7 +6,7 @@ import {
   Pagetree, PagetreeService, Role, JsonData, Site, SiteService, Template, TemplateFilter,
   User, UserService, ObjectVersion, VersionedService, CreatePageInput, Page, PageFilter,
   PagePermission, PagePermissions, PageResponse, PageService, PageRuleService, RoleService,
-  PagetreeType, UpdatePageInput
+  PagetreeType, UpdatePageInput, PageData, TemplateService
 } from 'internal'
 
 @Resolver(of => Page)
@@ -48,6 +48,19 @@ export class PageResolver {
   @FieldResolver(returns => String)
   async path (@Ctx() ctx: Context, @Root() page: Page) {
     return await ctx.svc(PageService).getPath(page)
+  }
+
+  @FieldResolver(returns => String, { nullable: true })
+  async title (@Ctx() ctx: Context, @Root() page: Page) {
+    const versioned = await ctx.svc(VersionedService).get(page.dataId)
+    return versioned?.data.title
+  }
+
+  @FieldResolver(returns => Template, { nullable: true })
+  async template (@Ctx() ctx: Context, @Root() page: Page) {
+    const versioned = await ctx.svc(VersionedService).get<PageData>(page.dataId)
+    if (!versioned) throw new Error(`Could not retrieve template for page ${String(page.name)} because its data was missing!`)
+    return await ctx.svc(TemplateService).findByKey(versioned.data.templateKey)
   }
 
   @FieldResolver(returns => Pagetree)
