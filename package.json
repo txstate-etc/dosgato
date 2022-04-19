@@ -5,7 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "@dosgato/templating": "^0.0.5",
-    "@txstate-mws/graphql-server": "^1.4.2",
+    "@txstate-mws/graphql-server": "^1.4.3",
     "dataloader-factory": "^4.3.2",
     "fast-json-patch": "^3.1.0",
     "fast-json-stable-stringify": "^2.1.0",
