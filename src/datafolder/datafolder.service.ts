@@ -81,13 +81,16 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   }
 
   async create (args: CreateDataFolderInput) {
-    // TODO: check if current user has permission to create a data folder
     const template = await this.svc(TemplateService).findByKey(args.templateKey)
     if (!template) throw new Error(`Template with key ${args.templateKey} not found.`)
     if (template.type !== TemplateType.DATA) throw new Error(`Template with key ${args.templateKey} is not a data template.`)
     if (args.siteId) {
       const site = await this.svc(SiteService).findById(args.siteId)
-      if (!site) throw new Error('Cannot create data folder. Site that does not exist.')
+      if (!site) throw new Error('Cannot create data folder. Site does not exist.')
+    }
+    const folder = new DataFolder({ id: 0, guid: 0, name: args.name, templateId: template.id, siteId: args.siteId })
+    if (!await this.haveDataFolderPerm(folder, 'create')) {
+      throw new Error(`Current user is not permitted to create ${args.siteId ? 'datafolders in this site.' : 'global data folders.'}`)
     }
     try {
       const datafolder = await createDataFolder(args.name, template.id, args.siteId)
