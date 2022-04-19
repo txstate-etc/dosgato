@@ -174,7 +174,8 @@ export class GroupService extends DosGatoService<Group> {
         response.addMessage(`Group ${name} already exists.`, 'name')
         return response
       }
-      throw new Error('An unknown error occurred while creating the group.')
+      console.error(err)
+      throw new Error(`An unknown error occurred while attempting to create group ${name}.`)
     }
     return response
   }
@@ -196,7 +197,8 @@ export class GroupService extends DosGatoService<Group> {
         response.addMessage(`Group ${name} already exists.`, 'name')
         return response
       }
-      throw new Error('An unknown error occurred while updating the group name.')
+      console.error(err)
+      throw new Error(`An unknown error occurred while updating the name for group ${group.name}.`)
     }
     return response
   }
@@ -210,7 +212,8 @@ export class GroupService extends DosGatoService<Group> {
       await groupHierarchyCache.clear()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
-      throw new Error('An unknown error occurred while deleting the group.')
+      console.error(err)
+      throw new Error(`An unknown error occurred while attempting to delete group ${group.name}.`)
     }
   }
 
@@ -224,8 +227,8 @@ export class GroupService extends DosGatoService<Group> {
       await addUserToGroup(groupId, user.internalId)
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
-      // TODO: Should the error message specify which user and/or which group?
-      throw new Error('An unknown error occurred while trying to add a user to a group')
+      console.error(err)
+      throw new Error(`An unknown error occurred while trying to add user ${user.id} to group ${group.name}.`)
     }
   }
 
@@ -245,9 +248,8 @@ export class GroupService extends DosGatoService<Group> {
         return response
       }
     } catch (err: any) {
-      // TODO: Should the error message specify which user and/or which group?
       console.log(err)
-      throw new Error('An unknown error occurred while trying to remove a user from a group')
+      throw new Error(`An unknown error occurred while trying to remove user ${user.id} from group ${group.name}.`)
     }
   }
 
@@ -267,27 +269,37 @@ export class GroupService extends DosGatoService<Group> {
         return response
       }
     } catch (err: any) {
-      throw new Error('An unknown error occurred while trying to update group managers')
+      console.error(err)
+      throw new Error(`An unknown error occurred while attempting to update managers for group ${group.name}.`)
     }
   }
 
   async addSubgroup (parentId: string, childId: string) {
-    const group = await this.findById(parentId)
-    if (!group) throw new Error('Group to be updated does not exist.')
-    if (!(await this.mayManageGroups(group))) throw new Error('Current user is not permitted add a subgroup to a group.')
+    const [parentGroup, childGroup] = await Promise.all([
+      this.findById(parentId),
+      this.findById(childId)
+    ])
+    if (!parentGroup) throw new Error('Group to be updated does not exist.')
+    if (!childGroup) throw new Error('Group to be added as a subgroup does not exist.')
+    if (!(await this.mayManageGroups(parentGroup))) throw new Error(`Current user is not permitted add a subgroup to group ${parentGroup.name}.`)
     try {
       await addSubgroup(parentId, childId)
       await groupHierarchyCache.clear()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
-      throw new Error('An unknown error occurred while adding a subgroup to a group')
+      console.error(err)
+      throw new Error(`An unknown error occurred while adding a subgroup to group ${parentGroup.name}.`)
     }
   }
 
   async removeSubgroup (parentId: string, childId: string) {
-    const group = await this.findById(parentId)
-    if (!group) throw new Error('Group to be updated does not exist.')
-    if (!(await this.mayManageGroups(group))) throw new Error('Current user is not permitted remove a subgroup from a group.')
+    const [parentGroup, childGroup] = await Promise.all([
+      this.findById(parentId),
+      this.findById(childId)
+    ])
+    if (!parentGroup) throw new Error('Group to be updated does not exist.')
+    if (!childGroup) throw new Error('Group to be added as a subgroup does not exist.')
+    if (!(await this.mayManageGroups(parentGroup))) throw new Error(`Current user is not permitted remove subgroups from group ${parentGroup.name}.`)
     try {
       const removed = await removeSubgroup(parentId, childId)
       if (removed) {
@@ -295,11 +307,12 @@ export class GroupService extends DosGatoService<Group> {
         return new ValidatedResponse({ success: true })
       } else {
         const response = new ValidatedResponse()
-        response.addMessage('cannot remove non-existent subgroup relationship')
+        response.addMessage(`Cannot remove non-existent subgroup relationship. ${childGroup.name} is not a subgroup of ${parentGroup.name}.`)
         return response
       }
     } catch (err: any) {
-      throw new Error('An unknown error occurred while removing a subgroup from a group')
+      console.error(err)
+      throw new Error(`An unknown error occurred while removing subgroup ${childGroup.name} from group ${parentGroup.name}.`)
     }
   }
 
