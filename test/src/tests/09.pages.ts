@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import { expect } from 'chai'
-import { query } from '../common'
+import { query, queryAs } from '../common'
 
 describe('pages', () => {
   it('should get pages, filtered by id', async () => {
@@ -247,5 +247,11 @@ describe('pages', () => {
         expect(version.data.hideNav).to.be.true
       }
     }
+  })
+  it('should only return pages the current user is allowed to edit', async () => {
+    const { pages } = await queryAs('ed17', '{ pages(filter: {deleted: false}) { id name } }')
+    const pageNames = pages.map((p: any) => p.name)
+    expect(pageNames).to.have.lengthOf(1)
+    expect(pageNames[0]).to.equal('site7')
   })
 })

@@ -30,8 +30,7 @@ export class AssetFolderResolver {
     @Arg('filter', { nullable: true }) filter?: AssetFilter,
     @Arg('recursive', { nullable: true }) recursive?: boolean
   ) {
-    // TODO: implement filters
-    return await ctx.svc(AssetFolderService).getChildAssets(folder, recursive)
+    return await ctx.svc(AssetFolderService).getChildAssets(folder, recursive, filter)
   }
 
   @FieldResolver(returns => [AssetFolder])
@@ -39,8 +38,7 @@ export class AssetFolderResolver {
     @Arg('filter', { nullable: true }) filter?: AssetFolderFilter,
     @Arg('recursive', { nullable: true }) recursive?: boolean
   ) {
-    // TODO: implement filters
-    return await ctx.svc(AssetFolderService).getChildFolders(folder, recursive)
+    return await ctx.svc(AssetFolderService).getChildFolders(folder, recursive, filter)
   }
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this folder, or any permission if null.' })

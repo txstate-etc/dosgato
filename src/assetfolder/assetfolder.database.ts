@@ -1,12 +1,14 @@
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
+import { isNotNull } from 'txstate-utils'
 import { AssetFolder, AssetFolderFilter, CreateAssetFolderInput } from 'internal'
 
-export async function getAssetFolders (filter: AssetFolderFilter) {
+function processFilters (filter: AssetFolderFilter) {
   const where: any[] = []
   const binds: any[] = []
-  if (filter.ids?.length) {
-    where.push(`guid IN (${db.in(binds, filter.ids)})`)
+
+  if (filter.internalIds?.length) {
+    where.push(`assetfolders.id IN (${db.in(binds, filter.internalIds)})`)
   }
 
   // internalIdPaths for getting direct descendants of an asset folder
@@ -21,6 +23,36 @@ export async function getAssetFolders (filter: AssetFolderFilter) {
     binds.push(...filter.internalIdPathsRecursive.map(p => `${p}%`))
   }
 
+  if (filter.ids?.length) {
+    where.push(`assetfolders.guid IN (${db.in(binds, filter.ids)})`)
+  }
+
+  if (filter.siteIds?.length) {
+    where.push(`assetfolders.siteId IN (${db.in(binds, filter.siteIds)})`)
+  }
+
+  if (filter.childOfFolderInternalIds?.length) {
+    const ors = filter.childOfFolderInternalIds.map(id => 'assetfolders.path LIKE ?')
+    where.push(ors.join(' OR '))
+    binds.push(...filter.childOfFolderInternalIds.map(id => `%/${id}`))
+  }
+  if (filter.root) {
+    where.push('assetfolders.path = \'/\'')
+  }
+
+  if (isNotNull(filter.deleted)) {
+    if (filter.deleted) {
+      where.push('assetfolders.deletedAt IS NOT NULL')
+    } else {
+      where.push('assetfolders.deletedAt IS NULL')
+    }
+  }
+
+  return { where, binds }
+}
+
+export async function getAssetFolders (filter: AssetFolderFilter) {
+  const { where, binds } = processFilters(filter)
   return (await db.getall(`
     SELECT *
     FROM assetfolders
@@ -38,8 +70,11 @@ export async function createAssetFolder (args: CreateAssetFolderInput) {
   })
 }
 
-export async function renameAssetFolder (id: number, name: string) {
-  return await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [name, id])
+export async function renameAssetFolder (folderId: string, name: string) {
+  return await db.transaction(async db => {
+    const id = await db.getval<number>('SELECT id FROM assetfolders WHERE guid = ?', [folderId])
+    return await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [name, id!])
+  })
 }
 
 export async function moveAssetFolder (id: number, targetFolder: AssetFolder) {

@@ -3,9 +3,9 @@ import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
   AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
   CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
-  moveAssetFolder, deleteAssetFolder, undeleteAssetFolder
+  moveAssetFolder, deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter
 } from 'internal'
-import { isNull } from 'txstate-utils'
+import { isNull, isNotNull, unique, mapConcurrent } from 'txstate-utils'
 
 const assetFolderByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids }),
@@ -20,18 +20,20 @@ const assetFolderByIdLoader = new PrimaryKeyLoader({
 assetFolderByInternalIdLoader.addIdLoader(assetFolderByIdLoader)
 
 const foldersByInternalIdPathLoader = new OneToManyLoader({
-  fetch: async (internalIdPaths: string[]) => {
-    return await getAssetFolders({ internalIdPaths })
+  fetch: async (internalIdPaths: string[], filter: AssetFolderFilter) => {
+    return await getAssetFolders({ ...filter, internalIdPaths })
   },
+  keysFromFilter: (filter: AssetFolderFilter | undefined) => filter?.internalIdPaths ?? [],
   extractKey: (f: AssetFolder) => f.path,
   idLoader: [assetFolderByInternalIdLoader, assetFolderByIdLoader]
 })
 
 const foldersByInternalIdPathRecursiveLoader = new OneToManyLoader({
-  fetch: async (internalIdPathsRecursive: string[]) => {
-    const pages = await getAssetFolders({ internalIdPathsRecursive })
+  fetch: async (internalIdPathsRecursive: string[], filter: AssetFolderFilter) => {
+    const pages = await getAssetFolders({ ...filter, internalIdPathsRecursive })
     return pages
   },
+  keysFromFilter: (filter: AssetFolderFilter | undefined) => filter?.internalIdPathsRecursive ?? [],
   matchKey: (path: string, f: AssetFolder) => f.path.startsWith(path),
   idLoader: [assetFolderByInternalIdLoader, assetFolderByIdLoader]
 })
@@ -54,17 +56,45 @@ export class AssetFolderServiceInternal extends BaseService {
     return await this.loaders.get(assetFolderByInternalIdLoader).load(folder.parentInternalId)
   }
 
-  async getChildFolders (folder: AssetFolder, recursive?: boolean) {
-    const loader = recursive ? foldersByInternalIdPathRecursiveLoader : foldersByInternalIdPathLoader
-    return await this.loaders.get(loader).load(`${folder.path}${folder.path === '/' ? '' : '/'}${folder.internalId}`)
+  async processFolderFilters (filter?: AssetFolderFilter) {
+    if (filter?.parentOfFolderIds) {
+      const folders = await this.loaders.loadMany(assetFolderByIdLoader, filter.parentOfFolderIds)
+      const parentIds = folders.map(f => f.parentInternalId).filter(isNotNull)
+      if (filter.internalIds?.length) {
+        filter.internalIds.push(...parentIds)
+        filter.internalIds = unique(filter.internalIds)
+      } else filter.internalIds = parentIds
+    }
+    if (filter?.parentOfFolderInternalIds) {
+      const folders = await this.loaders.loadMany(assetFolderByInternalIdLoader, filter.parentOfFolderInternalIds)
+      const parentIds = folders.map(f => f.parentInternalId).filter(isNotNull)
+      if (filter.internalIds?.length) {
+        filter.internalIds.push(...parentIds)
+        filter.internalIds = unique(filter.internalIds)
+      } else filter.internalIds = parentIds
+    }
+    if (filter?.childOfFolderIds) {
+      const folders = await this.loaders.loadMany(assetFolderByIdLoader, filter.childOfFolderIds)
+      const childFolders = await (await mapConcurrent(folders, async (folder) => await this.getChildFolders(folder, false))).flat()
+      if (filter.internalIds?.length) {
+        filter.internalIds.push(...childFolders.map(f => f.internalId))
+      } else filter.internalIds = childFolders.map(f => f.internalId)
+    }
+    return filter
   }
 
-  async getChildAssets (folder: AssetFolder, recursive?: boolean) {
+  async getChildFolders (folder: AssetFolder, recursive?: boolean, filter?: AssetFolderFilter) {
+    const loader = recursive ? foldersByInternalIdPathRecursiveLoader : foldersByInternalIdPathLoader
+    filter = await this.processFolderFilters(filter)
+    return await this.loaders.get(loader, filter).load(`${folder.path}${folder.path === '/' ? '' : '/'}${folder.internalId}`)
+  }
+
+  async getChildAssets (folder: AssetFolder, recursive?: boolean, filter?: AssetFilter) {
     if (recursive) {
       const folders = await this.getChildFolders(folder, true)
-      return await this.svc(AssetServiceInternal).findByFolders([...folders, folder])
+      return await this.svc(AssetServiceInternal).findByFolders([...folders, folder], filter)
     } else {
-      return await this.svc(AssetServiceInternal).findByFolder(folder)
+      return await this.svc(AssetServiceInternal).findByFolder(folder, filter)
     }
   }
 
@@ -93,12 +123,12 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     return await this.removeUnauthorized(await this.raw.getParent(folder))
   }
 
-  async getChildFolders (folder: AssetFolder, recursive?: boolean) {
-    return await this.removeUnauthorized(await this.raw.getChildFolders(folder, recursive))
+  async getChildFolders (folder: AssetFolder, recursive?: boolean, filter?: AssetFolderFilter) {
+    return await this.removeUnauthorized(await this.raw.getChildFolders(folder, recursive, filter))
   }
 
-  async getChildAssets (folder: AssetFolder, recursive?: boolean) {
-    await this.svc(AssetService).removeUnauthorized(await this.raw.getChildAssets(folder, recursive))
+  async getChildAssets (folder: AssetFolder, recursive?: boolean, filter?: AssetFilter) {
+    return await this.svc(AssetService).removeUnauthorized(await this.raw.getChildAssets(folder, recursive, filter))
   }
 
   async getPath (folder: AssetFolder) {
@@ -125,7 +155,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     if (isNull(folder.parentInternalId)) throw new Error('Root asset folders cannot be renamed.')
     if (!(await this.haveAssetFolderPerm(folder, 'update'))) throw new Error(`Current user is not permitted to rename folder ${String(folder.name)}.`)
     try {
-      await renameAssetFolder(folder.internalId, name)
+      await renameAssetFolder(folderId, name)
       this.loaders.clear()
       const updatedFolder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
       return new AssetFolderResponse({ assetFolder: updatedFolder, success: true })

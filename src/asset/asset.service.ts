@@ -1,5 +1,6 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { isNotNull } from 'txstate-utils'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, CreateAssetInput,
@@ -12,7 +13,8 @@ const assetsByIdLoader = new PrimaryKeyLoader({
 })
 
 const assetsByFolderInternalIdLoader = new OneToManyLoader({
-  fetch: async (folderInternalIds: number[]) => await getAssets({ folderInternalIds }),
+  fetch: async (folderInternalIds: number[], filter: AssetFilter) => await getAssets({ ...filter, folderInternalIds }),
+  keysFromFilter: (filter: AssetFilter | undefined) => filter?.folderInternalIds ?? [],
   extractKey: asset => asset.folderInternalId,
   idLoader: assetsByIdLoader
 })
@@ -26,12 +28,12 @@ export class AssetServiceInternal extends BaseService {
     return await getAssets(filter)
   }
 
-  async findByFolder (folder: AssetFolder) {
-    return await this.loaders.get(assetsByFolderInternalIdLoader).load(folder.internalId)
+  async findByFolder (folder: AssetFolder, filter?: AssetFilter) {
+    return await this.loaders.get(assetsByFolderInternalIdLoader, filter).load(folder.internalId)
   }
 
-  async findByFolders (folders: AssetFolder[]) {
-    return await this.loaders.loadMany(assetsByFolderInternalIdLoader, folders.map(f => f.internalId))
+  async findByFolders (folders: AssetFolder[], filter?: AssetFilter) {
+    return await this.loaders.loadMany(assetsByFolderInternalIdLoader, folders.map(f => f.internalId), filter)
   }
 
   async getAncestors (asset: Asset) {
