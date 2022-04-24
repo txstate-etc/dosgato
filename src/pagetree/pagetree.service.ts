@@ -68,7 +68,7 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     }
     try {
       const versionedService = this.svc(VersionedService)
-      const pagetree = await createPagetree(versionedService, this.login!, site.name, args)
+      const pagetree = await createPagetree(versionedService, this.login, site.name, args)
       this.loaders.clear()
       return new PagetreeResponse({ pagetree, success: true })
     } catch (err: any) {

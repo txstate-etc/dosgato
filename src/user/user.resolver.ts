@@ -32,9 +32,9 @@ export class UserResolver {
     return await ctx.svc(UserService).updateUser(userId, args)
   }
 
-  @Mutation(returns => UserResponse)
-  async disableUser (@Ctx() ctx: Context, @Arg('userId') userId: string) {
-    return await ctx.svc(UserService).disableUser(userId)
+  @Mutation(returns => UserResponse, { description: 'Disabled users will stay in the system with their previous roles and group memberships for referential integrity and easy re-enable.' })
+  async disableUsers (@Ctx() ctx: Context, @Arg('userIds', type => [String]) userIds: string[]) {
+    return await ctx.svc(UserService).disableUsers(userIds)
   }
 }
 
@@ -45,7 +45,7 @@ export class UserPermissionsResolver {
     return await ctx.svc(UserService).mayUpdate(user)
   }
 
-  @FieldResolver(returns => Boolean, { description: 'Current user may disable this account and remove all role and group memberships it has. The user row itself will stay in the database for referential integrity.' })
+  @FieldResolver(returns => Boolean, { description: 'Current user may disable this account.' })
   async disable (@Ctx() ctx: Context, @Root() user: User) {
     return await ctx.svc(UserService).mayDisable(user)
   }

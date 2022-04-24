@@ -91,14 +91,7 @@ export async function updateUser (id: string, name: string | undefined, email: s
   }
 }
 
-export async function disableUser (id: number) {
-  return await db.transaction(async db => {
-    await Promise.all([
-      db.update('UPDATE users SET disabledAt = NOW() WHERE id = ?', [id]),
-      db.delete('DELETE FROM users_groups WHERE userId = ?', [id]),
-      db.delete('DELETE FROM users_roles WHERE userId = ?', [id]),
-      db.delete('DELETE FROM sites_managers WHERE userId = ?', [id]),
-      db.update('UPDATE sites SET ownerId = NULL WHERE ownerId = ?', [id])
-    ])
-  })
+export async function disableUsers (users: User[]) {
+  const binds: number[] = []
+  return await db.update(`UPDATE users SET disabledAt = NOW() WHERE disabledAt IS NULL AND id IN (${db.in(binds, users.map(u => u.internalId))})`, binds)
 }

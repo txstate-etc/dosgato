@@ -31,16 +31,6 @@ describe('users mutations', () => {
     expect(success).to.be.true
     const { users } = await query('{ users(filter: { ids: ["ed10"]}) { id name disabled } }')
     expect(users).to.deep.include({ id: 'ed10', name: 'Updated Username', disabled: true })
-    const { roles } = await query('{ roles(filter: { users: ["ed10"] }) { id } }')
-    expect(roles).to.have.length(0)
-    const { groups } = await query('{ groups { id name users { id } } }')
-    const group5 = groups.find((g: any) => g.name === 'group5')
-    expect(group5.users).to.not.deep.include({ id: 'ed10' })
-    const { sites } = await query('{ sites { name owner { id } managers { id } } }')
-    const site2 = sites.find((s: any) => s.name === 'site2')
-    const site4 = sites.find((s: any) => s.name === 'site4')
-    expect(site2.managers).to.not.deep.include({ id: 'ed10' })
-    expect(site4.owner).to.be.null
   })
   it('should not disable a non-existent user', async () => {
     await expect(query('mutation DisableUser ($id: String!) { disableUser(userId: $id) { success user { id name } } }', { id: 'fakeuser' })).to.be.rejected

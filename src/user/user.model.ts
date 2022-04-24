@@ -76,4 +76,15 @@ export class UserResponse extends ValidatedResponse {
 }
 
 @ObjectType()
+export class UsersResponse extends ValidatedResponse {
+  @Field(type => [User])
+  users: User[]
+
+  constructor (config?: ValidatedResponseArgs & { users?: User[] }) {
+    super(config ?? {})
+    this.users = config?.users ?? []
+  }
+}
+
+@ObjectType()
 export class UserPermissions {}

@@ -28,9 +28,17 @@ import {
   VersionResolver, OrganizationResolver,
   AccessResolver,
   TemplateRulePermissionsResolver, TemplateRuleResolver,
-  logMutation, handleUpload, templateRegistry, syncRegistryWithDB
+  logMutation, handleUpload, templateRegistry, syncRegistryWithDB, UserServiceInternal
 } from 'internal'
 import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData } from 'fixturetemplates'
+
+async function getEnabledUser (ctx: Context) {
+  await ctx.waitForAuth()
+  if (!ctx.auth?.sub) throw new AuthError()
+  const user = await ctx.svc(UserServiceInternal).findById(ctx.auth.sub)
+  if (!user || user.disabled) throw new AuthError()
+  return user
+}
 
 async function main () {
   // register some templates
@@ -60,14 +68,18 @@ async function main () {
   await fsp.mkdir('/files/tmp', { recursive: true })
   server.app.post('/files', async (req, res) => {
     const ctx = new Context(req)
-    await ctx.waitForAuth()
-    if (!ctx.auth?.sub) throw new AuthError()
+    await getEnabledUser(ctx) // throws if not authorized
     const files = await handleUpload(req, res)
     return files
   })
   // TODO: Add endpoint for getting assets. /assets/:id or /files/:id
   await server.start({
     send401: true,
+    send403: async (ctx: Context) => {
+      if (!ctx.auth?.sub) return true
+      const user = await ctx.svc(UserServiceInternal).findById(ctx.auth?.sub)
+      return !user || user.disabled
+    },
     resolvers: [
       AccessResolver,
       AssetResolver,

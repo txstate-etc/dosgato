@@ -5,7 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "@dosgato/templating": "^0.0.5",
-    "@txstate-mws/graphql-server": "^1.4.3",
+    "@txstate-mws/graphql-server": "^1.4.5",
     "dataloader-factory": "^4.3.2",
     "fast-json-patch": "^3.1.0",
     "fast-json-stable-stringify": "^2.1.0",
@@ -16,7 +16,7 @@
     "nanoid": "^3.3.2",
     "source-map-support": "^0.5.21",
     "tsconfig-paths": "^3.12.0",
-    "txstate-utils": "^1.6.6",
+    "txstate-utils": "^1.7.0",
     "type-graphql": "^1.1.1"
   },
   "devDependencies": {

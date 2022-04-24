@@ -275,7 +275,7 @@ export class PageService extends DosGatoService<Page> {
     if (!approvedTemplates.find(t => t.id === template.id)) {
       throw new Error(`Template ${template.name} is not approved for use in this site or pagetree.`)
     }
-    const page = await createPage(this.svc(VersionedService), this.login!, parent, aboveTarget, args.name, args.templateKey, args.schemaVersion)
+    const page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, args.name, args.templateKey, args.schemaVersion)
     return new PageResponse({ success: true, page })
   }
 

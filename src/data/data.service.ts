@@ -154,7 +154,7 @@ export class DataService extends DosGatoService<Data> {
       }
       // passed validation, save it
       const versionedService = this.svc(VersionedService)
-      const data = await createDataEntry(versionedService, this.raw, this.login!, args)
+      const data = await createDataEntry(versionedService, this.raw, this.login, args)
       response.success = true
       response.data = data
       return response
@@ -241,7 +241,7 @@ export class DataService extends DosGatoService<Data> {
     // if none of these are provided, they are moving the data to global data
     if (!target.folderId && !target.siteId && !target.aboveTarget && !(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to update global data entries.')
     try {
-      await moveDataEntry(this.raw, data, templateKey, this.login!, folder, site, aboveTarget)
+      await moveDataEntry(this.raw, data, templateKey, this.login, folder, site, aboveTarget)
       this.loaders.clear()
       const updated = await this.raw.findById(dataId)
       return new DataResponse({ success: true, data: updated })

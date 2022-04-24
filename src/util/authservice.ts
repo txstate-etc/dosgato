@@ -11,7 +11,7 @@ import {
 
 export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ sub: string }, ObjType, RedactedType> {
   protected get login () {
-    return this.auth?.sub
+    return this.auth!.sub
   }
 
   protected isRenderServer () {
@@ -19,17 +19,14 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async currentUser () {
-    if (!this.login) return undefined
     return await this.svc(UserServiceInternal).findById(this.login)
   }
 
   protected async currentRoles () {
-    if (!this.login) return []
     return await this.svc(RoleServiceInternal).findByUserId(this.login)
   }
 
   protected async currentGroups () {
-    if (!this.login) return []
     return await this.svc(GroupServiceInternal).findByUserId(this.login)
   }
 

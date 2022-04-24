@@ -1,12 +1,12 @@
 
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { isNotBlank, unique } from 'txstate-utils'
+import { filterAsync, isNotBlank, isNotNull, someAsync, unique } from 'txstate-utils'
 import {
   DosGatoService, GroupService, User, UserFilter, UserResponse, getUsers,
   getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId,
-  UpdateUserInput, updateUser, disableUser
+  UpdateUserInput, updateUser, disableUsers
 } from 'internal'
-import { RedactedUser } from './user.model'
+import { RedactedUser, UsersResponse } from './user.model'
 import { BaseService } from '@txstate-mws/graphql-server'
 
 const usersByInternalIdLoader = new PrimaryKeyLoader({
@@ -155,19 +155,16 @@ export class UserService extends DosGatoService<User, RedactedUser|User> {
     return response
   }
 
-  async disableUser (id: string) {
-    const user = await this.raw.findById(id)
-    if (!user) throw new Error('User to be disabled does not exist.')
-    if (!(await this.mayDisable(user))) throw new Error('Current user is not permitted to disable this user.')
-    const response = new UserResponse({})
-    try {
-      await disableUser(user.internalId)
-      this.loaders.clear()
-      response.success = true
-      response.user = await this.raw.findById(id)
-    } catch (err: any) {
-      throw new Error('An unknown error occurred while disabling the user.')
+  async disableUsers (ids: string[]) {
+    const users = (await Promise.all(ids.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(users, async u => !(await this.mayDisable(u)))) {
+      throw new Error('Current user is not permitted to disable one or more users.')
     }
+    const response = new UsersResponse({})
+    await disableUsers(users)
+    this.loaders.clear()
+    response.success = true
+    response.users = await this.raw.find({ internalIds: users.map(u => u.internalId) })
     return response
   }
 
