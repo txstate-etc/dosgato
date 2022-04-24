@@ -51,7 +51,7 @@ describe('roles mutations', () => {
   })
   it('should assign a role to a user', async () => {
     const { role: roleE } = await createRole('roleE')
-    const { assignRoleToUser: { success } } = await query('mutation AssignRoleToUser ($roleId: String!, $userId: String!) { assignRoleToUser (roleId: $roleId, userId: $userId) { success } }', { roleId: roleE.id, userId: 'ed01' })
+    const { addRoleToUser: { success } } = await query('mutation AssignRoleToUser ($roleId: String!, $userId: String!) { addRoleToUser (roleId: $roleId, userId: $userId) { success } }', { roleId: roleE.id, userId: 'ed01' })
     expect(success).to.be.true
     const { roles } = await query(`{ roles(filter: {ids: [${roleE.id}]}) { id name users { id name } } }`)
     const role = roles.find((r: any) => r.id === roleE.id)
@@ -59,17 +59,17 @@ describe('roles mutations', () => {
   })
   it('should not assign a role to a non-existent user', async () => {
     const { role: roleF } = await createRole('roleF')
-    await expect(query('mutation AssignRoleToUser ($roleId: String!, $userId: String!) { assignRoleToUser (roleId: $roleId, userId: $userId) { success } }', { roleId: roleF.id, userId: 'fakeuser' })).to.be.rejected
+    await expect(query('mutation AssignRoleToUser ($roleId: String!, $userId: String!) { addRoleToUser (roleId: $roleId, userId: $userId) { success } }', { roleId: roleF.id, userId: 'fakeuser' })).to.be.rejected
     const { roles } = await query(`{ roles(filter: {ids: [${roleF.id}]}) { id name users { id name } } }`)
     expect(roles[0].users).to.have.lengthOf(0)
   })
   it('should not allow an unauthorized user to assign a role to a user', async () => {
     const { role: roleEE } = await createRole('roleEE')
-    await expect(queryAs('ed07', 'mutation AssignRoleToUser ($roleId: String!, $userId: String!) { assignRoleToUser (roleId: $roleId, userId: $userId) { success } }', { roleId: roleEE.id, userId: 'ed01' })).to.be.rejected
+    await expect(queryAs('ed07', 'mutation AssignRoleToUser ($roleId: String!, $userId: String!) { addRoleToUser (roleId: $roleId, userId: $userId) { success } }', { roleId: roleEE.id, userId: 'ed01' })).to.be.rejected
   })
   it('should remove a role from a user', async () => {
     const { role: roleG } = await createRole('roleG')
-    const { assignRoleToUser: { success: addSuccess } } = await query('mutation AssignRoleToUser ($roleId: String!, $userId: String!) { assignRoleToUser (roleId: $roleId, userId: $userId) { success } }', { roleId: roleG.id, userId: 'ed02' })
+    const { addRoleToUser: { success: addSuccess } } = await query('mutation AssignRoleToUser ($roleId: String!, $userId: String!) { addRoleToUser (roleId: $roleId, userId: $userId) { success } }', { roleId: roleG.id, userId: 'ed02' })
     expect(addSuccess).to.be.true
     const { removeRoleFromUser: { success } } = await query('mutation RemoveRoleFromUser ($roleId: String!, $userId: String!) { removeRoleFromUser (roleId: $roleId, userId: $userId) { success } }', { roleId: roleG.id, userId: 'ed02' })
     expect(success).to.be.true

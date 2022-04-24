@@ -66,7 +66,7 @@ export async function deleteRole (id: string) {
   })
 }
 
-export async function assignRoleToUser (roleId: string, userId: number) {
+export async function addRoleToUser (roleId: string, userId: number) {
   return await db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [userId, roleId])
 }
 

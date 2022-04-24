@@ -3,7 +3,7 @@ import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { unique } from 'txstate-utils'
 import {
   DosGatoService, GroupService, UserService, Role, RoleFilter, RoleResponse,
-  assignRoleToUser, createRole, deleteRole, getRoles, getRolesWithGroup,
+  addRoleToUser, createRole, deleteRole, getRoles, getRolesWithGroup,
   getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup, GroupServiceInternal
 } from 'internal'
 
@@ -162,14 +162,14 @@ export class RoleService extends DosGatoService<Role> {
     }
   }
 
-  async assignRoleToUser (roleId: string, userId: string) {
+  async addRoleToUser (roleId: string, userId: string) {
     const role = await this.findById(roleId)
     if (!role) throw new Error('Role to be assigned does not exist.')
     if (!(await this.mayAssign(role))) throw new Error(`Current user is not permitted to assign users to role ${role.name}.`)
     const user = await this.svc(UserService).findById(userId)
     if (!user) throw new Error('Cannot assign role to user who does not exist')
     try {
-      await assignRoleToUser(roleId, user.internalId)
+      await addRoleToUser(roleId, user.internalId)
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.error(err)

@@ -30,8 +30,9 @@ function processFilters (filter?: UserFilter) {
 
 export async function getUsers (filter: UserFilter) {
   const { binds, where } = processFilters(filter)
-  if (!where.length) { throw new Error('Must include filters') }
-  const users = await db.getall(`SELECT * FROM users WHERE (${where.join(') AND (')})`, binds)
+  const users = where.length
+    ? await db.getall(`SELECT * FROM users WHERE (${where.join(') AND (')}) ORDER BY login`, binds)
+    : await db.getall('SELECT * FROM users ORDER BY login')
   return users.map(u => new User(u))
 }
 

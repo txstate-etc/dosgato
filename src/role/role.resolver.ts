@@ -84,8 +84,8 @@ export class RoleResolver {
   }
 
   @Mutation(returns => ValidatedResponse)
-  async assignRoleToUser (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('userId') userId: string) {
-    return await ctx.svc(RoleService).assignRoleToUser(roleId, userId)
+  async addRoleToUser (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('userId') userId: string) {
+    return await ctx.svc(RoleService).addRoleToUser(roleId, userId)
   }
 
   @Mutation(returns => ValidatedResponse)
