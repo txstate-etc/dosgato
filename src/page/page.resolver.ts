@@ -77,7 +77,7 @@ export class PageResolver {
 
   @FieldResolver(returns => JsonData, { description: 'This is a JSON object that represents everything the editor has created on this page. It is up to the rendering code of the page template and all the component templates to turn this data into an HTML page.' })
   async data (@Ctx() ctx: Context, @Root() page: Page,
-    @Arg('published', { nullable: true, description: 'Return the published version of the data. When true, version arg is ignored.' }) published?: boolean,
+    @Arg('published', { nullable: true, description: 'Return the published version of the data. When true, version arg is ignored. Throws when there is no published version.' }) published?: boolean,
     @Arg('version', type => Int, { nullable: true, description: 'Return the specified version of the data. Ignored when published arg is true. Default is latest and may fail if user has improper permissions.' }) version?: number,
     @Arg('schemaversion', { nullable: true, description: 'Specify the preferred schema version. The API will perform any necessary migrations on the data prior to return. Default is the latest schemaversion.' }) schemaversion?: DateTime
   ) {

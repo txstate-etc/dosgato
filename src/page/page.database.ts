@@ -3,20 +3,21 @@ import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby } from 'txstate-utils'
-import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion } from 'internal'
+import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter } from 'internal'
 
 async function processFilters (filter: PageFilter) {
   const binds: string[] = []
   const where: string[] = []
   const joins = new Map<string, string>()
 
-  // deleted
-  if (isNotNull(filter.deleted)) {
-    if (filter.deleted) {
+  if (filter.deleted) {
+    if (filter.deleted === DeletedFilter.ONLY) {
       where.push('pages.deletedAt IS NOT NULL')
-    } else {
+    } else if (filter.deleted === DeletedFilter.HIDE) {
       where.push('pages.deletedAt IS NULL')
     }
+  } else {
+    where.push('pages.deletedAt IS NULL')
   }
 
   // dataIds

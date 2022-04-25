@@ -6,20 +6,20 @@ import {
   CreatePageInput, PageLinkInput, PageResponse, createPage, getPages, movePage,
   deletePage, renamePage, TemplateService, PagetreeService, SiteService,
   TemplateFilter, Template, getPageIndexes, UpdatePageInput, undeletePage,
-  validatePage
+  validatePage, DeletedFilter
 } from 'internal'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
-    return await getPages({ internalIds })
+    return await getPages({ internalIds, deleted: DeletedFilter.SHOW })
   },
   extractId: (item: Page) => item.internalId
 })
 
 const pagesByDataIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
-    return await getPages({ ids })
+    return await getPages({ ids, deleted: DeletedFilter.SHOW })
   },
   idLoader: pagesByInternalIdLoader
 })
@@ -34,6 +34,8 @@ const pagesInPagetreeLoader = new OneToManyLoader({
   idLoader: [pagesByInternalIdLoader, pagesByDataIdLoader]
 })
 
+// TODO: Should these dataloaders, used to get a page's children, take a filter?
+// Without a filter, they will not be able to return deleted child pages
 const pagesByInternalIdPathLoader = new OneToManyLoader({
   fetch: async (internalIdPaths: string[]) => {
     return await getPages({ internalIdPaths })

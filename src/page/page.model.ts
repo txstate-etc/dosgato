@@ -106,8 +106,8 @@ export class PageFilter {
   @Field(type => Boolean, { nullable: true, description: 'Only return pages that are published, in the active pagetree, and on a launched site.' })
   live?: boolean
 
-  @Field(type => Boolean, { nullable: true, description: 'true -> return only deleted pages, false -> return only nondeleted pages, undefined -> return all pages' })
-  deleted?: boolean
+  @Field(type => DeletedFilter, { nullable: true })
+  deleted?: DeletedFilter
 }
 
 @InputType()
@@ -184,3 +184,20 @@ export class PageLinkInput {
   @Field()
   path!: string
 }
+
+// TODO: Move this enum somewhere else. utils?
+export enum DeletedFilter {
+  SHOW = 'show',
+  ONLY = 'only',
+  HIDE = 'hide'
+}
+
+registerEnumType(DeletedFilter, {
+  name: 'DeletedFilter',
+  description: 'Options for the deleted filter',
+  valuesConfig: {
+    SHOW: { description: 'Return both deleted and undeleted items' },
+    ONLY: { description: 'Return only deleted items' },
+    HIDE: { description: 'Return only undeleted items' }
+  }
+})
