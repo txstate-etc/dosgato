@@ -18,7 +18,8 @@ describe('assetfolders', () => {
   })
   it('should retrieve asset folders by id', async () => {
     const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id assetroot { id folders(filter: { ids: ["${folderhash.folderA.id}","${folderhash.folderB.id}"]}) { id name } } } }`)
-    expect(sites[0].assetroot.folders).to.deep.equal([folderhash.folderA, folderhash.folderB])
+    expect(sites[0].assetroot.folders).to.have.lengthOf(2)
+    expect(sites[0].assetroot.folders).to.have.deep.members([folderhash.folderA, folderhash.folderB])
   })
   it('should retrieve deleted asset folders', async () => {
     const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id assetroot { id folders(filter: { deleted: true }) { name } } } }`)
@@ -26,11 +27,13 @@ describe('assetfolders', () => {
   })
   it('should retrieve asset folders\' parent folders', async () => {
     const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id assetroot { id name folders(filter: { parentOfFolderIds: ["${folderhash.folderF.id}","${folderhash.folderH.id}","${folderhash.folderJ.id}"] }) { id name } } } }`)
-    expect(sites[0].assetroot.folders).to.deep.equal([folderhash.folderA, folderhash.folderC, folderhash.folderE])
+    expect(sites[0].assetroot.folders).to.have.lengthOf(3)
+    expect(sites[0].assetroot.folders).to.have.deep.members([folderhash.folderA, folderhash.folderC, folderhash.folderE])
   })
   it('should retrieve asset folders by child id', async () => {
     const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id assetroot { id name folders(recursive: true, filter: { childOfFolderIds: ["${folderhash.folderA.id}","${folderhash.folderE.id}"] }) { id name } } } }`)
-    expect(sites[0].assetroot.folders).to.deep.equal([folderhash.folderF, folderhash.folderG, folderhash.folderI, folderhash.folderJ])
+    expect(sites[0].assetroot.folders).to.have.lengthOf(4)
+    expect(sites[0].assetroot.folders).to.have.deep.members([folderhash.folderF, folderhash.folderG, folderhash.folderI, folderhash.folderJ])
   })
   it('should retrieve asset folders by site id', async () => {
     const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id assetroot { id name folders(filter: { siteIds: [${testSiteId}] }) { id name } } } }`)
