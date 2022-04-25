@@ -5,7 +5,7 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } fro
 import {
   Pagetree, PagetreeService, Role, JsonData, Site, SiteService, Template, TemplateFilter,
   User, UserService, ObjectVersion, VersionedService, CreatePageInput, Page, PageFilter,
-  PagePermission, PagePermissions, PageResponse, PageService, PageRuleService, RoleService,
+  PagePermission, PagePermissions, PageResponse, PagesResponse, PageService, PageRuleService, RoleService,
   PagetreeType, UpdatePageInput, PageData, TemplateService
 } from 'internal'
 
@@ -195,23 +195,23 @@ export class PageResolver {
   }
 
   @Mutation(returns => ValidatedResponse)
-  async publishPage (@Ctx() ctx: Context, @Arg('pageId', type => ID) pageId: string) {
-    return await ctx.svc(PageService).publishPage(pageId)
+  async publishPages (@Ctx() ctx: Context, @Arg('pageIds', type => [ID]) pageIds: string[], @Arg('includeChildren', type => Boolean, { nullable: true, description: 'If true, publish the child pages of these pages too.' }) includeChildren?: boolean) {
+    return await ctx.svc(PageService).publishPages(pageIds, includeChildren)
   }
 
   @Mutation(returns => ValidatedResponse)
-  async unpublishPage (@Ctx() ctx: Context, @Arg('pageId', type => ID) pageId: string) {
-    return await ctx.svc(PageService).unpublishPage(pageId)
+  async unpublishPages (@Ctx() ctx: Context, @Arg('pageIds', type => [ID]) pageIds: string[]) {
+    return await ctx.svc(PageService).unpublishPages(pageIds)
   }
 
-  @Mutation(returns => PageResponse)
-  async deletePage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
-    return await ctx.svc(PageService).deletePage(pageId)
+  @Mutation(returns => PagesResponse)
+  async deletePages (@Ctx() ctx: Context, @Arg('pageIds', type => [ID]) pageIds: string[]) {
+    return await ctx.svc(PageService).deletePages(pageIds)
   }
 
-  @Mutation(returns => PageResponse)
-  async undeletePage (@Ctx() ctx: Context, @Arg('pageId') pageId: string) {
-    return await ctx.svc(PageService).undeletePage(pageId)
+  @Mutation(returns => PagesResponse)
+  async undeletePages (@Ctx() ctx: Context, @Arg('pageIds', type => [ID]) pageIds: string[], @Arg('includeChildren', type => Boolean, { nullable: true, description: 'If true, restore the child pages of these pages too.' }) includeChidren?: boolean) {
+    return await ctx.svc(PageService).undeletePages(pageIds, includeChidren)
   }
 }
 

@@ -1,11 +1,11 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import stringify from 'fast-json-stable-stringify'
-import { intersect, isNotNull, isNull, unique } from 'txstate-utils'
+import { intersect, isNotNull, isNull, unique, someAsync, eachConcurrent, mapConcurrent } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
-  CreatePageInput, PageLinkInput, PageResponse, createPage, getPages, movePage,
-  deletePage, renamePage, TemplateService, PagetreeService, SiteService,
-  TemplateFilter, Template, getPageIndexes, UpdatePageInput, undeletePage,
+  CreatePageInput, PageLinkInput, PageResponse, PagesResponse, createPage, getPages, movePage,
+  deletePages, renamePage, TemplateService, PagetreeService, SiteService,
+  TemplateFilter, Template, getPageIndexes, UpdatePageInput, undeletePages,
   validatePage, DeletedFilter
 } from 'internal'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
@@ -325,64 +325,78 @@ export class PageService extends DosGatoService<Page> {
     }
   }
 
-  async deletePage (dataId: string) {
+  async deletePages (dataIds: string[]) {
     // TODO: Should they be able to delete the root page of the pagetree?
-    const page = await this.raw.findById(dataId)
-    if (!page) throw new Error('Cannot delete a page that does not exist.')
-    if (!(await this.mayDelete(page))) throw new Error('Current user is not permitted to delete this page')
+    const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(pages, async (page: Page) => !(await this.mayDelete(page)))) {
+      throw new Error('Current user is not permitted to delete one or more pages')
+    }
     const currentUser = await this.currentUser()
     try {
-      await deletePage(page, currentUser!.internalId)
+      await deletePages(pages, currentUser!.internalId)
       this.loaders.clear()
-      const updated = await this.raw.findById(dataId)
-      return new PageResponse({ success: true, page: updated })
+      const updated = await this.raw.findByIds(dataIds)
+      return new PagesResponse({ success: true, pages: updated })
     } catch (err: any) {
       console.error(err)
       throw new Error('An unknown error ocurred while trying to delete a page.')
     }
   }
 
-  async undeletePage (dataId: string) {
-    const page = await this.raw.findById(dataId)
-    if (!page) throw new Error('Cannot restore a page that does not exist.')
-    if (!(await this.mayUndelete(page))) throw new Error('Current user is not permitted to restore this page')
+  async undeletePages (dataIds: string[], includeChildren?: boolean) {
+    let pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (includeChildren) {
+      const children = (await mapConcurrent(pages, async (page) => await this.getPageChildren(page, true))).flat()
+      pages = [...pages, ...children]
+    }
+    if (await someAsync(pages, async (page: Page) => !(await this.mayUndelete(page)))) {
+      throw new Error('Current user is not permitted to restore one or more pages')
+    }
     try {
-      await undeletePage(page)
+      await undeletePages(pages)
       this.loaders.clear()
-      const restored = await this.raw.findById(dataId)
-      return new PageResponse({ success: true, page: restored })
+      const restored = await this.raw.findByIds(dataIds)
+      return new PagesResponse({ success: true, pages: restored })
     } catch (err: any) {
       console.error(err)
       throw new Error('Unable to restore page')
     }
   }
 
-  async publishPage (dataId: string) {
-    const page = await this.raw.findById(dataId)
-    if (!page) throw new Error('Cannot publish a page that does not exist.')
-    if (!(await this.mayPublish(page))) throw new Error('Current user is not permitted to publish this page')
+  async publishPages (dataIds: string[], includeChildren?: boolean) {
+    let pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (includeChildren) {
+      const children = (await mapConcurrent(pages, async (page) => await this.getPageChildren(page, true))).flat()
+      pages = [...pages, ...children]
+    }
+    if (await someAsync(pages, async (page: Page) => !(await this.mayPublish(page)))) {
+      throw new Error('Current user is not permitted to publish one or more pages')
+    }
+    pages = pages.filter(p => !p.deleted)
     try {
-      await this.svc(VersionedService).tag(dataId, 'published')
+      await eachConcurrent(pages.map(p => p.dataId), async (dataId) => await this.svc(VersionedService).tag(dataId, 'published', undefined, this.login))
       this.loaders.clear()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.error(err)
-      throw new Error(`Unable to publish page ${String(page.name)}.`)
+      throw new Error('Unable to publish one or more pages.')
     }
   }
 
-  // TODO: Do we need to unpublish the page's subpages?
-  async unpublishPage (dataId: string) {
-    const page = await this.raw.findById(dataId)
-    if (!page) throw new Error('Cannont unpublish a page that does not exist.')
-    if (!(await this.mayUnpublish(page))) throw new Error('Current user is not permitted to unpublish this page')
+  async unpublishPages (dataIds: string[]) {
+    let pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    const children = (await mapConcurrent(pages, async (page) => await this.getPageChildren(page, true))).flat()
+    pages = [...pages, ...children]
+    if (await someAsync(pages, async (page: Page) => !(await this.mayUnpublish(page)))) {
+      throw new Error('Current user is not permitted to unpublish one or more pages')
+    }
     try {
-      await this.svc(VersionedService).removeTag(dataId, 'published')
+      await eachConcurrent(dataIds, async (dataId) => await this.svc(VersionedService).removeTag(dataId, 'published'))
       this.loaders.clear()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.error(err)
-      throw new Error(`Unable to unpublish page ${String(page.name)}`)
+      throw new Error('Unable to unpublish one or more pages')
     }
   }
 

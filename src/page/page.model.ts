@@ -156,6 +156,17 @@ export class PageResponse extends ValidatedResponse {
 }
 
 @ObjectType()
+export class PagesResponse extends ValidatedResponse {
+  @Field(type => [Page])
+  pages: Page[]
+
+  constructor (config?: ValidatedResponseArgs & { pages?: Page[] }) {
+    super(config ?? {})
+    this.pages = config?.pages ?? []
+  }
+}
+
+@ObjectType()
 export class PagePermissions {}
 
 export enum PagePermission {

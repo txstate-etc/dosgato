@@ -2,7 +2,7 @@ import db from 'mysql2-async/db'
 import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
-import { isNotBlank, isNotNull, keyby } from 'txstate-utils'
+import { isNotBlank, isNotNull, keyby, mapConcurrent, unique } from 'txstate-utils'
 import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter } from 'internal'
 
 async function processFilters (filter: PageFilter) {
@@ -110,7 +110,7 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db) {
 }
 
 async function refetch (db: Queryable, ...pages: (Page|undefined)[]) {
-  const refetched = keyby(await getPages({ internalIds: pages.filter(isNotNull).map(p => p.internalId) }, db), 'internalId')
+  const refetched = keyby(await getPages({ internalIds: pages.filter(isNotNull).map(p => p.internalId), deleted: DeletedFilter.SHOW }, db), 'internalId')
   return pages.map(p => refetched[p?.internalId ?? 0])
 }
 
@@ -181,20 +181,27 @@ export async function movePage (page: Page, parent: Page, aboveTarget?: Page) {
   })
 }
 
-export async function deletePage (page: Page, userInternalId: number) {
-  const binds: (string | number)[] = []
+// TODO: always delete child pages? Or make it an option?
+export async function deletePages (pages: Page[], userInternalId: number) {
   return await db.transaction(async db => {
-    binds.push(String(userInternalId))
-    const children = await getPages({ internalIdPathsRecursive: [`${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`] }, db)
+    const binds: (string | number)[] = [userInternalId]
+    const refetchedPages = await refetch(db, ...pages)
+    const pageInternalIds = refetchedPages.map(p => p.internalId)
+    const children = (await mapConcurrent(refetchedPages, async (page) => await getPages({ deleted: DeletedFilter.SHOW, internalIdPathsRecursive: [`${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`] }, db))).flat()
     const childInternalIds = children.map(c => c.internalId)
-    await db.update(`UPDATE pages SET deletedAt = NOW(), deletedBy = ? WHERE id IN (${db.in(binds, [page.internalId, ...childInternalIds])})`, binds)
-    // TODO: handle display order or just leave it? Deleted pages might be displayed in the UI so it might make sense to
-    // maintain their position. Or we might want to adjust the display orders for the sibling pages that come after the deleted page?
+    await db.update(`UPDATE pages SET deletedAt = NOW(), deletedBy = ? WHERE id IN (${db.in(binds, unique([...pageInternalIds, ...childInternalIds]))})`, binds)
   })
 }
 
-export async function undeletePage (page: Page) {
-  return await db.update('UPDATE pages set deletedAt = NULL, deletedBy = NULL where id = ?', [page.internalId])
+export async function undeletePages (pages: Page[]) {
+  return await db.transaction(async db => {
+    const binds: string[] = []
+    const refetchedPages = await refetch(db, ...pages)
+    return await db.update(`
+      UPDATE pages
+      SET deletedAt = NULL, deletedBy = NULL
+      WHERE id IN (${db.in(binds, refetchedPages.map(p => p.internalId))})`, binds)
+  })
 }
 
 export async function renamePage (page: Page, name: string) {
