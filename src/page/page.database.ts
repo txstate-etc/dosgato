@@ -5,6 +5,30 @@ import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, mapConcurrent, unique } from 'txstate-utils'
 import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter } from 'internal'
 
+async function convertPathsToIDPaths (pathstrings: string[]) {
+  const paths = pathstrings.map(normalizePath).map(p => p.split(/\//).filter(isNotBlank))
+  const names = new Set<string>(paths.flat())
+  const binds: string[] = []
+  const rows = await db.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM pages WHERE name IN (${db.in(binds, Array.from(names))})`, binds)
+  const rowsByNameAndIDPath: Record<string, Record<string, typeof rows[number][]>> = {}
+  for (const row of rows) {
+    rowsByNameAndIDPath[row.name] ??= {}
+    rowsByNameAndIDPath[row.name][row.path] ??= []
+    rowsByNameAndIDPath[row.name][row.path].push(row)
+  }
+  const idpaths: string[] = []
+  for (const pt of paths) {
+    let searchpaths = ['/']
+    for (const segment of pt) {
+      const pages = searchpaths.flatMap(sp => rowsByNameAndIDPath[segment][sp])
+      searchpaths = pages.map(pg => `${pg.path}${pg.path === '/' ? '' : '/'}${pg.id}`)
+      if (!searchpaths.length) break
+    }
+    idpaths.push(...searchpaths)
+  }
+  return idpaths
+}
+
 async function processFilters (filter: PageFilter) {
   const binds: string[] = []
   const where: string[] = []
@@ -47,9 +71,9 @@ async function processFilters (filter: PageFilter) {
 
   // internalIdPathsRecursive for getting all descendants of a page
   if (filter.internalIdPathsRecursive?.length) {
-    const ors = filter.internalIdPathsRecursive.map(path => 'pages.path LIKE ?')
+    const ors = filter.internalIdPathsRecursive.flatMap(path => ['pages.path LIKE ?', 'pages.path = ?'])
     where.push(ors.join(' OR '))
-    binds.push(...filter.internalIdPathsRecursive.map(p => `${p}%`))
+    binds.push(...filter.internalIdPathsRecursive.flatMap(p => [`${p}/%`, p]))
   }
 
   // pagetreeTypes
@@ -70,26 +94,23 @@ async function processFilters (filter: PageFilter) {
 
   // named paths e.g. /site1/about
   if (filter.paths?.length) {
-    const paths = filter.paths.map(normalizePath).map(p => p.split(/\//).filter(isNotBlank))
-    const names = new Set<string>(paths.flat())
-    const namebinds = Array.from(names)
-    const rows = await db.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM pages WHERE name IN (${namebinds.map(n => '?').join(',')})`, namebinds)
-    const rowsByNameAndPath: Record<string, Record<string, typeof rows[number][]>> = {}
-    for (const row of rows) {
-      rowsByNameAndPath[row.name] ??= {}
-      rowsByNameAndPath[row.name][row.path] ??= []
-      rowsByNameAndPath[row.name][row.path].push(row)
-    }
-    where.push(`(pages.name, pages.path) IN (${db.in(binds, paths.flatMap(pt => {
-      let searchpaths = ['/']
-      for (const segment of pt.slice(0, -1)) {
-        const pages = searchpaths.flatMap(sp => rowsByNameAndPath[segment][sp])
-        if (!pages.length) return undefined
-        searchpaths = searchpaths.flatMap(sp => pages.map(pg => `${sp}${sp === '/' ? '' : '/'}${pg.id}`))
-      }
+    const idpaths = await convertPathsToIDPaths(filter.paths)
+    const ids = idpaths.map(p => p.split(/\//).slice(-1)[0])
+    where.push(`id IN (${db.in(binds, ids)})`)
+  }
 
-      return searchpaths.map(sp => [pt[pt.length - 1], sp])
-    }).filter(isNotNull))})`)
+  // beneath a named path e.g. /site1/about
+  if (filter.beneath?.length) {
+    const idpaths = await convertPathsToIDPaths(filter.beneath)
+    const ors = idpaths.flatMap(p => ['pages.path LIKE ?', 'pages.path = ?'])
+    binds.push(...idpaths.flatMap(p => [`${p}/%`, p]))
+    where.push(ors.join(' OR '))
+  }
+
+  // direct children of a named path e.g. /site1/about
+  if (filter.parentPaths?.length) {
+    const idpaths = await convertPathsToIDPaths(filter.parentPaths)
+    where.push(`pages.path IN (${db.in(binds, idpaths)})`)
   }
 
   // published TODO

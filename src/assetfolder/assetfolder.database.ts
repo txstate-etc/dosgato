@@ -18,9 +18,9 @@ function processFilters (filter: AssetFolderFilter) {
 
   // internalIdPathsRecursive for getting all descendants of an asset folder
   if (filter.internalIdPathsRecursive?.length) {
-    const ors = filter.internalIdPathsRecursive.map(path => 'assetfolders.path LIKE ?')
+    const ors = filter.internalIdPathsRecursive.flatMap(path => ['assetfolders.path LIKE ?', 'assetfolders.path = ?'])
     where.push(ors.join(' OR '))
-    binds.push(...filter.internalIdPathsRecursive.map(p => `${p}%`))
+    binds.push(...filter.internalIdPathsRecursive.flatMap(p => [`${p}/%`, p]))
   }
 
   if (filter.ids?.length) {
