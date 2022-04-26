@@ -95,3 +95,8 @@ export async function disableUsers (users: User[]) {
   const binds: number[] = []
   return await db.update(`UPDATE users SET disabledAt = NOW() WHERE disabledAt IS NULL AND id IN (${db.in(binds, users.map(u => u.internalId))})`, binds)
 }
+
+export async function enableUsers (users: User[]) {
+  const binds: number[] = []
+  return await db.update(`UPDATE users SET disabledAt = NULL WHERE disabledAt IS NOT NULL AND id IN (${db.in(binds, users.map(u => u.internalId))})`, binds)
+}

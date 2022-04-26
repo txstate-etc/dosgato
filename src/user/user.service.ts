@@ -4,7 +4,7 @@ import { filterAsync, isNotBlank, isNotNull, someAsync, unique } from 'txstate-u
 import {
   DosGatoService, GroupService, User, UserFilter, UserResponse, getUsers,
   getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId,
-  UpdateUserInput, updateUser, disableUsers
+  UpdateUserInput, updateUser, disableUsers, enableUsers
 } from 'internal'
 import { RedactedUser, UsersResponse } from './user.model'
 import { BaseService } from '@txstate-mws/graphql-server'
@@ -166,6 +166,23 @@ export class UserService extends DosGatoService<User, RedactedUser|User> {
     response.success = true
     response.users = await this.raw.find({ internalIds: users.map(u => u.internalId) })
     return response
+  }
+
+  async enableUsers (ids: string[]) {
+    const users = (await Promise.all(ids.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (!(await this.mayCreate())) {
+      throw new Error('You are not permitted to enable users.')
+    }
+    const response = new UsersResponse({})
+    await enableUsers(users)
+    this.loaders.clear()
+    response.success = true
+    response.users = await this.raw.find({ internalIds: users.map(u => u.internalId) })
+    return response
+  }
+
+  async mayCreate () {
+    return await this.haveGlobalPerm('manageUsers')
   }
 
   async mayUpdate (user: User) {

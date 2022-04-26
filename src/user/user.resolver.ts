@@ -2,7 +2,7 @@ import { Context } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
 import {
   Group, GroupService, Role, RoleService, User, UserFilter,
-  UserPermissions, UserResponse, UpdateUserInput, UserService
+  UserPermissions, UserResponse, UpdateUserInput, UserService, UsersResponse
 } from 'internal'
 
 @Resolver(of => User)
@@ -32,9 +32,14 @@ export class UserResolver {
     return await ctx.svc(UserService).updateUser(userId, args)
   }
 
-  @Mutation(returns => UserResponse, { description: 'Disabled users will stay in the system with their previous roles and group memberships for referential integrity and easy re-enable.' })
+  @Mutation(returns => UsersResponse, { description: 'Disabled users will stay in the system with their previous roles and group memberships for referential integrity and easy re-enable.' })
   async disableUsers (@Ctx() ctx: Context, @Arg('userIds', type => [String]) userIds: string[]) {
     return await ctx.svc(UserService).disableUsers(userIds)
+  }
+
+  @Mutation(returns => UsersResponse, { description: 'Re-enable users that have previously been disabled.' })
+  async enableUsers (@Ctx() ctx: Context, @Arg('userIds', type => [String]) userIds: string[]) {
+    return await ctx.svc(UserService).enableUsers(userIds)
   }
 }
 
@@ -45,8 +50,13 @@ export class UserPermissionsResolver {
     return await ctx.svc(UserService).mayUpdate(user)
   }
 
-  @FieldResolver(returns => Boolean, { description: 'Current user may disable this account.' })
+  @FieldResolver(returns => Boolean, { description: 'Current user may disable this account. Returns true even if account is already disabled.' })
   async disable (@Ctx() ctx: Context, @Root() user: User) {
     return await ctx.svc(UserService).mayDisable(user)
+  }
+
+  @FieldResolver(returns => Boolean, { description: 'Current user may re-enable this account. Returns true even if account is already enabled.' })
+  async enable (@Ctx() ctx: Context, @Root() user: User) {
+    return await ctx.svc(UserService).mayCreate()
   }
 }
