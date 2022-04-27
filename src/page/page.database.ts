@@ -195,9 +195,14 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
 
     // deal with displayOrder
     const displayOrder = await handleDisplayOrder(db, parent, aboveTarget, filteredPages.length)
+    const displayOrderBinds: string[] = []
+    const pagesWithDisplayOrder = await db.getall(`
+      SELECT id as internalId, dataId, displayOrder
+      FROM pages WHERE dataId IN (${db.in(displayOrderBinds, filteredPages.map(p => p.dataId))})
+      ORDER BY displayOrder`, displayOrderBinds)
 
     // update the pages themselves, currently just displayOrder.
-    await Promise.all(filteredPages.map(async (page, index) => await db.update('UPDATE pages SET displayOrder = ? WHERE id = ?', [displayOrder + index, page.internalId])))
+    await Promise.all(pagesWithDisplayOrder.map(async (page, index) => await db.update('UPDATE pages SET displayOrder = ? WHERE id = ?', [displayOrder + index, page.internalId])))
 
     // correct the path column for pages and all their descendants
     for (const p of filteredPages) {

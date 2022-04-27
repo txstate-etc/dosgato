@@ -128,6 +128,33 @@ describe('pages mutations', () => {
     expect(remaining[0].displayOrder).to.equal(1)
     expect(remaining[1].displayOrder).to.equal(2)
   })
+  it('should order moved pages based on their display order before they were moved', async () => {
+    const { page: parentA } = await createPage('parentpageA', testSite6PageRootId, 'keyp1')
+    const { page: parentB } = await createPage('parentpageB', testSite6PageRootId, 'keyp1')
+    const { page: parentC } = await createPage('parentpageC', testSite6PageRootId, 'keyp1')
+    const { page: parentD } = await createPage('parentpageD', testSite6PageRootId, 'keyp1')
+    const { page: pageA1 } = await createPage('childpageA1', parentA.id, 'keyp1')
+    const { page: pageA2 } = await createPage('childpageA2', parentA.id, 'keyp1')
+    const { page: pageB1 } = await createPage('childpageB1', parentB.id, 'keyp1')
+    const { page: pageB2 } = await createPage('childpageB2', parentB.id, 'keyp1')
+    const { page: pageB3 } = await createPage('childpageB3', parentB.id, 'keyp1')
+    const { page: pageC1 } = await createPage('childpageC1', parentC.id, 'keyp1')
+    const { page: pageC2 } = await createPage('childpageC2', parentC.id, 'keyp1')
+    const { page: pageC3 } = await createPage('childpageC3', parentC.id, 'keyp1')
+    const { page: pageC4 } = await createPage('childpageC4', parentC.id, 'keyp1')
+    const { page: pageD1 } = await createPage('childpageD1', parentD.id, 'keyp1')
+    const { movePages: { success } } = await query('mutation movePages ($pageIds: [ID]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { success pages { name, parent { name } } } }', { pageIds: [pageA2.id, pageB1.id, pageC1.id, pageC4.id], parentId: parentD.id })
+    expect(success).to.be.true
+    const parentrow = await db.getrow('SELECT id, path FROM pages WHERE dataId = ?', parentD.id)
+    const children = await db.getall('SELECT * FROM pages WHERE path = ? ORDER BY displayOrder', [`${parentrow.path}/${parentrow.id}`])
+    const displayOrders: Record<string, number> = {}
+    for (const page of children) {
+      displayOrders[page.name] = page.displayOrder
+    }
+    expect(displayOrders.childpageB1).to.be.lessThan(displayOrders.childpageA2)
+    expect(displayOrders.childpageC1).to.be.lessThan(displayOrders.childpageA2)
+    expect(displayOrders.childpageA2).to.be.lessThan(displayOrders.childpageC4)
+  })
   it('should delete a page', async () => {
     const { page: testpage } = await createPage('testpage5', testSite6PageRootId, 'keyp3')
     const { deletePages: { success, pages } } = await query('mutation DeletePages ($pageIds: [ID]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpage.id] })
