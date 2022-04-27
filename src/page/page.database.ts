@@ -2,7 +2,7 @@ import db from 'mysql2-async/db'
 import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
-import { isNotBlank, isNotNull, keyby, mapConcurrent, unique, someConcurrent, filterAsync } from 'txstate-utils'
+import { isNotBlank, isNotNull, keyby, mapConcurrent, unique, someConcurrent, filterAsync, sortby } from 'txstate-utils'
 import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter } from 'internal'
 
 async function convertPathsToIDPaths (pathstrings: string[]) {
@@ -189,20 +189,16 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
 
     // If page selected to be moved is a descendent of one of the other pages being moved,
     // we don't need to move it because it will be moved with its ancestor
-    const filteredPages = await filterAsync(pages, async (page) => {
+    let filteredPages = await filterAsync(pages, async (page) => {
       return !(await someConcurrent(pages, async (p) => (p.internalId !== page.internalId) && page.path.startsWith(p.path + '/')))
     })
+    filteredPages = sortby(filteredPages, 'displayOrder')
 
     // deal with displayOrder
     const displayOrder = await handleDisplayOrder(db, parent, aboveTarget, filteredPages.length)
-    const displayOrderBinds: string[] = []
-    const pagesWithDisplayOrder = await db.getall(`
-      SELECT id as internalId, dataId, displayOrder
-      FROM pages WHERE dataId IN (${db.in(displayOrderBinds, filteredPages.map(p => p.dataId))})
-      ORDER BY displayOrder`, displayOrderBinds)
 
     // update the pages themselves, currently just displayOrder.
-    await Promise.all(pagesWithDisplayOrder.map(async (page, index) => await db.update('UPDATE pages SET displayOrder = ? WHERE id = ?', [displayOrder + index, page.internalId])))
+    await Promise.all(filteredPages.map(async (page, index) => await db.update('UPDATE pages SET displayOrder = ? WHERE id = ?', [displayOrder + index, page.internalId])))
 
     // correct the path column for pages and all their descendants
     for (const p of filteredPages) {
