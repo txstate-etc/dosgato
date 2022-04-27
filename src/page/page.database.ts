@@ -135,12 +135,12 @@ async function refetch (db: Queryable, ...pages: (Page|undefined)[]) {
   return pages.map(p => refetched[p?.internalId ?? 0])
 }
 
-async function handleDisplayOrder (db: Queryable, parent: Page, aboveTarget: Page) {
+async function handleDisplayOrder (db: Queryable, parent: Page, aboveTarget: Page, pagesAdded: number = 1) {
   const pathToParent = `/${[...parent.pathSplit, parent.internalId].join('/')}`
   let displayOrder
   if (aboveTarget) {
     displayOrder = aboveTarget.displayOrder
-    await db.update('UPDATE pages SET displayOrder=displayOrder + 1 WHERE path=? AND displayOrder >= ?', [pathToParent, displayOrder])
+    await db.update(`UPDATE pages SET displayOrder=displayOrder + ${pagesAdded} WHERE path=? AND displayOrder >= ?`, [pathToParent, displayOrder])
   } else {
     const maxDisplayOrder = await db.getval<number>('SELECT MAX(displayOrder) FROM pages WHERE path=?', [pathToParent])
     displayOrder = (maxDisplayOrder ?? 0) + 1
@@ -194,7 +194,7 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
     })
 
     // deal with displayOrder
-    const displayOrder = await handleDisplayOrder(db, parent, aboveTarget)
+    const displayOrder = await handleDisplayOrder(db, parent, aboveTarget, filteredPages.length)
 
     // update the pages themselves, currently just displayOrder.
     await Promise.all(filteredPages.map(async (page, index) => await db.update('UPDATE pages SET displayOrder = ? WHERE id = ?', [displayOrder + index, page.internalId])))

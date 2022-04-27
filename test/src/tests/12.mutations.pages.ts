@@ -93,6 +93,28 @@ describe('pages mutations', () => {
     const { page: movingPage } = await createPage('movingpageE', site3primary.rootPage.id, 'keyp1')
     await expect(query('mutation movePages ($pageIds: [ID]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { pages { name, parent { name } } } }', { pageIds: [movingPage.id], parentId: site3sandbox.rootPage.id })).to.be.rejected
   })
+  it('should move a page above another page', async () => {
+    const { page: targetPage } = await createPage('targetpageC', testSite6PageRootId, 'keyp3')
+    const { page: movingPage } = await createPage('movingpageF', testSite6PageRootId, 'keyp3')
+    const { movePages: { success } } = await query('mutation movePages ($pageIds: [ID]!, $parentId: ID!, $above: Boolean) { movePages (pageIds: $pageIds, targetId: $parentId, above: $above) { success pages { name, parent { name } } } }', { pageIds: [movingPage.id], parentId: targetPage.id, above: true })
+    expect(success).to.be.true
+    const { pages } = await query(`{ pages(filter: { ids: ["${movingPage.id}","${targetPage.id}"] }) { id } }`)
+    expect(pages[0].id).to.equal(movingPage.id)
+  })
+  it('should move multiple pages above another page', async () => {
+    const { page: targetPage } = await createPage('targetpageD', testSite6PageRootId, 'keyp1')
+    const { page: firstPageToMove } = await createPage('movingpageG', testSite6PageRootId, 'keyp1')
+    const { page: secondPageToMove } = await createPage('movingpageH', testSite6PageRootId, 'keyp1')
+    const { movePages: { success } } = await query('mutation movePages ($pageIds: [ID]!, $parentId: ID!, $above: Boolean) { movePages (pageIds: $pageIds, targetId: $parentId, above: $above) { success pages { name, parent { name } } } }', { pageIds: [firstPageToMove.id, secondPageToMove.id], parentId: targetPage.id, above: true })
+    expect(success).to.be.true
+    const pages = await db.getall('SELECT * FROM pages WHERE dataId IN (?,?,?) order by displayOrder', [targetPage.id, firstPageToMove.id, secondPageToMove.id])
+    const displayOrders: Record<string, number> = {}
+    for (const page of pages) {
+      displayOrders[page.name] = page.displayOrder
+    }
+    expect(displayOrders.movingpageH).to.equal(displayOrders.movingpageG + 1)
+    expect(displayOrders.targetpageD).to.equal(displayOrders.movingpageG + 2)
+  })
   it('should not leave holes behind when pages are moved', async () => {
     const { page: originalParent } = await createPage('originalparent', testSite6PageRootId, 'keyp1')
     const { page: firstchild } = await createPage('firstchildpage', originalParent.id, 'keyp1')
