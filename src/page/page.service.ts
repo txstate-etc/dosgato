@@ -34,19 +34,17 @@ const pagesInPagetreeLoader = new OneToManyLoader({
   idLoader: [pagesByInternalIdLoader, pagesByDataIdLoader]
 })
 
-// TODO: Should these dataloaders, used to get a page's children, take a filter?
-// Without a filter, they will not be able to return deleted child pages
 const pagesByInternalIdPathLoader = new OneToManyLoader({
-  fetch: async (internalIdPaths: string[]) => {
-    return await getPages({ internalIdPaths })
+  fetch: async (internalIdPaths: string[], filter?: PageFilter) => {
+    return await getPages({ ...filter, internalIdPaths })
   },
   extractKey: (p: Page) => p.path,
   idLoader: [pagesByInternalIdLoader, pagesByDataIdLoader]
 })
 
 const pagesByInternalIdPathRecursiveLoader = new OneToManyLoader({
-  fetch: async (internalIdPathsRecursive: string[]) => {
-    const pages = await getPages({ internalIdPathsRecursive })
+  fetch: async (internalIdPathsRecursive: string[], filter?: PageFilter) => {
+    const pages = await getPages({ ...filter, internalIdPathsRecursive })
     return pages
   },
   matchKey: (path: string, p: Page) => p.path.startsWith(path),
@@ -103,7 +101,7 @@ export class PageServiceInternal extends BaseService {
     return await this.findByIds(dataIds)
   }
 
-  async getPageChildren (page: Page, recursive?: boolean) {
+  async getPageChildren (page: Page, recursive?: boolean, filter?: PageFilter) {
     const loader = recursive ? pagesByInternalIdPathRecursiveLoader : pagesByInternalIdPathLoader
     return await this.loaders.get(loader).load(`${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`)
   }
@@ -162,9 +160,9 @@ export class PageService extends DosGatoService<Page> {
     return await this.removeUnauthorized(await this.raw.findByTemplate(key, filter))
   }
 
-  async getPageChildren (page: Page, recursive?: boolean) {
+  async getPageChildren (page: Page, recursive?: boolean, filter?: PageFilter) {
     return await this.removeUnauthorized(
-      await this.raw.getPageChildren(page, recursive)
+      await this.raw.getPageChildren(page, recursive, filter)
     )
   }
 

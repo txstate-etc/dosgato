@@ -24,9 +24,10 @@ export class PageResolver {
 
   @FieldResolver(returns => [Page])
   async children (@Ctx() ctx: Context, @Root() page: Page,
-    @Arg('recursive', { nullable: true }) recursive?: boolean
+    @Arg('recursive', { nullable: true }) recursive?: boolean,
+    @Arg('filter', { nullable: true }) filter?: PageFilter
   ) {
-    return await ctx.svc(PageService).getPageChildren(page, recursive)
+    return await ctx.svc(PageService).getPageChildren(page, recursive, filter)
   }
 
   @FieldResolver(returns => Page, { nullable: true, description: 'Returns null when current page is the root page of a pagetree.' })
