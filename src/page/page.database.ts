@@ -2,7 +2,7 @@ import db from 'mysql2-async/db'
 import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
-import { isNotBlank, isNotNull, keyby, mapConcurrent, unique } from 'txstate-utils'
+import { isNotBlank, isNotNull, keyby, mapConcurrent, unique, someConcurrent, filterAsync } from 'txstate-utils'
 import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter } from 'internal'
 
 async function convertPathsToIDPaths (pathstrings: string[]) {
@@ -96,7 +96,7 @@ async function processFilters (filter: PageFilter) {
   if (filter.paths?.length) {
     const idpaths = await convertPathsToIDPaths(filter.paths)
     const ids = idpaths.map(p => p.split(/\//).slice(-1)[0])
-    where.push(`id IN (${db.in(binds, ids)})`)
+    where.push(`pages.id IN (${db.in(binds, ids)})`)
   }
 
   // beneath a named path e.g. /site1/about
@@ -165,15 +165,17 @@ export async function createPage (versionedService: VersionedService, userId: st
   })
 }
 
-export async function movePage (page: Page, parent: Page, aboveTarget?: Page) {
+export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page) {
   return await db.transaction(async db => {
     // refetch pages inside transaction for safety
-    [page, parent, aboveTarget] = await refetch(db, page, parent, aboveTarget)
+    [parent, aboveTarget, ...pages] = await refetch(db, parent, aboveTarget, ...pages)
     if (aboveTarget && parent.internalId !== aboveTarget.parentInternalId) {
       throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
     }
 
-    if (parent.path.startsWith(page.path)) throw new Error('Cannot move a page into its own subtree.')
+    if (await someConcurrent(pages, async (page) => parent.path.startsWith(page.path + '/'))) {
+      throw new Error('Cannot move a page into its own subtree.')
+    }
 
     // We cannot allow pages to be moved between pagetrees because linkId collision could occur.
     // linkId collision can also occur on a copy, but in that case we can generate a new linkId
@@ -181,24 +183,36 @@ export async function movePage (page: Page, parent: Page, aboveTarget?: Page) {
     // a new pagetree and give it a new linkId in the process, but that move was a mistake, lots
     // of links will break and there's no way to restore them. Also, moving a page always moves
     // all of its subpages, so the problem would be multiplied by the number of descendants.
-    if (parent.pagetreeId !== page.pagetreeId) throw new Error('Moving between sites or pagetrees is not allowed. Copy instead.')
+    if (await someConcurrent(pages, async (page) => parent.pagetreeId !== page.pagetreeId)) {
+      throw new Error('Moving between sites or pagetrees is not allowed. Copy instead.')
+    }
+
+    // If page selected to be moved is a descendent of one of the other pages being moved,
+    // we don't need to move it because it will be moved with its ancestor
+    const filteredPages = await filterAsync(pages, async (page) => {
+      return !(await someConcurrent(pages, async (p) => (p.internalId !== page.internalId) && page.path.startsWith(p.path + '/')))
+    })
 
     // deal with displayOrder
     const displayOrder = await handleDisplayOrder(db, parent, aboveTarget)
 
-    // update the page itself, currently just displayOrder
-    await db.update('UPDATE pages SET displayOrder=? WHERE id=?', [displayOrder, page.internalId])
+    // update the pages themselves, currently just displayOrder.
+    await Promise.all(filteredPages.map(async (page, index) => await db.update('UPDATE pages SET displayOrder = ? WHERE id = ?', [displayOrder + index, page.internalId])))
 
-    // correct the path column for page and all its descendants
-    const descendants = (await db.getall('SELECT * FROM pages WHERE id=? OR path LIKE ?', [page.internalId, `/${[...page.pathSplit, page.internalId].join('/')}%`])).map(r => new Page(r))
-    const pathsize = page.pathSplit.length
-    for (const d of descendants) {
-      const newPath = `/${[...parent.pathSplit, parent.internalId, ...d.pathSplit.slice(pathsize)].join('/')}`
-      await db.update('UPDATE pages SET path=? WHERE id=?', [newPath, d.internalId])
+    // correct the path column for pages and all their descendants
+    for (const p of filteredPages) {
+      const descendants = (await db.getall('SELECT * FROM pages WHERE id=? OR path LIKE ?', [p.internalId, `/${[...p.pathSplit, p.internalId].join('/')}%`])).map(r => new Page(r))
+      const pathsize = p.pathSplit.length
+      for (const d of descendants) {
+        const newPath = `/${[...parent.pathSplit, parent.internalId, ...d.pathSplit.slice(pathsize)].join('/')}`
+        await db.update('UPDATE pages SET path=? WHERE id=?', [newPath, d.internalId])
+      }
     }
 
-    // return the newly updated page
-    return new Page(await db.getrow('SELECT * FROM pages WHERE id=?', [page.internalId]))
+    // return the newly updated pages
+    const binds: number[] = []
+    const updatedPages = await db.getall(`SELECT * FROM pages WHERE id IN (${db.in(binds, filteredPages.map(p => p.internalId))})`, binds)
+    return updatedPages.map(p => new Page(p))
   })
 }
 

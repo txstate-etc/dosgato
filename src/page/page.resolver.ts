@@ -1,4 +1,4 @@
-import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { isNull } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
@@ -185,13 +185,22 @@ export class PageResolver {
     return await ctx.svc(PageService).renamePage(pageId, name)
   }
 
-  @Mutation(returns => PageResponse)
-  async movePage (@Ctx() ctx: Context,
-    @Arg('pageId', type => ID) pageId: string,
+  @Mutation(returns => PagesResponse)
+  async movePages (@Ctx() ctx: Context,
+    @Arg('pageIds', type => [ID]) pageIds: string[],
     @Arg('targetId', type => ID) targetId: string,
-    @Arg('above', { nullable: true, description: 'When true, page will be moved above the targeted page, rather than inside it.' }) above: boolean
+    @Arg('above', { nullable: true, description: 'When true, page(s) will be moved above the targeted page, rather than inside it.' }) above: boolean
   ) {
-    return await ctx.svc(PageService).movePage(pageId, targetId, above)
+    return await ctx.svc(PageService).movePages(pageIds, targetId, above)
+  }
+
+  @Mutation(returns => PagesResponse)
+  async copyPages (@Ctx() ctx: Context,
+    @Arg('pageIds', type => [ID]) pageIds: string[],
+    @Arg('targetId', type => ID) targetId: string,
+    @Arg('above', { nullable: true, description: 'When true, page(s) will be copied above the targeted page, rather than inside it.' }) above: boolean
+  ) {
+    throw new UnimplementedError()
   }
 
   @Mutation(returns => ValidatedResponse)

@@ -2,6 +2,7 @@
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common'
+import db from 'mysql2-async/db'
 import { DateTime } from 'luxon'
 
 chai.use(chaiAsPromised)
@@ -19,25 +20,6 @@ describe('pages mutations', () => {
     const site6 = sites.find((s: any) => s.name === 'site6')
     testSite6Id = site6.id
     testSite6PageRootId = site6.pageroot.id
-  })
-  it('should be able to move a page', async () => {
-    const { pages } = await query(`
-      query getPagesToMove ($page: String!, $parent: String!) {
-        pages (filter: { paths: [$page, $parent], pagetreeTypes: [PRIMARY] }) {
-          id
-          name
-        }
-      }
-    `, { page: '/site1/about/location', parent: '/site1' })
-    const toMove = pages.find((p: any) => p.name === 'location')
-    const intoPage = pages.find((p: any) => p.name === 'site1')
-    const { movePage: { page } } = await query('mutation movePage ($pageId: ID!, $parentId: ID!) { movePage (pageId: $pageId, targetId: $parentId) { page { name, parent { name } } } }', { pageId: toMove.id, parentId: intoPage.id })
-    expect(page.parent.name).to.equal('site1')
-  })
-  it('should not allow an unauthorized user to move a page', async () => {
-    const { page: movingPage } = await createPage('testpage11', testSite6PageRootId, 'keyp3')
-    const { page: targetPage } = await createPage('testpage12', testSite6PageRootId, 'keyp3')
-    await expect(queryAs('ed07', 'mutation movePage ($pageId: ID!, $parentId: ID!) { movePage (pageId: $pageId, targetId: $parentId) { page { name, parent { name } } } }', { pageId: movingPage.id, parentId: targetPage.id })).to.be.rejected
   })
   it('should create a page', async () => {
     const { success, page } = await createPage('testpage1', testSite6PageRootId, 'keyp3')
@@ -59,6 +41,70 @@ describe('pages mutations', () => {
   it('should not allow an unauthorized user to rename a page', async () => {
     const { page: testpage } = await createPage('testpage4', testSite6PageRootId, 'keyp3')
     await expect(queryAs('ed07', 'mutation UpdatePage ($name: String!, $pageId: ID!) {renamePage (name: $name, pageId: $pageId) { success page { id name } } }', { name: 'renamingrootpage', pageId: testpage.id })).to.be.rejected
+  })
+  it('should be able to move a page', async () => {
+    const { pages } = await query(`
+      query getPagesToMove ($page: String!, $parent: String!) {
+        pages (filter: { paths: [$page, $parent], pagetreeTypes: [PRIMARY] }) {
+          id
+          name
+        }
+      }
+    `, { page: '/site1/about/location', parent: '/site1' })
+    const toMove = pages.find((p: any) => p.name === 'location')
+    const intoPage = pages.find((p: any) => p.name === 'site1')
+    const { movePages: { pages: movedPages } } = await query('mutation movePages ($pageIds: [ID]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { pages { name, parent { name } } } }', { pageIds: [toMove.id], parentId: intoPage.id })
+    expect(movedPages[0].parent.name).to.equal('site1')
+  })
+  it('should not allow an unauthorized user to move a page', async () => {
+    const { page: movingPage } = await createPage('testpage11', testSite6PageRootId, 'keyp3')
+    const { page: targetPage } = await createPage('testpage12', testSite6PageRootId, 'keyp3')
+    await expect(queryAs('ed07', 'mutation movePages ($pageIds: [ID]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { pages { name, parent { name } } } }', { pageIds: [movingPage.id], parentId: targetPage.id })).to.be.rejected
+  })
+  it('should move multiple pages', async () => {
+    const { page: firstPageToMove } = await createPage('movingpageA', testSite6PageRootId, 'keyp1')
+    const { page: secondPageToMove } = await createPage('movingpageB', testSite6PageRootId, 'keyp1')
+    const { page: targetPage } = await createPage('targetpageA', testSite6PageRootId, 'keyp1')
+    const { movePages: { success, pages } } = await query('mutation movePages ($pageIds: [ID]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { success pages { name, parent { name } } } }', { pageIds: [firstPageToMove.id, secondPageToMove.id], parentId: targetPage.id })
+    expect(success).to.be.true
+    for (const p of pages) {
+      expect(p.parent.name).to.equal('targetpageA')
+    }
+    const movedPages = await db.getall('SELECT dataId, displayOrder FROM pages where dataId IN (?,?) ORDER BY displayOrder', [firstPageToMove.id, secondPageToMove.id])
+    expect(movedPages[0].dataId).to.equal(firstPageToMove.id)
+  })
+  it('should not move a page into its own subtree', async () => {
+    const { page: movingPage } = await createPage('movingpageC', testSite6PageRootId, 'keyp2')
+    const { page: middlePage } = await createPage('otherpage', movingPage.id, 'keyp2')
+    const { page: targetPage } = await createPage('targetpageB', middlePage.id, 'keyp2')
+    await expect(query('mutation movePages ($pageIds: [ID]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { pages { name, parent { name } } } }', { pageIds: [movingPage.id], parentId: targetPage.id })).to.be.rejected
+  })
+  it('should not move a page to a different site', async () => {
+    const { page: movingPage } = await createPage('movingpageD', testSite6PageRootId, 'keyp1')
+    const { pages: pagelist } = await query('{ pages(filter: { deleted: HIDE }) { id name } }')
+    const site4rootpage = pagelist.find((p: any) => p.name === 'site4')
+    await expect(query('mutation movePages ($pageIds: [ID]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { pages { name, parent { name } } } }', { pageIds: [movingPage.id], parentId: site4rootpage.id })).to.be.rejected
+  })
+  it('should not move a page to a different pagetree', async () => {
+    const { sites } = await query('{ sites { id name pagetrees {id name rootPage { id } } } }')
+    const site3 = sites.find((s: any) => s.name === 'site3')
+    const site3primary = site3.pagetrees.find((p: any) => p.name === 'pagetree3')
+    const site3sandbox = site3.pagetrees.find((p: any) => p.name === 'pagetree3sandbox')
+    const { page: movingPage } = await createPage('movingpageE', site3primary.rootPage.id, 'keyp1')
+    await expect(query('mutation movePages ($pageIds: [ID]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { pages { name, parent { name } } } }', { pageIds: [movingPage.id], parentId: site3sandbox.rootPage.id })).to.be.rejected
+  })
+  it('should not leave holes behind when pages are moved', async () => {
+    const { page: originalParent } = await createPage('originalparent', testSite6PageRootId, 'keyp1')
+    const { page: firstchild } = await createPage('firstchildpage', originalParent.id, 'keyp1')
+    const { page: secondchild } = await createPage('secondchildpage', originalParent.id, 'keyp1')
+    const { page: thirdchild } = await createPage('thirdchildpage', originalParent.id, 'keyp1')
+    await query('mutation movePages ($pageIds: [ID]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { success pages { name, parent { name } } } }', { pageIds: [secondchild.id], parentId: testSite6PageRootId })
+    const parentrow = await db.getrow('SELECT id, path FROM pages WHERE dataId = ?', originalParent.id)
+    const remaining = await db.getall('SELECT * FROM pages WHERE path = ? ORDER BY displayOrder', [`${parentrow.path}/${parentrow.id}`])
+    expect(remaining[0].dataId).to.equal(firstchild.id)
+    expect(remaining[1].dataId).to.equal(thirdchild.id)
+    expect(remaining[0].displayOrder).to.equal(1)
+    expect(remaining[1].displayOrder).to.equal(2)
   })
   it('should delete a page', async () => {
     const { page: testpage } = await createPage('testpage5', testSite6PageRootId, 'keyp3')

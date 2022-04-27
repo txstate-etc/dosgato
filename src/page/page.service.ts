@@ -3,7 +3,7 @@ import stringify from 'fast-json-stable-stringify'
 import { intersect, isNotNull, isNull, unique, someAsync, eachConcurrent, mapConcurrent } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
-  CreatePageInput, PageLinkInput, PageResponse, PagesResponse, createPage, getPages, movePage,
+  CreatePageInput, PageLinkInput, PageResponse, PagesResponse, createPage, getPages, movePages,
   deletePages, renamePage, TemplateService, PagetreeService, SiteService,
   TemplateFilter, Template, getPageIndexes, UpdatePageInput, undeletePages,
   validatePage, DeletedFilter
@@ -259,12 +259,14 @@ export class PageService extends DosGatoService<Page> {
   /**
    * MUTATIONS
    */
-  async movePage (dataId: string, targetId: string, above?: boolean) {
-    const [page, { parent, aboveTarget }] = await Promise.all([this.raw.findById(dataId), this.resolveTarget(targetId, above)])
-    if (!page) throw new Error('Cannot move page that does not exist.')
-    if (!(await this.mayCreate(parent)) || !(await this.mayMove(page))) throw new Error('Current user is not permitted to perform this move.')
-    const newPage = await movePage(page, parent, aboveTarget)
-    return new PageResponse({ success: true, page: newPage })
+  async movePages (dataIds: string[], targetId: string, above?: boolean) {
+    const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
+    if (!(await this.mayCreate(parent)) || (await someAsync(pages, async (page: Page) => !(await this.mayMove(page))))) {
+      throw new Error('Current user is not permitted to perform this move.')
+    }
+    const newPages = await movePages(pages, parent, aboveTarget)
+    return new PagesResponse({ success: true, pages: newPages })
   }
 
   async createPage (args: CreatePageInput) {
