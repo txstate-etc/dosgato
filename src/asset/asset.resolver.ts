@@ -31,6 +31,11 @@ export class AssetResolver {
     return await ctx.svc(AssetService).getAncestors(asset)
   }
 
+  @FieldResolver(returns => String)
+  async path (@Ctx() ctx: Context, @Root() asset: Asset) {
+    return await ctx.svc(AssetService).getPath(asset)
+  }
+
   @FieldResolver(returns => JsonData)
   async data (@Ctx() ctx: Context, @Root() asset: Asset,
     @Arg('version', type => Int, { nullable: true }) version?: number

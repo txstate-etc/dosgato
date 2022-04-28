@@ -1,11 +1,11 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { isNotNull } from 'txstate-utils'
+import { intersect, isNotNull } from 'txstate-utils'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, CreateAssetInput,
   createAsset, VersionedService, AssetResponse, FileSystemHandler, deleteAsset, undeleteAsset,
-  moveAsset
+  moveAsset, popPath, basename
 } from 'internal'
 
 const assetsByIdLoader = new PrimaryKeyLoader({
@@ -25,14 +25,18 @@ const resizesByAssetIdLoader = new ManyJoinedLoader({
 
 export class AssetServiceInternal extends BaseService {
   async find (filter: AssetFilter) {
-    return await getAssets(filter)
+    const assets = await getAssets(await this.processAssetFilters(filter))
+    for (const asset of assets) this.loaders.get(assetsByIdLoader).prime(asset.id, asset)
+    return assets
   }
 
   async findByFolder (folder: AssetFolder, filter?: AssetFilter) {
+    filter = await this.processAssetFilters(filter)
     return await this.loaders.get(assetsByFolderInternalIdLoader, filter).load(folder.internalId)
   }
 
   async findByFolders (folders: AssetFolder[], filter?: AssetFilter) {
+    filter = await this.processAssetFilters(filter)
     return await this.loaders.loadMany(assetsByFolderInternalIdLoader, folders.map(f => f.internalId), filter)
   }
 
@@ -51,6 +55,29 @@ export class AssetServiceInternal extends BaseService {
     const folder = await this.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
     if (!folder) return '/'
     return appendPath(await this.svc(AssetFolderServiceInternal).getPath(folder), asset.name as string)
+  }
+
+  async processAssetFilters (filter?: AssetFilter) {
+    if (filter?.paths?.length) {
+      const folderidpaths = await this.svc(AssetFolderServiceInternal).convertPathsToIDPaths(filter.paths.map(popPath))
+      const folderids = folderidpaths.map(p => +p.split(/\//).slice(-1)[0])
+      filter.folderInternalIds = intersect({ skipEmpty: true }, filter.folderInternalIds, folderids)
+      filter.names = filter.paths.map(basename)
+    }
+
+    if (filter?.beneath?.length) {
+      const folderidpaths = await this.svc(AssetFolderServiceInternal).convertPathsToIDPaths(filter.beneath)
+      const folders = await this.svc(AssetFolderServiceInternal).getChildFoldersByIDPaths(folderidpaths)
+      const ids = [...folders.map(f => f.internalId), ...folderidpaths.map(basename).map(Number)]
+      filter.folderInternalIds = intersect({ skipEmpty: true }, filter.folderInternalIds, ids)
+    }
+
+    if (filter?.parentPaths?.length) {
+      const folderidpaths = await this.svc(AssetFolderServiceInternal).convertPathsToIDPaths(filter.parentPaths)
+      filter.folderInternalIds = intersect({ skipEmpty: true }, filter.folderInternalIds, folderidpaths.map(basename).map(Number))
+    }
+
+    return filter
   }
 }
 

@@ -11,8 +11,8 @@ export class AssetFolder {
   @Field(type => ID)
   id: string
 
-  @Field({ description: 'Name for the folder. Will be used when constructing the path.' })
-  name: UrlSafeString
+  @Field(type => UrlSafeString, { description: 'Name for the folder. Will be used when constructing the path.' })
+  name: string
 
   @Field({ description: 'Folder has been soft-deleted but is still recoverable.' })
   deleted: boolean
@@ -61,6 +61,16 @@ export class AssetFolderFilter {
   childOfFolderIds?: string[]
 
   childOfFolderInternalIds?: number[]
+  names?: string[]
+
+  @Field(type => [String], { nullable: true, description: 'Return folders with the given paths.' })
+  paths?: string[]
+
+  @Field(type => [String], { nullable: true, description: 'Return folders that descend from any of the given paths.' })
+  beneath?: string[]
+
+  @Field(type => [String], { nullable: true, description: 'Return folders that are direct children of any of the given paths.' })
+  parentPaths?: string[]
 
   @Field(type => Boolean, { nullable: true, description: 'Return folders that are the root folder of a site.' })
   root?: boolean

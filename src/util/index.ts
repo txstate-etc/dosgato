@@ -1,3 +1,6 @@
+import path from 'path'
+import { isNotBlank } from 'txstate-utils'
+
 export * from './authservice'
 export * from './indexing'
 export * from './migrations'
@@ -16,4 +19,12 @@ export function normalizePath (path: string) {
 
 export function appendPath (a: string, b: string) {
   return `${a}${a === '/' ? '' : '/'}${b}`
+}
+
+export function popPath (path: string) {
+  return `/${path.split('/').filter(isNotBlank).slice(0, -1).join('/')}`
+}
+
+export function basename (p: string) {
+  return path.basename(p)
 }

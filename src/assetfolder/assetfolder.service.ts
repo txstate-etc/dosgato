@@ -3,9 +3,9 @@ import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
   AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
   CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
-  moveAssetFolder, deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter
+  moveAssetFolder, deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter, normalizePath
 } from 'internal'
-import { isNull, isNotNull, unique, mapConcurrent } from 'txstate-utils'
+import { isNull, isNotNull, unique, mapConcurrent, intersect, isNotBlank } from 'txstate-utils'
 
 const assetFolderByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids }),
@@ -18,6 +18,12 @@ const assetFolderByIdLoader = new PrimaryKeyLoader({
 })
 
 assetFolderByInternalIdLoader.addIdLoader(assetFolderByIdLoader)
+
+const foldersByNameLoader = new OneToManyLoader({
+  fetch: async (names: string[]) => await getAssetFolders({ names }),
+  extractKey: folder => folder.name,
+  idLoader: [assetFolderByIdLoader, assetFolderByInternalIdLoader]
+})
 
 const foldersByInternalIdPathLoader = new OneToManyLoader({
   fetch: async (internalIdPaths: string[], filter: AssetFolderFilter) => {
@@ -39,6 +45,15 @@ const foldersByInternalIdPathRecursiveLoader = new OneToManyLoader({
 })
 
 export class AssetFolderServiceInternal extends BaseService {
+  async find (filter?: AssetFolderFilter) {
+    const folders = await getAssetFolders(await this.processFolderFilters(filter))
+    for (const folder of folders) {
+      this.loaders.get(assetFolderByIdLoader).prime(folder.id, folder)
+      this.loaders.get(assetFolderByInternalIdLoader).prime(folder.internalId, folder)
+    }
+    return folders
+  }
+
   async findByInternalId (id: number) {
     return await this.loaders.get(assetFolderByInternalIdLoader).load(id)
   }
@@ -54,6 +69,29 @@ export class AssetFolderServiceInternal extends BaseService {
   async getParent (folder: AssetFolder) {
     if (!folder.parentInternalId) return undefined
     return await this.loaders.get(assetFolderByInternalIdLoader).load(folder.parentInternalId)
+  }
+
+  async convertPathsToIDPaths (pathstrings: string[]) {
+    const paths = pathstrings.map(normalizePath).map(p => p.split(/\//).filter(isNotBlank))
+    const names = new Set<string>(paths.flat())
+    const folders = await this.loaders.loadMany(foldersByNameLoader, Array.from(names))
+    const rowsByNameAndIDPath: Record<string, Record<string, AssetFolder[]>> = {}
+    for (const row of folders) {
+      rowsByNameAndIDPath[row.name] ??= {}
+      rowsByNameAndIDPath[row.name][row.path] ??= []
+      rowsByNameAndIDPath[row.name][row.path].push(row)
+    }
+    const idpaths: string[] = []
+    for (const pt of paths) {
+      let searchpaths = ['/']
+      for (const segment of pt) {
+        const pages = searchpaths.flatMap(sp => rowsByNameAndIDPath[segment][sp])
+        searchpaths = pages.map(pg => `${pg.path}${pg.path === '/' ? '' : '/'}${pg.internalId}`)
+        if (!searchpaths.length) break
+      }
+      idpaths.push(...searchpaths)
+    }
+    return idpaths
   }
 
   async processFolderFilters (filter?: AssetFolderFilter) {
@@ -80,6 +118,27 @@ export class AssetFolderServiceInternal extends BaseService {
         filter.internalIds.push(...childFolders.map(f => f.internalId))
       } else filter.internalIds = childFolders.map(f => f.internalId)
     }
+
+    // named paths e.g. /site1/about
+    if (filter?.paths?.length) {
+      const idpaths = await this.convertPathsToIDPaths(filter.paths)
+      const ids = idpaths.map(p => +p.split(/\//).slice(-1)[0])
+      console.log('ids', ids, idpaths)
+      filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, ids)
+    }
+
+    // beneath a named path e.g. /site1/about
+    if (filter?.beneath?.length) {
+      const idpaths = await this.convertPathsToIDPaths(filter.beneath)
+      filter.internalIdPathsRecursive = intersect({ skipEmpty: true }, filter.internalIdPaths, idpaths)
+    }
+
+    // direct children of a named path e.g. /site1/about
+    if (filter?.parentPaths?.length) {
+      const idpaths = await this.convertPathsToIDPaths(filter.parentPaths)
+      filter.internalIdPaths = intersect({ skipEmpty: true }, filter.internalIdPaths, idpaths)
+    }
+
     return filter
   }
 
@@ -87,6 +146,10 @@ export class AssetFolderServiceInternal extends BaseService {
     const loader = recursive ? foldersByInternalIdPathRecursiveLoader : foldersByInternalIdPathLoader
     filter = await this.processFolderFilters(filter)
     return await this.loaders.get(loader, filter).load(`${folder.path}${folder.path === '/' ? '' : '/'}${folder.internalId}`)
+  }
+
+  async getChildFoldersByIDPaths (idpaths: string[]) {
+    return await this.loaders.loadMany(foldersByInternalIdPathRecursiveLoader, idpaths)
   }
 
   async getChildAssets (folder: AssetFolder, recursive?: boolean, filter?: AssetFilter) {
@@ -106,6 +169,10 @@ export class AssetFolderServiceInternal extends BaseService {
 
 export class AssetFolderService extends DosGatoService<AssetFolder> {
   raw = this.svc(AssetFolderServiceInternal)
+
+  async find (filter?: AssetFolderFilter) {
+    return await this.removeUnauthorized(await this.raw.find(filter))
+  }
 
   async findByInternalId (internalId: number) {
     return await this.removeUnauthorized(await this.raw.findByInternalId(internalId))

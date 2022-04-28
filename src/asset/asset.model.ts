@@ -89,6 +89,16 @@ export class AssetFilter {
   folderIds?: string[]
 
   folderInternalIds?: number[]
+  names?: string[]
+
+  @Field(type => [String], { nullable: true, description: 'Return assets with the given paths.' })
+  paths?: string[]
+
+  @Field(type => [String], { nullable: true, description: 'Return assets that descend from any of the given paths.' })
+  beneath?: string[]
+
+  @Field(type => [String], { nullable: true, description: 'Return assets that are direct children of any of the given paths.' })
+  parentPaths?: string[]
 
   @Field({ nullable: true, description: 'true -> return assets referenced by any page, false -> return assets not referenced by any page, null -> return all assets' })
   referenced?: boolean

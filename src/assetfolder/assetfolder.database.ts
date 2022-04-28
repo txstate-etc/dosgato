@@ -1,46 +1,50 @@
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { isNotNull } from 'txstate-utils'
 import { AssetFolder, AssetFolderFilter, CreateAssetFolderInput } from 'internal'
 
-function processFilters (filter: AssetFolderFilter) {
+async function processFilters (filter?: AssetFolderFilter) {
   const where: any[] = []
   const binds: any[] = []
 
-  if (filter.internalIds?.length) {
+  if (filter?.internalIds?.length) {
     where.push(`assetfolders.id IN (${db.in(binds, filter.internalIds)})`)
   }
 
   // internalIdPaths for getting direct descendants of an asset folder
-  if (filter.internalIdPaths?.length) {
+  if (filter?.internalIdPaths?.length) {
     where.push(`assetfolders.path IN (${db.in(binds, filter.internalIdPaths)})`)
   }
 
   // internalIdPathsRecursive for getting all descendants of an asset folder
-  if (filter.internalIdPathsRecursive?.length) {
+  if (filter?.internalIdPathsRecursive?.length) {
     const ors = filter.internalIdPathsRecursive.flatMap(path => ['assetfolders.path LIKE ?', 'assetfolders.path = ?'])
     where.push(ors.join(' OR '))
     binds.push(...filter.internalIdPathsRecursive.flatMap(p => [`${p}/%`, p]))
   }
 
-  if (filter.ids?.length) {
+  if (filter?.ids?.length) {
     where.push(`assetfolders.guid IN (${db.in(binds, filter.ids)})`)
   }
 
-  if (filter.siteIds?.length) {
+  if (filter?.siteIds?.length) {
     where.push(`assetfolders.siteId IN (${db.in(binds, filter.siteIds)})`)
   }
 
-  if (filter.childOfFolderInternalIds?.length) {
+  if (filter?.childOfFolderInternalIds?.length) {
     const ors = filter.childOfFolderInternalIds.map(id => 'assetfolders.path LIKE ?')
     where.push(ors.join(' OR '))
     binds.push(...filter.childOfFolderInternalIds.map(id => `%/${id}`))
   }
-  if (filter.root) {
+
+  if (filter?.names?.length) {
+    where.push(`assetfolders.name IN (${db.in(binds, filter.names)})`)
+  }
+
+  if (filter?.root) {
     where.push('assetfolders.path = \'/\'')
   }
 
-  if (isNotNull(filter.deleted)) {
+  if (filter?.deleted != null) {
     if (filter.deleted) {
       where.push('assetfolders.deletedAt IS NOT NULL')
     } else {
@@ -51,8 +55,9 @@ function processFilters (filter: AssetFolderFilter) {
   return { where, binds }
 }
 
-export async function getAssetFolders (filter: AssetFolderFilter) {
-  const { where, binds } = processFilters(filter)
+export async function getAssetFolders (filter?: AssetFolderFilter) {
+  const { where, binds } = await processFilters(filter)
+  console.log(where, binds)
   return (await db.getall(`
     SELECT *
     FROM assetfolders

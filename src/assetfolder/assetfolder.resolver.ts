@@ -1,5 +1,5 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
-import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
+import { Context } from '@txstate-mws/graphql-server'
+import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'type-graphql'
 import {
   Asset, AssetFilter, Role, RoleService, User, AssetFolder, AssetFolderFilter,
   AssetFolderPermission, AssetFolderPermissions, AssetFolderService, AssetRuleService,
@@ -9,6 +9,11 @@ import { isNull } from 'txstate-utils'
 
 @Resolver(of => AssetFolder)
 export class AssetFolderResolver {
+  @Query(returns => [AssetFolder])
+  async assetfolders (@Ctx() ctx: Context, @Arg('filter', { nullable: true }) filter?: AssetFolderFilter) {
+    return await ctx.svc(AssetFolderService).find(filter)
+  }
+
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the folder is not in the soft-deleted state.' })
   async deletedBy (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
     if (isNull(folder.deletedBy)) return null
@@ -23,6 +28,11 @@ export class AssetFolderResolver {
   @FieldResolver(returns => [AssetFolder])
   async ancestors (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
     return await ctx.svc(AssetFolderService).getAncestors(folder)
+  }
+
+  @FieldResolver(returns => String)
+  async path (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
+    return await ctx.svc(AssetFolderService).getPath(folder)
   }
 
   @FieldResolver(returns => [Asset])
