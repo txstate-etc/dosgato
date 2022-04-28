@@ -195,7 +195,7 @@ export class PageLinkInput {
   @Field()
   linkId!: string
 
-  @Field()
+  @Field(type => ID)
   siteId!: string
 
   @Field()

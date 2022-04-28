@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import { isNotNull } from 'txstate-utils'
-import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
+import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { extension } from 'mime-types'
 import { JsonData, UrlSafeString } from 'internal'
@@ -33,7 +33,7 @@ export class Asset {
   @Field({ description: 'Filename that will be used when downloading the asset. Does not include an extension. May be different than the filename of the original upload.' })
   name: UrlSafeString
 
-  @Field({ description: 'Filesize in bytes.' })
+  @Field(type => Int, { description: 'Filesize in bytes.' })
   size: number
 
   @Field({ description: 'The mime type for this asset, e.g. "text/plain".' })
