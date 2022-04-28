@@ -148,6 +148,12 @@ async function handleDisplayOrder (db: Queryable, parent: Page, aboveTarget: Pag
   return displayOrder
 }
 
+async function updateSourceDisplayOrder (db: Queryable, page: Page, parent: Page) {
+  // If page parent isn't changing, there is no hole left behind
+  if (page.parentInternalId === parent.internalId) return
+  await db.update('UPDATE pages SET displayOrder = displayOrder - 1 WHERE path = ? AND displayOrder > ?', [page.path, page.displayOrder])
+}
+
 export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page|undefined, name: string, templateKey: string, schemaVersion: DateTime) {
   return await db.transaction(async db => {
     [parent, aboveTarget] = await refetch(db, parent, aboveTarget)
@@ -197,6 +203,10 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
     // deal with displayOrder
     const displayOrder = await handleDisplayOrder(db, parent, aboveTarget, filteredPages.length)
 
+    // fill in any display order holes in the moved pages' previous location(s)
+    for (const p of pages) {
+      await updateSourceDisplayOrder(db, p, parent)
+    }
     // update the pages themselves, currently just displayOrder.
     await Promise.all(filteredPages.map(async (page, index) => await db.update('UPDATE pages SET displayOrder = ? WHERE id = ?', [displayOrder + index, page.internalId])))
 
