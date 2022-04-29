@@ -1,4 +1,4 @@
-import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import { isNull, unique } from 'txstate-utils'
@@ -27,7 +27,7 @@ export class DataResolver {
     @Arg('published', { nullable: true, description: 'Return the published version of the data.' }) published?: boolean,
     @Arg('version', type => Int, { nullable: true }) version?: number
   ) {
-    const versioned = await ctx.svc(VersionedService).get(data.dataId, { version })
+    const versioned = await ctx.svc(VersionedService).get(data.dataId, { version, tag: published ? 'published' : undefined })
     return versioned!.data
   }
 

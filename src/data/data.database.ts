@@ -1,8 +1,8 @@
 import db from 'mysql2-async/db'
-import { isNotNull } from 'txstate-utils'
+import { isNotNull, unique } from 'txstate-utils'
 import { Queryable } from 'mysql2-async'
 import { formatSavedAtVersion } from '../util'
-import { Data, DataFilter, VersionedService, CreateDataInput, DataServiceInternal, getDataIndexes, DataFolder, Site } from 'internal'
+import { Data, DataFilter, VersionedService, CreateDataInput, DataServiceInternal, getDataIndexes, DataFolder, Site, MoveDataTarget } from 'internal'
 
 function processFilters (filter?: DataFilter) {
   const where: string[] = []
@@ -63,13 +63,26 @@ export async function getData (filter?: DataFilter) {
   return data.map(d => new Data(d))
 }
 
-async function handleDisplayOrder (db: Queryable, dataServiceInternal: DataServiceInternal, templateKey: string, folderInternalId?: number, siteId?: string, aboveTarget?: Data) {
+async function getEntriesWithTemplate (db: Queryable, versionedService: VersionedService, templateKey: string) {
+  const searchRule = { indexName: 'template', equal: templateKey }
+  // TODO: These are not fetched in a transaction. Do we need to add the transaction as an optional parameter for find()?
+  const [dataIdsLatest, dataIdsPublished] = await Promise.all([
+    versionedService.find([searchRule], 'latest'),
+    versionedService.find([searchRule], 'published')])
+  const dataIds = unique([...dataIdsLatest, ...dataIdsPublished])
+  if (!dataIds.length) return []
+  const binds: string[] = []
+  const rows = await db.getall(`SELECT * FROM data WHERE dataId IN (${db.in(binds, dataIds)})`, binds)
+  return rows.map(r => new Data(r))
+}
+
+async function handleDisplayOrder (db: Queryable, versionedService: VersionedService, templateKey: string, folderInternalId?: number, siteId?: string, aboveTarget?: Data) {
   if (aboveTarget) {
     const displayOrder = aboveTarget.displayOrder
     if (aboveTarget.folderInternalId) {
       await db.update('UPDATE data SET displayOrder = displayOrder + 1 WHERE folderId = ? AND displayOrder >= ?', [aboveTarget.folderInternalId, displayOrder])
     } else {
-      const entriesWithTemplate = await dataServiceInternal.findByTemplate(templateKey)
+      const entriesWithTemplate = await getEntriesWithTemplate(db, versionedService, templateKey)
       const binds: (string | number)[] = []
       binds.push(displayOrder)
       if (aboveTarget.siteId) {
@@ -95,7 +108,7 @@ async function handleDisplayOrder (db: Queryable, dataServiceInternal: DataServi
     if (folderInternalId) {
       maxDisplayOrder = await db.getval<number>('SELECT MAX(displayOrder) FROM data WHERE folderId = ?', [folderInternalId])
     } else {
-      const entriesWithTemplate = await dataServiceInternal.findByTemplate(templateKey)
+      const entriesWithTemplate = await getEntriesWithTemplate(db, versionedService, templateKey)
       const binds: string[] = []
       if (siteId) {
         binds.push(siteId)
@@ -108,7 +121,7 @@ async function handleDisplayOrder (db: Queryable, dataServiceInternal: DataServi
   }
 }
 
-async function updateSourceDisplayOrder (db: Queryable, dataServiceInternal: DataServiceInternal, data: Data, templateKey: string, folderInternalId?: number, siteId?: string, aboveTarget?: Data) {
+async function updateSourceDisplayOrder (db: Queryable, versionedService: VersionedService, data: Data, templateKey: string, folderInternalId?: number, siteId?: string, aboveTarget?: Data) {
   if (data.folderInternalId) {
     if ((aboveTarget && data.folderInternalId !== aboveTarget.folderInternalId) || data.folderInternalId !== folderInternalId) {
       // data moved out of folder. Update display order for items in source folder with display order > data.displayOrder
@@ -116,7 +129,7 @@ async function updateSourceDisplayOrder (db: Queryable, dataServiceInternal: Dat
     }
   } else {
     // data was not in a folder
-    const entriesWithTemplate = await dataServiceInternal.findByTemplate(templateKey)
+    const entriesWithTemplate = await getEntriesWithTemplate(db, versionedService, templateKey)
     const binds: (string|number)[] = []
     binds.push(data.displayOrder)
     // was it in a site?
@@ -144,10 +157,10 @@ async function updateSourceDisplayOrder (db: Queryable, dataServiceInternal: Dat
   }
 }
 
-export async function createDataEntry (versionedService: VersionedService, dataServiceInternal: DataServiceInternal, userId: string, args: CreateDataInput) {
+export async function createDataEntry (versionedService: VersionedService, userId: string, args: CreateDataInput) {
   return await db.transaction(async db => {
     const dataFolderInternalId = args.folderId ? await db.getval<number>('SELECT id FROM datafolders WHERE guid = ?', [args.folderId]) : undefined
-    const displayOrder = await handleDisplayOrder(db, dataServiceInternal, args.templateKey, dataFolderInternalId, args.siteId)
+    const displayOrder = await handleDisplayOrder(db, versionedService, args.templateKey, dataFolderInternalId, args.siteId)
     // TODO: Assuming the template key and schema version are passed in as separate arguments, but maybe they are already in the data?
     const data = Object.assign({}, args.data, { templateKey: args.templateKey, savedAtVersion: formatSavedAtVersion(args.schemaVersion) })
     const indexes = await getDataIndexes(data)
@@ -173,12 +186,16 @@ export async function renameDataEntry (dataId: string, name: string) {
   return await db.update('UPDATE data SET name = ? WHERE dataId = ?', [name, dataId])
 }
 
-export async function moveDataEntry (dataServiceInternal: DataServiceInternal, data: Data, templateKey: string, userId: string, folder: DataFolder|undefined, site: Site|undefined, aboveTarget?: Data) {
+export async function moveDataEntry (versionedService: VersionedService, dataId: string, templateKey: string, target: MoveDataTarget) {
   return await db.transaction(async db => {
+    const data = new Data(await db.getrow('SELECT * FROM data WHERE dataId = ?', [dataId]))
+    const folder = target.folderId ? new DataFolder(await db.getrow('SELECT * FROM datafolders WHERE guid = ?', [target.folderId])) : undefined
+    const site = target.siteId ? new Site(await db.getrow('SELECT * FROM sites WHERE id = ?', [target.siteId])) : undefined
+    const aboveTarget = target.aboveTarget ? new Data(await db.getrow('SELECT * from data WHERE dataId = ?', [target.aboveTarget])) : undefined
     // get the entry's new display order
-    const displayOrder = await handleDisplayOrder(db, dataServiceInternal, templateKey, folder?.internalId, site?.id, aboveTarget)
+    const displayOrder = await handleDisplayOrder(db, versionedService, templateKey, folder?.internalId, site?.id, aboveTarget)
     // update the display order for data in the entry's previous location
-    await updateSourceDisplayOrder(db, dataServiceInternal, data, templateKey, folder?.internalId, site?.id, aboveTarget)
+    await updateSourceDisplayOrder(db, versionedService, data, templateKey, folder?.internalId, site?.id, aboveTarget)
     if (aboveTarget) {
       // if the entry is being moved above a specific data entry, use the same site and folder values as that specific data entry
       const binds: (string | number | null)[] = [displayOrder]
