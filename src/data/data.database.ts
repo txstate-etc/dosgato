@@ -161,7 +161,6 @@ export async function createDataEntry (versionedService: VersionedService, userI
   return await db.transaction(async db => {
     const dataFolderInternalId = args.folderId ? await db.getval<number>('SELECT id FROM datafolders WHERE guid = ?', [args.folderId]) : undefined
     const displayOrder = await handleDisplayOrder(db, versionedService, args.templateKey, dataFolderInternalId, args.siteId)
-    // TODO: Assuming the template key and schema version are passed in as separate arguments, but maybe they are already in the data?
     const data = Object.assign({}, args.data, { templateKey: args.templateKey, savedAtVersion: formatSavedAtVersion(args.schemaVersion) })
     const indexes = await getDataIndexes(data)
     const dataId = await versionedService.create('data', data, indexes, userId, db)
