@@ -242,7 +242,7 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
   }
   const newInternalId = await db.insert(`
     INSERT INTO pages (name, pagetreeId, dataId, linkId, path, displayOrder)
-    VALUES (?, ?, ?, ?, ?, ?)`, [newPageName, page.pagetreeId, newDataId, nanoid(10), `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder])
+    VALUES (?, ?, ?, ?, ?, ?)`, [newPageName, parent.pagetreeId, newDataId, nanoid(10), `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder])
   if (includeChildren) {
     const children = (await db.getall('SELECT * FROM pages WHERE path = ?', [`/${[...page.pathSplit, page.internalId].join('/')}`])).map(r => new Page(r))
     const newParent = new Page(await db.getrow('SELECT * FROM pages WHERE id = ?', [newInternalId]))
