@@ -6,7 +6,7 @@ import {
   CreatePageInput, PageLinkInput, PageResponse, PagesResponse, createPage, getPages, movePages,
   deletePages, renamePage, TemplateService, PagetreeService, SiteService,
   TemplateFilter, Template, getPageIndexes, UpdatePageInput, undeletePages,
-  validatePage, DeletedFilter
+  validatePage, DeletedFilter, copyPages
 } from 'internal'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 
@@ -265,6 +265,16 @@ export class PageService extends DosGatoService<Page> {
     }
     const newPages = await movePages(pages, parent, aboveTarget)
     return new PagesResponse({ success: true, pages: newPages })
+  }
+
+  async copyPages (dataIds: string[], targetId: string, above?: boolean, includeChildren?: boolean) {
+    const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
+    if (!(await this.mayCreate(parent))) {
+      throw new Error('Current user is not permitted to copy pages to this location.')
+    }
+    const newPage = await copyPages(this.svc(VersionedService), this.login, pages, parent, aboveTarget, includeChildren)
+    return new PageResponse({ success: true, page: newPage })
   }
 
   async createPage (args: CreatePageInput) {

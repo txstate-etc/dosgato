@@ -2,7 +2,7 @@ import db from 'mysql2-async/db'
 import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
-import { isNotBlank, isNotNull, keyby, mapConcurrent, unique, someConcurrent, filterAsync, sortby } from 'txstate-utils'
+import { isNotBlank, isNotNull, keyby, mapConcurrent, unique, someConcurrent, filterAsync, sortby, eachConcurrent } from 'txstate-utils'
 import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter } from 'internal'
 
 async function convertPathsToIDPaths (pathstrings: string[]) {
@@ -224,6 +224,53 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
     const binds: number[] = []
     const updatedPages = await db.getall(`SELECT * FROM pages WHERE id IN (${db.in(binds, filteredPages.map(p => p.internalId))})`, binds)
     return updatedPages.map(p => new Page(p))
+  })
+}
+
+async function handleCopy (db: Queryable, versionedService: VersionedService, userId: string, page: Page, parent: Page, displayOrder: number, includeChildren?: boolean) {
+  const pageData = await versionedService.get(page.dataId)
+  const pageIndexes = await versionedService.getIndexes(page.dataId, pageData!.version)
+  const newDataId = await versionedService.create('page', pageData!.data, pageIndexes, userId, db)
+  let newPageName: string = String(page.name)
+  const pagesWithName = new Set(await db.getvals<string>('SELECT name FROM pages WHERE name LIKE ? AND path = ?', [`${String(page.name)}%`, `/${[...parent.pathSplit, parent.internalId].join('/')}`]))
+  if (pagesWithName.size > 0) {
+    let idx = 0
+    newPageName = `${String(page.name)}${idx}`
+    while (pagesWithName.has(newPageName)) {
+      newPageName = `${String(page.name)}${++idx}`
+    }
+  }
+  const newInternalId = await db.insert(`
+    INSERT INTO pages (name, pagetreeId, dataId, linkId, path, displayOrder)
+    VALUES (?, ?, ?, ?, ?, ?)`, [newPageName, page.pagetreeId, newDataId, nanoid(10), `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder])
+  if (includeChildren) {
+    const children = (await db.getall('SELECT * FROM pages WHERE path = ?', [`/${[...page.pathSplit, page.internalId].join('/')}`])).map(r => new Page(r))
+    const newParent = new Page(await db.getrow('SELECT * FROM pages WHERE id = ?', [newInternalId]))
+    for (const child of children) {
+      await handleCopy(db, versionedService, userId, child, newParent, child.displayOrder, true)
+    }
+  }
+  return newDataId
+}
+
+export async function copyPages (versionedService: VersionedService, userId: string, pages: Page[], parent: Page, aboveTarget?: Page, includeChildren?: boolean) {
+  return await db.transaction(async db => {
+    [parent, aboveTarget, ...pages] = await refetch(db, parent, aboveTarget, ...pages)
+
+    if (aboveTarget && parent.internalId !== aboveTarget.parentInternalId) {
+      throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
+    }
+
+    pages = sortby(pages, 'displayOrder')
+
+    const displayOrder = await handleDisplayOrder(db, parent, aboveTarget, pages.length)
+
+    let i = 0
+    for (const page of pages) {
+      await handleCopy(db, versionedService, userId, page, parent, displayOrder + i, includeChildren)
+      i++
+    }
+    return parent
   })
 }
 

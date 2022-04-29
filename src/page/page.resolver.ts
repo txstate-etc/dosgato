@@ -1,4 +1,4 @@
-import { Context, UnimplementedError, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { isNull } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
@@ -195,13 +195,14 @@ export class PageResolver {
     return await ctx.svc(PageService).movePages(pageIds, targetId, above)
   }
 
-  @Mutation(returns => PagesResponse)
+  @Mutation(returns => PageResponse)
   async copyPages (@Ctx() ctx: Context,
     @Arg('pageIds', type => [ID]) pageIds: string[],
     @Arg('targetId', type => ID) targetId: string,
-    @Arg('above', { nullable: true, description: 'When true, page(s) will be copied above the targeted page, rather than inside it.' }) above: boolean
+    @Arg('above', { nullable: true, description: 'When true, page(s) will be copied above the targeted page, rather than inside it.' }) above: boolean,
+    @Arg('includeChildren', type => Boolean, { nullable: true, description: 'If true, restore the child pages of these pages too.'}) includeChildren: boolean
   ) {
-    throw new UnimplementedError()
+    return await ctx.svc(PageService).copyPages(pageIds, targetId, above, includeChildren)
   }
 
   @Mutation(returns => ValidatedResponse)

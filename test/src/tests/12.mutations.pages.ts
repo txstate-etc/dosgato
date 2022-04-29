@@ -155,6 +155,85 @@ describe('pages mutations', () => {
     expect(displayOrders.childpageC1).to.be.lessThan(displayOrders.childpageA2)
     expect(displayOrders.childpageA2).to.be.lessThan(displayOrders.childpageC4)
   })
+  it('should copy a page', async () => {
+    const { page: pagetocopy } = await createPage('copytestpage1', testSite6PageRootId, 'keyp1')
+    const { page: copytarget } = await createPage('copytestpage2', testSite6PageRootId, 'keyp1')
+    const { copyPages: { success } } = await query('mutation copyPages ($pageIds: [ID]!, $parentId: ID!) { copyPages (pageIds: $pageIds, targetId: $parentId) { success page { id name, parent { name } } } }', { pageIds: [pagetocopy.id], parentId: copytarget.id })
+    expect(success).to.be.true
+    const { pages } = await query(`{ pages(filter: { ids: ["${copytarget.id}", "${pagetocopy.id}"] }) { id parent { id name } children { id name } } }`)
+    for (const page of pages) {
+      if (page.id === pagetocopy.id) expect(page.parent.id).to.equal(testSite6PageRootId)
+      if (page.id === copytarget.id) {
+        expect(page.children[0].name).to.equal('copytestpage1')
+      }
+    }
+  })
+  it('should copy multiple pages', async () => {
+    const { page: pagetocopy } = await createPage('copytestpage3', testSite6PageRootId, 'keyp1')
+    const { page: anotherpagetocopy } = await createPage('copytestpage4', testSite6PageRootId, 'keyp1')
+    const { page: copytarget } = await createPage('copytestpage5', testSite6PageRootId, 'keyp1')
+    const { copyPages: { success } } = await query('mutation copyPages ($pageIds: [ID]!, $parentId: ID!) { copyPages (pageIds: $pageIds, targetId: $parentId) { success pages { name, parent { name } } } }', { pageIds: [pagetocopy.id, anotherpagetocopy.id], parentId: copytarget.id })
+    expect(success).to.be.true
+    const { pages } = await query(`{ pages(filter: { ids: ["${copytarget.id}"]}) { children { id name } } }`)
+    expect(pages[0].children.map((p: any) => p.name)).to.have.members(['copytestpage3', 'copytestpage4'])
+    expect(pages[0].children.map((p: any) => p.id)).to.not.include([pagetocopy.id, anotherpagetocopy.id])
+  })
+  it('should copy a page above another page', async () => {
+    const { page: copytarget } = await createPage('copytestpage6', testSite6PageRootId, 'keyp1')
+    const { page: pagetocopy } = await createPage('copytestpage7', copytarget.id, 'keyp1')
+    const { copyPages: { success } } = await query('mutation copyPages ($pageIds: [ID]!, $parentId: ID!, $above: Boolean) { copyPages (pageIds: $pageIds, targetId: $parentId, above: $above) { success pages { id name, parent { name } } } }', { pageIds: [pagetocopy.id], parentId: copytarget.id, above: true })
+    expect(success).to.be.true
+    const { pages } = await query(`{ pages(filter: { ids: ["${testSite6PageRootId}"]}) { children { id name } } }`)
+    expect(pages[0].children.map((p: any) => p.name)).to.include('copytestpage7')
+  })
+  it('should copy multiple pages above another page', async () => {
+    const { page: copytarget } = await createPage('copytestpage8', testSite6PageRootId, 'keyp1')
+    const { page: pagetocopy } = await createPage('copytestpage9', copytarget.id, 'keyp1')
+    const { page: anotherpagetocopy } = await createPage('copytestpage10', copytarget.id, 'keyp1')
+    const { copyPages: { success } } = await query('mutation copyPages ($pageIds: [ID]!, $parentId: ID!, $above: Boolean) { copyPages (pageIds: $pageIds, targetId: $parentId, above: $above) { success pages { id name, parent { name } } } }', { pageIds: [pagetocopy.id, anotherpagetocopy.id], parentId: copytarget.id, above: true })
+    expect(success).to.be.true
+    const { pages } = await query(`{ pages(filter: { ids: ["${testSite6PageRootId}", "${copytarget.id}"]}) { children { id name } } }`)
+    expect(pages.length).to.equal(2)
+    for (const page of pages) {
+      expect(page.children.map((p: any) => p.name)).to.include.members(['copytestpage9', 'copytestpage10'])
+    }
+  })
+  it('should copy a page and its children', async () => {
+    const { page: copytarget } = await createPage('copytestpage11', testSite6PageRootId, 'keyp1')
+    const { page: pagetocopy } = await createPage('copytestpage12', testSite6PageRootId, 'keyp1')
+    const { page: childpagetocopy } = await createPage('copytestpage13', pagetocopy.id, 'keyp1')
+    const { copyPages: { success } } = await query('mutation copyPages ($pageIds: [ID]!, $parentId: ID!, $above: Boolean, $includeChildren: Boolean) { copyPages (pageIds: $pageIds, targetId: $parentId, above: $above, includeChildren: $includeChildren) { success pages { id name, parent { name } } } }', { pageIds: [pagetocopy.id], parentId: copytarget.id, includeChildren: true })
+    expect(success).to.be.true
+    const { pages } = await query(`{ pages(filter: { ids: ["${testSite6PageRootId}", "${copytarget.id}"]}) { children(recursive: true) { id name parent { name } } } }`)
+    for (const page of pages) {
+      expect(page.children.map((p: any) => p.name)).to.include.members(['copytestpage12', 'copytestpage13'])
+      for (const child of page.children) {
+        if (child.name === 'copytestpage13') expect(child.parent.name).to.equal('copytestpage12')
+      }
+    }
+  })
+  it('should copy multiple pages and their children', async () => {
+    const { page: copytarget } = await createPage('copytestpage14', testSite6PageRootId, 'keyp1')
+    const { page: pagetocopy } = await createPage('copytestpage15', testSite6PageRootId, 'keyp1')
+    const { page: childpagetocopy } = await createPage('copytestpage16', pagetocopy.id, 'keyp1')
+    const { page: anotherpagetocopy } = await createPage('copytestpage17', testSite6PageRootId, 'keyp1')
+    const { page: anotherchildpagetocopy } = await createPage('copytestpage18', anotherpagetocopy.id, 'keyp1')
+    const { copyPages: { success } } = await query('mutation copyPages ($pageIds: [ID]!, $parentId: ID!, $above: Boolean, $includeChildren: Boolean) { copyPages (pageIds: $pageIds, targetId: $parentId, above: $above, includeChildren: $includeChildren) { success pages { id name, parent { name } } } }', { pageIds: [pagetocopy.id, anotherpagetocopy.id], parentId: copytarget.id, includeChildren: true })
+    expect(success).to.be.true
+    const { pages } = await query(`{ pages(filter: { ids: ["${testSite6PageRootId}", "${copytarget.id}"]}) { children(recursive: true) { id name parent { name } } } }`)
+    for (const page of pages) {
+      expect(page.children.map((p: any) => p.name)).to.include.members(['copytestpage15', 'copytestpage16', 'copytestpage17', 'copytestpage18'])
+    }
+  })
+  it('should append a number to the end of a page name if its copy destination already has a page with that name', async () => {
+    const { page: copytarget } = await createPage('copytestpage19', testSite6PageRootId, 'keyp1')
+    const { page: pagetocopy } = await createPage('pagename', testSite6PageRootId, 'keyp1')
+    const { page: pagewithsamename } = await createPage('pagename', copytarget.id, 'keyp1')
+    const { copyPages: { success } } = await query('mutation copyPages ($pageIds: [ID]!, $parentId: ID!) { copyPages (pageIds: $pageIds, targetId: $parentId) { success page { id name children { name } } } }', { pageIds: [pagetocopy.id], parentId: copytarget.id })
+    expect(success).to.be.true
+    const { pages } = await query(`{ pages(filter: { ids: ["${copytarget.id}"]}) { children { id name } } }`)
+    expect(pages[0].children.map((p: any) => p.name)).to.include.members(['pagename', 'pagename0'])
+  })
   it('should delete a page', async () => {
     const { page: testpage } = await createPage('testpage5', testSite6PageRootId, 'keyp3')
     const { deletePages: { success, pages } } = await query('mutation DeletePages ($pageIds: [ID]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpage.id] })
