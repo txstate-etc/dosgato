@@ -1,7 +1,7 @@
 /* eslint-disable no-trailing-spaces */
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique } from 'txstate-utils'
+import { unique, isNotNull, someAsync, eachConcurrent } from 'txstate-utils'
 import {
   Data, DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
@@ -258,31 +258,34 @@ export class DataService extends DosGatoService<Data> {
     }
   }
 
-  async publish (dataId: string) {
-    const data = await this.raw.findById(dataId)
-    if (!data) throw new Error('Data entry to be published does not exist')
-    if (!(await this.mayPublish(data))) throw new Error('Current user is not permitted to publish this data entry.')
+  async publish (dataIds: string[]) {
+    let data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(data, async (d: Data) => !(await this.mayPublish(d)))) {
+      throw new Error('Current user is not permitted to publish one or more data entries')
+    }
+    data = data.filter(d => !d.deleted)
     try {
-      await this.svc(VersionedService).tag(dataId, 'published')
+      await eachConcurrent(data.map(d => d.dataId), async (dataId) => await this.svc(VersionedService).tag(dataId, 'published', undefined, this.login))
       this.loaders.clear()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.error(err)
-      throw new Error(`Unable to publish data entry ${String(data.name)}`)
+      throw new Error('Unable to publish one or more data entries.')
     }
   }
 
-  async unpublish (dataId: string) {
-    const data = await this.raw.findById(dataId)
-    if (!data) throw new Error('Data entry to be restored does not exist.')
-    if (!(await this.mayUnpublish(data))) throw new Error('Current user is not permitted to unpublish this data entry')
+  async unpublish (dataIds: string[]) {
+    const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(data, async (d: Data) => !(await this.mayUnpublish(d)))) {
+      throw new Error('Current user is not permitted to unpublish one or more data entries')
+    }
     try {
-      await this.svc(VersionedService).removeTag(dataId, 'published')
+      await eachConcurrent(data.map(d => d.dataId), async (dataId) => await this.svc(VersionedService).removeTag(dataId, 'published'))
       this.loaders.clear()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.error(err)
-      throw new Error(`Unable to unpublish data entry ${String(data.name)}`)
+      throw new Error('Unable to unpublish one or more data entries')
     }
   }
 

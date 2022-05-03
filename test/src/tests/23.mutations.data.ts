@@ -279,15 +279,31 @@ describe('data mutations', () => {
   })
   it('should publish a data entry', async () => {
     const { data: dataEntry } = await createDataEntry('GlobalBuilding7', 'keyd2', { name: 'James Hall', floors: 2 })
-    const { publishDataEntry: { success } } = await query(`
-      mutation PublishDataEntry ($dataId: ID!) {
-        publishDataEntry (dataId: $dataId) {
+    const { publishDataEntries: { success } } = await query(`
+      mutation PublishDataEntries ($dataIds: [ID]!) {
+        publishDataEntries (dataIds: $dataIds) {
           success
         }
       }
-    `, { dataId: dataEntry.id })
+    `, { dataIds: [dataEntry.id] })
     expect(success).to.be.true
     const { data } = await query(`{ data(filter: {ids: ["${dataEntry.id}"] }) { published } }`)
+    for (const d of data) {
+      expect(d.published).to.be.true
+    }
+  })
+  it('should publish multiple data entries', async () => {
+    const { data: dataEntry1 } = await createDataEntry('GlobalBuilding7a', 'keyd2', { name: 'Woods Hall', floors: 2 })
+    const { data: dataEntry2 } = await createDataEntry('GlobalBuilding7b', 'keyd2', { name: 'Waterfall Hall', floors: 2 })
+    const { publishDataEntries: { success } } = await query(`
+      mutation PublishDataEntries ($dataIds: [ID]!) {
+        publishDataEntries (dataIds: $dataIds) {
+          success
+        }
+      }
+    `, { dataIds: [dataEntry1.id, dataEntry2.id] })
+    expect(success).to.be.true
+    const { data } = await query(`{ data(filter: {ids: ["${dataEntry1.id}","${dataEntry2.id}"] }) { published } }`)
     for (const d of data) {
       expect(d.published).to.be.true
     }
@@ -295,31 +311,54 @@ describe('data mutations', () => {
   it('should not allow an unauthorized user to publish a data entry', async () => {
     const { data: dataEntry } = await createDataEntry('GlobalBuilding8', 'keyd2', { name: 'Allen Hall', floors: 2 })
     await expect(queryAs('ed07', `
-      mutation PublishDataEntry ($dataId: ID!) {
-        publishDataEntry (dataId: $dataId) {
+      mutation PublishDataEntries ($dataIds: [ID]!) {
+        publishDataEntries (dataIds: $dataIds) {
           success
         }
       }
-    `, { dataId: dataEntry.id })).to.be.rejected
+    `, { dataIds: [dataEntry.id] })).to.be.rejected
   })
   it('should unpublish a data entry', async () => {
     const { data: dataEntry } = await createDataEntry('GlobalBuilding9', 'keyd2', { name: 'Pineapple Center', floors: 2 })
     await query(`
-      mutation PublishDataEntry ($dataId: ID!) {
-        publishDataEntry (dataId: $dataId) {
+      mutation PublishDataEntries ($dataIds: [ID]!) {
+        publishDataEntries (dataIds: $dataIds) {
           success
         }
       }
-    `, { dataId: dataEntry.id })
-    const { unpublishDataEntry: { success } } = await query(`
-      mutation UnpublishDataEntry ($dataId: ID!) {
-        unpublishDataEntry (dataId: $dataId) {
+    `, { dataIds: [dataEntry.id] })
+    const { unpublishDataEntries: { success } } = await query(`
+      mutation UnpublishDataEntries ($dataIds: [ID]!) {
+        unpublishDataEntries (dataIds: $dataIds) {
           success
         }
       }
-    `, { dataId: dataEntry.id })
+    `, { dataIds: [dataEntry.id] })
     expect(success).to.be.true
     const { data } = await query(`{ data(filter: {ids: ["${dataEntry.id}"] }) { published } }`)
+    for (const d of data) {
+      expect(d.published).to.be.false
+    }
+  })
+  it('should unpublish multiple data entries', async () => {
+    const { data: dataEntry1 } = await createDataEntry('GlobalBuilding9a', 'keyd2', { name: 'Mountain Hall', floors: 1 })
+    const { data: dataEntry2 } = await createDataEntry('GlobalBuilding9b', 'keyd2', { name: 'Cedar Hall', floors: 3 })
+    await query(`
+      mutation PublishDataEntries ($dataIds: [ID]!) {
+        publishDataEntries (dataIds: $dataIds) {
+          success
+        }
+      }
+    `, { dataIds: [dataEntry1.id, dataEntry2.id] })
+    const { unpublishDataEntries: { success } } = await query(`
+      mutation UnpublishDataEntries ($dataIds: [ID]!) {
+        unpublishDataEntries (dataIds: $dataIds) {
+          success
+        }
+      }
+    `, { dataIds: [dataEntry1.id, dataEntry2.id] })
+    expect(success).to.be.true
+    const { data } = await query(`{ data(filter: {ids: ["${dataEntry1.id}","${dataEntry2.id}"] }) { published } }`)
     for (const d of data) {
       expect(d.published).to.be.false
     }
@@ -327,19 +366,19 @@ describe('data mutations', () => {
   it('should not allow an unauthorized user to unpublish a data entry', async () => {
     const { data: dataEntry } = await createDataEntry('GlobalBuilding10', 'keyd2', { name: 'Clock Tower', floors: 4 })
     await query(`
-      mutation PublishDataEntry ($dataId: ID!) {
-        publishDataEntry (dataId: $dataId) {
+      mutation PublishDataEntries ($dataIds: [ID]!) {
+        publishDataEntries (dataIds: $dataIds) {
           success
         }
       }
-    `, { dataId: dataEntry.id })
+    `, { dataIds: [dataEntry.id] })
     await expect(queryAs('ed07', `
-      mutation UnpublishDataEntry ($dataId: ID!) {
-        unpublishDataEntry (dataId: $dataId) {
+      mutation UnpublishDataEntries ($dataIds: [ID]!) {
+        unpublishDataEntries (dataIds: $dataIds) {
           success
         }
       }
-    `, { dataId: dataEntry.id })).to.be.rejected
+    `, { dataIds: [dataEntry.id] })).to.be.rejected
   })
   it('should delete a data entry', async () => {
     const { data: dataEntry } = await createDataEntry('GlobalBuilding11', 'keyd2', { name: 'State Building', floors: 2 })

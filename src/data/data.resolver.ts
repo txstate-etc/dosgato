@@ -5,8 +5,8 @@ import { isNull, unique } from 'txstate-utils'
 import {
   DataFolder, DataFolderService, Role, JsonData, Site, SiteService, Template,
   TemplateService, User, UserService, ObjectVersion, VersionedService, Data,
-  DataFilter, DataPermission, DataPermissions, DataService, DataResponse, CreateDataInput,
-  UpdateDataInput, DataRuleService, RoleService, MoveDataTarget
+  DataFilter, DataPermission, DataPermissions, DataService, DataResponse, DataMultResponse,
+  CreateDataInput, UpdateDataInput, DataRuleService, RoleService, MoveDataTarget
 } from 'internal'
 
 @Resolver(of => Data)
@@ -119,14 +119,14 @@ export class DataResolver {
     return await ctx.svc(DataService).update(dataId, args)
   }
 
-  @Mutation(returns => ValidatedResponse, { description: 'Mark the latest version of a data entry "published."' })
-  async publishDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string) {
-    return await ctx.svc(DataService).publish(dataId)
+  @Mutation(returns => ValidatedResponse, { description: 'Mark the latest version of data entries "published."' })
+  async publishDataEntries (@Ctx() ctx: Context, @Arg('dataIds', type => [ID]) dataIds: string[]) {
+    return await ctx.svc(DataService).publish(dataIds)
   }
 
-  @Mutation(returns => DataResponse, { description: 'Remove "published" tag from data entry' })
-  async unpublishDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string) {
-    return await ctx.svc(DataService).unpublish(dataId)
+  @Mutation(returns => ValidatedResponse, { description: 'Remove "published" tag from data entries' })
+  async unpublishDataEntries (@Ctx() ctx: Context, @Arg('dataIds', type => [ID]) dataIds: string[]) {
+    return await ctx.svc(DataService).unpublish(dataIds)
   }
 
   @Mutation(returns => DataResponse, { description: 'Move data entry into or out of a folder or change display order. Data may only be moved into a folder containing data that uses its template.' })
