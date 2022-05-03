@@ -36,7 +36,7 @@ export class DataResolver {
     // TODO: Is there another way to get this?
     const versioned = await ctx.svc(VersionedService).get(data.dataId)
     const indexes = await ctx.svc(VersionedService).getIndexes(data.dataId, versioned!.version)
-    const templateKeyIndex = indexes.find(i => i.name === 'template')
+    const templateKeyIndex = indexes.find(i => i.name === 'templateKey')
     const templateKey = templateKeyIndex!.values[0]
     return await ctx.svc(TemplateService).findByKey(templateKey)
   }

@@ -244,7 +244,7 @@ describe('data', () => {
   it('should return the JSON data for a data entry (no parameters)', async () => {
     const { data } = await query('{ data(filter: { deleted:false }) { id data site { name } } }')
     const site2entries = data.filter((d: any) => d.site?.name === 'site2')
-    expect(site2entries.map((e: any) => e.data.color)).to.have.members(['red', 'blue', 'green'])
+    expect(site2entries.map((e: any) => e.data.color)).to.include.members(['red', 'blue', 'green'])
   })
   it.skip('should return the JSON data for the published version of a data entry', async () => {
 
@@ -263,7 +263,7 @@ describe('data', () => {
     const { data } = await query('{ data(filter: { deleted:false }) {id data folder { name } site { name } } }')
     const site2entries = data.filter((d: any) => d.site?.name === 'site2')
     for (const entry of site2entries) {
-      expect(entry.folder.name).to.equal('site2datafolder')
+      if (entry.folder) expect(entry.folder.name).to.equal('site2datafolder')
     }
   })
   it('should return null for a data entry\'s parent folder if the data has no folder', async () => {

@@ -51,6 +51,9 @@ export class DataServiceInternal extends BaseService {
   }
 
   async findByFolderInternalId (folderId: number, filter?: DataFilter) {
+    if (filter?.templateKeys) {
+      filter = await this.processFilters(filter)
+    }
     return await this.loaders.get(dataByFolderInternalIdLoader, filter).load(folderId)
   }
 
@@ -59,6 +62,9 @@ export class DataServiceInternal extends BaseService {
   }
 
   async findBySiteId (siteId: string, filter?: DataFilter) {
+    if (filter?.templateKeys) {
+      filter = await this.processFilters(filter)
+    }
     return await this.loaders.get(dataBySiteIdLoader, filter).load(siteId)
   }
 
