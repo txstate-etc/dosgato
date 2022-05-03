@@ -32,6 +32,11 @@ const dataFoldersBySiteIdLoader = new OneToManyLoader({
 })
 
 export class DataFolderServiceInternal extends BaseService {
+  async find (filter?: DataFolderFilter) {
+    filter = await this.processFilters(filter)
+    return await getDataFolders(filter)
+  }
+
   async findById (id: string) {
     return await this.loaders.get(dataFoldersByIdLoader).load(id)
   }
@@ -63,6 +68,10 @@ export class DataFolderServiceInternal extends BaseService {
 
 export class DataFolderService extends DosGatoService<DataFolder> {
   raw = this.svc(DataFolderServiceInternal)
+
+  async find (filter?: DataFolderFilter) {
+    return await this.removeUnauthorized(await this.raw.find(filter))
+  }
 
   async findById (id: string) {
     return await this.removeUnauthorized(await this.raw.findById(id))

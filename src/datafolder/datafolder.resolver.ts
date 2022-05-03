@@ -1,15 +1,20 @@
 import { Context } from '@txstate-mws/graphql-server'
-import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
+import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'type-graphql'
 import { isNull, unique } from 'txstate-utils'
 import {
   Data, DataFilter, DataService, Site, SiteService, Template, TemplateService,
   User, UserService, Role, DataFolder, DataFolderPermission, DataFolderPermissions,
   DataFolderService, CreateDataFolderInput, DataFolderResponse, DataRuleService,
-  RoleService
+  RoleService, DataFolderFilter
 } from 'internal'
 
 @Resolver(of => DataFolder)
 export class DataFolderResolver {
+  @Query(returns => [DataFolder])
+  async datafolders (@Ctx() ctx: Context, @Arg('filter', { nullable: true }) filter?: DataFolderFilter) {
+    return await ctx.svc(DataFolderService).find(filter)
+  }
+
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the folder is not in the soft-deleted state.' })
   async deletedBy (@Ctx() ctx: Context, @Root() folder: DataFolder) {
     if (isNull(folder.deletedBy)) return null
@@ -72,6 +77,7 @@ export class DataFolderResolver {
   }
 }
 
+// TODO: Do we need to be able to move datafolders?
 @Resolver(of => DataFolderPermissions)
 export class DataFolderPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may create or move data inside this folder.' })
