@@ -382,9 +382,9 @@ describe('data mutations', () => {
   })
   it('should delete a data entry', async () => {
     const { data: dataEntry } = await createDataEntry('GlobalBuilding11', 'keyd2', { name: 'State Building', floors: 2 })
-    const { deleteDataEntry: { success, data } } = await query(`
-      mutation DeleteDataEntry ($dataId: ID!) {
-        deleteDataEntry (dataId: $dataId) {
+    const { deleteDataEntries: { success, data } } = await query(`
+      mutation DeleteDataEntries ($dataIds: [ID]!) {
+        deleteDataEntries (dataIds: $dataIds) {
           success
           data {
             deleted
@@ -395,33 +395,56 @@ describe('data mutations', () => {
           }
         }
       }
-    `, { dataId: dataEntry.id })
+    `, { dataIds: [dataEntry.id] })
     expect(success).to.be.true
-    expect(data.deleted).to.be.true
-    expect(data.deletedAt).to.not.be.null
-    expect(data.deletedBy.id).to.equal('su01')
+    expect(data[0].deleted).to.be.true
+    expect(data[0].deletedAt).to.not.be.null
+    expect(data[0].deletedBy.id).to.equal('su01')
+  })
+  it('should delete multiple data entries', async () => {
+    const { data: dataEntry1 } = await createDataEntry('GlobalBuilding11a', 'keyd2', { name: 'Alabama Building', floors: 2 })
+    const { data: dataEntry2 } = await createDataEntry('GlobalBuilding11b', 'keyd2', { name: 'Alaska Building', floors: 2 })
+    const { deleteDataEntries: { success } } = await query(`
+      mutation DeleteDataEntries ($dataIds: [ID]!) {
+        deleteDataEntries (dataIds: $dataIds) {
+          success
+          data {
+            deleted
+            deletedAt
+            deletedBy {
+              id
+            }
+          }
+        }
+      }
+    `, { dataIds: [dataEntry1.id, dataEntry2.id] })
+    expect(success).to.be.true
+    const { data } = await query(`{ data(filter: {ids: ["${dataEntry1.id}","${dataEntry2.id}"] }) { deleted } }`)
+    for (const d of data) {
+      expect(d.deleted).to.be.true
+    }
   })
   it('should not allow an unauthorized user to delete a data entry', async () => {
     const { data: dataEntry } = await createDataEntry('GlobalBuilding12', 'keyd2', { name: 'Large Donation Hall', floors: 2 })
     await expect(queryAs('ed07', `
-      mutation DeleteDataEntry ($dataId: ID!) {
-        deleteDataEntry (dataId: $dataId) {
+      mutation DeleteDataEntries ($dataIds: [ID]!) {
+        deleteDataEntries (dataIds: $dataIds) {
           success
         }
       }
-    `, { dataId: dataEntry.id })).to.be.rejected
+    `, { dataIds: [dataEntry.id] })).to.be.rejected
   })
   it('should undelete a data entry', async () => {
     const { data: dataEntry } = await createDataEntry('GlobalBuilding13', 'keyd2', { name: 'Equipment Shed', floors: 1 })
     await query(`
-      mutation DeleteDataEntry ($dataId: ID!) {
-        deleteDataEntry (dataId: $dataId) {
+      mutation DeleteDataEntries ($dataIds: [ID]!) {
+        deleteDataEntries (dataIds: $dataIds) {
           success
         }
-      }`, { dataId: dataEntry.id })
-    const { undeleteDataEntry: { success, data } } = await query(`
-      mutation UndeleteDataEntry ($dataId: ID!) {
-        undeleteDataEntry (dataId: $dataId) {
+      }`, { dataIds: [dataEntry.id] })
+    const { undeleteDataEntries: { success, data } } = await query(`
+      mutation UndeleteDataEntries ($dataIds: [ID]!) {
+        undeleteDataEntries (dataIds: $dataIds) {
           success
           data {
             deleted
@@ -430,28 +453,63 @@ describe('data mutations', () => {
           }
         }
       }
-    `, { dataId: dataEntry.id })
+    `, { dataIds: [dataEntry.id] })
     expect(success).to.be.true
-    expect(data.deleted).to.be.false
-    expect(data.deletedAt).to.be.null
-    expect(data.deletedBy).to.be.null
+    expect(data[0].deleted).to.be.false
+    expect(data[0].deletedAt).to.be.null
+    expect(data[0].deletedBy).to.be.null
+  })
+  it('should undelete multiple data entries', async () => {
+    const { data: dataEntry1 } = await createDataEntry('GlobalBuilding13a', 'keyd2', { name: 'Wild Rice Hall', floors: 2 })
+    const { data: dataEntry2 } = await createDataEntry('GlobalBuilding13b', 'keyd2', { name: 'Blind Salamander Building', floors: 2 })
+    await query(`
+      mutation DeleteDataEntries ($dataIds: [ID]!) {
+        deleteDataEntries (dataIds: $dataIds) {
+          success
+          data {
+            deleted
+            deletedAt
+            deletedBy {
+              id
+            }
+          }
+        }
+      }
+    `, { dataIds: [dataEntry1.id, dataEntry2.id] })
+    const { undeleteDataEntries: { success } } = await query(`
+      mutation UndeleteDataEntries ($dataIds: [ID]!) {
+        undeleteDataEntries (dataIds: $dataIds) {
+          success
+          data {
+            deleted
+            deletedAt
+            deletedBy
+          }
+        }
+      }
+    `, { dataIds: [dataEntry1.id, dataEntry2.id] })
+    expect(success).to.be.true
+    const { data } = await query(`{ data(filter: {ids: ["${dataEntry1.id}","${dataEntry2.id}"] }) { deleted } }`)
+    for (const d of data) {
+      expect(d.deleted).to.be.false
+    }
   })
   it('should not allow an unauthorized user to undelete a data entry', async () => {
     const { data: dataEntry } = await createDataEntry('GlobalBuilding14', 'keyd2', { name: 'Bobcat Center', floors: 4 })
     await query(`
-      mutation UndeleteDataEntry ($dataId: ID!) {
-        undeleteDataEntry (dataId: $dataId) {
+      mutation DeleteDataEntries ($dataIds: [ID]!) {
+        deleteDataEntries (dataIds: $dataIds) {
           success
         }
       }
-    `, { dataId: dataEntry.id })
+    `, { dataIds: [dataEntry.id] })
     await expect(queryAs('ed07', `
-      mutation UndeleteDataEntry ($dataId: ID!) {
-        undeleteDataEntry (dataId: $dataId) {
+      mutation UndeleteDataEntries ($dataIds: [ID]!) {
+        undeleteDataEntries (dataIds: $dataIds) {
           success
         }
       }
-    `, { dataId: dataEntry.id })).to.be.rejected
+    `, { dataIds: [dataEntry.id] })).to.be.rejected
   })
   it('should move data within a data folder', async () => {
     const { dataFolder: folder } = await createDataFolder('datafolderJ', 'keyd1', datatestsite1Id)

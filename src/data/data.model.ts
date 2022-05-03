@@ -129,6 +129,17 @@ export class DataResponse extends ValidatedResponse {
 }
 
 @ObjectType()
+export class DataMultResponse extends ValidatedResponse {
+  @Field(type => [Data], { nullable: true })
+  data?: Data[]
+
+  constructor (config: ValidatedResponseArgs & { data?: Data[] }) {
+    super(config)
+    this.data = config.data
+  }
+}
+
+@ObjectType()
 export class DataPermissions {}
 
 export enum DataPermission {

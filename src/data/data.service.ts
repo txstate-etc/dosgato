@@ -5,8 +5,8 @@ import { unique, isNotNull, someAsync, eachConcurrent } from 'txstate-utils'
 import {
   Data, DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
-  createDataEntry, DataResponse, templateRegistry, UpdateDataInput, getDataIndexes,
-  renameDataEntry, deleteDataEntry, undeleteDataEntry, MoveDataTarget, moveDataEntry,
+  createDataEntry, DataResponse, DataMultResponse, templateRegistry, UpdateDataInput, getDataIndexes,
+  renameDataEntry, deleteDataEntries, undeleteDataEntries, MoveDataTarget, moveDataEntry,
   DataFolder, Site, TemplateService
 } from 'internal'
 
@@ -61,6 +61,10 @@ export class DataServiceInternal extends BaseService {
     return await this.loaders.get(dataByIdLoader).load(dataId)
   }
 
+  async findByIds (ids: string[]) {
+    return await this.loaders.loadMany(dataByIdLoader, ids)
+  }
+
   async findBySiteId (siteId: string, filter?: DataFilter) {
     if (filter?.templateKeys) {
       filter = await this.processFilters(filter)
@@ -106,6 +110,10 @@ export class DataService extends DosGatoService<Data> {
 
   async find (filter: DataFilter) {
     return await this.removeUnauthorized(await this.raw.find(filter))
+  }
+
+  async findByIds (ids: string[]) {
+    return await this.removeUnauthorized(await this.raw.findByIds(ids))
   }
 
   async findByFolderInternalId (folderId: number, filter?: DataFilter) {
@@ -289,34 +297,36 @@ export class DataService extends DosGatoService<Data> {
     }
   }
 
-  async delete (dataId: string) {
-    const data = await this.raw.findById(dataId)
-    if (!data) throw new Error('Data entry to be deleted does not exist.')
-    if (!(await this.mayDelete(data))) throw new Error('Current user is not permitted to delete this data entry')
+  async delete (dataIds: string[]) {
+    const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(data, async (d: Data) => !(await this.mayDelete(d)))) {
+      throw new Error('Current user is not permitted to delete one or more data entries')
+    }
     const currentUser = await this.currentUser()
     try {
-      await deleteDataEntry(dataId, currentUser!.internalId)
+      await deleteDataEntries(data.map(d => d.dataId), currentUser!.internalId)
       this.loaders.clear()
-      const updated = await this.raw.findById(dataId)
-      return new DataResponse({ success: true, data: updated })
+      const updated = await this.raw.findByIds(data.map(d => d.dataId))
+      return new DataMultResponse({ success: true, data: updated })
     } catch (err: any) {
       console.error(err)
-      throw new Error(`Unable to delete data entry ${String(data.name)}`)
+      throw new Error('Unable to delete one or more data entries')
     }
   }
 
-  async undelete (dataId: string) {
-    const data = await this.raw.findById(dataId)
-    if (!data) throw new Error('Cannot restore a data entry that does not exist.')
-    if (!(await this.mayUndelete(data))) throw new Error('Current user is not permitted to restore this data entry')
+  async undelete (dataIds: string[]) {
+    const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(data, async (d: Data) => !(await this.mayUndelete(d)))) {
+      throw new Error('Current user is not permitted to restore one or more data entries')
+    }
     try {
-      await undeleteDataEntry(dataId)
+      await undeleteDataEntries(data.map(d => d.dataId))
       this.loaders.clear()
-      const restored = await this.raw.findById(dataId)
-      return new DataResponse({ success: true, data: restored })
+      const restored = await this.raw.findByIds(data.map(d => d.dataId))
+      return new DataMultResponse({ success: true, data: restored })
     } catch (err: any) {
       console.error(err)
-      throw new Error('Unable to restore data entry')
+      throw new Error('Unable to restore one or more data entries')
     }
   }
 

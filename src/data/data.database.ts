@@ -223,10 +223,12 @@ export async function moveDataEntry (versionedService: VersionedService, dataId:
   })
 }
 
-export async function deleteDataEntry (dataId: string, userInternalId: number) {
-  return await db.update('UPDATE data SET deletedAt = NOW(), deletedBy = ? WHERE dataId = ?', [userInternalId, dataId])
+export async function deleteDataEntries (dataIds: string[], userInternalId: number) {
+  const binds: (string|number)[] = [userInternalId]
+  return await db.update(`UPDATE data SET deletedAt = NOW(), deletedBy = ? WHERE dataId IN (${db.in(binds, dataIds)})`, binds)
 }
 
-export async function undeleteDataEntry (dataId: string) {
-  return await db.update('UPDATE data SET deletedAt = NULL, deletedBy = NULL where dataId = ?', [dataId])
+export async function undeleteDataEntries (dataIds: string[]) {
+  const binds: string[] = []
+  return await db.update(`UPDATE data SET deletedAt = NULL, deletedBy = NULL where dataId IN (${db.in(binds, dataIds)})`, binds)
 }

@@ -134,14 +134,14 @@ export class DataResolver {
     return await ctx.svc(DataService).move(dataId, target)
   }
 
-  @Mutation(returns => DataResponse)
-  async deleteDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string) {
-    return await ctx.svc(DataService).delete(dataId)
+  @Mutation(returns => DataMultResponse)
+  async deleteDataEntries (@Ctx() ctx: Context, @Arg('dataIds', type => [ID]) dataIds: string[]) {
+    return await ctx.svc(DataService).delete(dataIds)
   }
 
-  @Mutation(returns => DataResponse)
-  async undeleteDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string) {
-    return await ctx.svc(DataService).undelete(dataId)
+  @Mutation(returns => DataMultResponse)
+  async undeleteDataEntries (@Ctx() ctx: Context, @Arg('dataIds', type => [ID]) dataIds: string[]) {
+    return await ctx.svc(DataService).undelete(dataIds)
   }
 }
 
