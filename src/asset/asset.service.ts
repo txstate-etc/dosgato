@@ -1,6 +1,6 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { intersect, isNotNull } from 'txstate-utils'
+import { intersect, isNotNull, keyby } from 'txstate-utils'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, CreateAssetInput,
@@ -28,6 +28,14 @@ export class AssetServiceInternal extends BaseService {
     const assets = await getAssets(await this.processAssetFilters(filter))
     for (const asset of assets) this.loaders.get(assetsByIdLoader).prime(asset.id, asset)
     return assets
+  }
+
+  async findById (id: string) {
+    return await this.loaders.get(assetsByIdLoader).load(id)
+  }
+
+  async findByIds (ids: string[]) {
+    return await this.loaders.loadMany(assetsByIdLoader, ids)
   }
 
   async findByFolder (folder: AssetFolder, filter?: AssetFilter) {
@@ -75,6 +83,27 @@ export class AssetServiceInternal extends BaseService {
     if (filter?.parentPaths?.length) {
       const folderidpaths = await this.svc(AssetFolderServiceInternal).convertPathsToIDPaths(filter.parentPaths)
       filter.folderInternalIds = intersect({ skipEmpty: true }, filter.folderInternalIds, folderidpaths.map(basename).map(Number))
+    }
+
+    if (filter?.links?.length) {
+      const assets = await this.findByIds(filter.links.map(l => l.id))
+      const assetsById = keyby(assets, 'id')
+      const notFoundById = filter.links.filter(l => !assetsById[l.id])
+      if (notFoundById.length) {
+        const [pathAssets, checksumAssets] = await Promise.all([
+          this.find({ paths: notFoundById.map(l => l.path) }),
+          this.find({ checksums: notFoundById.map(l => l.checksum) })
+        ])
+
+        const assetsByPath: Record<string, Asset> = {}
+        await Promise.all(pathAssets.map(async a => {
+          assetsByPath[await this.getPath(a)] = a
+        }))
+        const assetsByChecksum = keyby(checksumAssets, 'checksum')
+        assets.push(...notFoundById.map(link => assetsByPath[link.path] ?? assetsByChecksum[link.checksum]).filter(isNotNull))
+      }
+      if (!assets.length) filter.internalIds = [-1]
+      else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, assets.map(a => a.internalId))
     }
 
     return filter

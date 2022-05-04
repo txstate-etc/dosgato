@@ -41,6 +41,9 @@ function processFilters (filter?: AssetFilter) {
         where.push('assets.deletedAt IS NULL')
       }
     }
+    if (filter.checksums?.length) {
+      where.push(`binaries.shasum IN (${db.in(binds, filter.checksums)})`)
+    }
   }
   return { binds, where, joins }
 }
@@ -48,7 +51,7 @@ function processFilters (filter?: AssetFilter) {
 export async function getAssets (filter?: AssetFilter) {
   const { binds, where, joins } = processFilters(filter)
   const assets = await db.getall(`
-    SELECT assets.id, assets.dataId, assets.name, assets.folderId, assets.deletedAt, assets.deletedBy, binaries.bytes AS filesize, binaries.mime FROM assets
+    SELECT assets.id, assets.dataId, assets.name, assets.folderId, assets.deletedAt, assets.deletedBy, binaries.bytes AS filesize, binaries.mime, binaries.shasum FROM assets
     INNER JOIN binaries on assets.shasum = binaries.shasum
     ${joins.size ? Array.from(joins.values()).join('\n') : ''}
     WHERE (${where.join(') AND (')})`, binds)

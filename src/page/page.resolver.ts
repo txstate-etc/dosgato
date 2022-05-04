@@ -6,8 +6,9 @@ import {
   Pagetree, PagetreeService, Role, JsonData, Site, SiteService, Template, TemplateFilter,
   User, UserService, ObjectVersion, VersionedService, CreatePageInput, Page, PageFilter,
   PagePermission, PagePermissions, PageResponse, PagesResponse, PageService, PageRuleService, RoleService,
-  PagetreeType, UpdatePageInput, PageData, TemplateService
+  PagetreeType, UpdatePageInput, TemplateService
 } from 'internal'
+import { PageData } from '@dosgato/templating'
 
 @Resolver(of => Page)
 export class PageResolver {

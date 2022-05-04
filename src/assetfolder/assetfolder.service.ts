@@ -5,7 +5,7 @@ import {
   CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
   moveAssetFolder, deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter, normalizePath
 } from 'internal'
-import { isNull, isNotNull, unique, mapConcurrent, intersect, isNotBlank } from 'txstate-utils'
+import { isNull, isNotNull, unique, mapConcurrent, intersect, isNotBlank, keyby } from 'txstate-utils'
 
 const assetFolderByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids }),
@@ -60,6 +60,10 @@ export class AssetFolderServiceInternal extends BaseService {
 
   async findById (id: string) {
     return await this.loaders.get(assetFolderByIdLoader).load(id)
+  }
+
+  async findByIds (ids: string[]) {
+    return await this.loaders.loadMany(assetFolderByIdLoader, ids)
   }
 
   async getAncestors (folder: AssetFolder) {
@@ -137,6 +141,23 @@ export class AssetFolderServiceInternal extends BaseService {
     if (filter?.parentPaths?.length) {
       const idpaths = await this.convertPathsToIDPaths(filter.parentPaths)
       filter.internalIdPaths = intersect({ skipEmpty: true }, filter.internalIdPaths, idpaths)
+    }
+
+    if (filter?.links?.length) {
+      const folders = await this.findByIds(filter.links.map(l => l.id))
+      const foldersById = keyby(folders, 'id')
+      const notFoundById = filter.links.filter(l => !foldersById[l.id])
+      if (notFoundById.length) {
+        const pathFolders = await this.find({ paths: notFoundById.map(l => l.path) })
+
+        const foldersByPath: Record<string, AssetFolder> = {}
+        await Promise.all(pathFolders.map(async a => {
+          foldersByPath[await this.getPath(a)] = a
+        }))
+        folders.push(...notFoundById.map(link => foldersByPath[link.path]).filter(isNotNull))
+      }
+      if (!folders.length) filter.internalIds = [-1]
+      else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, folders.map(a => a.internalId))
     }
 
     return filter

@@ -45,6 +45,9 @@ export class Asset {
   @Field()
   box?: BoxAttributes
 
+  @Field({ description: 'This is only the current checksum, old versions could have another checksum.' })
+  checksum: string
+
   @Field({ description: 'Asset has been soft-deleted but is still recoverable.' })
   deleted: boolean
 
@@ -68,6 +71,7 @@ export class Asset {
     this.box = BoxAttributes.hasBox(row) ? new BoxAttributes(row) : undefined
     this.folderInternalId = row.folderId
     this.dataId = row.dataId
+    this.checksum = row.shasum
     this.lastRawDownload = row.lastDownload
     this.deleted = isNotNull(row.deletedAt)
     this.deletedAt = DateTime.fromJSDate(row.deletedAt)
@@ -84,6 +88,12 @@ export class AssetFilter {
 
   @Field(type => [ID], { nullable: true })
   siteIds?: string[]
+
+  @Field(type => [AssetLinkInput], { nullable: true, description: 'Resolve asset links preferring id and falling back to path or checksum.' })
+  links?: AssetLinkInput[]
+
+  @Field(type => [String], { nullable: true })
+  checksums?: string[]
 
   @Field(type => [ID], { nullable: true })
   folderIds?: string[]
@@ -192,4 +202,16 @@ export class AssetResize {
     this.binaryId = row.binaryId
     this.originalBinaryId = row.originalBinaryId
   }
+}
+
+@InputType()
+export class AssetLinkInput {
+  @Field(type => ID)
+  id!: string
+
+  @Field()
+  path!: string
+
+  @Field()
+  checksum!: string
 }

@@ -1,4 +1,4 @@
-import { ComponentData } from 'internal'
+import { ComponentData } from '@dosgato/templating'
 
 // array of templateKey strings in use on the page
 export function collectTemplates (component: ComponentData) {

@@ -2,7 +2,8 @@ import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-s
 import { DateTime } from 'luxon'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { UrlSafeString, PagetreeType, JsonData, PageData } from 'internal'
+import { UrlSafeString, PagetreeType, JsonData } from 'internal'
+import { PageData } from '@dosgato/templating'
 
 @ObjectType({ description: 'Sites contain pages. Each page can have subpages. Each pagetree has one root page.' })
 export class Page {
@@ -194,9 +195,6 @@ registerEnumType(PagePermission, {
 export class PageLinkInput {
   @Field()
   linkId!: string
-
-  @Field(type => ID)
-  siteId!: string
 
   @Field()
   path!: string

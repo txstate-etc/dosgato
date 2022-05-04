@@ -1,3 +1,4 @@
+import { PageData, PageLink } from '@dosgato/templating'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import stringify from 'fast-json-stable-stringify'
 import { intersect, isNotNull, isNull, unique, someAsync, eachConcurrent, mapConcurrent } from 'txstate-utils'
@@ -54,6 +55,8 @@ const pagesByInternalIdPathRecursiveLoader = new OneToManyLoader({
 export class PageServiceInternal extends BaseService {
   async find (filter: PageFilter) {
     filter = await this.processFilters(filter)
+
+    // TODO: move this to processFilters?
     if (filter.linkIdsReferenced?.length) {
       const searchRule = { indexName: 'link_page', in: filter.linkIdsReferenced.map(linkId => (stringify({ linkId }))) }
       const [dataIdsLatest, dataIdsPublished] = await Promise.all([
@@ -125,10 +128,11 @@ export class PageServiceInternal extends BaseService {
     if (filter.referencedByPageIds?.length) {
       const verService = this.svc(VersionedService)
       const pages = (await Promise.all(filter.referencedByPageIds.map(async id => await this.findById(id)))).filter(isNotNull)
-      const pagedata = (await Promise.all(pages.map(async page => await verService.get(page.dataId, { tag: filter.published ? 'published' : undefined })))).filter(isNotNull)
-      const links = pagedata.flatMap(d => templateRegistry.get(d.data.templateKey).getLinks(d.data)).filter(l => l.type === 'page') as PageLinkInput[]
+      const pagedata = (await Promise.all(pages.map(async page => await verService.get<PageData>(page.dataId, { tag: filter.published ? 'published' : undefined })))).filter(isNotNull)
+      const links = pagedata.flatMap(d => templateRegistry.get(d.data.templateKey).getLinks(d.data)).filter(l => l.type === 'page') as PageLink[]
       filter.links = intersect({ skipEmpty: true, by: lnk => stringify({ ...lnk, type: 'page' }) }, links, filter.links)
     }
+    // TODO: add missing filters: `links`
     return filter
   }
 }

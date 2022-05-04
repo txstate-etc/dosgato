@@ -52,6 +52,9 @@ export class AssetFolderFilter {
   @Field(type => [ID], { nullable: true })
   siteIds?: string[]
 
+  @Field(type => [AssetFolderLinkInput], { nullable: true, description: 'Resolve asset folder links preferring id and falling back to path.' })
+  links?: AssetFolderLinkInput[]
+
   @Field(type => [ID], { nullable: true, description: 'Return folders that are parents of the given folder ids.' })
   parentOfFolderIds?: string[]
 
@@ -115,3 +118,12 @@ registerEnumType(AssetFolderPermission, {
   name: 'AssetFolderPermission',
   description: 'All the action types that can be individually permissioned on a data entry.'
 })
+
+@InputType()
+export class AssetFolderLinkInput {
+  @Field(type => ID)
+  id!: string
+
+  @Field()
+  path!: string
+}
