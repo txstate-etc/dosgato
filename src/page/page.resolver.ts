@@ -201,7 +201,7 @@ export class PageResolver {
     @Arg('pageIds', type => [ID]) pageIds: string[],
     @Arg('targetId', type => ID) targetId: string,
     @Arg('above', { nullable: true, description: 'When true, page(s) will be copied above the targeted page, rather than inside it.' }) above: boolean,
-    @Arg('includeChildren', type => Boolean, { nullable: true, description: 'If true, restore the child pages of these pages too.'}) includeChildren: boolean
+    @Arg('includeChildren', type => Boolean, { nullable: true, description: 'If true, restore the child pages of these pages too.' }) includeChildren: boolean
   ) {
     return await ctx.svc(PageService).copyPages(pageIds, targetId, above, includeChildren)
   }

@@ -43,13 +43,13 @@ export function processLink (link: LinkDefinition) {
   if (link.type === 'asset') {
     ret = [
       { name: 'link_asset', value: { source: link.source, id: link.id } },
-      { name: 'link_asset', value: { siteId: link.siteId, path: link.path } },
+      { name: 'link_asset', value: { path: link.path } },
       { name: 'link_asset', value: { checksum: link.checksum } }
     ]
   } else if (link.type === 'page') {
     ret = [
       { name: 'link_page', value: { linkId: link.linkId } },
-      { name: 'link_page', value: { siteId: link.siteId, path: link.path } }
+      { name: 'link_page', value: { path: link.path } }
     ]
   } else if (link.type === 'data') {
     ret = [
@@ -59,7 +59,7 @@ export function processLink (link: LinkDefinition) {
   } else if (link.type === 'assetfolder') {
     ret = [
       { name: 'link_assetfolder', value: { linkId: link.id } },
-      { name: 'link_assetfolder', value: { siteId: link.siteId, path: link.path } }
+      { name: 'link_assetfolder', value: { path: link.path } }
     ]
   } else if (link.type === 'datafolder') {
     ret = [
