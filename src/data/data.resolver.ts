@@ -129,9 +129,9 @@ export class DataResolver {
     return await ctx.svc(DataService).unpublish(dataIds)
   }
 
-  @Mutation(returns => DataResponse, { description: 'Move data entry into or out of a folder or change display order. Data may only be moved into a folder containing data that uses its template.' })
-  async moveDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string, @Arg('target', type => MoveDataTarget) target: MoveDataTarget) {
-    return await ctx.svc(DataService).move(dataId, target)
+  @Mutation(returns => DataMultResponse, { description: 'Move data entries into or out of a folder or change display order. Data may only be moved into a folder containing data that uses its template.' })
+  async moveDataEntries (@Ctx() ctx: Context, @Arg('dataIds', type => [ID]) dataIds: string[], @Arg('target', type => MoveDataTarget) target: MoveDataTarget) {
+    return await ctx.svc(DataService).move(dataIds, target)
   }
 
   @Mutation(returns => DataMultResponse)

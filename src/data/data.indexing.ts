@@ -2,7 +2,7 @@ import { DataEntryData, Index, templateRegistry, processLink, extractLinksFromTe
 
 export function getDataIndexes (data: DataEntryData): Index[] {
   const storage: Record<string, Set<string>> = {}
-  storage.template = new Set([data.templateKey])
+  storage.templateKey = new Set([data.templateKey])
   const indexes = templateRegistry.get(data.templateKey).getLinks(data).map(processLink).flat()
   for (const index of indexes) {
     storage[index.name] ??= new Set()

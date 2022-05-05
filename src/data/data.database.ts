@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { isNotNull, unique } from 'txstate-utils'
+import { isNotNull, unique, sortby } from 'txstate-utils'
 import { Queryable } from 'mysql2-async'
 import { formatSavedAtVersion } from '../util'
 import { Data, DataFilter, VersionedService, CreateDataInput, DataServiceInternal, getDataIndexes, DataFolder, Site, MoveDataTarget } from 'internal'
@@ -76,11 +76,11 @@ async function getEntriesWithTemplate (db: Queryable, versionedService: Versione
   return rows.map(r => new Data(r))
 }
 
-async function handleDisplayOrder (db: Queryable, versionedService: VersionedService, templateKey: string, folderInternalId?: number, siteId?: string, aboveTarget?: Data) {
+async function handleDisplayOrder (db: Queryable, versionedService: VersionedService, templateKey: string, entriesAdded: number, folderInternalId?: number, siteId?: string, aboveTarget?: Data) {
   if (aboveTarget) {
     const displayOrder = aboveTarget.displayOrder
     if (aboveTarget.folderInternalId) {
-      await db.update('UPDATE data SET displayOrder = displayOrder + 1 WHERE folderId = ? AND displayOrder >= ?', [aboveTarget.folderInternalId, displayOrder])
+      await db.update(`UPDATE data SET displayOrder = displayOrder + ${entriesAdded} WHERE folderId = ? AND displayOrder >= ?`, [aboveTarget.folderInternalId, displayOrder])
     } else {
       const entriesWithTemplate = await getEntriesWithTemplate(db, versionedService, templateKey)
       const binds: (string | number)[] = []
@@ -88,14 +88,14 @@ async function handleDisplayOrder (db: Queryable, versionedService: VersionedSer
       if (aboveTarget.siteId) {
         binds.push(aboveTarget.siteId)
         await db.update(`
-          UPDATE data SET displayOrder = displayOrder + 1
+          UPDATE data SET displayOrder = displayOrder + ${entriesAdded}
           WHERE folderId IS NULL AND
           displayOrder >= ? AND
           siteId = ? AND
           id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})`, binds)
       } else {
         await db.update(`
-          UPDATE data SET displayOrder = displayOrder + 1
+          UPDATE data SET displayOrder = displayOrder + ${entriesAdded}
           WHERE folderId is NULL AND
           siteId IS NULL AND
           displayOrder >= ? AND
@@ -121,38 +121,53 @@ async function handleDisplayOrder (db: Queryable, versionedService: VersionedSer
   }
 }
 
-async function updateSourceDisplayOrder (db: Queryable, versionedService: VersionedService, data: Data, templateKey: string, folderInternalId?: number, siteId?: string, aboveTarget?: Data) {
+async function updateSourceDisplayOrder (db: Queryable, versionedService: VersionedService, data: Data, templateKey: string, movingIds: number[], folderInternalId?: number, siteId?: string, aboveTarget?: Data) {
   if (data.folderInternalId) {
-    if ((aboveTarget && data.folderInternalId !== aboveTarget.folderInternalId) || data.folderInternalId !== folderInternalId) {
-      // data moved out of folder. Update display order for items in source folder with display order > data.displayOrder
-      await db.update('UPDATE data SET displayOrder = displayOrder - 1 WHERE folderId = ? AND displayOrder > ?', [data.folderInternalId, data.displayOrder])
+    if (aboveTarget) {
+      if (data.folderInternalId !== aboveTarget.folderInternalId) {
+        // data moved out of folder
+        const binds: number[] = [data.folderInternalId]
+        const remaining = await db.getvals<number>(`
+          SELECT id FROM data
+          WHERE data.folderId = ? AND id NOT IN (${db.in(binds, movingIds)})
+          ORDER BY displayOrder`, binds)
+        await Promise.all(remaining.map(async (id, index) => await db.update('UPDATE data SET displayOrder = ? WHERE id = ?', [index + 1, id])))
+      }
+    } else {
+      if (!folderInternalId || folderInternalId !== data.folderInternalId) {
+        // data moved out of folder
+        const binds: number[] = [data.folderInternalId]
+        const remaining = await db.getvals<number>(`
+          SELECT id FROM data
+          WHERE data.folderId = ? AND id NOT IN (${db.in(binds, movingIds)})
+          ORDER BY displayOrder`, binds)
+        await Promise.all(remaining.map(async (id, index) => await db.update('UPDATE data SET displayOrder = ? WHERE id = ?', [index + 1, id])))
+      }
     }
   } else {
     // data was not in a folder
     const entriesWithTemplate = await getEntriesWithTemplate(db, versionedService, templateKey)
-    const binds: (string|number)[] = []
-    binds.push(data.displayOrder)
+    const remainingEntriesWithTemplate = entriesWithTemplate.filter((entry) => !movingIds.includes(entry.internalId))
     // was it in a site?
     if (data.siteId) {
-      if ((aboveTarget && data.siteId !== aboveTarget.siteId) || data.siteId !== siteId) {
-        // data moved out of site
-        binds.push(data.siteId)
-        await db.update(`
-          UPDATE data SET displayOrder = displayOrder - 1
-          WHERE folderId IS NULL AND
-          displayOrder > ? AND
-          siteId = ? AND
-          id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})`, binds)
+      if ((aboveTarget && data.siteId !== aboveTarget.siteId) || (!aboveTarget && data.siteId !== siteId)) {
+        const binds: (number|string)[] = [data.siteId]
+        const remaining = await db.getvals<number>(`
+          SELECT id from data
+          WHERE siteId = ? AND folderId IS NULL AND id IN (${db.in(binds, remainingEntriesWithTemplate.map((e) => e.internalId))})
+          ORDER BY displayOrder`, binds)
+        await Promise.all(remaining.map(async (id, index) => await db.update('UPDATE data SET displayOrder = ? WHERE id = ?', [index + 1, id])))
       }
     } else {
       // global data moved to a site or folder
-      // update display order for global data withe the same template as the data that moved and displayORder > data.displayOrder
-      await db.update(`
-        UPDATE data SET displayOrder = displayOrder - 1
-        WHERE folderId IS NULL AND
-        siteId IS NULL AND
-        displayOrder > ? AND
-        id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})`, binds)
+      if (aboveTarget?.siteId || aboveTarget?.folderInternalId || folderInternalId || siteId) {
+        const binds: (number|string)[] = []
+        const remaining = await db.getvals<number>(`
+          SELECT id from data
+          WHERE siteId IS NULL AND folderId IS NULL AND id IN (${db.in(binds, remainingEntriesWithTemplate.map((e) => e.internalId))})
+          ORDER BY displayOrder`, binds)
+        await Promise.all(remaining.map(async (id, index) => await db.update('UPDATE data SET displayOrder = ? WHERE id = ?', [index + 1, id])))
+      }
     }
   }
 }
@@ -160,7 +175,7 @@ async function updateSourceDisplayOrder (db: Queryable, versionedService: Versio
 export async function createDataEntry (versionedService: VersionedService, userId: string, args: CreateDataInput) {
   return await db.transaction(async db => {
     const dataFolderInternalId = args.folderId ? await db.getval<number>('SELECT id FROM datafolders WHERE guid = ?', [args.folderId]) : undefined
-    const displayOrder = await handleDisplayOrder(db, versionedService, args.templateKey, dataFolderInternalId, args.siteId)
+    const displayOrder = await handleDisplayOrder(db, versionedService, args.templateKey, 1, dataFolderInternalId, args.siteId)
     const data = Object.assign({}, args.data, { templateKey: args.templateKey, savedAtVersion: formatSavedAtVersion(args.schemaVersion) })
     const indexes = await getDataIndexes(data)
     const dataId = await versionedService.create('data', data, indexes, userId, db)
@@ -185,41 +200,52 @@ export async function renameDataEntry (dataId: string, name: string) {
   return await db.update('UPDATE data SET name = ? WHERE dataId = ?', [name, dataId])
 }
 
-export async function moveDataEntry (versionedService: VersionedService, dataId: string, templateKey: string, target: MoveDataTarget) {
+export async function moveDataEntries (versionedService: VersionedService, dataIds: string[], templateKey: string, target: MoveDataTarget) {
   return await db.transaction(async db => {
-    const data = new Data(await db.getrow('SELECT * FROM data WHERE dataId = ?', [dataId]))
+    const binds: string[] = []
+    let dataEntries = (await db.getall(`SELECT * FROM data WHERE dataId IN (${db.in(binds, dataIds)})`, binds)).map((row) => new Data(row))
+    dataEntries = sortby(dataEntries, 'displayOrder')
     const folder = target.folderId ? new DataFolder(await db.getrow('SELECT * FROM datafolders WHERE guid = ?', [target.folderId])) : undefined
     const site = target.siteId ? new Site(await db.getrow('SELECT * FROM sites WHERE id = ?', [target.siteId])) : undefined
     const aboveTarget = target.aboveTarget ? new Data(await db.getrow('SELECT * from data WHERE dataId = ?', [target.aboveTarget])) : undefined
-    // get the entry's new display order
-    const displayOrder = await handleDisplayOrder(db, versionedService, templateKey, folder?.internalId, site?.id, aboveTarget)
-    // update the display order for data in the entry's previous location
-    await updateSourceDisplayOrder(db, versionedService, data, templateKey, folder?.internalId, site?.id, aboveTarget)
+    // get the entrys' new display order
+    const displayOrder = await handleDisplayOrder(db, versionedService, templateKey, dataEntries.length, folder?.internalId, site?.id, aboveTarget)
+    // update the display order for data in the entrys' previous locations
+    for (const d of dataEntries) {
+      await updateSourceDisplayOrder(db, versionedService, d, templateKey, dataEntries.map(e => e.internalId), folder?.internalId, site?.id, aboveTarget)
+    }
     if (aboveTarget) {
       // if the entry is being moved above a specific data entry, use the same site and folder values as that specific data entry
-      const binds: (string | number | null)[] = [displayOrder]
-      binds.push((aboveTarget.folderInternalId ?? null))
-      binds.push((aboveTarget.siteId ?? null))
-      binds.push(data.internalId)
-      return await db.update('UPDATE data SET displayOrder = ?, folderId = ?, siteId = ? WHERE id = ?', binds)
+      return await Promise.all(dataEntries.map(async (data, index) => {
+        const binds: (string | number | null)[] = [displayOrder + index]
+        binds.push((aboveTarget.folderInternalId ?? null))
+        binds.push((aboveTarget.siteId ?? null))
+        binds.push(data.internalId)
+        await db.update('UPDATE data SET displayOrder = ?, folderId = ?, siteId = ? WHERE id = ?', binds)
+      }))
     }
     if (folder) {
       // data is in a folder that may or may not be in a site
-      const updates = ['displayOrder = ?', 'folderId = ?']
-      const binds: (string | number)[] = [displayOrder, folder.internalId]
-      if (folder.siteId) {
-        updates.push('siteId = ?')
-        binds.push(folder.siteId)
-      }
-      binds.push(data.internalId)
-      return await db.update(`UPDATE data SET ${updates.join(', ')} WHERE id = ?`, binds)
+      return await Promise.all(dataEntries.map(async (data, index) => {
+        const updates = ['displayOrder = ?', 'folderId = ?']
+        const binds: (string | number)[] = [displayOrder + index, folder.internalId]
+        if (folder.siteId) {
+          updates.push('siteId = ?')
+          binds.push(folder.siteId)
+        }
+        binds.push(data.internalId)
+        return await db.update(`UPDATE data SET ${updates.join(', ')} WHERE id = ?`, binds)
+      }))
     }
     if (site) {
-      // site-level data
-      return await db.update('UPDATE data SET displayOrder = ?, folderId = NULL, siteId = ? WHERE id = ?', [displayOrder, site.id, data.internalId])
+      return await Promise.all(dataEntries.map(async (data, index) => {
+        return await db.update('UPDATE data SET displayOrder = ?, folderId = NULL, siteId = ? WHERE id = ?', [displayOrder + index, site.id, data.internalId])
+      }))
     }
     // global data that is not in a folder
-    return await db.update('UPDATE data SET displayOrder = ?, folderId = NULL, siteId = NULL WHERE id = ?', [displayOrder, data.internalId])
+    return await Promise.all(dataEntries.map(async (data, index) => {
+      return await db.update('UPDATE data SET displayOrder = ?, folderId = NULL, siteId = NULL WHERE id = ?', [displayOrder + index, data.internalId])
+    }))
   })
 }
 

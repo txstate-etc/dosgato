@@ -1,12 +1,12 @@
 /* eslint-disable no-trailing-spaces */
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique, isNotNull, someAsync, eachConcurrent } from 'txstate-utils'
+import { unique, isNotNull, someAsync, eachConcurrent, mapConcurrent } from 'txstate-utils'
 import {
   Data, DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, UpdateDataInput, getDataIndexes,
-  renameDataEntry, deleteDataEntries, undeleteDataEntries, MoveDataTarget, moveDataEntry,
+  renameDataEntry, deleteDataEntries, undeleteDataEntries, MoveDataTarget, moveDataEntries,
   DataFolder, Site, TemplateService
 } from 'internal'
 
@@ -222,16 +222,21 @@ export class DataService extends DosGatoService<Data> {
     }
   }
 
-  async move (dataId: string, target: MoveDataTarget) {
-    const data = await this.raw.findById(dataId)
-    if (!data) throw new Error('Data entry to be moved does not exist')
-    if (!(await this.mayMove(data))) throw new Error('Current user is not permitted to move this data entry.')
-    // get the template for the data being moved
-    const versioned = await this.svc(VersionedService).get(dataId)
-    const indexes = await this.svc(VersionedService).getIndexes(dataId, versioned!.version)
-    const templateKeyIndex = indexes.find(i => i.name === 'template')
-    const templateKey = templateKeyIndex!.values[0]
-    const template = await this.svc(TemplateService).findByKey(templateKey)
+  async move (dataIds: string[], target: MoveDataTarget) {
+    const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(data, async (d: Data) => !(await this.mayMove(d)))) {
+      throw new Error('Current user is not permitted to move one or more data entries')
+    }
+    const templateKeys = await mapConcurrent((data.map(d => d.dataId)), async (dataId) => {
+      const versioned = await this.svc(VersionedService).get(dataId)
+      const indexes = await this.svc(VersionedService).getIndexes(dataId, versioned!.version)
+      const templateKeyIndex = indexes.find(i => i.name === 'templateKey')
+      return templateKeyIndex!.values[0]
+    })
+    if (unique(templateKeys).length > 1) {
+      throw new Error('Data entries being moved must all have the same template')
+    }
+    const template = await this.svc(TemplateService).findByKey(templateKeys[0])
     let folder: DataFolder|undefined
     if (target.folderId) {
       folder = await this.svc(DataFolderServiceInternal).findById(target.folderId)
@@ -256,13 +261,13 @@ export class DataService extends DosGatoService<Data> {
     if (!target.folderId && !target.siteId && !target.aboveTarget && !(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to update global data entries.')
     try {
       const versionedService = this.svc(VersionedService)
-      await moveDataEntry(versionedService, dataId, templateKey, target)
+      await moveDataEntries(versionedService, data.map(d => d.dataId), templateKeys[0], target)
       this.loaders.clear()
-      const updated = await this.raw.findById(dataId)
-      return new DataResponse({ success: true, data: updated })
+      const updated = await this.raw.findByIds(data.map(d => d.dataId))
+      return new DataMultResponse({ success: true, data: updated })
     } catch (err: any) {
       console.error(err)
-      throw new Error(`Unable to move data entry ${String(data.name)}`)
+      throw new Error('Unable to move one or more data entries')
     }
   }
 
