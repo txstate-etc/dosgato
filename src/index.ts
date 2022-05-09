@@ -3,7 +3,7 @@ import { install } from 'source-map-support'
 install()
 import { Context, GQLServer, AuthError } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import multipart from 'fastify-multipart'
+import multipart from '@fastify/multipart'
 import { promises as fsp } from 'fs'
 import { migrations } from './migrations'
 import { fixtures } from './fixtures'
