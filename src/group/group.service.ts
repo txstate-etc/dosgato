@@ -1,10 +1,10 @@
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique, filterConcurrent } from 'txstate-utils'
+import { unique, filterConcurrent, isNotNull, someAsync } from 'txstate-utils'
 import {
   Group, GroupFilter, GroupResponse, getGroups, getGroupsWithUser, getGroupsWithRole,
   groupManagerCache, groupHierarchyCache, createGroup, updateGroup, deleteGroup,
-  addUserToGroup, removeUserFromGroup, setGroupManager, removeSubgroup, addSubgroup,
+  addUserToGroups, removeUserFromGroups, setGroupManager, removeSubgroup, addSubgroup,
   UserService, DosGatoService, UserServiceInternal
 } from 'internal'
 
@@ -217,39 +217,35 @@ export class GroupService extends DosGatoService<Group> {
     }
   }
 
-  async addUserToGroup (groupId: string, userId: string) {
-    const group = await this.findById(groupId)
-    if (!group) throw new Error('Group to be updated does not exist.')
-    if (!(await this.mayManageUsers(group))) throw new Error('Current user is not permitted to add users to groups.')
+  async addUserToGroups (groupIds: string[], userId: string) {
+    const groups = (await (await Promise.all(groupIds.map(async id => await this.raw.findById(id)))).filter(isNotNull))
+    if (await someAsync(groups, async (g: Group) => !(await this.mayManageUsers(g)))) {
+      throw new Error('Current user is not permitted to add user to one or more groups.')
+    }
     const user = await this.svc(UserService).findById(userId)
     if (!user) throw new Error('Cannot add user who does not exist')
     try {
-      await addUserToGroup(groupId, user.internalId)
+      await addUserToGroups(groups.map(g => g.id), user.internalId)
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.error(err)
-      throw new Error(`An unknown error occurred while trying to add user ${user.id} to group ${group.name}.`)
+      throw new Error('Unable to add user to one or more groups')
     }
   }
 
-  async removeUserFromGroup (groupId: string, userId: string) {
-    const group = await this.findById(groupId)
-    if (!group) throw new Error('Group to be updated does not exist.')
-    if (!(await this.mayManageUsers(group))) throw new Error('Current user is not permitted to remove users from groups.')
+  async removeUserFromGroup (groupIds: string[], userId: string) {
+    const groups = (await (await Promise.all(groupIds.map(async id => await this.raw.findById(id)))).filter(isNotNull))
+    if (await someAsync(groups, async (g: Group) => !(await this.mayManageUsers(g)))) {
+      throw new Error('Current user is not permitted to remove user from one or more groups.')
+    }
     const user = await this.svc(UserService).findById(userId)
-    if (!user) throw new Error('Cannot remove user who does not exist')
+    if (!user) throw new Error('Cannot add user who does not exist')
     try {
-      const removed = await removeUserFromGroup(groupId, user.internalId)
-      if (removed) {
-        return new ValidatedResponse({ success: true })
-      } else {
-        const response = new ValidatedResponse()
-        response.addMessage('user is not a group member')
-        return response
-      }
+      const removed = await removeUserFromGroups(groupIds, user.internalId)
+      return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.log(err)
-      throw new Error(`An unknown error occurred while trying to remove user ${user.id} from group ${group.name}.`)
+      throw new Error('Unable to remove user from one or more groups')
     }
   }
 

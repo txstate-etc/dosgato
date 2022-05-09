@@ -142,12 +142,17 @@ export async function deleteGroup (id: string) {
   })
 }
 
-export async function addUserToGroup (groupId: string, userId: number) {
-  return await db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [userId, groupId])
+export async function addUserToGroups (groupIds: string[], userId: number) {
+  const binds: (string|number)[] = []
+  for (const id of groupIds) {
+    binds.push(userId, id)
+  }
+  return await db.insert(`INSERT INTO users_groups (userId, groupId) VALUES ${groupIds.map(g => '(?,?)').join(',')}`, binds)
 }
 
-export async function removeUserFromGroup (groupId: string, userId: number) {
-  return await db.delete('DELETE FROM users_groups WHERE userId = ? AND groupId = ?', [userId, groupId])
+export async function removeUserFromGroups (groupIds: string[], userId: number) {
+  const binds: (string|number)[] = [userId]
+  return await db.delete(`DELETE FROM users_groups WHERE userId = ? AND groupId IN (${db.in(binds, groupIds)})`, binds)
 }
 
 export async function setGroupManager (groupId: string, userId: number, manager: boolean) {

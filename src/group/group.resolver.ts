@@ -1,5 +1,5 @@
 import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
-import { Arg, Ctx, FieldResolver, Mutation, Query, Resolver, Root } from 'type-graphql'
+import { Arg, Ctx, FieldResolver, Mutation, Query, Resolver, Root, ID } from 'type-graphql'
 import { Role, RoleService, User, UserService, Group, GroupPermissions, GroupResponse, GroupService } from 'internal'
 
 @Resolver(of => Group)
@@ -52,14 +52,14 @@ export class GroupResolver {
     return await ctx.svc(GroupService).delete(groupId)
   }
 
-  @Mutation(returns => ValidatedResponse, { description: 'Add a user to a group' })
-  async addUserToGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('userId') userId: string) {
-    return await ctx.svc(GroupService).addUserToGroup(groupId, userId)
+  @Mutation(returns => ValidatedResponse, { description: 'Add a user to groups' })
+  async addUserToGroups (@Ctx() ctx: Context, @Arg('groupIds', type => [ID]) groupIds: string[], @Arg('userId') userId: string) {
+    return await ctx.svc(GroupService).addUserToGroups(groupIds, userId)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Remove a user from a group' })
-  async removeUserFromGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('userId') userId: string) {
-    return await ctx.svc(GroupService).removeUserFromGroup(groupId, userId)
+  async removeUserFromGroups (@Ctx() ctx: Context, @Arg('groupIds', type => [ID]) groupIds: string[], @Arg('userId') userId: string) {
+    return await ctx.svc(GroupService).removeUserFromGroup(groupIds, userId)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Update a user\'s status as a manager of a group' })
