@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
 import { nanoid } from 'nanoid'
-import { DataFolder, DataFolderFilter } from 'internal'
+import { DataFolder, DataFolderFilter, Site } from 'internal'
 
 export async function getDataFolders (filter?: DataFolderFilter) {
   const where: string[] = []
@@ -51,6 +51,17 @@ export async function createDataFolder (name: string, templateInternalId: number
 
 export async function renameDataFolder (folderId: string, name: string) {
   return await db.update('UPDATE datafolders SET name = ? WHERE guid = ?', [name, folderId])
+}
+
+export async function moveDataFolders (folderIds: string[], siteId?: string) {
+  return await db.transaction(async db => {
+    const binds: string[] = []
+    const dataFolders = (await db.getall(`SELECT * FROM datafolders WHERE guid IN (${db.in(binds, folderIds)})`, binds)).map((row) => new DataFolder(row))
+    const site = siteId ? new Site(await db.getrow('SELECT * FROM sites WHERE id = ?', [siteId])) : undefined
+    const moveBinds: (string|null)[] = []
+    moveBinds.push(site ? site.id : null)
+    return await db.update(`UPDATE datafolders SET siteId = ? WHERE guid IN (${db.in(moveBinds, dataFolders.map(f => f.id))})`, moveBinds)
+  })
 }
 
 export async function deleteDataFolder (folderIds: string[], userInternalId: number) {

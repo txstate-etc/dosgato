@@ -1,4 +1,4 @@
-import { Context } from '@txstate-mws/graphql-server'
+import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'type-graphql'
 import { isNull, unique } from 'txstate-utils'
 import {
@@ -67,6 +67,11 @@ export class DataFolderResolver {
   }
 
   @Mutation(returns => DataFoldersResponse)
+  async moveDataFolders (@Ctx() ctx: Context, @Arg('folderIds', type => [ID]) folderIds: string[], @Arg('siteId', type => ID, { nullable: true }) siteId?: string) {
+    return await ctx.svc(DataFolderService).move(folderIds, siteId)
+  }
+
+  @Mutation(returns => DataFoldersResponse)
   async deleteDataFolders (@Ctx() ctx: Context, @Arg('folderIds', type => [ID]) folderIds: string[]) {
     return await ctx.svc(DataFolderService).delete(folderIds)
   }
@@ -88,6 +93,11 @@ export class DataFolderPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may update this folder but not necessarily move or publish it.' })
   async update (@Ctx() ctx: Context, @Root() folder: DataFolder) {
     return await ctx.svc(DataFolderService).mayUpdate(folder)
+  }
+
+  @FieldResolver(returns => Boolean, { description: 'User may move this folder' })
+  async move (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    return await ctx.svc(DataFolderService).mayMove(folder)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may soft-delete this data.' })

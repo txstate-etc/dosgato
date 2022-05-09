@@ -197,6 +197,32 @@ describe('data mutations', () => {
         }
       }`, { folderIds: [folder.id] })).to.be.rejected
   })
+  it('should move global data folders to a site', async () => {
+    const { dataFolder: folder1 } = await createDataFolder('movingDataFolder1', 'keyd1')
+    const { dataFolder: folder2 } = await createDataFolder('movingDataFolder2', 'keyd1')
+    const { moveDataFolders: { success } } = await query(`
+      mutation MoveDataFolders ($folderIds: [ID]!, $siteId: String) {
+        moveDataFolders (folderIds: $folderIds, siteId: $siteId) {
+          success
+        }
+      }`, { folderIds: [folder1.id, folder2.id], siteId: datatestsite2Id })
+    expect(success).to.be.true
+    const { sites } = await query(`{ sites(filter: { ids: [${datatestsite2Id}] }) { datafolders { id name } } }`)
+    expect(sites[0].datafolders.map((f: any) => f.id)).to.include.members([folder1.id, folder2.id])
+  })
+  it('should make site-level data folders global', async () => {
+    const { dataFolder: folder1 } = await createDataFolder('movingDataFolder3', 'keyd1', datatestsite2Id)
+    const { dataFolder: folder2 } = await createDataFolder('movingDataFolder4', 'keyd1', datatestsite2Id)
+    const { moveDataFolders: { success } } = await query(`
+      mutation MoveDataFolders ($folderIds: [ID]!, $siteId: String) {
+        moveDataFolders (folderIds: $folderIds, siteId: $siteId) {
+          success
+        }
+      }`, { folderIds: [folder1.id, folder2.id] })
+    expect(success).to.be.true
+    const { datafolders } = await query('{ datafolders(filter: { global: true }) { id name } }')
+    expect(datafolders.map((d: any) => d.id)).to.include.members([folder1.id, folder2.id])
+  })
   it('should create a global data entry', async () => {
     const { success, data } = await createDataEntry('GlobalBuilding1', 'keyd2', { name: 'Memorial Hall', floors: 3 })
     expect(success).to.be.true

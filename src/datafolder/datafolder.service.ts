@@ -5,7 +5,7 @@ import {
   DataFolder, DataFolderFilter, DosGatoService, getDataFolders,
   DataServiceInternal, CreateDataFolderInput, createDataFolder, DataFolderResponse,
   renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
-  SiteService, DataFoldersResponse
+  SiteService, DataFoldersResponse, moveDataFolders
 } from 'internal'
 
 const dataFoldersByIdLoader = new PrimaryKeyLoader({
@@ -131,6 +131,29 @@ export class DataFolderService extends DosGatoService<DataFolder> {
     }
   }
 
+  async move (folderIds: string[], siteId?: string) {
+    const dataFolders = (await Promise.all(folderIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(dataFolders, async (d: DataFolder) => !(await this.mayMove(d)))) {
+      throw new Error('Current user is not permitted to move one or more data folders')
+    }
+    if (siteId) {
+      const site = await this.svc(SiteService).findById(siteId)
+      if (!site) throw new Error('Data folders cannot be added to a site that does not exist.')
+      // TODO: Does the user have permission to move data folders to this site?
+    } else {
+      if (!(await this.haveGlobalPerm('manageGlobalData'))) throw new Error('Current user is not permitted to add global data folders')
+    }
+    try {
+      await moveDataFolders(dataFolders.map((f: DataFolder) => f.id), siteId)
+      this.loaders.clear()
+      const moved = await this.raw.findByIds(dataFolders.map(f => f.id))
+      return new DataFoldersResponse({ dataFolders: moved, success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('Unable to move one or more data folders')
+    }
+  }
+
   async delete (folderIds: string[]) {
     const dataFolders = (await Promise.all(folderIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (await someAsync(dataFolders, async (d: DataFolder) => !(await this.mayDelete(d)))) {
@@ -179,6 +202,10 @@ export class DataFolderService extends DosGatoService<DataFolder> {
 
   async mayUpdate (folder: DataFolder) {
     return await this.haveDataFolderPerm(folder, 'update')
+  }
+
+  async mayMove (folder: DataFolder) {
+    return await this.haveDataFolderPerm(folder, 'move')
   }
 
   async mayDelete (folder: DataFolder) {
