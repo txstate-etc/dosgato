@@ -82,6 +82,17 @@ export class DataFolderResponse extends ValidatedResponse {
 }
 
 @ObjectType()
+export class DataFoldersResponse extends ValidatedResponse {
+  @Field(type => [DataFolder], { nullable: true })
+  dataFolders?: DataFolder[]
+
+  constructor (config: ValidatedResponseArgs & { dataFolders?: DataFolder[] }) {
+    super(config)
+    this.dataFolders = config.dataFolders
+  }
+}
+
+@ObjectType()
 export class DataFolderPermissions {}
 
 export enum DataFolderPermission {

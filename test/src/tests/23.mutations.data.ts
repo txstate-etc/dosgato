@@ -115,11 +115,11 @@ describe('data mutations', () => {
   })
   it('should delete a data folder', async () => {
     const { dataFolder: folder } = await createDataFolder('datafolderD', 'keyd1')
-    const { deleteDataFolder: { success, dataFolder } } = await query(`
-      mutation DeleteDataFolder ($folderId: ID!) {
-        deleteDataFolder (folderId: $folderId) {
+    const { deleteDataFolders: { success, dataFolders } } = await query(`
+      mutation DeleteDataFolders ($folderIds: [ID]!) {
+        deleteDataFolders (folderIds: $folderIds) {
           success
-          dataFolder {
+          dataFolders {
             id
             name
             deleted
@@ -127,28 +127,28 @@ describe('data mutations', () => {
             deletedBy { id }
           }
         }
-      }`, { folderId: folder.id })
+      }`, { folderIds: [folder.id] })
     expect(success).to.be.true
-    expect(dataFolder.deleted).to.be.true
-    expect(dataFolder.deletedBy.id).to.equal('su01')
-    expect(dataFolder.deletedAt).to.not.be.null
+    expect(dataFolders[0].deleted).to.be.true
+    expect(dataFolders[0].deletedBy.id).to.equal('su01')
+    expect(dataFolders[0].deletedAt).to.not.be.null
   })
   it('should not allow an unauthorized user to delete a data folder', async () => {
     const { dataFolder: folder } = await createDataFolder('datafolderE', 'keyd1')
     await expect(queryAs('ed07', `
-    mutation DeleteDataFolder ($folderId: ID!) {
-      deleteDataFolder (folderId: $folderId) {
+    mutation DeleteDataFolders ($folderIds: [ID]!) {
+      deleteDataFolders (folderIds: $folderIds) {
         success
       }
-    }`, { folderId: folder.id })).to.be.rejected
+    }`, { folderIds: [folder.id] })).to.be.rejected
   })
   it('should undelete a data folder', async () => {
     const { dataFolder: folder } = await createDataFolder('datafolderF', 'keyd1')
     await query(`
-      mutation DeleteDataFolder ($folderId: ID!) {
-        deleteDataFolder (folderId: $folderId) {
+      mutation DeleteDataFolders ($folderIds: [ID]!) {
+        deleteDataFolders (folderIds: $folderIds) {
           success
-          dataFolder {
+          dataFolders {
             id
             name
             deleted
@@ -156,12 +156,12 @@ describe('data mutations', () => {
             deletedBy { id }
           }
         }
-      }`, { folderId: folder.id })
-    const { undeleteDataFolder: { success, dataFolder } } = await query(`
-      mutation UndeleteDataFolder ($folderId: ID!) {
-        undeleteDataFolder (folderId: $folderId) {
+      }`, { folderIds: [folder.id] })
+    const { undeleteDataFolders: { success, dataFolders } } = await query(`
+      mutation UndeleteDataFolders ($folderIds: [ID]!) {
+        undeleteDataFolders (folderIds: $folderIds) {
           success
-          dataFolder {
+          dataFolders {
             id
             name
             deleted
@@ -169,19 +169,19 @@ describe('data mutations', () => {
             deletedBy { id }
           }
         }
-      }`, { folderId: folder.id })
+      }`, { folderIds: [folder.id] })
     expect(success).to.be.true
-    expect(dataFolder.deleted).to.be.false
-    expect(dataFolder.deletedBy).to.be.null
-    expect(dataFolder.deletedAt).to.be.null
+    expect(dataFolders[0].deleted).to.be.false
+    expect(dataFolders[0].deletedBy).to.be.null
+    expect(dataFolders[0].deletedAt).to.be.null
   })
   it('should not allow an unauthorized user to undelete a data folder', async () => {
     const { dataFolder: folder } = await createDataFolder('datafolderG', 'keyd1')
     await query(`
-      mutation DeleteDataFolder ($folderId: ID!) {
-        deleteDataFolder (folderId: $folderId) {
+      mutation DeleteDataFolders ($folderIds: [ID]!) {
+        deleteDataFolders (folderIds: $folderIds) {
           success
-          dataFolder {
+          dataFolders {
             id
             name
             deleted
@@ -189,13 +189,13 @@ describe('data mutations', () => {
             deletedBy { id }
           }
         }
-      }`, { folderId: folder.id })
+      }`, { folderIds: [folder.id] })
     await expect(queryAs('ed07', `
-      mutation UndeleteDataFolder ($folderId: ID!) {
-        undeleteDataFolder (folderId: $folderId) {
+      mutation UndeleteDataFolders ($folderIds: [ID]!) {
+        undeleteDataFolders (folderIds: $folderIds) {
           success
         }
-      }`, { folderId: folder.id })).to.be.rejected
+      }`, { folderIds: [folder.id] })).to.be.rejected
   })
   it('should create a global data entry', async () => {
     const { success, data } = await createDataEntry('GlobalBuilding1', 'keyd2', { name: 'Memorial Hall', floors: 3 })

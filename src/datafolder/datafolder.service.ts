@@ -1,10 +1,11 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { PrimaryKeyLoader, OneToManyLoader } from 'dataloader-factory'
+import { isNotNull, someAsync } from 'txstate-utils'
 import {
-  DataFolder, DataFolderFilter, DosGatoService, getDataFolders, DataService,
+  DataFolder, DataFolderFilter, DosGatoService, getDataFolders,
   DataServiceInternal, CreateDataFolderInput, createDataFolder, DataFolderResponse,
-  renameDataFolder, deleteDataFolder, undeleteDataFolder, TemplateService, TemplateType,
-  SiteService
+  renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
+  SiteService, DataFoldersResponse
 } from 'internal'
 
 const dataFoldersByIdLoader = new PrimaryKeyLoader({
@@ -39,6 +40,10 @@ export class DataFolderServiceInternal extends BaseService {
 
   async findById (id: string) {
     return await this.loaders.get(dataFoldersByIdLoader).load(id)
+  }
+
+  async findByIds (ids: string[]) {
+    return await this.loaders.loadMany(dataFoldersByIdLoader, ids)
   }
 
   async findByInternalId (internalId: number) {
@@ -126,34 +131,36 @@ export class DataFolderService extends DosGatoService<DataFolder> {
     }
   }
 
-  async delete (folderId: string) {
-    const folder = await this.raw.findById(folderId)
-    if (!folder) throw new Error('Folder to be deleted does not exist')
-    if (!(await this.haveDataFolderPerm(folder, 'delete'))) throw new Error(`Current user is not permitted to delete data folder ${String(folder.name)}.`)
+  async delete (folderIds: string[]) {
+    const dataFolders = (await Promise.all(folderIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(dataFolders, async (d: DataFolder) => !(await this.mayDelete(d)))) {
+      throw new Error('Current user is not permitted to delete one or more data folders')
+    }
     const currentUser = await this.currentUser()
     try {
-      await deleteDataFolder(folder.id, currentUser!.internalId)
+      await deleteDataFolder(dataFolders.map(f => f.id), currentUser!.internalId)
       this.loaders.clear()
-      const deletedfolder = await this.raw.findById(folderId)
-      return new DataFolderResponse({ dataFolder: deletedfolder, success: true })
+      const deletedFolders = await this.raw.findByIds(dataFolders.map(f => f.id))
+      return new DataFoldersResponse({ dataFolders: deletedFolders, success: true })
     } catch (err: any) {
       console.error(err)
-      throw new Error('Could not delete data folder')
+      throw new Error('Unable to delete one or more data folders')
     }
   }
 
-  async undelete (folderId: string) {
-    const folder = await this.raw.findById(folderId)
-    if (!folder) throw new Error('Folder to be restored does not exist')
-    if (!(await this.haveDataFolderPerm(folder, 'undelete'))) throw new Error(`Current user is not permitted to restore data folder ${String(folder.name)}.`)
+  async undelete (folderIds: string[]) {
+    const dataFolders = (await Promise.all(folderIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(dataFolders, async (d: DataFolder) => !(await this.mayUndelete(d)))) {
+      throw new Error('Current user is not permitted to restore one or more data folders')
+    }
     try {
-      await undeleteDataFolder(folder.id)
+      await undeleteDataFolders(dataFolders.map(f => f.id))
       this.loaders.clear()
-      const restoredfolder = await this.raw.findById(folderId)
-      return new DataFolderResponse({ dataFolder: restoredfolder, success: true })
+      const restoredFolders = await this.raw.findByIds(dataFolders.map(f => f.id))
+      return new DataFoldersResponse({ dataFolders: restoredFolders, success: true })
     } catch (err: any) {
       console.error(err)
-      throw new Error('Could not restore data folder')
+      throw new Error('Unable to restore one or more data folders')
     }
   }
 

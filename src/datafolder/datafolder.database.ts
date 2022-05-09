@@ -53,10 +53,12 @@ export async function renameDataFolder (folderId: string, name: string) {
   return await db.update('UPDATE datafolders SET name = ? WHERE guid = ?', [name, folderId])
 }
 
-export async function deleteDataFolder (folderId: string, userInternalId: number) {
-  return await db.update('UPDATE datafolders SET deletedBy = ?, deletedAt = NOW() WHERE guid = ?', [userInternalId, folderId])
+export async function deleteDataFolder (folderIds: string[], userInternalId: number) {
+  const binds: (string|number)[] = [userInternalId]
+  return await db.update(`UPDATE datafolders SET deletedBy = ?, deletedAt = NOW() WHERE guid IN (${db.in(binds, folderIds)})`, binds)
 }
 
-export async function undeleteDataFolder (folderId: string) {
-  return await db.update('UPDATE datafolders SET deletedBy = null, deletedAt = null WHERE guid = ?', [folderId])
+export async function undeleteDataFolders (folderIds: string[]) {
+  const binds: string[] = []
+  return await db.update(`UPDATE datafolders SET deletedBy = null, deletedAt = null WHERE guid IN (${db.in(binds, folderIds)})`, binds)
 }

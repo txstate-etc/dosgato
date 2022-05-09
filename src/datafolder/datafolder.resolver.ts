@@ -4,8 +4,8 @@ import { isNull, unique } from 'txstate-utils'
 import {
   Data, DataFilter, DataService, Site, SiteService, Template, TemplateService,
   User, UserService, Role, DataFolder, DataFolderPermission, DataFolderPermissions,
-  DataFolderService, CreateDataFolderInput, DataFolderResponse, DataRuleService,
-  RoleService, DataFolderFilter
+  DataFolderService, CreateDataFolderInput, DataFolderResponse, DataFoldersResponse,
+  DataRuleService, RoleService, DataFolderFilter
 } from 'internal'
 
 @Resolver(of => DataFolder)
@@ -66,14 +66,14 @@ export class DataFolderResolver {
     return await ctx.svc(DataFolderService).rename(folderId, name)
   }
 
-  @Mutation(returns => DataFolderResponse)
-  async deleteDataFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string) {
-    return await ctx.svc(DataFolderService).delete(folderId)
+  @Mutation(returns => DataFoldersResponse)
+  async deleteDataFolders (@Ctx() ctx: Context, @Arg('folderIds', type => [ID]) folderIds: string[]) {
+    return await ctx.svc(DataFolderService).delete(folderIds)
   }
 
-  @Mutation(returns => DataFolderResponse)
-  async undeleteDataFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string) {
-    return await ctx.svc(DataFolderService).undelete(folderId)
+  @Mutation(returns => DataFoldersResponse)
+  async undeleteDataFolders (@Ctx() ctx: Context, @Arg('folderIds', type => [ID]) folderIds: string[]) {
+    return await ctx.svc(DataFolderService).undelete(folderIds)
   }
 }
 
