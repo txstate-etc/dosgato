@@ -64,7 +64,7 @@ describe('datafolder', () => {
       { sites(filter: {ids: [${testSiteId}]}) {
         id
         name
-        datafolders(filter: {deleted: true }){
+        datafolders(filter: {deleted: ONLY }){
           name
           deleted
         }
@@ -82,7 +82,7 @@ describe('datafolder', () => {
       { sites(filter: {ids: [${testSiteId}]}) {
         id
         name
-        datafolders(filter: {deleted: false }){
+        datafolders(filter: {deleted: HIDE }){
           name
           deleted
         }

@@ -83,10 +83,10 @@ describe('sites', () => {
   })
   it('should get the datafolders for a site', async () => {
     const foldernames = sitehash.site2.datafolders.map((f: any) => f.name)
-    expect(foldernames).to.have.members(['site2datafolder', 'deletedfolder'])
+    expect(foldernames).to.have.members(['site2datafolder'])
   })
   it('should get the datafolders for a site, with a filter', async () => {
-    const { sites } = await query(' { sites { id name datafolders(filter: { deleted: false }) { id name } } }')
+    const { sites } = await query(' { sites { id name datafolders(filter: { deleted: HIDE }) { id name } } }')
     const site2 = sites.find((s: any) => s.name === 'site2')
     const foldernames = site2.datafolders.map((f: any) => f.name)
     expect(foldernames).to.include('site2datafolder')

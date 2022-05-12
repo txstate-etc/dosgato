@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
 import { nanoid } from 'nanoid'
-import { DataFolder, DataFolderFilter, Site } from 'internal'
+import { DataFolder, DataFolderFilter, Site, DeletedFilter } from 'internal'
 
 export async function getDataFolders (filter?: DataFolderFilter) {
   const where: string[] = []
@@ -22,12 +22,14 @@ export async function getDataFolders (filter?: DataFolderFilter) {
   if (filter?.global) {
     where.push('datafolders.siteId IS NULL')
   }
-  if (isNotNull(filter?.deleted)) {
-    if (filter?.deleted) {
+  if (filter?.deleted) {
+    if (filter.deleted === DeletedFilter.ONLY) {
       where.push('datafolders.deletedAt IS NOT NULL')
-    } else {
+    } else if (filter.deleted === DeletedFilter.HIDE) {
       where.push('datafolders.deletedAt IS NULL')
     }
+  } else {
+    where.push('datafolders.deletedAt IS NULL')
   }
   if (!where.length) {
     throw new Error('Must include a filter')

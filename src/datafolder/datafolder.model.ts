@@ -2,7 +2,7 @@ import { DateTime } from 'luxon'
 import { isNotNull, optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
-import { UrlSafeString } from 'internal'
+import { UrlSafeString, DeletedFilter } from 'internal'
 
 @ObjectType({ description: 'A folder that contains data objects. Each folder can only accept data objects with one particular template. Data folders are a single level organizational tool (folders do not contain more folders) and optional (data may not belong to any folder at all).' })
 export class DataFolder {
@@ -54,8 +54,8 @@ export class DataFolderFilter {
   @Field(type => Boolean, { nullable: true, description: 'true -> return only folders that are not associated with a site.' })
   global?: boolean
 
-  @Field(type => Boolean, { nullable: true, description: 'true -> return only deleted folders, false -> return only nondeleted folders, undefined -> return all folders' })
-  deleted?: boolean
+  @Field(type => DeletedFilter, { nullable: true })
+  deleted?: DeletedFilter
 }
 
 @InputType()

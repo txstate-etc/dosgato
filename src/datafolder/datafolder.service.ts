@@ -5,19 +5,19 @@ import {
   DataFolder, DataFolderFilter, DosGatoService, getDataFolders,
   DataServiceInternal, CreateDataFolderInput, createDataFolder, DataFolderResponse,
   renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
-  SiteService, DataFoldersResponse, moveDataFolders
+  SiteService, DataFoldersResponse, moveDataFolders, DeletedFilter
 } from 'internal'
 
 const dataFoldersByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
-    return await getDataFolders({ ids })
+    return await getDataFolders({ ids, deleted: DeletedFilter.SHOW })
   },
   extractId: (item: DataFolder) => item.id
 })
 
 const dataFoldersByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
-    return await getDataFolders({ internalIds })
+    return await getDataFolders({ internalIds, deleted: DeletedFilter.SHOW })
   },
   extractId: (item: DataFolder) => item.internalId,
   idLoader: dataFoldersByIdLoader
