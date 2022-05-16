@@ -59,6 +59,13 @@ export class DataResolver {
     return (typeof published) !== 'undefined'
   }
 
+  @FieldResolver(returns => DateTime, { nullable: true })
+  async publishedAt (@Ctx() ctx: Context, @Root() data: Data) {
+    const tag = await ctx.svc(VersionedService).getTag(data.dataId, 'published')
+    if (!tag) return null
+    return DateTime.fromJSDate(tag.date)
+  }
+
   @FieldResolver(returns => DateTime)
   async createdAt (@Ctx() ctx: Context, @Root() data: Data) {
     const dataFromStorage = await ctx.svc(VersionedService).get(data.dataId)
