@@ -82,7 +82,6 @@ export class DataFolderResolver {
   }
 }
 
-// TODO: Do we need to be able to move datafolders?
 @Resolver(of => DataFolderPermissions)
 export class DataFolderPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may create or move data inside this folder.' })

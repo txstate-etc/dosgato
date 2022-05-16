@@ -36,9 +36,6 @@ function processFilters (filter?: DataFilter) {
   if (filter?.siteIds?.length) {
     where.push(`data.siteId IN (${db.in(binds, filter.siteIds)})`)
   }
-  if (filter?.templateKeys?.length) {
-    // TODO: look this up using VersionedService?
-  }
   if (isNotNull(filter?.deleted)) {
     if (filter?.deleted) {
       where.push('data.deletedAt IS NOT NULL')
