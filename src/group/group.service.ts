@@ -5,7 +5,7 @@ import {
   Group, GroupFilter, GroupResponse, getGroups, getGroupsWithUser, getGroupsWithRole,
   groupManagerCache, groupHierarchyCache, createGroup, updateGroup, deleteGroup,
   addUserToGroups, removeUserFromGroups, setGroupManager, removeSubgroup, addSubgroup,
-  UserService, DosGatoService, UserServiceInternal
+  UserService, DosGatoService, UserServiceInternal, setUserGroups
 } from 'internal'
 
 const groupsByIdLoader = new PrimaryKeyLoader({
@@ -246,6 +246,22 @@ export class GroupService extends DosGatoService<Group> {
     } catch (err: any) {
       console.log(err)
       throw new Error('Unable to remove user from one or more groups')
+    }
+  }
+
+  async setUserGroups (userId: string, groupIds: string[]) {
+    const groups = (await (await Promise.all(groupIds.map(async id => await this.raw.findById(id)))).filter(isNotNull))
+    if (await someAsync(groups, async (g: Group) => !(await this.mayManageUsers(g)))) {
+      throw new Error('Current user is not permitted to manage users for one or more groups.')
+    }
+    const user = await this.svc(UserService).findById(userId)
+    if (!user) throw new Error('Cannot update group membership for user who does not exist')
+    try {
+      await setUserGroups(user.internalId, groupIds)
+      return new ValidatedResponse({ success: true })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error(`Unable to update group memberships for user ${user.id}`)
     }
   }
 

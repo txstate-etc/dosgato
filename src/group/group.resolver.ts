@@ -62,6 +62,11 @@ export class GroupResolver {
     return await ctx.svc(GroupService).removeUserFromGroup(groupIds, userId)
   }
 
+  @Mutation(returns => ValidatedResponse, { description: 'Sets a user\'s group memberships' })
+  async setUserGroups (@Ctx() ctx: Context, @Arg('userId') userId: string, @Arg('groupIds', type => [ID]) groupIds: string[]) {
+    return await ctx.svc(GroupService).setUserGroups(userId, groupIds)
+  }
+
   @Mutation(returns => ValidatedResponse, { description: 'Update a user\'s status as a manager of a group' })
   async setGroupManager (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('userId') userId: string, @Arg('manager', { description: 'true if this user should be a group manager, false if they should not be a group manager' }) manager: boolean) {
     return await ctx.svc(GroupService).setGroupManager(groupId, userId, manager)
