@@ -1,13 +1,13 @@
 /* eslint-disable no-trailing-spaces */
-import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse, MutationMessageType, Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique, isNotNull, someAsync, eachConcurrent, mapConcurrent } from 'txstate-utils'
+import { unique, isNotNull, someAsync, eachConcurrent, mapConcurrent, intersect } from 'txstate-utils'
 import {
   Data, DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, MoveDataTarget, moveDataEntries,
-  DataFolder, Site, TemplateService
+  DataFolder, Site, TemplateService, DataRoot
 } from 'internal'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
@@ -39,6 +39,21 @@ const dataBySiteIdLoader = new OneToManyLoader({
   idLoader: [dataByInternalIdLoader, dataByIdLoader]
 })
 
+const dataByTemplateLoader = new OneToManyLoader({
+  fetch: async (templateKeys: string[], filter: DataFilter|undefined, ctx: Context) => {
+    const idToTemplateKey = new Map<string, string>()
+    await Promise.all(templateKeys.map(async key => {
+      const searchRule = { indexName: 'templateKey', equal: key }
+      const dataIds = await ctx.svc(VersionedService).find([searchRule], 'latest')
+      for (const dataId of dataIds) idToTemplateKey.set(dataId, key)
+    }))
+    const data = await getData({ ...filter, ids: intersect({ skipEmpty: true }, filter?.ids, Array.from(idToTemplateKey.keys())) })
+    for (const item of data) (item as any).templateKey = idToTemplateKey.get(item.dataId)
+    return data
+  },
+  extractKey: (item: any) => item.templateKey
+})
+
 export class DataServiceInternal extends BaseService {
   async find (filter: DataFilter) {
     filter = await this.processFilters(filter)
@@ -51,9 +66,7 @@ export class DataServiceInternal extends BaseService {
   }
 
   async findByFolderInternalId (folderId: number, filter?: DataFilter) {
-    if (filter?.templateKeys) {
-      filter = await this.processFilters(filter)
-    }
+    filter = await this.processFilters(filter)
     return await this.loaders.get(dataByFolderInternalIdLoader, filter).load(folderId)
   }
 
@@ -66,23 +79,17 @@ export class DataServiceInternal extends BaseService {
   }
 
   async findBySiteId (siteId: string, filter?: DataFilter) {
-    if (filter?.templateKeys) {
-      filter = await this.processFilters(filter)
-    }
+    filter = await this.processFilters(filter)
     return await this.loaders.get(dataBySiteIdLoader, filter).load(siteId)
   }
 
   async findByTemplate (key: string, filter?: DataFilter) {
-    const searchRule = { indexName: 'template', equal: key }
-    const [dataIdsLatest, dataIdsPublished] = await Promise.all([
-      this.svc(VersionedService).find([searchRule], 'latest'),
-      this.svc(VersionedService).find([searchRule], 'published')])
-    let dataIds = unique([...dataIdsLatest, ...dataIdsPublished])
-    if (!dataIds.length) return []
-    if (filter?.ids?.length) {
-      dataIds = dataIds.filter(i => filter.ids?.includes(i))
-    }
-    return await this.find({ ids: dataIds })
+    return await this.loaders.get(dataByTemplateLoader, filter).load(key)
+  }
+
+  async findByDataRoot (dataroot: DataRoot, filter?: DataFilter) {
+    if (dataroot.site) return await this.findBySiteId(dataroot.site.id, { ...filter, templateKeys: [dataroot.template.key] })
+    else return await this.loaders.get(dataByTemplateLoader, { ...filter, global: true }).load(dataroot.template.key)
   }
 
   async getPath (data: Data) {
@@ -92,16 +99,13 @@ export class DataServiceInternal extends BaseService {
     return appendPath(folderPath, data.name as string)
   }
 
-  protected async processFilters (filter: DataFilter) {
-    if (filter.templateKeys?.length) {
+  async processFilters (filter?: DataFilter) {
+    if (filter?.templateKeys?.length) {
       const searchRule = { indexName: 'templateKey', in: filter.templateKeys }
       const dataIds = await this.svc(VersionedService).find([searchRule], 'latest')
-      if (filter.ids?.length) {
-        filter.ids.push(...dataIds)
-        filter.ids = unique(filter.ids)
-      } else filter.ids = dataIds
+      filter.ids = intersect({ skipEmpty: true }, dataIds, filter.ids)
     }
-    return filter
+    return filter ?? {} as DataFilter
   }
 }
 
@@ -126,6 +130,10 @@ export class DataService extends DosGatoService<Data> {
 
   async findByTemplate (key: string, filter?: DataFilter) {
     return await this.removeUnauthorized(await this.raw.findByTemplate(key, filter))
+  }
+
+  async findByDataRoot (dataroot: DataRoot, filter?: DataFilter) {
+    return await this.removeUnauthorized(await this.raw.findByDataRoot(dataroot, filter))
   }
 
   async getPath (data: Data) {

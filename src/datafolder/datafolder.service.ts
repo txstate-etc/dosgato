@@ -5,7 +5,7 @@ import {
   DataFolder, DataFolderFilter, DosGatoService, getDataFolders,
   DataServiceInternal, CreateDataFolderInput, createDataFolder, DataFolderResponse,
   renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
-  SiteService, DataFoldersResponse, moveDataFolders, DeletedFilter
+  SiteService, DataFoldersResponse, moveDataFolders, DeletedFilter, DataRoot
 } from 'internal'
 
 const dataFoldersByIdLoader = new PrimaryKeyLoader({
@@ -29,7 +29,15 @@ const dataFoldersBySiteIdLoader = new OneToManyLoader({
     return await getDataFolders({ ...filter, siteIds })
   },
   extractKey: (d: DataFolder) => d.siteId!,
-  keysFromFilter: (filter: DataFolderFilter | undefined) => filter?.siteIds ?? []
+  keysFromFilter: (filter: DataFolderFilter | undefined) => filter?.siteIds ?? [],
+  idLoader: dataFoldersByIdLoader
+})
+
+const globalDataFoldersByTemplateIds = new OneToManyLoader({
+  fetch: async (templateIds: number[], filter?: DataFolderFilter) => await getDataFolders({ ...filter, templateIds, global: true }),
+  extractKey: f => f.templateId,
+  keysFromFilter: (filter?: DataFolderFilter) => filter?.templateIds ?? [],
+  idLoader: dataFoldersByIdLoader
 })
 
 export class DataFolderServiceInternal extends BaseService {
@@ -53,6 +61,11 @@ export class DataFolderServiceInternal extends BaseService {
   async findBySiteId (siteId: string, filter?: DataFolderFilter) {
     filter = await this.processFilters(filter)
     return await this.loaders.get(dataFoldersBySiteIdLoader, filter).load(siteId)
+  }
+
+  async findByDataRoot (dataroot: DataRoot, filter?: DataFolderFilter) {
+    if (dataroot.site) return await this.findBySiteId(dataroot.site.id, { ...filter, templateIds: [dataroot.template.id] })
+    else return await this.loaders.get(globalDataFoldersByTemplateIds, filter).load(dataroot.template.id)
   }
 
   async getPath (folder: DataFolder) {
@@ -88,6 +101,10 @@ export class DataFolderService extends DosGatoService<DataFolder> {
 
   async findBySiteId (siteId: string, filter?: DataFolderFilter) {
     return await this.removeUnauthorized(await this.raw.findBySiteId(siteId, filter))
+  }
+
+  async findByDataRoot (dataroot: DataRoot, filter?: DataFolderFilter) {
+    return await this.removeUnauthorized(await this.raw.findByDataRoot(dataroot, filter))
   }
 
   async getPath (folder: DataFolder) {

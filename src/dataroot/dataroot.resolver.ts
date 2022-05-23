@@ -11,14 +11,12 @@ export class DataRootResolver {
 
   @FieldResolver(returns => [Data])
   async data (@Ctx() ctx: Context, @Root() dataroot: DataRoot, @Arg('filter', { nullable: true }) filter?: DataFilter) {
-    if (dataroot.site) return await ctx.svc(DataService).findBySiteId(dataroot.site.id, { ...filter, root: true })
-    return await ctx.svc(DataService).find({ ...filter, global: true, root: true })
+    return await ctx.svc(DataService).findByDataRoot(dataroot, filter)
   }
 
-  @FieldResolver(returns => [DataFolder], { description: 'Data folders that belong to this site. There is no root folder since data folders are single-depth.' })
+  @FieldResolver(returns => [DataFolder])
   async datafolders (@Ctx() ctx: Context, @Root() dataroot: DataRoot, @Arg('filter', { nullable: true }) filter?: DataFolderFilter) {
-    if (dataroot.site) return await ctx.svc(DataFolderService).findBySiteId(dataroot.site.id, filter)
-    return await ctx.svc(DataFolderService).find({ ...filter, global: true })
+    return await ctx.svc(DataFolderService).findByDataRoot(dataroot, filter)
   }
 
   @FieldResolver(returns => DataRootPermissions, {
