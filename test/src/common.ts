@@ -2,9 +2,13 @@ import axios from 'axios'
 import jwt from 'jsonwebtoken'
 import FormData from 'form-data'
 import fs from 'fs'
+import AgentKeepAlive from 'agentkeepalive'
+import { expect } from 'chai'
 
 const client = axios.create({
-  baseURL: 'http://dosgato-api'
+  baseURL: 'http://dosgato-api',
+  httpAgent: new AgentKeepAlive(),
+  timeout: 10000
 })
 
 export async function query (query: string, variables?: any) {
@@ -23,7 +27,7 @@ export async function queryAs (login: string, query: string, variables?: any) {
         authorization: `Bearer ${tokenCache[login]}`
       }
     })
-    if (resp.data.errors?.length) throw new Error(resp.data.errors[0].message)
+    expect(resp.data.errors?.length ?? 0).to.equal(0, resp.data.errors?.[0].message)
     return resp.data.data
   } catch (e: any) {
     if (!e.response) throw e

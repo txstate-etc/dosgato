@@ -8,7 +8,10 @@ import {
   PagetreeService, Role, Template, TemplateFilter, TemplateService, User, UserService,
   Site, SiteFilter, CreateSiteInput, SitePermission, SitePermissions, SiteResponse,
   UpdateSiteInput, SiteService, AssetRuleService, PageRuleService, SiteRuleService, DataRuleService,
-  RoleService
+  RoleService,
+  DataRoot,
+  DataRootService,
+  DataRootFilter
 } from 'internal'
 
 @Resolver(of => Site)
@@ -35,14 +38,9 @@ export class SiteResolver {
     return await ctx.svc(AssetFolderService).findByInternalId(site.rootAssetFolderInternalId)
   }
 
-  @FieldResolver(returns => [Data])
-  async data (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: DataFilter) {
-    return await ctx.svc(DataService).findBySiteId(site.id, filter)
-  }
-
-  @FieldResolver(returns => [DataFolder], { description: 'Data folders that belong to this site. There is no root folder since data folders are single-depth.' })
-  async datafolders (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: DataFolderFilter) {
-    return await ctx.svc(DataFolderService).findBySiteId(site.id, filter)
+  @FieldResolver(returns => [DataRoot], { description: 'Each site has a set of data roots, one for each active data template in the system.' })
+  async dataroots (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: DataRootFilter) {
+    return await ctx.svc(DataRootService).findBySite(site, filter)
   }
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions anywhere on this site, or any permission if null.' })

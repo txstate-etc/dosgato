@@ -11,6 +11,9 @@ function processFilters (filter?: SiteFilter) {
   if (filter?.ids?.length) {
     where.push(`sites.id IN (${db.in(binds, filter.ids)})`)
   }
+  if (filter?.names?.length) {
+    where.push(`sites.name IN (${db.in(binds, filter.names)})`)
+  }
   if (filter?.launched != null) {
     if (filter.launched) {
       where.push('sites.launchHost IS NOT NULL')

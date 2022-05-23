@@ -4,6 +4,7 @@ import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common'
 import db from 'mysql2-async/db'
 import { DateTime } from 'luxon'
+import { groupby } from 'txstate-utils'
 
 chai.use(chaiAsPromised)
 
@@ -207,8 +208,8 @@ describe('data mutations', () => {
         }
       }`, { folderIds: [folder1.id, folder2.id], siteId: datatestsite2Id })
     expect(success).to.be.true
-    const { sites } = await query(`{ sites(filter: { ids: [${datatestsite2Id}] }) { datafolders { id name } } }`)
-    expect(sites[0].datafolders.map((f: any) => f.id)).to.include.members([folder1.id, folder2.id])
+    const { datafolders } = await query(`{ datafolders(filter: { siteIds: ["${datatestsite2Id}"] }) { id name } }`)
+    expect(datafolders.map((f: any) => f.id)).to.include.members([folder1.id, folder2.id])
   })
   it('should make site-level data folders global', async () => {
     const { dataFolder: folder1 } = await createDataFolder('movingDataFolder3', 'keyd1', datatestsite2Id)
@@ -234,8 +235,7 @@ describe('data mutations', () => {
     expect(success).to.be.true
     expect(data.name).to.equal('SiteBuilding1')
     expect(data.data.floors).to.equal(2)
-    const { sites } = await query('{ sites(filter: { ids: [1] }) { id name data { name } } }')
-    const siteData = sites[0].data
+    const { data: siteData } = await query('{ data(filter: { siteIds: [1] }) { name } }')
     expect(siteData).to.deep.include({ name: 'SiteBuilding1' })
   })
   it('should create a data entry in a folder', async () => {
@@ -243,8 +243,8 @@ describe('data mutations', () => {
     const { success, data } = await createDataEntry('FolderBuilding1', 'keyd2', { name: 'Green Hall', floors: 5 }, datatestsite1Id, folder.id)
     expect(success).to.be.true
     expect(data.name).to.equal('FolderBuilding1')
-    const { sites } = await query(`{ sites(filter: { ids: [${datatestsite1Id}] }) { id name datafolders { data { name } } } }`)
-    const datafolder = sites[0].datafolders[0]
+    const { datafolders } = await query(`{ datafolders (filter: { siteIds: ["${datatestsite1Id}"], templateKeys: ["keyd2"] }) { name data { name } } }`)
+    const datafolder = datafolders.find(f => f.name === 'datafolderH')
     expect(datafolder.data[0]).to.deep.include({ name: 'FolderBuilding1' })
   })
   it('should not allow an unauthorized user to create a date entry', async () => {
@@ -574,8 +574,8 @@ describe('data mutations', () => {
     expect(data[0].folder).to.be.null
     expect(data[0].site.id).to.equal(datatestsite2Id)
     expect(success).to.be.true
-    const { sites } = await query(`{ sites(filter: {ids: [${datatestsite2Id}]}) { data { name }}}`)
-    expect(sites[0].data.map((d: any) => d.name)).to.include('Green')
+    const { data: data4 } = await query(`{ data (filter: {siteIds: ["${datatestsite2Id}"]}) { name } }`)
+    expect(data4.map((d: any) => d.name)).to.include('Green')
     const remaining = await db.getall(`
       SELECT dataId, displayOrder FROM data
       INNER JOIN datafolders ON data.folderId = datafolders.id
@@ -697,8 +697,8 @@ describe('data mutations', () => {
     }`, { args: { name: 'datatestsite6', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
     const { success } = await moveDataEntries([data1.id], undefined, undefined, site.id)
     expect(success).to.be.true
-    const { sites } = await query(`{ sites(filter: {ids: [${site.id}]}) { data { name }}}`)
-    expect(sites[0].data.map((d: any) => d.name)).to.include('Teal')
+    const { data: data4 } = await query(`{ data (filter: {siteIds: ["${site.id}"]}) { name } }`)
+    expect(data4.map((d: any) => d.name)).to.include('Teal')
   })
   it('should move data from one folder to another', async () => {
     const { dataFolder: folderO } = await createDataFolder('datafolderO', 'keyd1', datatestsite2Id)
@@ -733,14 +733,10 @@ describe('data mutations', () => {
     const { data: data4 } = await createDataEntry('Brick', 'keyd1', { title: 'Brick Text', color: 'brick', align: 'left' }, site8.id)
     const { success } = await moveDataEntries([data2.id], undefined, undefined, site8.id)
     expect(success).to.be.true
-    const { sites } = await query(`{ sites(filter: {ids: [${site7.id}, ${site8.id}]}) { id data { name }}}`)
-    for (const site of sites) {
-      if (site.id === site7.id) {
-        expect(site.data.map((d: any) => d.name)).to.include.members(['Hot Pink', 'Tomato'])
-      } else {
-        expect(site.data.map((d: any) => d.name)).to.include.members(['Rose', 'Brick'])
-      }
-    }
+    const { data: data5 } = await query(`{ data (filter: {siteIds: ["${site7.id}", "${site8.id}"]}) { name, site { id } } }`)
+    const dataBySite = groupby(data5, 'site.id')
+    expect(dataBySite[site7.id].map((d: any) => d.name)).to.include.members(['Hot Pink', 'Tomato'])
+    expect(dataBySite[site8.id].map((d: any) => d.name)).to.include.members(['Rose', 'Brick'])
   })
   it('should move multiple data entries within a data folder', async () => {
     const { dataFolder: folderQ } = await createDataFolder('datafolderQ', 'keyd1', datatestsite1Id)
@@ -761,8 +757,8 @@ describe('data mutations', () => {
     const { data: data4 } = await createDataEntry('Apricot', 'keyd1', { title: 'Apricot Text', color: 'apricot', align: 'left' }, undefined, folderR.id)
     const { success } = await moveDataEntries([data2.id, data3.id], undefined, undefined, datatestsite2Id)
     expect(success).to.be.true
-    const { sites } = await query(`{ sites(filter: {ids: [${datatestsite2Id}]}) { data { name }}}`)
-    expect(sites[0].data.map((d: any) => d.name)).to.include('Amber')
+    const { data: data5 } = await query(`{ data(filter: {siteIds: ["${datatestsite2Id}"]}) { name } }`)
+    expect(data5.map((d: any) => d.name)).to.include('Amber')
     const remaining = await db.getall(`
       SELECT dataId, displayOrder FROM data
       INNER JOIN datafolders ON data.folderId = datafolders.id
@@ -891,8 +887,8 @@ describe('data mutations', () => {
     const { success } = await moveDataEntries([data3.id, data4.id], undefined, undefined, site.id)
     expect(success).to.be.true
     await moveDataEntries([data1.id, data5.id], data4.id)
-    const { sites } = await query(`{ sites(filter: {ids: [${site.id}]}) { data { name }}}`)
-    expect(sites[0].data.map((d: any) => d.name)).to.include.ordered.members(['Slate', 'Sage', 'Applegreen', 'Eggshell'])
+    const { data: data6 } = await query(`{ data (filter: {siteIds: ["${site.id}"]}) { name } }`)
+    expect(data6.map((d: any) => d.name)).to.include.ordered.members(['Slate', 'Sage', 'Applegreen', 'Eggshell'])
   })
   it('should move data entries from different locations', async () => {
     const { dataFolder: folderV } = await createDataFolder('datafolderV', 'keyd1', datatestsite1Id)

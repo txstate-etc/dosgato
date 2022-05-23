@@ -28,7 +28,7 @@ import {
   VersionResolver, OrganizationResolver,
   AccessResolver,
   TemplateRulePermissionsResolver, TemplateRuleResolver,
-  logMutation, handleUpload, templateRegistry, syncRegistryWithDB, UserServiceInternal
+  logMutation, handleUpload, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver, DataRootPermissionsResolver
 } from 'internal'
 import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData } from 'fixturetemplates'
 
@@ -94,6 +94,8 @@ async function main () {
       DataRulePermissionsResolver,
       DataFolderResolver,
       DataFolderPermissionsResolver,
+      DataRootResolver,
+      DataRootPermissionsResolver,
       GlobalRuleResolver,
       GlobalRulePermissionsResolver,
       GroupResolver,

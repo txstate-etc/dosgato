@@ -17,7 +17,7 @@ describe('sites', () => {
         pagetrees { id name type }
         templates { key name }
         pageroot { id name }
-        datafolders { id name }
+        dataroots { template { key } }
         organization { id name }
         assetroot { id name }
         launched
@@ -81,16 +81,14 @@ describe('sites', () => {
   it('should get the root page for a site', async () => {
     expect(sitehash.site2.pageroot.name).to.equal('site2')
   })
-  it('should get the datafolders for a site', async () => {
-    const foldernames = sitehash.site2.datafolders.map((f: any) => f.name)
-    expect(foldernames).to.have.members(['site2datafolder'])
+  it('should get the data roots for a site', async () => {
+    expect(sitehash.site2.dataroots.length).to.be.greaterThan(0)
   })
-  it('should get the datafolders for a site, with a filter', async () => {
-    const { sites } = await query(' { sites { id name datafolders(filter: { deleted: HIDE }) { id name } } }')
+  it('should get data root for a specific template on a site', async () => {
+    const { sites } = await query(' { sites { id name dataroots(filter: { templateKeys: ["articledatakey"] }) { template { key } } } }')
     const site2 = sites.find((s: any) => s.name === 'site2')
-    const foldernames = site2.datafolders.map((f: any) => f.name)
-    expect(foldernames).to.include('site2datafolder')
-    expect(foldernames).to.not.include('deletedfolder')
+    expect(site2.dataroots.length).to.equal(1, JSON.stringify(site2.dataroots, undefined, 2))
+    expect(site2.dataroots[0].template.key).to.equal('articledatakey')
   })
   it('should get the organization responsible for a site', async () => {
     expect(sitehash.site2.organization.name).to.equal('Department of Mathematics')

@@ -54,6 +54,9 @@ export class DataFilter {
   @Field({ nullable: true, description: 'true -> return only global data, false -> return only data that belongs to some site, null -> return all data' })
   global?: boolean
 
+  @Field({ nullable: true, description: 'true -> return only data that lives in the root; i.e. folderId is null' })
+  root?: boolean
+
   @Field(type => [String], { nullable: true })
   folderIds?: string[]
 

@@ -2,8 +2,8 @@ import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   Template, TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
-  DosGatoService, PagetreeService, authorizeForPagetree, deauthorizeForPagetree,
-  authorizeForSite, deauthorizeForSite, setUniversal, SiteService, PagetreeServiceInternal, SiteServiceInternal
+  DosGatoService, authorizeForPagetree, deauthorizeForPagetree,
+  authorizeForSite, deauthorizeForSite, setUniversal, PagetreeServiceInternal, SiteServiceInternal
 } from 'internal'
 
 const templatesByIdLoader = new PrimaryKeyLoader({

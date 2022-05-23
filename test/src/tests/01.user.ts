@@ -1,11 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import { expect } from 'chai'
-import jwt from 'jsonwebtoken'
 import { query } from '../common'
 
 describe('users', () => {
   before(async () => {
-    console.log(jwt.sign({ sub: 'su01' }, process.env.JWT_SECRET ?? ''))
     let success = false
     while (!success) {
       try {

@@ -10,88 +10,67 @@ describe('datafolder', () => {
     testSiteId = site5.id
   })
   it('should filter data folders by id', async () => {
-    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id datafolders { id name } } }`)
-    const ids = sites[0].datafolders.map((f: any) => f.id)
-    const { sites: sites2 } = await query(`
-      { sites(filter: {ids: [${testSiteId}]}) {
-        id
-        name
+    const { datafolders } = await query(`{ datafolders (filter: { siteIds: [${testSiteId}] }) { id name } }`)
+    const ids = datafolders.map((f: any) => f.id)
+    const { datafolders: datafolders2 } = await query(`
+      {
         datafolders(filter: {ids: ["${ids[0]}", "${ids[1]}"] }){
           id
           name
         }
       }
-    }`)
-    const folderIds = sites2[0].datafolders.map((d: any) => d.id)
-    expect(folderIds).to.include.members([ids[0], ids[1]])
+    `)
+    const folderIds = datafolders2.map((d: any) => d.id)
+    expect(folderIds).to.have.members([ids[0], ids[1]])
   })
   it('should filter data folders by template key', async () => {
-    const { sites } = await query(`
-      { sites(filter: {ids: [${testSiteId}]}) {
-        id
-        name
-        datafolders(filter: {templateKeys: ["keyd1"] }){
+    const { datafolders } = await query(`
+      {
+        datafolders(filter: {siteIds: ["${testSiteId}"], templateKeys: ["keyd1"] }){
           name
           template {
             key
           }
-        }
-      }
-    }`)
-    for (const folder of sites[0].datafolders) {
-      expect(folder.template.key).to.equal('keyd1')
-    }
-  })
-  it('should filter data folders by site id', async () => {
-    const { sites } = await query(`
-      { sites(filter: {ids: [${testSiteId}]}) {
-        id
-        name
-        datafolders(filter: {templateKeys: ["keyd1"] }){
-          name
           site {
             name
           }
         }
       }
-    }`)
-    for (const folder of sites[0].datafolders) {
+    `)
+    for (const folder of datafolders) {
+      expect(folder.template.key).to.equal('keyd1')
       expect(folder.site.name).to.equal('site5')
     }
   })
   it('should return only deleted data folders', async () => {
-    const { sites } = await query(`
-      { sites(filter: {ids: [${testSiteId}]}) {
-        id
-        name
-        datafolders(filter: {deleted: ONLY }){
+    const { datafolders } = await query(`
+      {
+        datafolders(filter: {siteIds:["${testSiteId}"], deleted: ONLY }){
           name
           deleted
         }
       }
-    }`)
-    for (const folder of sites[0].datafolders) {
+    `)
+    for (const folder of datafolders) {
       expect(folder.deleted).to.be.true
     }
-    const folderNames = sites[0].datafolders.map((f: any) => f.name)
+    const folderNames = datafolders.map((f: any) => f.name)
     expect(folderNames).to.include('site5datafolder3')
     expect(folderNames).to.not.include('site5datafolder1')
   })
   it('should return only undeleted data folders', async () => {
-    const { sites } = await query(`
-      { sites(filter: {ids: [${testSiteId}]}) {
-        id
-        name
-        datafolders(filter: {deleted: HIDE }){
+    const { datafolders } = await query(`
+      {
+        datafolders(filter: {siteIds:["${testSiteId}"], deleted: HIDE }){
           name
           deleted
         }
       }
-    }`)
-    for (const folder of sites[0].datafolders) {
+    `)
+    for (const folder of datafolders) {
       expect(folder.deleted).to.be.false
     }
-    const folderNames = sites[0].datafolders.map((f: any) => f.name)
+    const folderNames = datafolders.map((f: any) => f.name)
     expect(folderNames).to.not.include('site5datafolder3')
     expect(folderNames).to.include('site5datafolder1')
   })
@@ -369,5 +348,29 @@ describe('data', () => {
         expect(version.data.align).to.equal('left')
       }
     }
+  })
+})
+
+describe('dataroot', () => {
+  it('should retrieve the global dataroots', async () => {
+    const { dataroots } = await query('{ dataroots(filter:{ global: true }) { site { id }, template { key } } }')
+    expect(dataroots.length).to.be.greaterThan(0)
+  })
+  it('should retrieve all dataroots for a site', async () => {
+    const { sites } = await query('{ sites (filter: { names: ["site2"] }) { dataroots { template { key } } } }')
+    expect(sites[0].dataroots.length).to.be.greaterThan(0)
+  })
+  it('should filter dataroots by templateKey when used with a site', async () => {
+    const { sites } = await query('{ sites (filter: { names: ["site2"] }) { dataroots (filter: { templateKeys: ["articledatakey"] }) { template { key } } } }')
+    expect(sites[0].dataroots.length).to.equal(1)
+    expect(sites[0].dataroots[0].template.key).to.equal('articledatakey')
+  })
+  it('should be able to fetch the dataroot for a folder', async () => {
+    const { datafolders } = await query('{ datafolders (filter: { global: false }) { template { key } dataroot { template { key } } } }')
+    for (const f of datafolders) expect(f.template.key).to.equal(f.dataroot.template.key)
+  })
+  it('should be able to fetch the dataroot for a global folder', async () => {
+    const { datafolders } = await query('{ datafolders (filter: { global: true }) { template { key } dataroot { template { key } } } }')
+    for (const f of datafolders) expect(f.template.key).to.equal(f.dataroot.template.key)
   })
 })

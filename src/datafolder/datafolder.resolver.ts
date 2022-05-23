@@ -1,11 +1,11 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context } from '@txstate-mws/graphql-server'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'type-graphql'
 import { isNull, unique } from 'txstate-utils'
 import {
   Data, DataFilter, DataService, Site, SiteService, Template, TemplateService,
   User, UserService, Role, DataFolder, DataFolderPermission, DataFolderPermissions,
   DataFolderService, CreateDataFolderInput, DataFolderResponse, DataFoldersResponse,
-  DataRuleService, RoleService, DataFolderFilter
+  DataRuleService, RoleService, DataFolderFilter, DataRoot, DataRootService
 } from 'internal'
 
 @Resolver(of => DataFolder)
@@ -30,6 +30,11 @@ export class DataFolderResolver {
   async site (@Ctx() ctx: Context, @Root() folder: DataFolder) {
     if (isNull(folder.siteId)) return null
     else return await ctx.svc(SiteService).findById(folder.siteId)
+  }
+
+  @FieldResolver(returns => DataRoot, { description: 'The data root this folder belongs to.' })
+  async dataroot (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    return await ctx.svc(DataRootService).findByFolder(folder)
   }
 
   @FieldResolver(returns => [Data])

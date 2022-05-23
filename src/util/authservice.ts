@@ -6,7 +6,7 @@ import {
   GlobalRuleGrants, PageRuleService, PageRuleGrants, SiteRuleGrants, SiteRuleService,
   TemplateRuleService, TemplateRuleGrants, RoleServiceInternal,
   SiteRuleServiceInternal, PageRuleServiceInternal, AssetRuleServiceInternal, DataRuleServiceInternal,
-  GlobalRuleServiceInternal, GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal
+  GlobalRuleServiceInternal, GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal, SiteService, DataRoot
 } from 'internal'
 
 export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ sub: string }, ObjType, RedactedType> {
@@ -115,6 +115,13 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
     const dataRuleService = this.svc(DataRuleService)
     const applicable = await filterAsync(rules, async r => await dataRuleService.appliesToFolder(r, folder))
     return applicable.some(r => r.grants[grant])
+  }
+
+  protected async haveDataRootPerm (dataroot: DataRoot, grant: keyof DataRuleGrants) {
+    if (this.isRenderServer() && grant === 'view') return true
+    if (!dataroot.site) return await this.haveGlobalPerm('manageGlobalData')
+    const rules = await this.currentDataRules()
+    return rules.some(r => r.path === '/' && r.grants[grant] && r.siteId === dataroot.site!.id && dataroot.template.id === r.templateId)
   }
 
   protected async currentTemplateRules () {

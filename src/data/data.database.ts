@@ -23,6 +23,13 @@ function processFilters (filter?: DataFilter) {
       where.push('data.siteId IS NOT NULL')
     }
   }
+  if (isNotNull(filter?.root)) {
+    if (filter?.root) {
+      where.push('data.folderId IS NULL')
+    } else {
+      where.push('data.folderId IS NOT NULL')
+    }
+  }
   if (filter?.folderIds?.length) {
     where.push(`datafolders.guid IN (${db.in(binds, filter.folderIds)})`)
     if (!joined.has('datafolders')) {

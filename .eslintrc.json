@@ -14,6 +14,7 @@
     "@typescript-eslint/restrict-template-expressions": ["error", { "allowAny": true }], // `${myVar}` is fine if myVar is `any`
     // disallow typecasting with e.g. <string> because it's very confusing vs generics
     "@typescript-eslint/consistent-type-assertions": ["error", { "assertionStyle": "as" }],
+    "@typescript-eslint/prefer-nullish-coalescing": ["error", { "ignoreConditionalTests": true }], // this is supposed to be the default but apparently standard-with-typescript overrode it to something stupid
     "@typescript-eslint/prefer-readonly": "off" // readonly adds a lot of complication and often infects other code with its complexity
   }
 }
