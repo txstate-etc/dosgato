@@ -3,7 +3,7 @@ import stringify from 'fast-json-stable-stringify'
 import { stopwords } from './stopwords'
 
 export function extractLinksFromText (text: string) {
-  const matches = text.matchAll(/{.*\btype:\s+'\w+'.*?}/gi)
+  const matches = text.matchAll(/{.*"type"\s?:\s+"\w+".*?}/gi)
   return Array.from(matches).map(m => JSON.parse(m[0])) as LinkDefinition[]
 }
 
@@ -11,7 +11,8 @@ export function getKeywords (text: string, options?: { stopwords?: boolean }) {
   return Array.from(new Set(text
     .toLocaleLowerCase()
     .normalize('NFD').replace(/\p{Diacritic}/gu, '')
-    .split(/[^\w]+/)
+    .split(/[^\w-]+/)
+    .flatMap(word => word.includes('-') ? word.split('-').concat(word.replace('-', '')) : [word])
     .filter(word => word.length > 2 && (options?.stopwords === false || !stopwords[word]) && isNaN(Number(word)))
   ))
 }

@@ -87,7 +87,7 @@ export class AssetFolderResolver {
   }
 
   @Mutation(returns => AssetFolderResponse)
-  async undeleteAssetFolder (@Ctx() ctx: Context, @Arg('folderId') folderId: string) {
+  async undeleteAssetFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string) {
     return await ctx.svc(AssetFolderService).undelete(folderId)
   }
 }

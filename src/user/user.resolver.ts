@@ -1,5 +1,5 @@
 import { Context } from '@txstate-mws/graphql-server'
-import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
+import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
   Group, GroupService, Role, RoleService, User, UserFilter,
   UserPermissions, UserResponse, UpdateUserInput, UserService, UsersResponse
@@ -28,17 +28,17 @@ export class UserResolver {
   }
 
   @Mutation(returns => UserResponse)
-  async updateUser (@Ctx() ctx: Context, @Arg('userId') userId: string, @Arg('args', type => UpdateUserInput) args: UpdateUserInput) {
+  async updateUser (@Ctx() ctx: Context, @Arg('userId', type => ID) userId: string, @Arg('args', type => UpdateUserInput) args: UpdateUserInput) {
     return await ctx.svc(UserService).updateUser(userId, args)
   }
 
   @Mutation(returns => UsersResponse, { description: 'Disabled users will stay in the system with their previous roles and group memberships for referential integrity and easy re-enable.' })
-  async disableUsers (@Ctx() ctx: Context, @Arg('userIds', type => [String]) userIds: string[]) {
+  async disableUsers (@Ctx() ctx: Context, @Arg('userIds', type => [ID]) userIds: string[]) {
     return await ctx.svc(UserService).disableUsers(userIds)
   }
 
   @Mutation(returns => UsersResponse, { description: 'Re-enable users that have previously been disabled.' })
-  async enableUsers (@Ctx() ctx: Context, @Arg('userIds', type => [String]) userIds: string[]) {
+  async enableUsers (@Ctx() ctx: Context, @Arg('userIds', type => [ID]) userIds: string[]) {
     return await ctx.svc(UserService).enableUsers(userIds)
   }
 }

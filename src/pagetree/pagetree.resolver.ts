@@ -1,6 +1,6 @@
 import { Context } from '@txstate-mws/graphql-server'
 import { isNull, unique } from 'txstate-utils'
-import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation } from 'type-graphql'
+import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
   Page, PageService, PageFilter, Role, Site, SiteService, Template, TemplateFilter, TemplateService,
   Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, PagetreeType,
@@ -62,27 +62,27 @@ export class PagetreeResolver {
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Update the name of a pagetree' })
-  async updatePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string, @Arg('name') name: string) {
+  async updatePagetree (@Ctx() ctx: Context, @Arg('pagetreeId', type => ID) pagetreeId: string, @Arg('name') name: string) {
     return await ctx.svc(PagetreeService).rename(pagetreeId, name)
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Soft-delete a pagetree' })
-  async deletePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
+  async deletePagetree (@Ctx() ctx: Context, @Arg('pagetreeId', type => ID) pagetreeId: string) {
     return await ctx.svc(PagetreeService).delete(pagetreeId)
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Undo a pagetree delete' })
-  async undeletePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
+  async undeletePagetree (@Ctx() ctx: Context, @Arg('pagetreeId', type => ID) pagetreeId: string) {
     return await ctx.svc(PagetreeService).undelete(pagetreeId)
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Promote a pagetree from sandbox to primary' })
-  async promotePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
+  async promotePagetree (@Ctx() ctx: Context, @Arg('pagetreeId', type => ID) pagetreeId: string) {
     return await ctx.svc(PagetreeService).promote(pagetreeId)
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Archive a pagetree. Cannot be used on the primary pagetree because a site must always have exactly one primary pagetree.' })
-  async archivePagetree (@Ctx() ctx: Context, @Arg('pagetreeId') pagetreeId: string) {
+  async archivePagetree (@Ctx() ctx: Context, @Arg('pagetreeId', type => ID) pagetreeId: string) {
     return await ctx.svc(PagetreeService).archive(pagetreeId)
   }
 }

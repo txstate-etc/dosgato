@@ -117,7 +117,7 @@ export class DataResolver {
   }
 
   @Mutation(returns => DataResponse)
-  async renameDataEntry (@Ctx() ctx: Context, @Arg('dataId') dataId: string, @Arg('name') name: string) {
+  async renameDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string, @Arg('name') name: string) {
     return await ctx.svc(DataService).rename(dataId, name)
   }
 

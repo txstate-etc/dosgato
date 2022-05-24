@@ -76,7 +76,7 @@ describe('pagetree mutations', () => {
     const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { name pagetrees { id type } } }`)
     const initialPagetree = sites[0].pagetrees.find((p: any) => p.type === 'PRIMARY')
     const { pagetree: newPagetree } = await createPagetree('sandboxJ', testSiteId)
-    const { promotePagetree: { pagetree, success } } = await query('mutation PromotePagetree ($id: String!) { promotePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })
+    const { promotePagetree: { pagetree, success } } = await query('mutation PromotePagetree ($id: ID!) { promotePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })
     expect(success).to.be.true
     expect(pagetree.type).to.equal('PRIMARY')
     const { sites: updatedSites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { name pagetrees(filter: { ids: [${initialPagetree.id}] }) { id type } } }`)
@@ -84,21 +84,21 @@ describe('pagetree mutations', () => {
   })
   it('should not allow an unauthorized user to promote a pagetree', async () => {
     const { pagetree: newPagetree } = await createPagetree('sandboxK', testSiteId)
-    await expect(queryAs('ed07', 'mutation PromotePagetree ($id: String!) { promotePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })).to.be.rejected
+    await expect(queryAs('ed07', 'mutation PromotePagetree ($id: ID!) { promotePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })).to.be.rejected
   })
   it('should archive a pagetree', async () => {
     const { pagetree: newPagetree } = await createPagetree('sandboxL', testSiteId)
-    const { archivePagetree: { pagetree, success } } = await query('mutation ArchivePagetree ($id: String!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })
+    const { archivePagetree: { pagetree, success } } = await query('mutation ArchivePagetree ($id: ID!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })
     expect(success).to.be.true
     expect(pagetree.type).to.equal('ARCHIVE')
   })
   it('should not allow the primary pagetree to be archived', async () => {
     const { pagetree: newPagetree } = await createPagetree('sandboxM', testSiteId)
-    await query('mutation PromotePagetree ($id: String!) { promotePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })
-    await expect(query('mutation ArchivePagetree ($id: String!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })).to.be.rejected
+    await query('mutation PromotePagetree ($id: ID!) { promotePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })
+    await expect(query('mutation ArchivePagetree ($id: ID!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })).to.be.rejected
   })
   it('should not allow an unauthorized user to archive a pagetree', async () => {
     const { pagetree: newPagetree } = await createPagetree('sandboxN', testSiteId)
-    await expect(queryAs('ed07', 'mutation ArchivePagetree ($id: String!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })).to.be.rejected
+    await expect(queryAs('ed07', 'mutation ArchivePagetree ($id: ID!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })).to.be.rejected
   })
 })

@@ -111,7 +111,6 @@ describe('data rule mutations', () => {
         success
         dataRule {
           id
-          mode
           grants {
             create
             update

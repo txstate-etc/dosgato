@@ -55,7 +55,7 @@ describe('groups mutations', () => {
   })
   it('should add a user to a group', async () => {
     const { group: groupD } = await createGroup('groupD')
-    const { addUserToGroups: { success } } = await query('mutation AddUserToGroups ($groupIds: [ID]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupD.id], userId: 'su03' })
+    const { addUserToGroups: { success } } = await query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupD.id], userId: 'su03' })
     expect(success).to.be.true
     const { groups } = await query('{ groups { id name users { id name } } }')
     const group = groups.find((g: any) => g.id === groupD.id)
@@ -63,20 +63,20 @@ describe('groups mutations', () => {
   })
   it('should not add a non-existent user to a group', async () => {
     const { group: groupE } = await createGroup('groupE')
-    await expect(query('mutation AddUserToGroups ($groupIds: [ID]!, $userId: String!) { addUserToGroups (groupIds: [$groupId], userId: $userId) { success } }', { groupIds: [groupE.id], userId: 'fake' })).to.be.rejected
+    await expect(query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: String!) { addUserToGroups (groupIds: [$groupId], userId: $userId) { success } }', { groupIds: [groupE.id], userId: 'fake' })).to.be.rejected
     const { groups } = await query('{ groups { id name users { id name } } }')
     const group = groups.find((g: any) => g.id === groupE.id)
     expect(group.users).to.have.lengthOf(0)
   })
   it('should not allow an unauthorized user to add a user to a group', async () => {
     const { group: groupDD } = await createGroup('groupDD')
-    await expect(queryAs('ed07', 'mutation AddUserToGroups ($groupIds: [ID]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupDD.id], userId: 'su03' })).to.be.rejected
+    await expect(queryAs('ed07', 'mutation AddUserToGroups ($groupIds: [ID!]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupDD.id], userId: 'su03' })).to.be.rejected
   })
   it('should remove a user from a group', async () => {
     const { group: groupF } = await createGroup('groupF')
-    const { addUserToGroups: { success: addSuccess } } = await query('mutation AddUserToGroups ($groupIds: [ID]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupF.id], userId: 'ed01' })
+    const { addUserToGroups: { success: addSuccess } } = await query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupF.id], userId: 'ed01' })
     expect(addSuccess).to.be.true
-    const { removeUserFromGroups: { success } } = await query('mutation RemoveUserFromGroups ($groupIds: [ID]!, $userId: String!) { removeUserFromGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupF.id], userId: 'ed01' })
+    const { removeUserFromGroups: { success } } = await query('mutation RemoveUserFromGroups ($groupIds: [ID!]!, $userId: String!) { removeUserFromGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupF.id], userId: 'ed01' })
     expect(success).to.be.true
     const { groups } = await query('{ groups { id name users { id name } } }')
     const group = groups.find((g: any) => g.id === groupF.id)
@@ -84,12 +84,12 @@ describe('groups mutations', () => {
   })
   it('should not allow an unauthorized user to remove a user from a group', async () => {
     const { group: groupFF } = await createGroup('groupFF')
-    await query('mutation AddUserToGroups ($groupIds: [ID]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupFF.id], userId: 'ed01' })
-    await expect(queryAs('ed07', 'mutation removeUserFromGroups ($groupIds: [ID]!, $userId: String!) { removeUserFromGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupFF.id], userId: 'ed01' })).to.be.rejected
+    await query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupFF.id], userId: 'ed01' })
+    await expect(queryAs('ed07', 'mutation removeUserFromGroups ($groupIds: [ID!]!, $userId: String!) { removeUserFromGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupFF.id], userId: 'ed01' })).to.be.rejected
   })
   it('should add a group manager', async () => {
     const { group: groupH } = await createGroup('groupH')
-    await query('mutation AddUserToGroups ($groupIds: [ID]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupH.id], userId: 'ed01' })
+    await query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupH.id], userId: 'ed01' })
     const { setGroupManager: { success } } = await query('mutation SetGroupManager ($groupId: String!, $userId: String!, $manager: Boolean!) { setGroupManager (groupId: $groupId, userId: $userId, manager: $manager) { success } }', { groupId: groupH.id, userId: 'ed01', manager: true })
     expect(success).to.be.true
     const { groups } = await query('{ groups { id name managers { id } } }')
@@ -98,12 +98,12 @@ describe('groups mutations', () => {
   })
   it('should not allow an unauthorized user to add a group manager', async () => {
     const { group: groupHH } = await createGroup('groupHH')
-    await query('mutation AddUserToGroups ($groupIds: [ID]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupHH.id], userId: 'ed01' })
+    await query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupHH.id], userId: 'ed01' })
     await expect(queryAs('ed07', 'mutation SetGroupManager ($groupId: String!, $userId: String!, $manager: Boolean!) { setGroupManager (groupId: $groupId, userId: $userId, manager: $manager) { success } }', { groupId: groupHH.id, userId: 'ed01', manager: true })).to.be.rejected
   })
   it('should remove a group manager', async () => {
     const { group: groupI } = await createGroup('groupI')
-    await query('mutation AddUserToGroups ($groupIds: [ID]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupI.id], userId: 'ed01' })
+    await query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: String!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupI.id], userId: 'ed01' })
     const { setGroupManager: { success: addManagerSuccess } } = await query('mutation SetGroupManager ($groupId: String!, $userId: String!, $manager: Boolean!) { setGroupManager (groupId: $groupId, userId: $userId, manager: $manager) { success } }', { groupId: groupI.id, userId: 'ed01', manager: true })
     const { setGroupManager: { success } } = await query('mutation SetGroupManager ($groupId: String!, $userId: String!, $manager: Boolean!) { setGroupManager (groupId: $groupId, userId: $userId, manager: $manager) { success } }', { groupId: groupI.id, userId: 'ed01', manager: false })
     expect(success).to.be.true

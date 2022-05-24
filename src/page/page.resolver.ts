@@ -183,7 +183,7 @@ export class PageResolver {
   }
 
   @Mutation(returns => PageResponse)
-  async renamePage (@Ctx() ctx: Context, @Arg('pageId') pageId: string, @Arg('name') name: string) {
+  async renamePage (@Ctx() ctx: Context, @Arg('pageId', type => ID) pageId: string, @Arg('name') name: string) {
     return await ctx.svc(PageService).renamePage(pageId, name)
   }
 
