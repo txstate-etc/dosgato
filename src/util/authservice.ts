@@ -121,7 +121,13 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
     if (this.isRenderServer() && grant === 'view') return true
     if (!dataroot.site) return await this.haveGlobalPerm('manageGlobalData')
     const rules = await this.currentDataRules()
-    return rules.some(r => r.path === '/' && r.grants[grant] && r.siteId === dataroot.site!.id && dataroot.template.id === r.templateId)
+    return rules.some(r => {
+      if (r.path !== '/') return false
+      if (!r.grants[grant]) return false
+      if (r.siteId && (r.siteId !== dataroot.site!.id)) return false
+      if (r.templateId && (r.templateId !== dataroot.template.id)) return false
+      return true
+    })
   }
 
   protected async currentTemplateRules () {
