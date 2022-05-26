@@ -15,11 +15,10 @@ export class DataRootService extends DosGatoService<DataRoot> {
     const templates = filter.templateKeys.length
       ? filter.templateKeys.map(k => this.templatesByKey!.get(k)).filter(isNotNull)
       : Array.from(this.templatesById.values())
-    let dataRoots: DataRoot[]
-    if (filter.global) dataRoots = templates.map(t => new DataRoot(undefined, t))
-    else {
+    const dataRoots: DataRoot[] = []
+    if (filter.global !== false) dataRoots.push(...templates.map(t => new DataRoot(undefined, t)))
+    if (filter.global !== true) {
       const siteService = this.svc(SiteServiceInternal)
-      dataRoots = []
       let sites: Site[]
       if (filter.siteIds?.length) {
         sites = (await Promise.all(filter.siteIds.map(async id => await siteService.findById(id)))).filter(isNotNull)

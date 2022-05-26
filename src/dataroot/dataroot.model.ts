@@ -25,7 +25,7 @@ export class DataRootFilter {
   @Field(type => [ID], { nullable: true, description: 'Return dataroots that are associated with one of the given sites.' })
   siteIds?: string[]
 
-  @Field(type => Boolean, { nullable: true, description: 'true -> return only dataroots that are not associated with a site.' })
+  @Field(type => Boolean, { nullable: true, description: 'true -> return only dataroots that are not associated with a site; false -> return only dataroots that are associated with a site; null -> return global and non-global dataroots' })
   global?: boolean
 }
 
