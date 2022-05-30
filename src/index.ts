@@ -1,12 +1,13 @@
-/* eslint-disable import/first */
-import { install } from 'source-map-support'
-install()
-import { Context, GQLServer, AuthError } from '@txstate-mws/graphql-server'
-import { DateTime } from 'luxon'
 import multipart from '@fastify/multipart'
+import { APITemplate } from '@dosgato/templating'
+import { Context, GQLServer, AuthError, GQLStartOpts } from '@txstate-mws/graphql-server'
+import { DateTime } from 'luxon'
+import { FastifyInstance } from 'fastify'
+import { FastifyTxStateOptions } from 'fastify-txstate'
 import { promises as fsp } from 'fs'
+import { GraphQLScalarType } from 'graphql'
+import { NonEmptyArray } from 'type-graphql'
 import { migrations } from './migrations'
-import { fixtures } from './fixtures'
 import {
   DateTimeScalar, UrlSafeString, UrlSafeStringScalar,
   AssetPermissionsResolver, AssetResolver,
@@ -26,11 +27,10 @@ import {
   GroupPermissionsResolver, GroupResolver,
   GlobalRulePermissionsResolver, GlobalRuleResolver,
   VersionResolver, OrganizationResolver,
-  AccessResolver,
+  AccessResolver, DBMigration,
   TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, handleUpload, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver, DataRootPermissionsResolver
 } from 'internal'
-import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData } from 'fixturetemplates'
 
 async function getEnabledUser (ctx: Context) {
   await ctx.waitForAuth()
@@ -40,47 +40,45 @@ async function getEnabledUser (ctx: Context) {
   return user
 }
 
-async function main () {
-  // register some templates
-  // in the future we will take the templates as input, but for now we just need test components
-  templateRegistry.register(PageTemplate1)
-  templateRegistry.register(PageTemplate2)
-  templateRegistry.register(PageTemplate3)
-  templateRegistry.register(PageTemplate4)
-  templateRegistry.register(LinkComponent)
-  templateRegistry.register(PanelComponent)
-  templateRegistry.register(QuoteComponent)
-  templateRegistry.register(ColorData)
-  templateRegistry.register(BuildingData)
-  templateRegistry.register(ArticleData)
+export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
+  templates: APITemplate[]
+  fixtures?: () => Promise<void>
+  migrations?: DBMigration[]
+  resolvers?: Function[]
+}
 
-  await migrations()
+export class DGServer {
+  protected gqlServer: GQLServer
+  public app: FastifyInstance
 
-  // sync templates with database
-  await syncRegistryWithDB()
-
-  if (process.env.NODE_ENV === 'development' && process.env.RESET_DB_ON_STARTUP === 'true') {
-    await fixtures()
+  constructor (config?: FastifyTxStateOptions) {
+    this.gqlServer = new GQLServer(config)
+    this.app = this.gqlServer.app
   }
 
-  const server = new GQLServer()
-  await server.app.register(multipart)
-  await fsp.mkdir('/files/tmp', { recursive: true })
-  server.app.post('/files', async (req, res) => {
-    const ctx = new Context(req)
-    await getEnabledUser(ctx) // throws if not authorized
-    const files = await handleUpload(req, res)
-    return files
-  })
-  // TODO: Add endpoint for getting assets. /assets/:id or /files/:id
-  await server.start({
-    send401: true,
-    send403: async (ctx: Context) => {
-      if (!ctx.auth?.sub) return true
-      const user = await ctx.svc(UserServiceInternal).findById(ctx.auth?.sub)
-      return !user || user.disabled
-    },
-    resolvers: [
+  async start (opts: DGStartOpts) {
+    for (const template of opts.templates) templateRegistry.register(template)
+
+    await migrations(opts.migrations)
+
+    // sync templates with database
+    await syncRegistryWithDB()
+
+    if (process.env.NODE_ENV === 'development' && process.env.RESET_DB_ON_STARTUP === 'true') {
+      await opts.fixtures?.()
+    }
+
+    // TODO: Add endpoint for getting assets. /assets/:id or /files/:id
+    await this.app.register(multipart)
+    await fsp.mkdir('/files/tmp', { recursive: true })
+    this.app.post('/files', async (req, res) => {
+      const ctx = new Context(req)
+      await getEnabledUser(ctx) // throws if not authorized
+      const files = await handleUpload(req, res)
+      return files
+    })
+
+    const resolvers: NonEmptyArray<Function> = [
       AccessResolver,
       AssetResolver,
       AssetPermissionsResolver,
@@ -121,16 +119,34 @@ async function main () {
       UserResolver,
       UserPermissionsResolver,
       VersionResolver
-    ],
-    scalarsMap: [
+    ];
+    (resolvers as any[]).push(...(opts.resolvers ?? []))
+
+    const scalarsMap: { type: Function, scalar: GraphQLScalarType }[] = [
       { type: UrlSafeString, scalar: UrlSafeStringScalar },
       { type: DateTime, scalar: DateTimeScalar }
-    ],
-    after: logMutation
-  })
+    ]
+    scalarsMap.push(...(opts.scalarsMap ?? []))
+
+    const after = async (...args: [queryTime: number, operationName: string, query: string, auth: any, variables: any]) => {
+      await Promise.all([
+        opts.after?.(...args),
+        logMutation(...args)
+      ])
+    }
+    return await this.gqlServer.start({
+      ...opts,
+      send401: true,
+      send403: async (ctx: Context) => {
+        if (!ctx.auth?.sub) return true
+        const user = await ctx.svc(UserServiceInternal).findById(ctx.auth?.sub)
+        return !user || user.disabled
+      },
+      resolvers,
+      scalarsMap,
+      after
+    })
+  }
 }
 
-main().catch(e => {
-  console.error(e)
-  process.exit(1)
-})
+export * from 'internal'

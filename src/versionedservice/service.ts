@@ -472,7 +472,7 @@ export class VersionedService extends BaseService {
     }
   }
 
-  static async init () {
+  static async init (db: Queryable) {
     await db.execute("\
     CREATE TABLE IF NOT EXISTS `storage` ( \
       `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \

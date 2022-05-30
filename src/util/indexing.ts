@@ -1,5 +1,5 @@
 import { LinkDefinition } from '@dosgato/templating'
-import stringify from 'fast-json-stable-stringify'
+import { stringify } from 'txstate-utils'
 import { stopwords } from './stopwords'
 
 export function extractLinksFromText (text: string) {

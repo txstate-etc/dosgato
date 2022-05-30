@@ -1,9 +1,9 @@
 import { Context } from '@txstate-mws/graphql-server'
-import stringify from 'fast-json-stable-stringify'
 import { existsSync } from 'fs'
+import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { DateTime } from 'luxon'
+import { stringify } from 'txstate-utils'
 import { VersionedService, Index } from 'internal'
 
 export async function fixtures () {

@@ -1,7 +1,7 @@
 /* eslint-disable no-multi-str */
-import db from 'mysql2-async/db'
+import { Queryable } from 'mysql2-async'
 
-export async function init () {
+export async function init (db: Queryable) {
   await db.execute("\
     CREATE TABLE IF NOT EXISTS `users` ( \
       `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \

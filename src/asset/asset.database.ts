@@ -1,8 +1,7 @@
 import db from 'mysql2-async/db'
-import { isNotNull } from 'txstate-utils'
+import { isNotNull, stringify } from 'txstate-utils'
 import { Asset, AssetFilter, AssetResize, VersionedService, CreateAssetInput, AssetFolder } from 'internal'
 import { DateTime } from 'luxon'
-import stringify from 'fast-json-stable-stringify'
 
 function processFilters (filter?: AssetFilter) {
   const binds: string[] = []

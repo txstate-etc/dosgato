@@ -1,6 +1,6 @@
 {
   "watch": ["src"],
   "ext": "ts",
-  "exec": "sleep 0.3; node --inspect=0.0.0.0:9229 -r ts-node/register ./src/index.ts",
+  "exec": "sleep 0.3; node --inspect=0.0.0.0:9229 -r ts-node/register ./src/run.ts",
   "delay": "100"
 }
