@@ -44,12 +44,12 @@ export class DataRootService extends DosGatoService<DataRoot> {
   }
 
   async findBySite (site: Site, filter?: DataRootFilter) {
-    return await this.find({ ...filter, siteIds: [site.id] })
+    return await this.find({ ...filter, siteIds: [site.id], global: false })
   }
 
   async findByFolder (folder: DataFolder) {
     const dataroots = folder.siteId
-      ? await this.find({ siteIds: [folder.siteId], templateIds: [folder.templateId] })
+      ? await this.find({ global: false, siteIds: [folder.siteId], templateIds: [folder.templateId] })
       : await this.find({ global: true, templateIds: [folder.templateId] })
     return dataroots[0]
   }
