@@ -28,7 +28,7 @@ const rolesByUserIdLoader = new ManyJoinedLoader({
 })
 
 export class RoleServiceInternal extends BaseService {
-  async find (filter: RoleFilter) {
+  async find (filter?: RoleFilter) {
     const roles = await getRoles(filter)
     for (const role of roles) {
       this.loaders.get(rolesByIdLoader).prime(role.id, role)
@@ -89,7 +89,7 @@ export class RoleServiceInternal extends BaseService {
 export class RoleService extends DosGatoService<Role> {
   raw = this.svc(RoleServiceInternal)
 
-  async find (filter: RoleFilter) {
+  async find (filter?: RoleFilter) {
     return await this.removeUnauthorized(await this.raw.find(filter))
   }
 

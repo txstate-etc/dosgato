@@ -10,7 +10,7 @@ import {
 @Resolver(of => Role)
 export class RoleResolver {
   @Query(returns => [Role])
-  async roles (@Ctx() ctx: Context, @Arg('filter') filter: RoleFilter) {
+  async roles (@Ctx() ctx: Context, @Arg('filter', { nullable: true }) filter?: RoleFilter) {
     return await ctx.svc(RoleService).find(filter)
   }
 
