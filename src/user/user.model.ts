@@ -16,11 +16,13 @@ export class User {
   @Field()
   disabled: boolean
 
-  @Field({ description: 'When the user was disabled. The UI may want to do something to hide these users.' })
+  @Field({ nullable: true, description: 'When the user was disabled. The UI may want to do something to hide these users.' })
   disabledAt?: DateTime
 
-  internalId: number
+  @Field({ nullable: true })
   lastlogin?: DateTime
+
+  internalId: number
   lastlogout?: DateTime
 
   constructor (row: any) {
