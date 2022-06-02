@@ -1,11 +1,6 @@
 import db from 'mysql2-async/db'
-import { Cache, hashify } from 'txstate-utils'
+import { Cache, hashify, unique } from 'txstate-utils'
 import { Group, GroupFilter } from 'internal'
-
-export const groupManagerCache = new Cache(async (groupId: string) => {
-  const managers = await db.getall('SELECT userId FROM users_groups WHERE groupId = ? AND manager IS TRUE', [groupId])
-  return managers.map(m => m.userId)
-})
 
 class HierarchyGroup extends Group {
   children: HierarchyGroup[]
@@ -67,14 +62,11 @@ function processFilters (filter?: GroupFilter) {
     where.push(`groups.id IN (${db.in(binds, filter.ids)})`)
   }
   if (filter?.managerIds?.length) {
-    if (!joins.has('users_groups')) {
-      joins.set('users_groups', 'INNER JOIN users_groups ON groups.id = users_groups.groupId')
-    }
-    if (!joins.has('users')) {
-      joins.set('users', 'INNER JOIN users on users_groups.userId = users.id')
-    }
-    where.push(`users.login IN (${db.in(binds, filter.managerIds)})`)
-    where.push('users_groups.manager IS TRUE')
+    joins.set('managerIds', `
+      LEFT JOIN (SELECT gm.groupId, users.* FROM groups_managers gm INNER JOIN users ON gm.userId=users.id) gmu ON groups.id = gmu.groupId
+      LEFT JOIN (SELECT gs.groupId, users.* FROM groups_sites gs INNER JOIN sites_managers sm ON gs.siteId=sm.siteId INNER JOIN users ON sm.userId=users.id) gsu ON groups.id = gsu.groupId
+    `)
+    where.push(`gmu.login IN (${db.in(binds, filter.managerIds)}) OR gsu.login IN (${db.in(binds, filter.managerIds)})`)
   }
   return { binds, where, joins }
 }
@@ -92,17 +84,44 @@ export async function getGroups (filter?: GroupFilter) {
   return groups.map(g => new Group(g))
 }
 
-export async function getGroupsWithUser (userIds: string[], filters?: { manager: boolean }) {
+export async function getGroupsWithUser (userIds: string[]) {
   const binds: string[] = []
-  const where: string[] = []
+  const rows = await db.getall(`
+    SELECT users.login, groups.* FROM groups
+    INNER JOIN users_groups ON groups.id = users_groups.groupId
+    INNER JOIN users ON users.id = users_groups.userId
+    WHERE users.login IN (${db.in(binds, userIds)})`, binds)
+  return rows.map(row => ({ key: row.login, value: new Group(row) }))
+}
 
-  where.push(`users.login IN (${db.in(binds, userIds)})`)
-  if (filters?.manager) where.push('users_groups.manager=1')
-  const directGroups = await db.getall(`SELECT users.*, groups.*, users_groups.* from groups
-                                  INNER JOIN users_groups ON groups.id = users_groups.groupId
-                                  INNER JOIN users ON users.id = users_groups.userId
-                                  WHERE (${where.join(') AND (')})`, binds)
-  return directGroups.map(row => ({ key: row.login, value: new Group(row) }))
+export async function getGroupsWithSite (siteIds: string[]) {
+  const binds: string[] = []
+  const rows = await db.getall(`
+    SELECT gs.siteId, groups.* FROM groups
+    INNER JOIN groups_sites gs ON groups.id = gs.groupId
+    WHERE gs.siteId IN (${db.in(binds, siteIds)})`, binds)
+  return rows.map(row => ({ key: row.siteId, value: new Group(row) }))
+}
+
+export async function getGroupsWithManager (managerIds: string[], direct?: boolean) {
+  if (!managerIds.length) return []
+  const [directGroups, siteGroups] = await Promise.all([
+    db.getall(`SELECT g.*, u.login
+               FROM groups g
+               INNER JOIN groups_managers gm ON gm.groupId=g.id
+               INNER JOIN users u ON u.id=gm.userId
+               WHERE u.login IN (${db.in([], managerIds)})`, managerIds),
+    db.getall(`SELECT g.*, u.login
+               FROM groups g
+               INNER JOIN groups_sites gs ON gs.groupId=g.id
+               INNER JOIN sites_managers sm ON sm.siteId=gs.siteId
+               INNER JOIN users u ON u.id=sm.userId
+               WHERE u.login IN (${db.in([], managerIds)})`, managerIds)
+  ])
+  const all = !direct ? siteGroups : []
+  if (direct !== false) all.push(...directGroups)
+  return unique(all, row => [row.id, row.login])
+    .map(row => ({ key: row.login, value: new Group(row) }))
 }
 
 export async function getGroupsWithRole (roleIds: string[], filter?: GroupFilter) {
@@ -167,7 +186,16 @@ export async function setUserGroups (userId: number, groupIds: string[]) {
 }
 
 export async function setGroupManager (groupId: string, userId: number, manager: boolean) {
-  return await db.update('UPDATE users_groups SET manager = ? WHERE userId = ? AND groupId = ?', [manager, userId, groupId])
+  if (manager) await db.update('INSERT IGNORE INTO groups_managers (groupId, userId) VALUES (?, ?)', [groupId, userId])
+  else await db.delete('DELETE FROM groups_managers WHERE groupId=? AND userId=?', [groupId, userId])
+}
+
+export async function addGroupSite (groupId: string, siteId: string) {
+  return await db.update('INSERT IGNORE INTO groups_sites (groupId, siteId) VALUES (?, ?)', [groupId, siteId])
+}
+
+export async function removeGroupSite (groupId: string, siteId: string) {
+  return await db.update('DELETE FROM groups_sites WHERE groupId=? AND siteId=?', [groupId, siteId])
 }
 
 export async function addSubgroup (parentId: string, childId: string) {

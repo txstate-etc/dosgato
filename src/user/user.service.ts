@@ -1,13 +1,12 @@
 
+import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { filterAsync, isNotBlank, isNotNull, someAsync, unique } from 'txstate-utils'
+import { isNotBlank, isNotNull, someAsync, unique } from 'txstate-utils'
 import {
   DosGatoService, GroupService, User, UserFilter, UserResponse, getUsers,
-  getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId,
-  UpdateUserInput, updateUser, disableUsers, enableUsers
+  getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId, RedactedUser, UsersResponse,
+  UpdateUserInput, updateUser, disableUsers, enableUsers, getUsersManagingGroups
 } from 'internal'
-import { RedactedUser, UsersResponse } from './user.model'
-import { BaseService } from '@txstate-mws/graphql-server'
 
 const usersByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => {
@@ -40,6 +39,11 @@ const usersBySiteIdLoader = new ManyJoinedLoader({
   fetch: async (siteIds: string[]) => {
     return await getUsersBySite(siteIds)
   },
+  idLoader: usersByInternalIdLoader
+})
+
+const usersManagingGroupId = new ManyJoinedLoader({
+  fetch: async (groupIds: string[], direct?: boolean) => await getUsersManagingGroups(groupIds, direct),
   idLoader: usersByInternalIdLoader
 })
 
@@ -99,6 +103,10 @@ export class UserServiceInternal extends BaseService {
     return await this.loaders.get(usersBySiteIdLoader).load(siteId)
   }
 
+  async findGroupManagers (groupId: string, direct?: boolean) {
+    return await this.loaders.get(usersManagingGroupId, direct).load(groupId)
+  }
+
   async findByInternalId (id: number) {
     return await this.loaders.get(usersByInternalIdLoader).load(id)
   }
@@ -129,6 +137,10 @@ export class UserService extends DosGatoService<User, RedactedUser|User> {
 
   async findSiteManagers (siteId: string) {
     return await this.removeUnauthorized(await this.raw.findSiteManagers(siteId))
+  }
+
+  async findGroupManagers (groupId: string, direct?: boolean) {
+    return await this.removeUnauthorized(await this.raw.findGroupManagers(groupId, direct))
   }
 
   async findByInternalId (id: number) {

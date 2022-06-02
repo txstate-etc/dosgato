@@ -76,6 +76,14 @@ export async function getSitesByTemplate (templateIds: number[], atLeastOneTree?
   }
 }
 
+export async function getSitesByGroupIds (groupIds: string[]) {
+  const rows = await db.getall(`SELECT s.*, gs.groupId
+                                FROM sites s
+                                INNER JOIN groups_sites gs ON gs.siteId=s.id
+                                WHERE s.id IN (${db.in([], groupIds)})`, groupIds)
+  return rows.map(r => ({ key: r.groupId, value: new Site(r) }))
+}
+
 export async function createSite (versionedService: VersionedService, userId: string, args: CreateSiteInput) {
   return await db.transaction(async db => {
     // create the site, get the internal id for the page template

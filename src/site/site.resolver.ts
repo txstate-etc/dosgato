@@ -11,7 +11,9 @@ import {
   RoleService,
   DataRoot,
   DataRootService,
-  DataRootFilter
+  DataRootFilter,
+  Group,
+  GroupService
 } from 'internal'
 
 @Resolver(of => Site)
@@ -81,6 +83,11 @@ export class SiteResolver {
   @FieldResolver(returns => [User])
   async managers (@Ctx() ctx: Context, @Root() site: Site) {
     return await ctx.svc(UserService).findSiteManagers(site.id)
+  }
+
+  @FieldResolver(returns => [Group], { description: 'Groups managed by managers of this site.' })
+  async groups (@Ctx() ctx: Context, @Root() site: Site) {
+    return await ctx.svc(GroupService).findBySite(site)
   }
 
   @FieldResolver(returns => [Template], { description: 'All templates that are approved for use in this site.' })

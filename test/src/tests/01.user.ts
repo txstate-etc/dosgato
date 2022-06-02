@@ -3,7 +3,8 @@ import { expect } from 'chai'
 import { query } from '../common'
 
 describe('users', () => {
-  before(async () => {
+  before(async function () {
+    this.timeout(10000)
     let success = false
     while (!success) {
       try {

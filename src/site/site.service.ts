@@ -1,18 +1,10 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import {
-  Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate,
+  Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate, getSitesByGroupIds, undeleteSite,
   PagetreeService, DosGatoService, CreateSiteInput, createSite, VersionedService,
-  SiteResponse, UpdateSiteInput, TemplateService, updateSite, deleteSite, PageService, TemplateServiceInternal
+  SiteResponse, UpdateSiteInput, updateSite, deleteSite, PageService, Group
 } from 'internal'
-import { undeleteSite } from './site.database'
-
-const siteByOrganizationIdLoader = new OneToManyLoader({
-  fetch: async (orgIds: string[]) => {
-    return await getSitesByOrganization(orgIds)
-  },
-  extractKey: (item: Site) => item.organizationId!
-})
 
 const sitesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -20,17 +12,34 @@ const sitesByIdLoader = new PrimaryKeyLoader({
   }
 })
 
+const siteByOrganizationIdLoader = new OneToManyLoader({
+  fetch: async (orgIds: string[]) => {
+    return await getSitesByOrganization(orgIds)
+  },
+  extractKey: (item: Site) => item.organizationId!,
+  idLoader: sitesByIdLoader
+})
+
 const sitesByAssetRootLoader = new PrimaryKeyLoader({
   fetch: async (assetRootIds: number[]) => {
     return await getSites({ assetRootIds })
   },
-  extractId: site => site.rootAssetFolderInternalId
+  extractId: site => site.rootAssetFolderInternalId,
+  idLoader: sitesByIdLoader
 })
 
 const sitesByTemplateIdLoader = new ManyJoinedLoader({
   fetch: async (templateIds: number[], atLeastOneTree?: boolean) => {
     return await getSitesByTemplate(templateIds, atLeastOneTree)
-  }
+  },
+  idLoader: sitesByIdLoader
+})
+
+const sitesByGroupLoader = new ManyJoinedLoader({
+  fetch: async (groupIds: string[]) => {
+    return await getSitesByGroupIds(groupIds)
+  },
+  idLoader: sitesByIdLoader
 })
 
 export class SiteServiceInternal extends BaseService {
@@ -52,6 +61,10 @@ export class SiteServiceInternal extends BaseService {
 
   async findByTemplateId (templateId: number, atLeastOneTree?: boolean) {
     return await this.loaders.get(sitesByTemplateIdLoader, atLeastOneTree).load(templateId)
+  }
+
+  async findByGroup (group: Group) {
+    return await this.loaders.get(sitesByGroupLoader).load(group.id)
   }
 
   async findByPagetreeId (pagetreeId: string) {
@@ -82,6 +95,10 @@ export class SiteService extends DosGatoService<Site> {
 
   async findByTemplateId (templateId: number, atLeastOneTree?: boolean) {
     return await this.removeUnauthorized(await this.raw.findByTemplateId(templateId, atLeastOneTree))
+  }
+
+  async findByGroup (group: Group) {
+    return await this.removeUnauthorized(await this.raw.findByGroup(group))
   }
 
   async findByPagetreeId (pagetreeId: string) {

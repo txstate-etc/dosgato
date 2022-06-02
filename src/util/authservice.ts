@@ -1,12 +1,12 @@
 import { AuthorizedService } from '@txstate-mws/graphql-server'
-import { filterAsync } from 'txstate-utils'
+import { filterAsync, keyby } from 'txstate-utils'
 import {
   Asset, AssetFolder, Data, DataFolder, Page, Site, Template,
   AssetRuleService, AssetRuleGrants, DataRuleService, DataRuleGrants, GlobalRuleService,
   GlobalRuleGrants, PageRuleService, PageRuleGrants, SiteRuleGrants, SiteRuleService,
   TemplateRuleService, TemplateRuleGrants, RoleServiceInternal,
   SiteRuleServiceInternal, PageRuleServiceInternal, AssetRuleServiceInternal, DataRuleServiceInternal,
-  GlobalRuleServiceInternal, GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal, SiteService, DataRoot
+  GlobalRuleServiceInternal, GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal, SiteService, DataRoot, Group
 } from 'internal'
 
 export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ sub: string }, ObjType, RedactedType> {
@@ -28,6 +28,12 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
 
   protected async currentGroups () {
     return await this.svc(GroupServiceInternal).findByUserId(this.login)
+  }
+
+  protected currentGroupsByIdStorage?: Record<string, Group>
+  protected async currentGroupsById (id: string) {
+    this.currentGroupsByIdStorage ??= keyby(await this.currentGroups(), 'id')
+    return this.currentGroupsByIdStorage[id]
   }
 
   protected async currentGlobalRules () {

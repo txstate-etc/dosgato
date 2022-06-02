@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { isNotNull } from 'txstate-utils'
+import { isNotNull, unique } from 'txstate-utils'
 import { User, UserFilter } from 'internal'
 
 function processFilters (filter?: UserFilter) {
@@ -72,6 +72,27 @@ export async function getUsersBySite (siteIds: string[]) {
                                  FROM users INNER JOIN sites_managers ON users.id = sites_managers.userId
                                  WHERE (${where.join(') AND (')})`, binds)
   return users.map(row => ({ key: String(row.siteId), value: new User(row) }))
+}
+
+export async function getUsersManagingGroups (groupIds: string[], direct?: boolean) {
+  if (!groupIds.length) return []
+  const [directManagers, siteManagers] = await Promise.all([
+    db.getall(`SELECT u.*, g.id AS groupId
+               FROM groups g
+               INNER JOIN groups_managers gm ON gm.groupId=g.id
+               INNER JOIN users u ON u.id=gm.userId
+               WHERE g.id IN (${db.in([], groupIds)})`, groupIds),
+    db.getall(`SELECT u.*, g.id AS groupId
+               FROM groups g
+               INNER JOIN groups_sites gs ON gs.groupId=g.id
+               INNER JOIN sites_managers sm ON sm.siteId=gs.siteId
+               INNER JOIN users u ON u.id=sm.userId
+               WHERE g.id IN (${db.in([], groupIds)})`, groupIds)
+  ])
+  const all = !direct ? siteManagers : []
+  if (direct !== false) all.push(...directManagers)
+  return unique(all, row => [row.id, row.groupId])
+    .map(row => ({ key: String(row.groupId), value: new User(row) }))
 }
 
 export async function updateUser (id: string, name: string | undefined, email: string | undefined) {
