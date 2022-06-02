@@ -29,6 +29,11 @@ export class GroupResolver {
     return await ctx.svc(GroupService).getGroupManagers(group.id)
   }
 
+  @FieldResolver(returns => [Group], { nullable: true, description: 'Returns parent group(s), or null if this group is not a subgroup' })
+  async parents (@Ctx() ctx: Context, @Root() group: Group) {
+    return await ctx.svc(GroupService).getSuperGroups(group.id, false)
+  }
+
   @FieldResolver(returns => GroupPermissions, {
     description: `Reveal the simplified results after all authorization rules are taken into account
       for the current user. Makes it easy to light up, disable, or hide buttons in the UI.`

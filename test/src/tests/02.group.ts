@@ -61,4 +61,11 @@ describe('groups', () => {
     expect(roles.includes('site2-editor')).to.be.true
     expect(roles.includes('editor')).to.be.true
   })
+  it('should retrive a group\'s parent group', async () => {
+    const { groups } = await query('{ groups { id name parents { name } } }')
+    const group4 = groups.find((g: any) => g.name === 'group4')
+    expect(group4.parents.map((p: any) => p.name)).to.include('group2')
+    const group5 = groups.find((g: any) => g.name === 'group5')
+    expect(group5.parents.length).to.equal(0)
+  })
 })
