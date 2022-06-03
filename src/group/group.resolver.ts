@@ -53,52 +53,52 @@ export class GroupResolver {
   }
 
   @Mutation(returns => GroupResponse, { description: 'Update the name of an existing group' })
-  async updateGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('name') name: string) {
+  async updateGroup (@Ctx() ctx: Context, @Arg('groupId', type => ID) groupId: string, @Arg('name') name: string) {
     return await ctx.svc(GroupService).update(groupId, name)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Delete a group' })
-  async deleteGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string) {
+  async deleteGroup (@Ctx() ctx: Context, @Arg('groupId', type => ID) groupId: string) {
     return await ctx.svc(GroupService).delete(groupId)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Add a user to groups' })
-  async addUserToGroups (@Ctx() ctx: Context, @Arg('groupIds', type => [ID]) groupIds: string[], @Arg('userId') userId: string) {
+  async addUserToGroups (@Ctx() ctx: Context, @Arg('groupIds', type => [ID]) groupIds: string[], @Arg('userId', type => ID) userId: string) {
     return await ctx.svc(GroupService).addUserToGroups(groupIds, userId)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Remove a user from a group' })
-  async removeUserFromGroups (@Ctx() ctx: Context, @Arg('groupIds', type => [ID]) groupIds: string[], @Arg('userId') userId: string) {
+  async removeUserFromGroups (@Ctx() ctx: Context, @Arg('groupIds', type => [ID]) groupIds: string[], @Arg('userId', type => ID) userId: string) {
     return await ctx.svc(GroupService).removeUserFromGroup(groupIds, userId)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Sets a user\'s group memberships' })
-  async setUserGroups (@Ctx() ctx: Context, @Arg('userId') userId: string, @Arg('groupIds', type => [ID]) groupIds: string[]) {
+  async setUserGroups (@Ctx() ctx: Context, @Arg('userId', type => ID) userId: string, @Arg('groupIds', type => [ID]) groupIds: string[]) {
     return await ctx.svc(GroupService).setUserGroups(userId, groupIds)
   }
 
   @Mutation(returns => GroupResponse, { description: 'Update a user\'s status as a manager of a group' })
-  async setGroupManager (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('userId') userId: string, @Arg('manager', { description: 'true if this user should be a group manager, false if they should not be a group manager' }) manager: boolean) {
+  async setGroupManager (@Ctx() ctx: Context, @Arg('groupId', type => ID) groupId: string, @Arg('userId', type => ID) userId: string, @Arg('manager', { description: 'true if this user should be a group manager, false if they should not be a group manager' }) manager: boolean) {
     return await ctx.svc(GroupService).setGroupManager(groupId, userId, manager)
   }
 
   @Mutation(returns => GroupResponse, { description: "Tightly associate a site with a group. The site's managers may now also manage the group membership. If the site's managers change, the group managers will stay in sync." })
-  async addGroupSite (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('siteId') siteId: string) {
+  async addGroupSite (@Ctx() ctx: Context, @Arg('groupId', type => ID) groupId: string, @Arg('siteId', type => ID) siteId: string) {
     return await ctx.svc(GroupService).addGroupSite(groupId, siteId)
   }
 
   @Mutation(returns => GroupResponse, { description: "Remove the association between a site and a group. The site's managers may no longer manage the group membership." })
-  async removeGroupSite (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('siteId') siteId: string) {
+  async removeGroupSite (@Ctx() ctx: Context, @Arg('groupId', type => ID) groupId: string, @Arg('siteId', type => ID) siteId: string) {
     return await ctx.svc(GroupService).removeGroupSite(groupId, siteId)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Make one group a subgroup of another' })
-  async addSubgroup (@Ctx() ctx: Context, @Arg('parentGroupId') parentGroupId: string, @Arg('childGroupId') childGroupId: string) {
+  async addSubgroup (@Ctx() ctx: Context, @Arg('parentGroupId', type => ID) parentGroupId: string, @Arg('childGroupId', type => ID) childGroupId: string) {
     return await ctx.svc(GroupService).addSubgroup(parentGroupId, childGroupId)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Remove relationship between a group and subgroup' })
-  async removeSubgroup (@Ctx() ctx: Context, @Arg('parentGroupId') parentGroupId: string, @Arg('childGroupId') childGroupId: string) {
+  async removeSubgroup (@Ctx() ctx: Context, @Arg('parentGroupId', type => ID) parentGroupId: string, @Arg('childGroupId', type => ID) childGroupId: string) {
     return await ctx.svc(GroupService).removeSubgroup(parentGroupId, childGroupId)
   }
 }

@@ -94,12 +94,12 @@ export class RoleResolver {
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Add a role to a group' })
-  async addRoleToGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('roleId') roleId: string) {
+  async addRoleToGroup (@Ctx() ctx: Context, @Arg('groupId', type => ID) groupId: string, @Arg('roleId', type => ID) roleId: string) {
     return await ctx.svc(RoleService).addRoleToGroup(groupId, roleId)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Remove a role from a group' })
-  async removeRoleFromGroup (@Ctx() ctx: Context, @Arg('groupId') groupId: string, @Arg('roleId') roleId: string) {
+  async removeRoleFromGroup (@Ctx() ctx: Context, @Arg('groupId', type => ID) groupId: string, @Arg('roleId', type => ID) roleId: string) {
     return await ctx.svc(RoleService).removeRoleFromGroup(groupId, roleId)
   }
 
