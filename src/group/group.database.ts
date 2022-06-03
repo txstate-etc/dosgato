@@ -68,6 +68,9 @@ function processFilters (filter?: GroupFilter) {
     `)
     where.push(`gmu.login IN (${db.in(binds, filter.managerIds)}) OR gsu.login IN (${db.in(binds, filter.managerIds)})`)
   }
+  if (filter?.root) {
+    where.push('groups.id NOT IN (SELECT childId FROM groups_groups)')
+  }
   return { binds, where, joins }
 }
 

@@ -1,12 +1,12 @@
 import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Arg, Ctx, FieldResolver, Mutation, Query, Resolver, Root, ID } from 'type-graphql'
-import { Role, RoleService, User, UserService, Group, GroupPermissions, GroupResponse, GroupService, Site, SiteService } from 'internal'
+import { Role, RoleService, User, UserService, Group, GroupFilter, GroupPermissions, GroupResponse, GroupService, Site, SiteService } from 'internal'
 
 @Resolver(of => Group)
 export class GroupResolver {
   @Query(returns => [Group])
-  async groups (@Ctx() ctx: Context) {
-    return await ctx.svc(GroupService).find()
+  async groups (@Ctx() ctx: Context, @Arg('filter', { nullable: true }) filter?: GroupFilter) {
+    return await ctx.svc(GroupService).find(filter)
   }
 
   @FieldResolver(returns => [User], { description: 'Users that are members of this group, either directly or through a subgroup.' })

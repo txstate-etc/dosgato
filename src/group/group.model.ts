@@ -22,6 +22,9 @@ export class GroupFilter {
 
   @Field(type => [ID], { nullable: true, description: 'Return groups managed by any of the specified manager ids.' })
   managerIds?: string[]
+
+  @Field({ nullable: true, description: 'true -> Return only groups that are not subgroups' })
+  root?: boolean
 }
 
 @ObjectType()
