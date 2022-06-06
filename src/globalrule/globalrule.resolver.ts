@@ -3,7 +3,7 @@ import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
 import {
   Role, RoleService, GlobalRule, GlobalRulePermissions, CreateGlobalRuleInput,
   GlobalRuleResponse, GlobalRuleService, UpdateGlobalRuleInput
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => GlobalRule)
 export class GlobalRuleResolver {

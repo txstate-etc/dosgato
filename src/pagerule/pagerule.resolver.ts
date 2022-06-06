@@ -4,7 +4,7 @@ import { isNull } from 'txstate-utils'
 import {
   Pagetree, Role, RoleService, Site, SiteService, CreatePageRuleInput, PageRule,
   PageRulePermissions, PageRuleResponse, UpdatePageRuleInput, PageRuleService, PagetreeService
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => PageRule)
 export class PageRuleResolver {

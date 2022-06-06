@@ -1,4 +1,4 @@
-import { DataEntryData, Index, templateRegistry, processLink, extractLinksFromText, getKeywords } from 'internal'
+import { DataEntryData, Index, templateRegistry, processLink, extractLinksFromText, getKeywords } from '../internal.js'
 
 export function getDataIndexes (data: DataEntryData): Index[] {
   const storage: Record<string, Set<string>> = {}

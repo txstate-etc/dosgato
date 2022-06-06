@@ -1,6 +1,6 @@
 import { Context } from '@txstate-mws/graphql-server'
 import { Arg, Ctx, FieldResolver, Query, Resolver } from 'type-graphql'
-import { AssetService, DataService, GroupService, PageService, RoleService, UrlSafeString, SiteService, Access } from 'internal'
+import { AssetService, DataService, GroupService, PageService, RoleService, UrlSafeString, SiteService, Access } from '../internal.js'
 
 @Resolver(of => Access)
 export class AccessResolver {

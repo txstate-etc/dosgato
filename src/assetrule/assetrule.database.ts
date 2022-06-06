@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
-import { AssetRule, AssetRuleFilter, CreateAssetRuleInput, UpdateAssetRuleInput } from 'internal'
+import { AssetRule, AssetRuleFilter, CreateAssetRuleInput, UpdateAssetRuleInput } from '../internal.js'
 
 function processFilters (filter: AssetRuleFilter) {
   const where: string[] = []

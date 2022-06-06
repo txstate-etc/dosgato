@@ -1,8 +1,12 @@
 {
   "name": "@dosgato/api",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A CMS designed for large institutions with thousands of editors and hundreds of subsites.",
-  "main": "index.js",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "typings": "./dist/index.d.ts",
   "dependencies": {
     "@dosgato/templating": "^0.0.8",
     "@fastify/multipart": "^6.0.0",
@@ -13,8 +17,6 @@
     "mime-types": "^2.1.35",
     "mysql2-async": "^1.0.12",
     "nanoid": "^3.3.2",
-    "source-map-support": "^0.5.21",
-    "tsconfig-paths": "^3.12.0",
     "txstate-utils": "^1.7.0",
     "type-graphql": "^1.1.1"
   },
@@ -25,19 +27,24 @@
     "@types/source-map-support": "^0.5.4",
     "eslint-config-standard-with-typescript": "^20.0.0",
     "nodemon": "^2.0.12",
+    "source-map-support": "^0.5.21",
     "ts-node": "^10.1.0",
-    "typescript": "^4.5.2"
+    "typescript": "^4.7.3"
   },
   "scripts": {
+    "prepublishOnly": "npm run build",
     "test": "./test.sh",
-    "compile": "rm -rf dist && tsc -p ./",
+    "build": "rm -rf dist && tsc",
     "start:dev": "nodemon",
-    "start": "TS_NODE_BASEURL=./dist node -r tsconfig-paths/register ./dist/run.js"
+    "start": "node ./dist/run.js"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/txstate-etc/dosgato"
   },
+  "files": [
+    "dist"
+  ],
   "author": "Nick Wing",
   "license": "MIT"
 }

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import { expect } from 'chai'
-import { query } from '../common'
+import { query } from '../common.js'
 
 describe('roles', () => {
   it('should retrieve roles by id', async () => {

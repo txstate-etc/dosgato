@@ -6,7 +6,7 @@ import {
   DosGatoService, GroupService, User, UserFilter, UserResponse, getUsers,
   getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId, RedactedUser, UsersResponse,
   UpdateUserInput, updateUser, disableUsers, enableUsers, getUsersManagingGroups
-} from 'internal'
+} from '../internal.js'
 
 const usersByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => {

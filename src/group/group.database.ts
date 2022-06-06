@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { Cache, hashify, unique } from 'txstate-utils'
-import { Group, GroupFilter } from 'internal'
+import { Group, GroupFilter } from '../internal.js'
 
 class HierarchyGroup extends Group {
   children: HierarchyGroup[]

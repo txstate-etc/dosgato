@@ -6,7 +6,7 @@ import {
   groupHierarchyCache, createGroup, updateGroup, deleteGroup, addGroupSite, removeGroupSite,
   addUserToGroups, removeUserFromGroups, setGroupManager, removeSubgroup, addSubgroup,
   UserService, DosGatoService, UserServiceInternal, setUserGroups, getGroupsWithManager, User, Site, getGroupsWithSite
-} from 'internal'
+} from '../internal.js'
 
 const groupsByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

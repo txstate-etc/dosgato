@@ -4,7 +4,7 @@ import {
   getGlobalRules, GlobalRule, DosGatoService, tooPowerfulHelper, RoleService,
   CreateGlobalRuleInput, createGlobalRule, GlobalRuleResponse, UpdateGlobalRuleInput,
   updateGlobalRule, deleteGlobalRule, RoleServiceInternal
-} from 'internal'
+} from '../internal.js'
 
 const globalRulesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

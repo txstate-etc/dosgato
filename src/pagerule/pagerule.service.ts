@@ -1,12 +1,11 @@
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
-  Page, PageService, PagetreeService, DosGatoService, comparePathsWithMode,
+  Page, PageRuleFilter, DosGatoService, comparePathsWithMode,
   tooPowerfulHelper, getPageRules, PageRule, RulePathMode, SiteService, CreatePageRuleInput,
   RoleService, createPageRule, PageRuleResponse, UpdatePageRuleInput, updatePageRule, deletePageRule, RoleServiceInternal, PagetreeServiceInternal, PageServiceInternal
-} from 'internal'
+} from '../internal.js'
 import { Cache, filterAsync } from 'txstate-utils'
-import { PageRuleFilter } from './pagerule.model'
 
 const pageRulesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

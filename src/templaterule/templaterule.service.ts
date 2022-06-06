@@ -5,7 +5,7 @@ import {
   Template, DosGatoService, tooPowerfulHelper, getTemplateRules, TemplateRule, TemplateRuleFilter,
   CreateTemplateRuleInput, RoleService, createTemplateRule, TemplateRuleResponse, updateTemplateRule,
   UpdateTemplateRuleInput, deleteTemplateRule, RoleServiceInternal
-} from 'internal'
+} from '../internal.js'
 
 const templateRulesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

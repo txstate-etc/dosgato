@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { PageRule, PageRuleFilter, CreatePageRuleInput, UpdatePageRuleInput } from 'internal'
+import { PageRule, PageRuleFilter, CreatePageRuleInput, UpdatePageRuleInput } from '../internal.js'
 import { isNotNull } from 'txstate-utils'
 
 function processFilters (filter: PageRuleFilter) {

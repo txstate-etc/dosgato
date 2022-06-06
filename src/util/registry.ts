@@ -1,7 +1,7 @@
 import { APITemplateType, APITemplate } from '@dosgato/templating'
 import { eachConcurrent, keyby } from 'txstate-utils'
 import db from 'mysql2-async/db'
-import { TemplateArea } from 'internal'
+import { TemplateArea } from '../internal.js'
 
 interface APITemplateImpl extends Omit<APITemplate, 'areas'> {}
 class APITemplateImpl implements Omit<APITemplate, 'areas'> {

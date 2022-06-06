@@ -4,7 +4,7 @@ import {
   Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate, getSitesByGroupIds, undeleteSite,
   PagetreeService, DosGatoService, CreateSiteInput, createSite, VersionedService,
   SiteResponse, UpdateSiteInput, updateSite, deleteSite, PageService, Group
-} from 'internal'
+} from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

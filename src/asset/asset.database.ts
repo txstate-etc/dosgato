@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { isNotNull, stringify } from 'txstate-utils'
-import { Asset, AssetFilter, AssetResize, VersionedService, CreateAssetInput, AssetFolder } from 'internal'
+import { Asset, AssetFilter, AssetResize, VersionedService, CreateAssetInput, AssetFolder } from '../internal.js'
 import { DateTime } from 'luxon'
 
 function processFilters (filter?: AssetFilter) {

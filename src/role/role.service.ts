@@ -5,7 +5,7 @@ import {
   DosGatoService, GroupService, UserService, Role, RoleFilter, RoleResponse,
   addRoleToUser, createRole, deleteRole, getRoles, getRolesWithGroup,
   getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup, GroupServiceInternal
-} from 'internal'
+} from '../internal.js'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

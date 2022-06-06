@@ -5,7 +5,7 @@ import {
   Page, PageService, PageFilter, Role, Site, SiteService, Template, TemplateFilter, TemplateService,
   Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, PagetreeType,
   SiteRuleService, RoleService, CreatePagetreeInput
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => Pagetree)
 export class PagetreeResolver {

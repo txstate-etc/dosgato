@@ -1,12 +1,13 @@
 /* eslint-disable no-multi-str */
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { applyPatch, compare } from 'fast-json-patch'
+import jsonPatch from 'fast-json-patch'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { clone } from 'txstate-utils'
-import { Index, IndexJoinedStorage, IndexStorage, IndexStringified, NotFoundError, SearchRule, Tag, UpdateConflictError, Version, Versioned, VersionedStorage, VersionStorage } from 'internal'
+import { Index, IndexJoinedStorage, IndexStorage, IndexStringified, NotFoundError, SearchRule, Tag, UpdateConflictError, Version, Versioned, VersionedStorage, VersionStorage } from '../internal.js'
+const { applyPatch, compare } = jsonPatch
 
 const storageLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

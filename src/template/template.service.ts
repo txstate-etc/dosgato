@@ -4,7 +4,7 @@ import {
   Template, TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
   DosGatoService, authorizeForPagetree, deauthorizeForPagetree,
   authorizeForSite, deauthorizeForSite, setUniversal, PagetreeServiceInternal, SiteServiceInternal
-} from 'internal'
+} from '../internal.js'
 
 const templatesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => {

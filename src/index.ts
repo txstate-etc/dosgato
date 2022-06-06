@@ -7,7 +7,7 @@ import { FastifyTxStateOptions } from 'fastify-txstate'
 import { promises as fsp } from 'fs'
 import { GraphQLScalarType } from 'graphql'
 import { NonEmptyArray } from 'type-graphql'
-import { migrations } from './migrations'
+import { migrations } from './migrations.js'
 import {
   DateTimeScalar, UrlSafeString, UrlSafeStringScalar,
   AssetPermissionsResolver, AssetResolver,
@@ -30,7 +30,7 @@ import {
   AccessResolver, DBMigration,
   TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, handleUpload, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver, DataRootPermissionsResolver
-} from 'internal'
+} from './internal.js'
 
 async function getEnabledUser (ctx: Context) {
   await ctx.waitForAuth()
@@ -149,4 +149,4 @@ export class DGServer {
   }
 }
 
-export * from 'internal'
+export * from './internal.js'

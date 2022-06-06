@@ -3,7 +3,7 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'ty
 import {
   Group, GroupService, Role, RoleService, User, UserFilter,
   UserPermissions, UserResponse, UpdateUserInput, UserService, UsersResponse
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => User)
 export class UserResolver {

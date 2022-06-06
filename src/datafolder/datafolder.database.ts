@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
 import { nanoid } from 'nanoid'
-import { DataFolder, DataFolderFilter, Site, DeletedFilter } from 'internal'
+import { DataFolder, DataFolderFilter, Site, DeletedFilter } from '../internal.js'
 
 export async function getDataFolders (filter?: DataFolderFilter) {
   const where: string[] = []

@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { DataRule, DataRuleFilter, CreateDataRuleInput, UpdateDataRuleInput } from 'internal'
+import { DataRule, DataRuleFilter, CreateDataRuleInput, UpdateDataRuleInput } from '../internal.js'
 import { isNotNull } from 'txstate-utils'
 
 function processFilters (filter: DataRuleFilter) {

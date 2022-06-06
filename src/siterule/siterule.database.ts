@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
-import { SiteRule, SiteRuleFilter, CreateSiteRuleInput, UpdateSiteRuleInput } from 'internal'
+import { SiteRule, SiteRuleFilter, CreateSiteRuleInput, UpdateSiteRuleInput } from '../internal.js'
 
 function processFilters (filter: SiteRuleFilter) {
   const binds: string[] = []

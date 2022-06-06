@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { unique } from 'txstate-utils'
-import { Site, SiteFilter, CreateSiteInput, PagetreeType, VersionedService, UpdateSiteInput, formatSavedAtVersion } from 'internal'
+import { Site, SiteFilter, CreateSiteInput, PagetreeType, VersionedService, UpdateSiteInput, formatSavedAtVersion } from '../internal.js'
 import { nanoid } from 'nanoid'
 
 const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']

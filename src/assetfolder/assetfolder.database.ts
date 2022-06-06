@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { AssetFolder, AssetFolderFilter, CreateAssetFolderInput } from 'internal'
+import { AssetFolder, AssetFolderFilter, CreateAssetFolderInput } from '../internal.js'
 
 async function processFilters (filter?: AssetFolderFilter) {
   const where: any[] = []

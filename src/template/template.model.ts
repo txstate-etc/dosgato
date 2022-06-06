@@ -1,5 +1,5 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { templateRegistry, JsonData, UrlSafeString } from 'internal'
+import { templateRegistry, JsonData, UrlSafeString } from '../internal.js'
 
 export enum TemplateType {
   PAGE = 'page',

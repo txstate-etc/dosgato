@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { TemplateFilter, Template } from 'internal'
+import { TemplateFilter, Template } from '../internal.js'
 
 const columns = ['templates.id', 'templates.key', 'templates.name', 'templates.type', 'templates.deleted']
 

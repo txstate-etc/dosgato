@@ -5,7 +5,7 @@ import {
   Role, RoleService, Site, SiteService, Template, CreateDataRuleInput,
   DataRule, DataRulePermissions, DataRuleResponse, UpdateDataRuleInput,
   TemplateService, DataRuleService
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => DataRule)
 export class DataRuleResolver {

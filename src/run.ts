@@ -1,9 +1,9 @@
 /* eslint-disable import/first */
 import { install } from 'source-map-support'
 install()
-import { DGServer } from 'index'
-import { fixtures } from 'fixtures'
-import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData } from 'fixturetemplates'
+import { DGServer } from './index.js'
+import { fixtures } from './fixtures.js'
+import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData } from './fixturetemplates.js'
 
 async function main () {
   const server = new DGServer()

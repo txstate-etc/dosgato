@@ -1,5 +1,5 @@
 import { PageData } from '@dosgato/templating'
-import { extractLinksFromText, getKeywords, processLink, templateRegistry, Index, collectComponents } from 'internal'
+import { extractLinksFromText, getKeywords, processLink, templateRegistry, Index, collectComponents } from '../internal.js'
 
 export function getPageIndexes (page: PageData): Index[] {
   const storage: Record<string, Set<string>> = {}

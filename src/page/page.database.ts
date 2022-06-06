@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, mapConcurrent, unique, someConcurrent, filterAsync, sortby, eachConcurrent } from 'txstate-utils'
-import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter } from 'internal'
+import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter } from '../internal.js'
 
 async function convertPathsToIDPaths (pathstrings: string[]) {
   const paths = pathstrings.map(normalizePath).map(p => p.split(/\//).filter(isNotBlank))

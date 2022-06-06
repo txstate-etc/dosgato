@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
-import { GlobalRule, GlobalRuleFilter, CreateGlobalRuleInput, UpdateGlobalRuleInput } from 'internal'
+import { GlobalRule, GlobalRuleFilter, CreateGlobalRuleInput, UpdateGlobalRuleInput } from '../internal.js'
 
 export async function getGlobalRules (filter: GlobalRuleFilter) {
   const binds: string[] = []

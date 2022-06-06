@@ -2,7 +2,7 @@ import { DateTime } from 'luxon'
 import { isNotNull, optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
-import { UrlSafeString, DeletedFilter } from 'internal'
+import { UrlSafeString, DeletedFilter } from '../internal.js'
 
 @ObjectType({ description: 'A folder that contains data objects. Each folder can only accept data objects with one particular template. Data folders are a single level organizational tool (folders do not contain more folders) and optional (data may not belong to any folder at all).' })
 export class DataFolder {

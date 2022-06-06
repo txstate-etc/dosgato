@@ -1,5 +1,5 @@
 import { ObjectType, Field, ID, InputType, registerEnumType } from 'type-graphql'
-import { Site, Template } from 'internal'
+import { Site, Template } from '../internal.js'
 
 @ObjectType({ description: 'Each site has an array of dataroots, one per registered templateKey. It contains the data and datafolders of that template type in the site. There is also a set of dataroots for global data.' })
 export class DataRoot {

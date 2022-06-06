@@ -4,7 +4,7 @@ import { isNull } from 'txstate-utils'
 import {
   Role, RoleService, Site, SiteService, AssetRule, AssetRulePermissions, AssetRuleResponse,
   CreateAssetRuleInput, UpdateAssetRuleInput, AssetRuleService
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => AssetRule)
 export class AssetRuleResolver {

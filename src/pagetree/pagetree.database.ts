@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { unique } from 'txstate-utils'
 import { nanoid } from 'nanoid'
-import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, CreatePagetreeInput, formatSavedAtVersion } from 'internal'
+import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, CreatePagetreeInput, formatSavedAtVersion } from '../internal.js'
 
 function processFilters (filter?: PagetreeFilter) {
   const binds: string[] = []

@@ -7,7 +7,7 @@ import {
   User, UserService, ObjectVersion, VersionedService, CreatePageInput, Page, PageFilter,
   PagePermission, PagePermissions, PageResponse, PagesResponse, PageService, PageRuleService, RoleService,
   PagetreeType, UpdatePageInput, TemplateService
-} from 'internal'
+} from '../internal.js'
 import { PageData } from '@dosgato/templating'
 
 @Resolver(of => Page)

@@ -1,15 +1,15 @@
 import path from 'path'
 import { isNotBlank } from 'txstate-utils'
 
-export * from './authservice'
-export * from './indexing'
-export * from './migrations'
-export * from './registry'
-export * from './rules'
-export * from './sharedtypes'
-export * from './mutationlogger'
-export * from './filehandler'
-export * from './dates'
+export * from './authservice.js'
+export * from './indexing.js'
+export * from './migrations.js'
+export * from './registry.js'
+export * from './rules.js'
+export * from './sharedtypes.js'
+export * from './mutationlogger.js'
+export * from './filehandler.js'
+export * from './dates.js'
 
 export function normalizePath (path: string) {
   return (path.startsWith('/') ? '' : '/') + (path.endsWith('/') ? path.substr(0, -1) : path)

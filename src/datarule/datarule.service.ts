@@ -4,9 +4,8 @@ import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   tooPowerfulHelper, DosGatoService, Data, DataService, DataFolder, getDataRules, DataRule,
   createDataRule, CreateDataRuleInput, updateDataRule, UpdateDataRuleInput, deleteDataRule,
-  RoleService, DataRuleResponse, RoleServiceInternal, DataServiceInternal, DataFolderService
-} from 'internal'
-import { DataRuleFilter } from './datarule.model'
+  RoleService, DataRuleFilter, DataRuleResponse, RoleServiceInternal, DataServiceInternal, DataFolderService
+} from '../internal.js'
 
 const dataRulesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

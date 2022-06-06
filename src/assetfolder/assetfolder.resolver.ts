@@ -4,7 +4,7 @@ import {
   Asset, AssetFilter, Role, RoleService, User, AssetFolder, AssetFolderFilter,
   AssetFolderPermission, AssetFolderPermissions, AssetFolderService, AssetRuleService,
   UserService, AssetFolderResponse, CreateAssetFolderInput
-} from 'internal'
+} from '../internal.js'
 import { isNull } from 'txstate-utils'
 
 @Resolver(of => AssetFolder)

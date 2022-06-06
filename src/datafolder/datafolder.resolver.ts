@@ -6,7 +6,7 @@ import {
   User, UserService, Role, DataFolder, DataFolderPermission, DataFolderPermissions,
   DataFolderService, CreateDataFolderInput, DataFolderResponse, DataFoldersResponse,
   DataRuleService, RoleService, DataFolderFilter, DataRoot, DataRootService
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => DataFolder)
 export class DataFolderResolver {

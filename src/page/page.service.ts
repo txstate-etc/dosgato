@@ -7,7 +7,7 @@ import {
   deletePages, renamePage, TemplateService, PagetreeService, SiteService,
   TemplateFilter, Template, getPageIndexes, UpdatePageInput, undeletePages,
   validatePage, DeletedFilter, copyPages
-} from 'internal'
+} from '../internal.js'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({

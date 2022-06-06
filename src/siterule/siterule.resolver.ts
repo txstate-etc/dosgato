@@ -4,7 +4,7 @@ import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
 import {
   Role, RoleService, Site, SiteService, CreateSiteRuleInput, SiteRule,
   SiteRulePermissions, SiteRuleResponse, UpdateSiteRuleInput, SiteRuleService
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => SiteRule)
 export class SiteRuleResolver {

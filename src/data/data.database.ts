@@ -1,8 +1,7 @@
 import db from 'mysql2-async/db'
 import { isNotNull, unique, sortby } from 'txstate-utils'
 import { Queryable } from 'mysql2-async'
-import { formatSavedAtVersion } from '../util'
-import { Data, DataFilter, VersionedService, CreateDataInput, DataServiceInternal, getDataIndexes, DataFolder, Site, MoveDataTarget } from 'internal'
+import { formatSavedAtVersion, Data, DataFilter, VersionedService, CreateDataInput, DataServiceInternal, getDataIndexes, DataFolder, Site, MoveDataTarget } from '../internal.js'
 
 function processFilters (filter?: DataFilter) {
   const where: string[] = []

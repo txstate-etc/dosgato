@@ -4,7 +4,7 @@ import {
   AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
   CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
   moveAssetFolder, deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter, normalizePath
-} from 'internal'
+} from '../internal.js'
 import { isNull, isNotNull, unique, mapConcurrent, intersect, isNotBlank, keyby } from 'txstate-utils'
 
 const assetFolderByInternalIdLoader = new PrimaryKeyLoader({

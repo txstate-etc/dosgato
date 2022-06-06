@@ -6,7 +6,7 @@ import {
   DataServiceInternal, CreateDataFolderInput, createDataFolder, DataFolderResponse,
   renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
   SiteService, DataFoldersResponse, moveDataFolders, DeletedFilter, DataRoot
-} from 'internal'
+} from '../internal.js'
 
 const dataFoldersByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

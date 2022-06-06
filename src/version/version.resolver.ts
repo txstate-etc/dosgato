@@ -1,6 +1,6 @@
 import { Context } from '@txstate-mws/graphql-server'
 import { Ctx, FieldResolver, Resolver, Root } from 'type-graphql'
-import { JsonData, User, UserService, ObjectVersion, VersionedService } from 'internal'
+import { JsonData, User, UserService, ObjectVersion, VersionedService } from '../internal.js'
 
 @Resolver(of => ObjectVersion)
 export class VersionResolver {

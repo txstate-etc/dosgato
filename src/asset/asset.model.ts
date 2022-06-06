@@ -3,7 +3,7 @@ import { isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { extension } from 'mime-types'
-import { JsonData, UrlSafeString } from 'internal'
+import { JsonData, UrlSafeString } from '../internal.js'
 
 @ObjectType({ description: 'Asset attributes only available for visual inline assets like images, animated GIFS, or videos.' })
 export class BoxAttributes {

@@ -5,7 +5,7 @@ import {
   getPagetreesByTemplate, SiteService, DosGatoService, PagetreeType, PagetreeResponse,
   promotePagetree, createPagetree, CreatePagetreeInput, VersionedService, deletePagetree,
   undeletePagetree, archivePagetree, SiteServiceInternal
-} from 'internal'
+} from '../internal.js'
 
 const PagetreesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

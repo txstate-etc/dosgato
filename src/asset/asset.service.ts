@@ -6,7 +6,7 @@ import {
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, CreateAssetInput,
   createAsset, VersionedService, AssetResponse, FileSystemHandler, deleteAsset, undeleteAsset,
   moveAsset, popPath, basename
-} from 'internal'
+} from '../internal.js'
 
 const assetsByIdLoader = new PrimaryKeyLoader({
   fetch: async (dataIds: string[]) => await getAssets({ ids: dataIds })

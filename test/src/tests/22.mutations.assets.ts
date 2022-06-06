@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
-import { query, queryAs, postMultipart } from '../common'
+import { query, queryAs, postMultipart } from '../common.js'
 import { DateTime } from 'luxon'
 
 chai.use(chaiAsPromised)

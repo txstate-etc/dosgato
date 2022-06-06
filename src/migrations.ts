@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { init } from './createdb'
-import { type DBMigration, VersionedService } from 'internal'
+import { init } from './createdb.js'
+import { type DBMigration, VersionedService } from './internal.js'
 import { sortby } from 'txstate-utils'
 
 const dgMigrations: DBMigration[] = [

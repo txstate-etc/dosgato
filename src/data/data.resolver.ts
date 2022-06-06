@@ -7,7 +7,7 @@ import {
   TemplateService, User, UserService, ObjectVersion, VersionedService, Data,
   DataFilter, DataPermission, DataPermissions, DataService, DataResponse, DataMultResponse,
   CreateDataInput, UpdateDataInput, DataRuleService, RoleService, MoveDataTarget
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => Data)
 export class DataResolver {

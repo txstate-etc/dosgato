@@ -3,7 +3,7 @@ import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'ty
 import {
   Data, DataFilter, DataService, Page, PageFilter, Pagetree, PagetreeService, Site, SiteService,
   PageService, Template, TemplateArea, TemplateFilter, TemplatePermissions, TemplateService, TemplateType
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => Template)
 export class TemplateResolver {

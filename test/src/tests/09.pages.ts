@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import { expect } from 'chai'
-import { query, queryAs } from '../common'
+import { query, queryAs } from '../common.js'
 
 describe('pages', () => {
   it('should get pages, filtered by id', async () => {

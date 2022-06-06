@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import { ObjectType, Field, Int } from 'type-graphql'
-import { Version } from 'internal'
+import { Version } from '../internal.js'
 
 @ObjectType('Version', {
   description: `This is metadata pertaining to a historical version of something versionable

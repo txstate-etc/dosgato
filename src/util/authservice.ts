@@ -7,7 +7,7 @@ import {
   TemplateRuleService, TemplateRuleGrants, RoleServiceInternal,
   SiteRuleServiceInternal, PageRuleServiceInternal, AssetRuleServiceInternal, DataRuleServiceInternal,
   GlobalRuleServiceInternal, GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal, SiteService, DataRoot, Group
-} from 'internal'
+} from '../internal.js'
 
 export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ sub: string }, ObjType, RedactedType> {
   protected get login () {

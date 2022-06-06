@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { TemplateRule, TemplateRuleFilter, CreateTemplateRuleInput, UpdateTemplateRuleInput } from 'internal'
+import { TemplateRule, TemplateRuleFilter, CreateTemplateRuleInput, UpdateTemplateRuleInput } from '../internal.js'
 import { isNotNull } from 'txstate-utils'
 
 function processFilters (filter: TemplateRuleFilter) {

@@ -4,7 +4,7 @@ import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
 import {
   Role, RoleService, Template, TemplateService, TemplateRule, TemplateRulePermissions,
   TemplateRuleResponse, TemplateRuleService, CreateTemplateRuleInput, UpdateTemplateRuleInput
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => TemplateRule)
 export class TemplateRuleResolver {

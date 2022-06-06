@@ -2,12 +2,11 @@ import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Cache, filterAsync } from 'txstate-utils'
 import {
-  Asset, AssetRule, AssetRuleResponse, AssetService, AssetFolder, AssetFolderService,
+  Asset, AssetRule, AssetRuleResponse, AssetRuleFilter, AssetFolder,
   comparePathsWithMode, createAssetRule, CreateAssetRuleInput, DosGatoService,
   getAssetRules, RulePathMode, RoleService, tooPowerfulHelper, UpdateAssetRuleInput,
   updateAssetRule, deleteAssetRule, AssetServiceInternal, AssetFolderServiceInternal, RoleServiceInternal
-} from 'internal'
-import { AssetRuleFilter } from './assetrule.model'
+} from '../internal.js'
 
 const assetRulesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

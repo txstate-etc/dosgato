@@ -1,7 +1,7 @@
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { RuleType } from 'internal'
+import { RuleType } from '../internal.js'
 
 export enum RulePathMode {
   SELF = 'self',

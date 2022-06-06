@@ -6,7 +6,7 @@ import {
   AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
   RoleService, AssetResponse, CreateAssetInput, UpdateAssetInput
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => Asset)
 export class AssetResolver {

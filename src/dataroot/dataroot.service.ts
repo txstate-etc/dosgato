@@ -1,6 +1,5 @@
-import { DataFolder, DataRoot, DosGatoService, Site, SiteService, SiteServiceInternal, Template, TemplateService, TemplateType } from 'internal'
 import { intersect, isNotNull, keyby } from 'txstate-utils'
-import { DataRootFilter } from './dataroot.model'
+import { DataFolder, DataRoot, DataRootFilter, DosGatoService, Site, SiteService, SiteServiceInternal, Template, TemplateService, TemplateType } from '../internal.js'
 
 export class DataRootService extends DosGatoService<DataRoot> {
   templatesById?: Map<number, Template>

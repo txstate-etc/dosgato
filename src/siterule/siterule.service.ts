@@ -5,7 +5,7 @@ import {
   Site, DosGatoService, tooPowerfulHelper, getSiteRules, SiteRule, SiteRuleFilter,
   CreateSiteRuleInput, RoleService, createSiteRule, SiteRuleResponse, UpdateSiteRuleInput,
   deleteSiteRule, updateSiteRule, Pagetree, SiteService, RoleServiceInternal
-} from 'internal'
+} from '../internal.js'
 
 const siteRulesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

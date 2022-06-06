@@ -1,5 +1,5 @@
 import { ComponentData, PageData } from '@dosgato/templating'
-import { templateRegistry } from 'internal'
+import { templateRegistry } from '../internal.js'
 
 async function validateRecurse (data: ComponentData, path: string[]) {
   const validator = templateRegistry.get(data.templateKey).validate

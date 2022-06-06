@@ -1,6 +1,6 @@
 import { LinkDefinition } from '@dosgato/templating'
 import { stringify } from 'txstate-utils'
-import { stopwords } from './stopwords'
+import { stopwords } from './stopwords.js'
 
 export function extractLinksFromText (text: string) {
   const matches = text.matchAll(/{.*"type"\s?:\s+"\w+".*?}/gi)

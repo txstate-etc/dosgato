@@ -8,7 +8,7 @@ import {
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, MoveDataTarget, moveDataEntries,
   DataFolder, Site, TemplateService, DataRoot
-} from 'internal'
+} from '../internal.js'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => await getData({ internalIds }),

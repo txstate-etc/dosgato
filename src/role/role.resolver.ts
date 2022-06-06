@@ -5,7 +5,7 @@ import {
   PageRule, PageRuleService, SiteRule, SiteRuleFilter, SiteRuleService, Group, GroupFilter,
   GroupService, User, UserFilter, UserService, Role, RoleFilter, RolePermissions, RoleResponse,
   RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => Role)
 export class RoleResolver {

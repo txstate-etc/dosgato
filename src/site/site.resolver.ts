@@ -14,7 +14,7 @@ import {
   DataRootFilter,
   Group,
   GroupService
-} from 'internal'
+} from '../internal.js'
 
 @Resolver(of => Site)
 export class SiteResolver {

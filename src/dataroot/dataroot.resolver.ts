@@ -1,6 +1,6 @@
 import { Arg, Ctx, FieldResolver, Query, Resolver, Root } from 'type-graphql'
 import { Context } from '@txstate-mws/graphql-server'
-import { Data, DataFilter, DataFolder, DataFolderFilter, DataFolderService, DataRoot, DataRootFilter, DataRootPermissions, DataRootService, DataService } from 'internal'
+import { Data, DataFilter, DataFolder, DataFolderFilter, DataFolderService, DataRoot, DataRootFilter, DataRootPermissions, DataRootService, DataService } from '../internal.js'
 
 @Resolver(of => DataRoot)
 export class DataRootResolver {

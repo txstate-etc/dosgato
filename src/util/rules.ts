@@ -1,4 +1,4 @@
-import { AssetRule, DataRule, GlobalRule, PageRule, RulePathMode, SiteRule, TemplateRule } from 'internal'
+import { AssetRule, DataRule, GlobalRule, PageRule, RulePathMode, SiteRule, TemplateRule } from '../internal.js'
 
 type Rule = AssetRule|DataRule|GlobalRule|PageRule|SiteRule|TemplateRule
 

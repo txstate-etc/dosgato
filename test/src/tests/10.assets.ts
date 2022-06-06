@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import { hashify } from 'txstate-utils'
-import { query, queryAs } from '../common'
+import { query, queryAs } from '../common.js'
 
 describe('assetfolders', () => {
   let testSiteId: string
