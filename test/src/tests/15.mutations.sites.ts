@@ -93,4 +93,14 @@ describe('sites mutations', () => {
   it('should not allow an unauthorized user to undelete a site', async () => {
     await expect(queryAs('ed07', 'mutation UndeleteSite ($id: ID!) { undeleteSite (siteId: $id) { success } }', { id: 1 })).to.be.rejected
   })
+  it('should allow a site manager to manage group membership of a group associated with the site', async () => {
+    const { site: siteK } = await createSite('newsiteK')
+    await query('mutation UpdateSite ($id: ID!, $args: UpdateSiteInput!) { updateSite (siteId:$id, args: $args) { success } }', { id: siteK.id, args: { managerIds: ['ed09'] } })
+    const { createGroup: { group } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { group { id name } } }', { name: 'siteKGroup' })
+    await query('mutation AddGroupSite ($groupId: ID!, $siteId: ID!) { addGroupSite (groupId: $groupId, siteId: $siteId) { success } }', { groupId: group.id, siteId: siteK.id })
+    const { groups } = await query(`{ groups(filter: { ids: [${group.id}] }) { name managers { id } } }`)
+    expect(groups[0].managers[0].id).to.equal('ed09')
+    const { addUserToGroups: { success } } = await queryAs('ed09', 'mutation AddUserToGroups ($groupIds: [ID!]!, $userId: ID!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [group.id], userId: 'su03' })
+    expect(success).to.be.true
+  })
 })

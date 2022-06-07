@@ -80,8 +80,8 @@ export async function getSitesByGroupIds (groupIds: string[]) {
   const rows = await db.getall(`SELECT s.*, gs.groupId
                                 FROM sites s
                                 INNER JOIN groups_sites gs ON gs.siteId=s.id
-                                WHERE s.id IN (${db.in([], groupIds)})`, groupIds)
-  return rows.map(r => ({ key: r.groupId, value: new Site(r) }))
+                                WHERE gs.groupId IN (${db.in([], groupIds)})`, groupIds)
+  return rows.map(r => ({ key: String(r.groupId), value: new Site(r) }))
 }
 
 export async function createSite (versionedService: VersionedService, userId: string, args: CreateSiteInput) {

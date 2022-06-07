@@ -267,6 +267,7 @@ export async function fixtures () {
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group3, editorRole]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group6, group6Role]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group7, group7Role]),
+    db.insert('INSERT INTO groups_sites (groupId, siteId) VALUES (?,?)', [group1, site3]),
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site1, ed04]),
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site1, ed05]),
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site2, su02]),

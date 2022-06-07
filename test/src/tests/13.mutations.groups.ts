@@ -2,6 +2,7 @@
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common.js'
+import { DateTime } from 'luxon'
 
 chai.use(chaiAsPromised)
 
@@ -168,5 +169,22 @@ describe('groups mutations', () => {
     const { group: groupQ } = await createGroup('groupQ')
     const { removeSubgroup: { success } } = await query('mutation RemoveSubgroup ($parentGroupId: ID!, $childGroupId: ID!) { removeSubgroup (parentGroupId: $parentGroupId, childGroupId: $childGroupId) { success } }', { parentGroupId: groupQ.id, childGroupId: '3' })
     expect(success).to.be.false
+  })
+  it('should associate a site with a group', async () => {
+    const { group: groupR } = await createGroup('groupR')
+    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name } } }', { args: { name: 'testgroupsiterelationship1', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    const { addGroupSite: { success } } = await query('mutation AddGroupSite ($groupId: ID!, $siteId: ID!) { addGroupSite (groupId: $groupId, siteId: $siteId) { success } }', { groupId: groupR.id, siteId: site.id })
+    expect(success).to.be.true
+    const { groups } = await query(`{ groups(filter: { ids: [${groupR.id}] }) { sites { id name } } }`)
+    expect(groups[0].sites[0].name).to.equal('testgroupsiterelationship1')
+  })
+  it('should remove the association between a site and a group', async () => {
+    const { group: groupS } = await createGroup('groupS')
+    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name } } }', { args: { name: 'testgroupsiterelationship2', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    await query('mutation AddGroupSite ($groupId: ID!, $siteId: ID!) { addGroupSite (groupId: $groupId, siteId: $siteId) { success } }', { groupId: groupS.id, siteId: site.id })
+    const { removeGroupSite: { success } } = await query('mutation RemoveGroupSite ($groupId: ID!, $siteId: ID!) { removeGroupSite (groupId: $groupId, siteId: $siteId) { success } }', { groupId: groupS.id, siteId: site.id })
+    expect(success).to.be.true
+    const { groups } = await query(`{ groups(filter: { ids: [${groupS.id}] }) { sites { id name } } }`)
+    expect(groups[0].sites.length).to.equal(0)
   })
 })
