@@ -84,6 +84,22 @@ export async function getSitesByGroupIds (groupIds: string[]) {
   return rows.map(r => ({ key: String(r.groupId), value: new Site(r) }))
 }
 
+export async function getSitesByOwnerInternalId (ownerInternalIds: number[]) {
+  const rows = await db.getall(`SELECT sites.*
+                                FROM sites
+                                INNER JOIN users ON sites.ownerId = users.id
+                                WHERE users.id IN (${db.in([], ownerInternalIds)})`, ownerInternalIds)
+  return rows.map(row => new Site(row))
+}
+
+export async function getSitesByManagerInternalId (managerInternalIds: number[]) {
+  const rows = await db.getall(`SELECT sites.*, sites_managers.userId
+                                FROM sites
+                                INNER JOIN sites_managers ON sites.id = sites_managers.siteId
+                                WHERE sites_managers.userId IN (${db.in([], managerInternalIds)})`, managerInternalIds)
+  return rows.map(row => ({ key: row.userId, value: new Site(row) }))
+}
+
 export async function createSite (versionedService: VersionedService, userId: string, args: CreateSiteInput) {
   return await db.transaction(async db => {
     // create the site, get the internal id for the page template

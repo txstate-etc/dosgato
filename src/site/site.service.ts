@@ -2,8 +2,8 @@ import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import {
   Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate, getSitesByGroupIds, undeleteSite,
-  PagetreeService, DosGatoService, CreateSiteInput, createSite, VersionedService,
-  SiteResponse, UpdateSiteInput, updateSite, deleteSite, PageService, Group
+  PagetreeService, DosGatoService, CreateSiteInput, createSite, VersionedService, SiteResponse, UpdateSiteInput,
+  updateSite, deleteSite, PageService, Group, getSitesByOwnerInternalId, getSitesByManagerInternalId
 } from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({
@@ -42,6 +42,21 @@ const sitesByGroupLoader = new ManyJoinedLoader({
   idLoader: sitesByIdLoader
 })
 
+const sitesByOwnerInternalIdLoader = new OneToManyLoader({
+  fetch: async (ownerInternalIds: number[]) => {
+    return await getSitesByOwnerInternalId(ownerInternalIds)
+  },
+  extractKey: (item: Site) => item.ownerId!,
+  idLoader: sitesByIdLoader
+})
+
+const sitesByManagerInternalIdLoader = new ManyJoinedLoader({
+  fetch: async (managerInternalIds: number[]) => {
+    return await getSitesByManagerInternalId(managerInternalIds)
+  },
+  idLoader: sitesByIdLoader
+})
+
 export class SiteServiceInternal extends BaseService {
   async find (filter?: SiteFilter) {
     const sites = await getSites(filter)
@@ -76,6 +91,14 @@ export class SiteServiceInternal extends BaseService {
   async findByAssetRootId (assetFolderId: number) {
     return await this.loaders.get(sitesByAssetRootLoader).load(assetFolderId)
   }
+
+  async findByOwnerInternalId (ownerInternalId: number) {
+    return await this.loaders.get(sitesByOwnerInternalIdLoader).load(ownerInternalId)
+  }
+
+  async findByManagerInternalId (managerInternalId: number) {
+    return await this.loaders.get(sitesByManagerInternalIdLoader).load(managerInternalId)
+  }
 }
 
 export class SiteService extends DosGatoService<Site> {
@@ -107,6 +130,14 @@ export class SiteService extends DosGatoService<Site> {
 
   async findByAssetRootId (assetFolderId: number) {
     return await this.removeUnauthorized(await this.raw.findByAssetRootId(assetFolderId))
+  }
+
+  async findByOwnerInternalId (ownerInternalId: number) {
+    return await this.removeUnauthorized(await this.raw.findByOwnerInternalId(ownerInternalId))
+  }
+
+  async findByManagerInternalId (managerInternalId: number) {
+    return await this.removeUnauthorized(await this.raw.findByManagerInternalId (managerInternalId))
   }
 
   async create (args: CreateSiteInput) {

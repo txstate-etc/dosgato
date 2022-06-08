@@ -72,4 +72,12 @@ describe('users', () => {
     expect(users[0].roles).to.have.lengthOf(1)
     expect(users[0].roles[0].name).to.equal('site3-editor')
   })
+  it('should retrieve the sites a user owns', async () => {
+    const { users } = await query('{ users(filter: { ids: ["su01"] }) { id name sitesOwned { name } } }')
+    expect(users[0].sitesOwned.map((s: any) => s.name)).to.include.members(['site2', 'site5', 'site7'])
+  })
+  it('should retrieve the sites a user manages', async () => {
+    const { users } = await query('{ users(filter: { ids: ["su02"] }) { id name sitesManaged { name } } }')
+    expect(users[0].sitesManaged.map((s: any) => s.name)).to.include.members(['site2'])
+  })
 })

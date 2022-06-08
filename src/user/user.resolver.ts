@@ -1,7 +1,7 @@
 import { Context } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
-  Group, GroupService, Role, RoleService, User, UserFilter,
+  Group, GroupService, Role, RoleService, User, UserFilter, Site, SiteService,
   UserPermissions, UserResponse, UpdateUserInput, UserService, UsersResponse
 } from '../internal.js'
 
@@ -20,6 +20,16 @@ export class UserResolver {
   @FieldResolver(returns => [Role], { description: 'Roles related to the user, either directly or through a group.' })
   async roles (@Ctx() ctx: Context, @Root() user: User, @Arg('direct', { nullable: true, description: 'true -> only roles the user has directly, false -> only roles the user has indirectly and not directly, null -> all roles the user has.' }) direct: boolean) {
     return await ctx.svc(RoleService).findByUserId(user.id, direct)
+  }
+
+  @FieldResolver(returns => [Site], { description: 'Sites owned by the user' })
+  async sitesOwned (@Ctx() ctx: Context, @Root() user: User) {
+    return await ctx.svc(SiteService).findByOwnerInternalId(user.internalId)
+  }
+
+  @FieldResolver(returns => [Site], { description: 'Returns sites for which the user is a manager' })
+  async sitesManaged (@Ctx() ctx: Context, @Root() user: User) {
+    return await ctx.svc(SiteService).findByManagerInternalId(user.internalId)
   }
 
   @FieldResolver(returns => UserPermissions)
