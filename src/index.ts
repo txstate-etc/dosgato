@@ -9,27 +9,18 @@ import { GraphQLScalarType } from 'graphql'
 import { NonEmptyArray } from 'type-graphql'
 import { migrations } from './migrations.js'
 import {
-  DateTimeScalar, UrlSafeString, UrlSafeStringScalar,
-  AssetPermissionsResolver, AssetResolver,
-  AssetRuleResolver, AssetRulePermissionsResolver,
-  DataPermissionsResolver, DataResolver,
-  DataRuleResolver, DataRulePermissionsResolver,
-  AssetFolderResolver, AssetFolderPermissionsResolver,
-  PagePermissionsResolver, PageResolver,
-  PageRulePermissionsResolver, PageRuleResolver,
-  PagetreePermissionsResolver, PagetreeResolver,
-  RolePermissionsResolver, RoleResolver,
-  SitePermissionsResolver, SiteResolver,
-  SiteRulePermissionsResolver, SiteRuleResolver,
-  TemplateAreaResolver, TemplatePermissionsResolver, TemplateResolver,
-  UserPermissionsResolver, UserResolver,
-  DataFolderPermissionsResolver, DataFolderResolver,
-  GroupPermissionsResolver, GroupResolver,
-  GlobalRulePermissionsResolver, GlobalRuleResolver,
-  VersionResolver, OrganizationResolver,
-  AccessResolver, DBMigration,
-  TemplateRulePermissionsResolver, TemplateRuleResolver,
-  logMutation, handleUpload, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver, DataRootPermissionsResolver
+  DateTimeScalar, UrlSafeString, UrlSafeStringScalar, AssetPermissionsResolver, AssetResolver,
+  AssetRuleResolver, AssetRulePermissionsResolver, DataPermissionsResolver, DataResolver,
+  DataRuleResolver, DataRulePermissionsResolver, AssetFolderResolver, AssetFolderPermissionsResolver,
+  PagePermissionsResolver, PageResolver, PageRulePermissionsResolver, PageRuleResolver,
+  PagetreePermissionsResolver, PagetreeResolver, RolePermissionsResolver, RoleResolver,
+  SitePermissionsResolver, SiteResolver, SiteRulePermissionsResolver, SiteRuleResolver,
+  TemplateAreaResolver, TemplatePermissionsResolver, TemplateResolver, UserPermissionsResolver, UserResolver,
+  DataFolderPermissionsResolver, DataFolderResolver, GroupPermissionsResolver, GroupResolver,
+  GlobalRulePermissionsResolver, GlobalRuleResolver, VersionResolver, OrganizationResolver,
+  AccessResolver, DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
+  logMutation, handleUpload, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
+  DataRootPermissionsResolver, DGContext
 } from './internal.js'
 
 async function getEnabledUser (ctx: Context) {
@@ -144,6 +135,7 @@ export class DGServer {
       },
       resolvers,
       scalarsMap,
+      customContext: DGContext,
       after
     })
   }
