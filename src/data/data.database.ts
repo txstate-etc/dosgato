@@ -115,9 +115,9 @@ async function handleDisplayOrder (db: Queryable, versionedService: VersionedSer
       const binds: string[] = []
       if (siteId) {
         binds.push(siteId)
-        maxDisplayOrder = await db.getval<number>(`SELECT MAX(displayOrder) FROM data WHERE folderId IS NULL AND siteId = ? AND id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})`, binds)
+        maxDisplayOrder = await db.getval<number>(`SELECT MAX(displayOrder) FROM data WHERE folderId IS NULL AND siteId = ? ${entriesWithTemplate.length ? `AND id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})` : ''}`, binds)
       } else {
-        maxDisplayOrder = await db.getval<number>(`SELECT MAX(displayOrder) FROM data WHERE folderId IS NULL AND siteId IS NULL AND id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})`, binds)
+        maxDisplayOrder = await db.getval<number>(`SELECT MAX(displayOrder) FROM data WHERE folderId IS NULL AND siteId IS NULL ${entriesWithTemplate.length ? `AND id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})` : ''}`, binds)
       }
     }
     return (maxDisplayOrder ?? 0) + 1
