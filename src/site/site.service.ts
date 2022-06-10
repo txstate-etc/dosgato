@@ -137,7 +137,7 @@ export class SiteService extends DosGatoService<Site> {
   }
 
   async findByManagerInternalId (managerInternalId: number) {
-    return await this.removeUnauthorized(await this.raw.findByManagerInternalId (managerInternalId))
+    return await this.removeUnauthorized(await this.raw.findByManagerInternalId(managerInternalId))
   }
 
   async create (args: CreateSiteInput) {

@@ -34,9 +34,9 @@ export class GroupResolver {
     return await ctx.svc(SiteService).findByGroup(group)
   }
 
-  @FieldResolver(returns => [Group], { nullable: true, description: 'Returns parent group(s), or null if this group is not a subgroup' })
-  async parents (@Ctx() ctx: Context, @Root() group: Group) {
-    return await ctx.svc(GroupService).getSuperGroups(group.id, false)
+  @FieldResolver(returns => [Group], { nullable: true, description: 'Returns ancestor group(s), or null if this group is not a subgroup' })
+  async supergroups (@Ctx() ctx: Context, @Root() group: Group, @Arg('recursive', { nullable: true, description: 'If false, return only the parent groups' }) recursive?: boolean) {
+    return await ctx.svc(GroupService).getSuperGroups(group.id, recursive)
   }
 
   @FieldResolver(returns => GroupPermissions, {

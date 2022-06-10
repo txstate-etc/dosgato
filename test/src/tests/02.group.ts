@@ -74,15 +74,14 @@ describe('groups', () => {
     expect(roles.includes('editor')).to.be.true
   })
   it('should retrive a group\'s parent group', async () => {
-    const { groups } = await query('{ groups { id name parents { name } } }')
+    const { groups } = await query('{ groups { id name supergroups(recursive: false) { name } } }')
     const group4 = groups.find((g: any) => g.name === 'group4')
-    expect(group4.parents.map((p: any) => p.name)).to.include('group2')
+    expect(group4.supergroups.map((p: any) => p.name)).to.include('group2')
     const group5 = groups.find((g: any) => g.name === 'group5')
-    expect(group5.parents.length).to.equal(0)
+    expect(group5.supergroups.length).to.equal(0)
   })
   it('should retrieve a group\'s related site', async () => {
     const { groups } = await query('{ groups { id name sites { id name } } }')
-    console.log(groups)
     const group1 = groups.find((g: any) => g.name === 'group1')
     expect(group1.sites[0].name).to.equal('site3')
   })
