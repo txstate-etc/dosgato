@@ -20,7 +20,7 @@ import {
   GlobalRulePermissionsResolver, GlobalRuleResolver, VersionResolver, OrganizationResolver,
   AccessResolver, DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, handleUpload, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
-  DataRootPermissionsResolver, DGContext
+  DataRootPermissionsResolver
 } from './internal.js'
 
 async function getEnabledUser (ctx: Context) {
@@ -135,7 +135,6 @@ export class DGServer {
       },
       resolvers,
       scalarsMap,
-      customContext: DGContext,
       after
     })
   }

@@ -1,7 +1,4 @@
-import { AuthorizedService, Context } from '@txstate-mws/graphql-server'
-import { FastifyRequest, FastifyLoggerInstance } from 'fastify'
-import { RouteGenericInterface } from 'fastify/types/route'
-import { Server, IncomingMessage } from 'http'
+import { AuthorizedService } from '@txstate-mws/graphql-server'
 import { filterAsync, keyby } from 'txstate-utils'
 import {
   Asset, AssetFolder, Data, DataFolder, Page, Site, Template,
@@ -149,17 +146,5 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
     const templateRuleService = this.svc(TemplateRuleService)
     const applicable = await filterAsync(rules, async r => await templateRuleService.applies(r, template))
     return applicable.some(r => r.grants[grant])
-  }
-}
-
-export class DGContext extends Context {
-  async authFromReq (req?: FastifyRequest<RouteGenericInterface, Server, IncomingMessage, unknown, FastifyLoggerInstance>) {
-    const token = this.tokenFromReq(req)
-    if (token === process.env.DOS_GATO_ANON_TOKEN) {
-      return {
-        sub: 'anonymous'
-      }
-    }
-    return await super.authFromReq(req)
   }
 }
