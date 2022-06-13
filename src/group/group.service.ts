@@ -172,11 +172,17 @@ export class GroupService extends DosGatoService<Group> {
     return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, direct, filter))
   }
 
-  async create (name: string) {
+  async create (name: string, parentId?: string) {
+    let parentGroup: Group|undefined
+    if (parentId) {
+      parentGroup = await this.findById(parentId)
+
+      if (!parentGroup) throw new Error('Parent group does not exist.')
+    }
     if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create groups.')
     const response = new GroupResponse({})
     try {
-      const groupId = await createGroup(name)
+      const groupId = await createGroup(name, parentGroup)
       await groupHierarchyCache.clear()
       const newGroup = await this.loaders.get(groupsByIdLoader).load(String(groupId))
       response.success = true

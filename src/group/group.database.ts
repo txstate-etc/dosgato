@@ -144,9 +144,14 @@ export async function getGroupsWithRole (roleIds: string[], filter?: GroupFilter
   return groups.map(row => ({ key: String(row.roleId), value: new Group(row) }))
 }
 
-export async function createGroup (name: string) {
-  const groupId = await db.insert('INSERT INTO groups (name) VALUES (?)', [name])
-  return groupId
+export async function createGroup (name: string, parent?: Group) {
+  return await db.transaction(async db => {
+    const groupId = await db.insert('INSERT INTO groups (name) VALUES (?)', [name])
+    if (parent) {
+      await db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [parent.id, groupId])
+    }
+    return groupId
+  })
 }
 
 export async function updateGroup (id: string, name: string) {

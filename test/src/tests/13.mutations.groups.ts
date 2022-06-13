@@ -6,8 +6,8 @@ import { DateTime } from 'luxon'
 
 chai.use(chaiAsPromised)
 
-async function createGroup (name: string, username?: string) {
-  const { createGroup: { success, group, messages } } = await queryAs((username ?? 'su01'), 'mutation CreateGroup ($name: String!) { createGroup (name: $name) { success messages { message } group { id name } } }', { name })
+async function createGroup (name: string, parentId?: string, username?: string) {
+  const { createGroup: { success, group, messages } } = await queryAs((username ?? 'su01'), 'mutation CreateGroup ($name: String!, $parentId: ID) { createGroup (name: $name, parentId: $parentId) { success messages { message } group { id name } } }', { name, parentId })
   return { success, group, messages }
 }
 describe('groups mutations', () => {
@@ -22,7 +22,7 @@ describe('groups mutations', () => {
     expect(messages).to.have.length.greaterThan(0)
   })
   it('should not allow an unauthorized user to create a group', async () => {
-    await expect(createGroup('doesnotmatter', 'ed07')).to.be.rejected
+    await expect(createGroup('doesnotmatter', undefined, 'ed07')).to.be.rejected
   })
   it('should update a group name', async () => {
     const { group: groupB } = await createGroup('groupB')
@@ -186,5 +186,12 @@ describe('groups mutations', () => {
     expect(success).to.be.true
     const { groups } = await query(`{ groups(filter: { ids: [${groupS.id}] }) { sites { id name } } }`)
     expect(groups[0].sites.length).to.equal(0)
+  })
+  it('should create a group as a subgroup', async () => {
+    const { group: groupT } = await createGroup('groupT')
+    const { group: groupU, success } = await createGroup('groupU', groupT.id)
+    expect(success).to.be.true
+    const { groups } = await query(`{ groups(filter: { ids: [${groupT.id}] }) { id name subgroups { id name } } }`)
+    expect(groups[0].subgroups[0].name).to.equal('groupU')
   })
 })
