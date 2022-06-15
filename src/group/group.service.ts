@@ -4,7 +4,7 @@ import { unique, filterConcurrent, isNotNull, someAsync } from 'txstate-utils'
 import {
   Group, GroupFilter, GroupResponse, getGroups, getGroupsWithUser, getGroupsWithRole,
   groupHierarchyCache, createGroup, updateGroup, deleteGroup, addGroupSite, removeGroupSite,
-  addUserToGroups, removeUserFromGroups, setGroupManager, removeSubgroup, addSubgroup,
+  addUserToGroups, removeUserFromGroups, setGroupManager, removeSubgroup, addSubgroup, groupNameIsUnique,
   UserService, DosGatoService, UserServiceInternal, setUserGroups, getGroupsWithManager, User, Site, getGroupsWithSite
 } from '../internal.js'
 
@@ -172,53 +172,48 @@ export class GroupService extends DosGatoService<Group> {
     return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, direct, filter))
   }
 
-  async create (name: string, parentId?: string) {
+  async create (name: string, parentId?: string, validateOnly?: boolean) {
     let parentGroup: Group|undefined
     if (parentId) {
       parentGroup = await this.findById(parentId)
-
       if (!parentGroup) throw new Error('Parent group does not exist.')
     }
     if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create groups.')
-    const response = new GroupResponse({})
-    try {
-      const groupId = await createGroup(name, parentGroup)
-      await groupHierarchyCache.clear()
-      const newGroup = await this.loaders.get(groupsByIdLoader).load(String(groupId))
-      response.success = true
-      response.group = newGroup
-    } catch (err: any) {
-      if (err.code === 'ER_DUP_ENTRY') {
-        response.addMessage(`Group ${name} already exists.`, 'name')
-        return response
+    if (!(await groupNameIsUnique(name))) {
+      const response = new GroupResponse({})
+      response.addMessage(`Group ${name} already exists.`, 'name')
+      return response
+    } else {
+      if (validateOnly) {
+        return new GroupResponse({ success: true, messages: [] })
+      } else {
+        const groupId = await createGroup(name, parentGroup)
+        await groupHierarchyCache.clear()
+        const newGroup = await this.loaders.get(groupsByIdLoader).load(String(groupId))
+        return new GroupResponse({ success: true, group: newGroup })
       }
-      console.error(err)
-      throw new Error(`An unknown error occurred while attempting to create group ${name}.`)
     }
-    return response
   }
 
-  async update (id: string, name: string) {
+  async update (id: string, name: string, validateOnly?: boolean) {
     const group = await this.findById(id)
     if (!group) throw new Error('Group to be updated does not exist.')
     if (!(await this.mayUpdate(group))) throw new Error('Current user is not permitted to update group names.')
-    const response = new GroupResponse({})
-    try {
-      await updateGroup(id, name)
-      await groupHierarchyCache.clear()
-      this.loaders.clear()
-      const updated = await this.loaders.get(groupsByIdLoader).load(id)
-      response.success = true
-      response.group = updated
-    } catch (err: any) {
-      if (err.code === 'ER_DUP_ENTRY') {
-        response.addMessage(`Group ${name} already exists.`, 'name')
-        return response
+    if (!(await groupNameIsUnique(name))) {
+      const response = new GroupResponse({})
+      response.addMessage(`Group ${name} already exists.`, 'name')
+      return response
+    } else {
+      if (validateOnly) {
+        return new GroupResponse({ success: true, messages: [] })
+      } else {
+        await updateGroup(id, name)
+        await groupHierarchyCache.clear()
+        this.loaders.clear()
+        const updated = await this.loaders.get(groupsByIdLoader).load(id)
+        return new GroupResponse({ success: true, group: updated })
       }
-      console.error(err)
-      throw new Error(`An unknown error occurred while updating the name for group ${group.name}.`)
     }
-    return response
   }
 
   async delete (id: string) {

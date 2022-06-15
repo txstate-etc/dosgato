@@ -144,6 +144,11 @@ export async function getGroupsWithRole (roleIds: string[], filter?: GroupFilter
   return groups.map(row => ({ key: String(row.roleId), value: new Group(row) }))
 }
 
+export async function groupNameIsUnique (name: string) {
+  const count = await db.getval('SELECT COUNT(*) FROM groups WHERE name = ?', [name])
+  return count === 0
+}
+
 export async function createGroup (name: string, parent?: Group) {
   return await db.transaction(async db => {
     const groupId = await db.insert('INSERT INTO groups (name) VALUES (?)', [name])

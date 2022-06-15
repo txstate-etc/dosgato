@@ -194,4 +194,17 @@ describe('groups mutations', () => {
     const { groups } = await query(`{ groups(filter: { ids: [${groupT.id}] }) { id name subgroups { id name } } }`)
     expect(groups[0].subgroups[0].name).to.equal('groupU')
   })
+  it('should not create a group when create is called with validateOnly=true', async () => {
+    const { createGroup: { success } } = await query('mutation CreateGroup ($name: String!, $parentId: ID, $validateOnly: Boolean) { createGroup (name: $name, parentId: $parentId, validateOnly: $validateOnly ) { success messages { message } group { id name } } }', { name: 'testgroup', validateOnly: true })
+    expect(success).to.be.true
+    const { groups } = await query('{ groups { id name } }')
+    expect(groups.map((g: any) => g.name)).to.not.include.members(['testgroup'])
+  })
+  it('should not update a group when update is called with validateOnly=true', async () => {
+    const { group: groupW } = await createGroup('groupW')
+    const { updateGroup: { success } } = await query('mutation UpdateGroup ($groupId: ID!, $name: String!, $validateOnly: Boolean) { updateGroup (groupId: $groupId, name: $name, validateOnly: $validateOnly) { success group { id name } } }', { groupId: groupW.id, name: 'groupWUpdated', validateOnly: true })
+    expect(success).to.be.true
+    const { groups } = await query(`{ groups(filter: { ids: [${groupW.id}]}) { id name } }`)
+    expect(groups[0].name).to.equal('groupW')
+  })
 })

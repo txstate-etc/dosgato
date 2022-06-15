@@ -48,13 +48,17 @@ export class GroupResolver {
   }
 
   @Mutation(returns => GroupResponse, { description: 'Add a new group. The group name must be unique.' })
-  async createGroup (@Ctx() ctx: Context, @Arg('name', { description: 'name of the group being created' }) name: string, @Arg('parentId', type => ID, { nullable: true, description: 'Optional parent group ID, if creating a new subgroup' }) parentId?: string): Promise<GroupResponse> {
-    return await ctx.svc(GroupService).create(name, parentId)
+  async createGroup (@Ctx() ctx: Context, @Arg('name', { description: 'name of the group being created' }) name: string,
+    @Arg('parentId', type => ID, { nullable: true, description: 'Optional parent group ID, if creating a new subgroup' }) parentId?: string,
+    @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean): Promise<GroupResponse> {
+    return await ctx.svc(GroupService).create(name, parentId, validateOnly)
   }
 
   @Mutation(returns => GroupResponse, { description: 'Update the name of an existing group' })
-  async updateGroup (@Ctx() ctx: Context, @Arg('groupId', type => ID) groupId: string, @Arg('name') name: string) {
-    return await ctx.svc(GroupService).update(groupId, name)
+  async updateGroup (@Ctx() ctx: Context, @Arg('groupId', type => ID) groupId: string,
+    @Arg('name') name: string,
+    @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean) {
+    return await ctx.svc(GroupService).update(groupId, name, validateOnly)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Delete a group' })

@@ -150,7 +150,7 @@ export class SiteService extends DosGatoService<Site> {
       console.error(err)
       if (err.code === 'ER_DUP_ENTRY') {
         const response = new SiteResponse({})
-        response.addMessage(`Site ${args.name} already exists.`, 'name')
+        response.addMessage(`Site ${args.name} already exists.`, 'args.name')
         return response
       }
       throw new Error('An unknown error occurred while creating the site.')
