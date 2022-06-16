@@ -199,7 +199,7 @@ export class GroupService extends DosGatoService<Group> {
     const group = await this.findById(id)
     if (!group) throw new Error('Group to be updated does not exist.')
     if (!(await this.mayUpdate(group))) throw new Error('Current user is not permitted to update group names.')
-    if (!(await groupNameIsUnique(name))) {
+    if (name !== group.name && !(await groupNameIsUnique(name))) {
       const response = new GroupResponse({})
       response.addMessage(`Group ${name} already exists.`, 'name')
       return response
