@@ -80,6 +80,11 @@ export class DataServiceInternal extends BaseService {
 
   async findBySiteId (siteId: string, filter?: DataFilter) {
     filter = await this.processFilters(filter)
+    // If we were looking for data entries with particular template keys and processFilters did not
+    // find any, then there are no entries that match the filters
+    if (filter?.templateKeys && !filter?.ids?.length) {
+      return []
+    }
     return await this.loaders.get(dataBySiteIdLoader, filter).load(siteId)
   }
 
