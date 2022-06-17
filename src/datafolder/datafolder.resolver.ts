@@ -62,8 +62,8 @@ export class DataFolderResolver {
   }
 
   @Mutation(returns => DataFolderResponse, { description: 'Create a new data folder.' })
-  async createDataFolder (@Ctx() ctx: Context, @Arg('args', type => CreateDataFolderInput) args: CreateDataFolderInput) {
-    return await ctx.svc(DataFolderService).create(args)
+  async createDataFolder (@Ctx() ctx: Context, @Arg('args', type => CreateDataFolderInput) args: CreateDataFolderInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(DataFolderService).create(args, validateOnly)
   }
 
   @Mutation(returns => DataFolderResponse)

@@ -38,6 +38,17 @@ export async function getDataFolders (filter?: DataFolderFilter) {
   return folders.map(f => new DataFolder(f))
 }
 
+export async function folderNameUniqueInDataRoot (name: string, siteId?: string): Promise<boolean> {
+  const where: string[] = ['name = ?']
+  const binds: string[] = [name]
+  if (siteId) {
+    where.push('siteId = ?')
+    binds.push(siteId)
+  }
+  const count = await db.getval(`SELECT COUNT(*) FROM datafolders WHERE ${where.join('AND ')}`, binds)
+  return count === 0
+}
+
 export async function createDataFolder (name: string, templateInternalId: number, siteId?: string) {
   const columns = ['name', 'guid', 'templateId']
   const binds = [name, nanoid(10), templateInternalId]

@@ -5,7 +5,8 @@ import {
   DataFolder, DataFolderFilter, DosGatoService, getDataFolders,
   DataServiceInternal, CreateDataFolderInput, createDataFolder, DataFolderResponse,
   renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
-  SiteService, DataFoldersResponse, moveDataFolders, DeletedFilter, DataRoot
+  SiteService, DataFoldersResponse, moveDataFolders, DeletedFilter, DataRoot, DataRootService,
+  folderNameUniqueInDataRoot
 } from '../internal.js'
 
 const dataFoldersByIdLoader = new PrimaryKeyLoader({
@@ -111,25 +112,30 @@ export class DataFolderService extends DosGatoService<DataFolder> {
     return await this.raw.getPath(folder)
   }
 
-  async create (args: CreateDataFolderInput) {
+  async create (args: CreateDataFolderInput, validateOnly?: boolean) {
     const template = await this.svc(TemplateService).findByKey(args.templateKey)
     if (!template) throw new Error(`Template with key ${args.templateKey} not found.`)
     if (template.type !== TemplateType.DATA) throw new Error(`Template with key ${args.templateKey} is not a data template.`)
     if (args.siteId) {
       const site = await this.svc(SiteService).findById(args.siteId)
       if (!site) throw new Error('Cannot create data folder. Site does not exist.')
+      const dataroots = await this.svc(DataRootService).findBySite(site, { templateKeys: [template.key] })
+      if (!(await this.haveDataRootPerm(dataroots[0], 'create'))) throw new Error(`Current user is not permitted to create datafolders in ${site.name}.`)
+    } else {
+      if (!(await this.haveGlobalPerm('manageGlobalData'))) throw new Error('Current user is not permitted to create global data folders.')
     }
-    const folder = new DataFolder({ id: 0, guid: 0, name: args.name, templateId: template.id, siteId: args.siteId })
-    if (!await this.haveDataFolderPerm(folder, 'create')) {
-      throw new Error(`Current user is not permitted to create ${args.siteId ? 'datafolders in this site.' : 'global data folders.'}`)
-    }
-    try {
-      const datafolder = await createDataFolder(args.name, template.id, args.siteId)
-      this.loaders.clear()
-      return new DataFolderResponse({ dataFolder: datafolder, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Could not create data folder')
+    if (!(await folderNameUniqueInDataRoot(args.name, args.siteId))) {
+      const response = new DataFolderResponse({})
+      response.addMessage(`A folder with this name already exists in ${args.siteId ? 'this site' : 'global data'}.`, 'args.name')
+      return response
+    } else {
+      if (validateOnly) {
+        return new DataFolderResponse({ success: true, messages: [] })
+      } else {
+        const dataFolder = await createDataFolder(args.name, template.id, args.siteId)
+        this.loaders.clear()
+        return new DataFolderResponse({ success: true, dataFolder })
+      }
     }
   }
 
