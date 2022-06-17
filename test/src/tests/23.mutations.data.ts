@@ -223,6 +223,17 @@ describe('data mutations', () => {
     const { datafolders } = await query('{ datafolders(filter: { global: true }) { id name } }')
     expect(datafolders.map((d: any) => d.id)).to.include.members([folder1.id, folder2.id])
   })
+  it('should not create a new data folder if validateOnly=true', async () => {
+    const { createDataFolder: { success } } = await query(`
+    mutation CreateDataFolder ($args: CreateDataFolderInput!, $validateOnly: Boolean) {
+      createDataFolder (args: $args, validateOnly: $validateOnly) {
+        success
+      }
+    }`, { args: { name: 'validfoldername', templateKey: 'keyd1' }, validateOnly: true })
+    expect(success).to.be.true
+    const { datafolders } = await query('{ datafolders (filter: { templateKeys: ["keyd1"] }) { id name } }')
+    expect(datafolders.map(f => f.name)).to.not.include(['validfoldername'])
+  })
   it('should create a global data entry', async () => {
     const { success, data } = await createDataEntry('GlobalBuilding1', 'keyd2', { name: 'Memorial Hall', floors: 3 })
     expect(success).to.be.true
