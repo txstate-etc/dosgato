@@ -1,5 +1,5 @@
-import { APITemplateType, WebLink } from '@dosgato/templating'
-import { isNull } from 'txstate-utils'
+import { APITemplate, APITemplateType, WebLink, extractLinksFromText, getKeywords } from '@dosgato/templating'
+import { isBlank, isNull } from 'txstate-utils'
 
 export const PageTemplate1 = {
   type: 'page' as APITemplateType,
@@ -38,7 +38,7 @@ export const PageTemplate2 = {
   },
   validate: async (data: any) => {
     const ret: Record<string, string[]> = {}
-    if (isNull(data.title)) {
+    if (isBlank(data.title)) {
       ret.title = ['Page title is required.']
     }
     return ret
@@ -89,10 +89,12 @@ export const LinkComponent = {
     return [data.link]
   },
   getFulltext: (data: any) => {
-    return [data.text]
+    return getKeywords(data.text)
   },
   validate: async (data: any) => {
-    return {}
+    const errors: Record<string, string[]> = {}
+    if (isBlank(data.link)) errors.link = ['Link target is required.']
+    return errors
   }
 }
 
@@ -123,6 +125,40 @@ export const QuoteComponent = {
   },
   validate: async (data: any) => {
     return {}
+  }
+}
+
+export const RichTextComponent: APITemplate = {
+  type: 'component' as APITemplateType,
+  templateKey: 'keyc3',
+  name: 'richtext',
+  areas: {},
+  migrations: [],
+  getLinks: (data: any) => extractLinksFromText(data.text),
+  getFulltext: (data: any) => {
+    return [...getKeywords(data.title), ...getKeywords(data.text)]
+  },
+  validate: async (data: any) => {
+    const errors: Record<string, string[]> = {}
+    if (isBlank(data.text)) errors.text = ['Rich text is required.']
+    return errors
+  }
+}
+
+export const TextImageComponent = {
+  type: 'component' as APITemplateType,
+  templateKey: 'keyc3',
+  name: 'textimage',
+  areas: {},
+  migrations: [],
+  getLinks: (data: any) => extractLinksFromText(data.text),
+  getFulltext: (data: any) => {
+    return [...getKeywords(data.title), ...getKeywords(data.text)]
+  },
+  validate: async (data: any) => {
+    const errors: Record<string, string[]> = {}
+    if (isBlank(data.title)) errors.title = ['Title is required.']
+    return errors
   }
 }
 

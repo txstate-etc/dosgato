@@ -8,13 +8,13 @@ async function processMigration (component: ComponentData, migration: MigrationW
   const migrate = backward ? migration.down : migration.up
   const newAreas: Record<string, Promise<ComponentData>[]> = {}
 
-  for (const [areaKey, areaList] of Object.entries(component.areas)) {
+  for (const [areaKey, areaList] of Object.entries(component.areas ?? {})) {
     for (const cData of areaList) {
       newAreas[areaKey].push(processMigration(cData, migration, backward, page))
     }
   }
-  for (const areaKey of Object.keys(component.areas)) {
-    component.areas[areaKey] = await Promise.all(newAreas[areaKey])
+  for (const areaKey of Object.keys(component.areas ?? {})) {
+    component.areas![areaKey] = await Promise.all(newAreas[areaKey])
   }
   if (migration.templateKey === component.templateKey) component = await migrate(component, page)
   return component

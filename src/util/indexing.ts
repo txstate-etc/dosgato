@@ -1,21 +1,5 @@
 import { LinkDefinition } from '@dosgato/templating'
 import { stringify } from 'txstate-utils'
-import { stopwords } from './stopwords.js'
-
-export function extractLinksFromText (text: string) {
-  const matches = text.matchAll(/{.*"type"\s?:\s+"\w+".*?}/gi)
-  return Array.from(matches).map(m => JSON.parse(m[0])) as LinkDefinition[]
-}
-
-export function getKeywords (text: string, options?: { stopwords?: boolean }) {
-  return Array.from(new Set(text
-    .toLocaleLowerCase()
-    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
-    .split(/[^\w-]+/)
-    .flatMap(word => word.includes('-') ? word.split('-').concat(word.replace('-', '')) : [word])
-    .filter(word => word.length > 2 && (options?.stopwords === false || !stopwords[word]) && isNaN(Number(word)))
-  ))
-}
 
 export function getHostname (urlString: string) {
   if (!urlString) return undefined

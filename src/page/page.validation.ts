@@ -8,8 +8,8 @@ async function validateRecurse (data: ComponentData, path: string[]) {
   for (const key of Object.keys(messages)) {
     ret[[...path, key].join('.')] = messages[key]
   }
-  for (const area of Object.keys(data.areas)) {
-    const areaList = data.areas[area]
+  for (const area of Object.keys(data.areas ?? {})) {
+    const areaList = data.areas![area]
     for (let i = 0; i < areaList.length; i++) {
       const component = areaList[i]
       ret = { ...ret, ...await validateRecurse(component, [...path, 'areas', area, String(i)]) }

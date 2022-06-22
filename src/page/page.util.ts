@@ -9,7 +9,7 @@ export function collectTemplates (component: ComponentData) {
 // of Component instances
 export function collectComponents (component: ComponentData) {
   const ret = [component] as ComponentData[]
-  for (const areaList of Object.values(component.areas)) {
+  for (const areaList of Object.values(component.areas ?? {})) {
     for (const component of areaList) {
       ret.push(...collectComponents(component))
     }
