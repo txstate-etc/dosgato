@@ -59,9 +59,11 @@ export async function getAssets (filter?: AssetFilter) {
 
 export async function getResizes (assetIds: string[]) {
   const binds: string[] = []
-  const resizes = await db.getall(`SELECT assets.id, resizes.* FROM resizes
-  INNER JOIN binaries ON resizes.originalBinaryId = binaries.id
-  INNER JOIN assets ON binaries.shasum = assets.shasum
+  const resizes = await db.getall(`SELECT a.id as assetId, r.*, rb.bytes, rb.mime
+  FROM resizes r
+  INNER JOIN binaries b ON r.originalBinaryId = b.id
+  INNER JOIN binaries rb ON r.binaryId = rb.id
+  INNER JOIN assets a ON b.shasum = assets.shasum
   WHERE assets.id IN (${db.in(binds, assetIds)})`, binds)
   return resizes.map(row => ({ key: String(row.assetId), value: new AssetResize(row) }))
 }

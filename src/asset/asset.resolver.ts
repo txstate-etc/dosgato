@@ -44,7 +44,7 @@ export class AssetResolver {
     return versioned!.data
   }
 
-  @FieldResolver(returns => [AssetResize], { nullable: true, description: 'List of available resized versions of this asset.' })
+  @FieldResolver(returns => [AssetResize], { description: 'List of available resized versions of this asset.' })
   async resizes (@Ctx() ctx: Context, @Root() asset: Asset) {
     return await ctx.svc(AssetService).getResizes(asset)
   }
