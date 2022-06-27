@@ -7,10 +7,10 @@ import { JsonData, UrlSafeString } from '../internal.js'
 
 @ObjectType({ description: 'Asset attributes only available for visual inline assets like images, animated GIFS, or videos.' })
 export class BoxAttributes {
-  @Field()
+  @Field(type => Int)
   width: number
 
-  @Field()
+  @Field(type => Int)
   height: number
 
   constructor (row: any) {
@@ -131,7 +131,7 @@ export class CreateAssetInput {
   @Field()
   mime!: string
 
-  @Field()
+  @Field(type => Int)
   size!: number
 
   // TODO: Other fields? Fields for binaries table?
@@ -178,16 +178,16 @@ export class AssetResize {
   @Field({ description: 'The mime type of this particular resized version. For instance, we may have resizes for each of the popular image formats like JPEG, AVIF, and WEBP.' })
   mime: string
 
-  @Field({ description: 'Pixel width of the resized image.' })
+  @Field(type => Int, { description: 'Pixel width of the resized image.' })
   width: number
 
-  @Field({ description: 'Pixel height of the resized image.' })
+  @Field(type => Int, { description: 'Pixel height of the resized image.' })
   height: number
 
-  @Field({ description: 'A number from 0-100 that reflects the quality level of the resized image. 60-90 is typical.' })
+  @Field(type => Int, { description: 'A number from 0-100 that reflects the quality level of the resized image. 60-90 is typical.' })
   quality: number
 
-  @Field({ description: 'Filesize in bytes.' })
+  @Field(type => Int, { description: 'Filesize in bytes.' })
   size: number
 
   @Field(type => JsonData)
