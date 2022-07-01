@@ -319,12 +319,10 @@ export async function init (db: Queryable) {
     CREATE TABLE IF NOT EXISTS `templates` ( \
       `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `key` VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
-      `name` VARCHAR(255) NOT NULL, \
       `type` ENUM('component', 'page', 'data') NOT NULL, \
       `universal` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `deleted` TINYINT UNSIGNED NOT NULL, \
       PRIMARY KEY (`id`), \
-      UNIQUE INDEX `name_UNIQUE` (`name`), \
       UNIQUE INDEX `key_UNIQUE` (`key`)) \
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \

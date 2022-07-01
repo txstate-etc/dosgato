@@ -51,11 +51,11 @@ export class Template {
   constructor (row: any) {
     this.id = row.id
     this.key = row.key
-    this.name = row.name
     this.type = row.type
     this.deleted = !!row.deleted
     this.universal = !!row.universal
     const tmpl = templateRegistry.get(this.key)
+    this.name = tmpl.name
     this.areas = Object.entries(tmpl.areas).map(([key, area]) => new TemplateArea(key, area.availableComponents))
     this.templateProperties = tmpl.templateProperties
   }

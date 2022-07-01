@@ -82,7 +82,7 @@ export const PageTemplate4 = {
 export const LinkComponent = {
   type: 'component' as APITemplateType,
   templateKey: 'keyc1',
-  name: 'componenttemplate1',
+  name: 'Link',
   areas: {},
   migrations: [],
   getLinks: (data: any) => {
@@ -101,7 +101,7 @@ export const LinkComponent = {
 export const PanelComponent = {
   type: 'component' as APITemplateType,
   templateKey: 'keyc2',
-  name: 'componenttemplate2',
+  name: 'Panel',
   areas: {},
   migrations: [],
   getLinks: (data: any) => [],
@@ -116,7 +116,7 @@ export const PanelComponent = {
 export const QuoteComponent = {
   type: 'component' as APITemplateType,
   templateKey: 'keyc3',
-  name: 'componenttemplate3',
+  name: 'Quote',
   areas: {},
   migrations: [],
   getLinks: (data: any) => [],
@@ -130,8 +130,8 @@ export const QuoteComponent = {
 
 export const RichTextComponent: APITemplate = {
   type: 'component' as APITemplateType,
-  templateKey: 'keyc3',
-  name: 'richtext',
+  templateKey: 'richtext',
+  name: 'Rich Text',
   areas: {},
   migrations: [],
   getLinks: (data: any) => extractLinksFromText(data.text),
@@ -147,8 +147,8 @@ export const RichTextComponent: APITemplate = {
 
 export const TextImageComponent = {
   type: 'component' as APITemplateType,
-  templateKey: 'keyc3',
-  name: 'textimage',
+  templateKey: 'textimage',
+  name: 'Text & Image',
   areas: {},
   migrations: [],
   getLinks: (data: any) => extractLinksFromText(data.text),
@@ -165,7 +165,7 @@ export const TextImageComponent = {
 export const ColorData = {
   type: 'data' as APITemplateType,
   templateKey: 'keyd1',
-  name: 'datatemplate1',
+  name: 'Colors',
   areas: {},
   migrations: [],
   getLinks: (data: any) => [],
@@ -184,7 +184,7 @@ export const ColorData = {
 export const BuildingData = {
   type: 'data' as APITemplateType,
   templateKey: 'keyd2',
-  name: 'datatemplate2',
+  name: 'Buildings',
   areas: {},
   migrations: [],
   getLinks: (data: any) => {
@@ -211,7 +211,7 @@ export const BuildingData = {
 export const ArticleData = {
   type: 'data' as APITemplateType,
   templateKey: 'articledatakey',
-  name: 'articledata',
+  name: 'Articles',
   areas: {},
   migrations: [],
   getLinks: (data: any) => [],
