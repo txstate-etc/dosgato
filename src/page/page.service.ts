@@ -1,14 +1,14 @@
 import { PageData, PageLink } from '@dosgato/templating'
+import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { eachConcurrent, intersect, isNotNull, isNull, mapConcurrent, someAsync, stringify, unique } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
-  CreatePageInput, PageResponse, PagesResponse, createPage, getPages, movePages,
+  PageResponse, PagesResponse, createPage, getPages, movePages,
   deletePages, renamePage, TemplateService, PagetreeService, SiteService,
-  TemplateFilter, Template, getPageIndexes, UpdatePageInput, undeletePages,
-  validatePage, DeletedFilter, copyPages
+  TemplateFilter, Template, getPageIndexes, undeletePages,
+  validatePage, DeletedFilter, copyPages, TemplateType
 } from '../internal.js'
-import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
@@ -280,27 +280,28 @@ export class PageService extends DosGatoService<Page> {
     return new PageResponse({ success: true, page: newPage })
   }
 
-  async createPage (args: CreatePageInput) {
-    const { parent, aboveTarget } = await this.resolveTarget(args.targetId, args.above)
+  async createPage (name: string, templateKey: string, targetId: string, above?: boolean) {
+    const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
     if (!(await this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
-    const template = await this.svc(TemplateService).findByKey(args.templateKey)
+    const template = await this.svc(TemplateService).findByKey(templateKey)
     if (!template) throw new Error('Cannot find template.')
-    // TODO is it a correct assumption that the approved templates for the new page will match its parent's approved templates?
-    const approvedTemplates = await this.getApprovedTemplates(parent)
-    if (!approvedTemplates.find(t => t.id === template.id)) {
+    if (template.type !== TemplateType.PAGE) throw new Error('Tried to create a page with a non-page template.')
+    // at the time of writing this comment, template usage is approved for an entire pagetree, so
+    // it should be safe to simply check if the targeted parent/sibling is allowed to use this template
+    if (!await this.svc(TemplateService).mayUseOnPage(template, targetId)) {
       throw new Error(`Template ${template.name} is not approved for use in this site or pagetree.`)
     }
-    const page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, args.name, args.templateKey, args.schemaVersion)
+    const page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, templateKey)
     return new PageResponse({ success: true, page })
   }
 
-  async updatePage (dataId: string, args: UpdatePageInput) {
-    const response = new PageResponse({})
+  async updatePage (dataId: string, dataVersion: number, data: PageData, comment?: string) {
     const page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
     try {
-      const messages = await validatePage(args.data)
+      const response = new PageResponse({})
+      const messages = await validatePage(data)
       if (Object.keys(messages).length) {
         for (const key of Object.keys(messages)) {
           for (const message of messages[key]) {
@@ -309,8 +310,8 @@ export class PageService extends DosGatoService<Page> {
         }
         return response
       }
-      const indexes = getPageIndexes(args.data)
-      await this.svc(VersionedService).update(dataId, args.data, indexes, { user: this.login, comment: args.comment, version: args.dataVersion })
+      const indexes = getPageIndexes(data)
+      await this.svc(VersionedService).update(dataId, data, indexes, { user: this.login, comment: comment, version: dataVersion })
       this.loaders.clear()
       const updated = await this.raw.findById(dataId)
       response.success = true

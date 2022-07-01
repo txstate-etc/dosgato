@@ -1,6 +1,7 @@
 import { APITemplateType, APITemplate } from '@dosgato/templating'
-import { eachConcurrent, keyby } from 'txstate-utils'
+import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
+import { eachConcurrent, keyby } from 'txstate-utils'
 import { TemplateArea } from '../internal.js'
 
 interface APITemplateImpl extends Omit<APITemplate, 'areas'> {}
@@ -18,7 +19,10 @@ class APITemplateImpl implements Omit<APITemplate, 'areas'> {
 class TemplateRegistry {
   protected byType: Record<APITemplateType, APITemplateImpl[]> = { page: [], component: [], data: [] }
   protected byKey: Record<string, APITemplateImpl> = {}
+  public currentSchemaVersion!: DateTime
+
   register (template: APITemplate) {
+    this.currentSchemaVersion = DateTime.fromMillis(Math.max(this.currentSchemaVersion?.toMillis() ?? 0, ...template.migrations.map(m => m.createdAt.getTime())))
     const impl = new APITemplateImpl(template)
     this.byType[template.type] ??= []
     this.byType[template.type].push(impl)

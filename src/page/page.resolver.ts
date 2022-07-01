@@ -1,14 +1,14 @@
+import { PageData } from '@dosgato/templating'
 import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { isNull } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import {
   Pagetree, PagetreeService, Role, JsonData, Site, SiteService, Template, TemplateFilter,
-  User, UserService, ObjectVersion, VersionedService, CreatePageInput, Page, PageFilter,
+  User, UserService, ObjectVersion, VersionedService, Page, PageFilter,
   PagePermission, PagePermissions, PageResponse, PagesResponse, PageService, PageRuleService, RoleService,
-  PagetreeType, UpdatePageInput, TemplateService
+  PagetreeType, TemplateService, UrlSafeString
 } from '../internal.js'
-import { PageData } from '@dosgato/templating'
 
 @Resolver(of => Page)
 export class PageResolver {
@@ -173,13 +173,25 @@ export class PageResolver {
 
   // Mutations
   @Mutation(returns => PageResponse, { description: 'Create a new page.' })
-  async createPage (@Ctx() ctx: Context, @Arg('args', type => CreatePageInput) args: CreatePageInput) {
-    return await ctx.svc(PageService).createPage(args)
+  async createPage (@Ctx() ctx: Context,
+    @Arg('name') name: UrlSafeString,
+    @Arg('templateKey', type => ID, { description: 'Template to use for the new page.' }) templateKey: string,
+    @Arg('targetId', type => ID, { description: "An existing page to be the new page's parent or sibling, depending on the 'above' arg." }) targetId: string,
+    @Arg('above', { nullable: true, description: 'When true, the page will be created above the target page instead of inside it.' }) above?: boolean
+  ) {
+    return await ctx.svc(PageService).createPage(name as string, templateKey, targetId, above)
   }
 
   @Mutation(returns => PageResponse)
-  async updatePage (@Ctx() ctx: Context, @Arg('pageId', type => ID) pageId: string, @Arg('args', type => UpdatePageInput) args: UpdatePageInput) {
-    return await ctx.svc(PageService).updatePage(pageId, args)
+  async updatePage (@Ctx() ctx: Context,
+    @Arg('pageId', type => ID) pageId: string,
+    @Arg('dataVersion', type => Int, {
+      description: "When a user begins editing a page, they view the latest version and begin making changes. If time passes, it's possible there will be a new version in the database by the time the editor saves. We pass along the version that the editor thinks they are saving against so that we can return an error if it is no longer the latest version."
+    }) dataVersion: number,
+    @Arg('data', type => JsonData, { description: 'The full page data which should include the appropriate schemaVersion.' }) data: PageData,
+    @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string
+  ) {
+    return await ctx.svc(PageService).updatePage(pageId, dataVersion, data, comment)
   }
 
   @Mutation(returns => PageResponse)

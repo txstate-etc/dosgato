@@ -3,12 +3,11 @@ import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common.js'
 import db from 'mysql2-async/db'
-import { DateTime } from 'luxon'
 
 chai.use(chaiAsPromised)
 
 async function createPage (name: string, parentId: string, templateKey: string, username?: string) {
-  const { createPage: { success, page, messages } } = await queryAs((username ?? 'su01'), 'mutation CreatePage ($args: CreatePageInput!) { createPage (args: $args) { success messages { message } page { id name } } }', { args: { name, targetId: parentId, templateKey, schemaVersion: DateTime.utc() } })
+  const { createPage: { success, page, messages } } = await queryAs((username ?? 'su01'), 'mutation CreatePage ($name: UrlSafeString!, $templateKey: ID!, $targetId: ID!) { createPage (name: $name, templateKey: $templateKey, targetId: $targetId) { success messages { message } page { id name } } }', { name, targetId: parentId, templateKey })
   return { success, page, messages }
 }
 

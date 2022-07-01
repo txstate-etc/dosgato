@@ -2,8 +2,7 @@ import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-s
 import { DateTime } from 'luxon'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { UrlSafeString, PagetreeType, JsonData } from '../internal.js'
-import { PageData } from '@dosgato/templating'
+import { UrlSafeString, PagetreeType } from '../internal.js'
 
 @ObjectType({ description: 'Sites contain pages. Each page can have subpages. Each pagetree has one root page.' })
 export class Page {
@@ -115,40 +114,6 @@ export class PageFilter {
 
   @Field(type => DeletedFilter, { nullable: true })
   deleted?: DeletedFilter
-}
-
-@InputType()
-export class CreatePageInput {
-  @Field()
-  name!: string
-
-  @Field({ description: 'The current schema version of the admin UI. The new page will be empty, so it may seem unnecessary, but all pages MUST be tagged with a schema version to maintain sanity.' })
-  schemaVersion!: DateTime
-
-  @Field(type => ID, { description: 'The existing page that will be the new page\'s parent (or sibling, see "above" property).' })
-  targetId!: string
-
-  @Field({ nullable: true, description: 'When true, the page will be created above the targeted page instead of inside it.' })
-  above?: boolean
-
-  @Field(type => ID, { description: 'All pages must have a template, so we need it upon creation. Further page data will be set later by the page template\'s dialog.' })
-  templateKey!: string
-}
-
-@InputType()
-export class UpdatePageInput {
-  @Field({ description: 'The current schema version of the admin UI.' })
-  schemaVersion!: DateTime
-
-  // TODO: Not sure about these types.
-  @Field(type => JsonData, { description: 'The page content' })
-  data!: PageData
-
-  @Field(type => Number, { description: 'The version of the data you had when you started the update' })
-  dataVersion?: number
-
-  @Field({ description: 'An optional comment describing the update' })
-  comment?: string
 }
 
 @ObjectType()
