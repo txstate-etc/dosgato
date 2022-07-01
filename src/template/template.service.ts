@@ -3,7 +3,7 @@ import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   Template, TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
   DosGatoService, authorizeForPagetree, deauthorizeForPagetree,
-  authorizeForSite, deauthorizeForSite, setUniversal, PagetreeServiceInternal, SiteServiceInternal
+  authorizeForSite, deauthorizeForSite, setUniversal, PagetreeServiceInternal, SiteServiceInternal, PageServiceInternal, getTemplatePagePairs
 } from '../internal.js'
 
 const templatesByIdLoader = new PrimaryKeyLoader({
@@ -32,6 +32,13 @@ const templatesByPagetreeIdLoader = new ManyJoinedLoader({
     return await getTemplatesByPagetree(pagetreeIds, filter)
   },
   idLoader: [templatesByIdLoader, templatesByKeyLoader]
+})
+
+const mayUseTemplateOnPageLoader = new PrimaryKeyLoader({
+  fetch: async (pairs: { pageId: string, templateKey: string }[]) => {
+    return await getTemplatePagePairs(pairs)
+  },
+  extractId: row => ({ pageId: row.pageId, templateKey: row.templateKey })
 })
 
 export class TemplateServiceInternal extends BaseService {
@@ -191,5 +198,10 @@ export class TemplateService extends DosGatoService<Template> {
 
   async maySetUniversal (template: Template) {
     return await this.haveGlobalPerm('manageUsers')
+  }
+
+  async mayUseOnPage (template: Template, pageId: string) {
+    if (await this.haveTemplatePerm(template, 'use')) return true
+    return !!(await this.loaders.get(mayUseTemplateOnPageLoader).load({ pageId, templateKey: template.key }))
   }
 }

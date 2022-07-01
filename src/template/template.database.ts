@@ -50,6 +50,25 @@ export async function getTemplatesByPagetree (pagetreeIds: string[], filter?: Te
   return rows.map(row => ({ key: String(row.pagetreeId), value: new Template(row) }))
 }
 
+export async function getTemplatePagePairs (pairs: { pageId: string, templateKey: string }[]) {
+  const binds: string[] = []
+  return await db.getall<{ pageId: string, templateKey: string }>(`
+    SELECT p.dataId as pageId, t.key as templateKey
+    FROM pages p
+    INNER JOIN pagetrees pt ON pt.id=p.pagetreeId
+    INNER JOIN sites s ON s.id=pt.siteId
+    INNER JOIN sites_templates st ON s.id=st.siteId
+    INNER JOIN templates t ON st.templateId=t.id
+    WHERE (p.dataId, t.key) IN (${db.in(binds, pairs.map(p => [p.pageId, p.templateKey]))})
+    UNION
+    SELECT p.dataId as pageId, t.key as templateKey
+    FROM pages p
+    INNER JOIN pagetrees_templates ptt ON ptt.pagetreeId=p.pagetreeId
+    INNER JOIN templates t ON ptt.templateId=t.id
+    WHERE (p.dataId, t.key) IN (${db.in(binds, pairs.map(p => [p.pageId, p.templateKey]))})
+  `, binds)
+}
+
 export async function authorizeForPagetree (templateId: string, pagetreeId: string) {
   return await db.insert('INSERT INTO pagetrees_templates (templateId, pagetreeId) VALUES (?,?)', [templateId, pagetreeId])
 }

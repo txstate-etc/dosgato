@@ -96,6 +96,11 @@ export class TemplatePermissionsResolver {
   async setUniversal (@Ctx() ctx: Context, @Root() template: Template) {
     return await ctx.svc(TemplateService).maySetUniversal(template)
   }
+
+  @FieldResolver(returns => Boolean, { description: 'Authenticated user has permission to use this template on the given page.' })
+  async useOnPage (@Ctx() ctx: Context, @Root() template: Template, @Arg('pageId', type => ID) pageId: string) {
+    return await ctx.svc(TemplateService).mayUseOnPage(template, pageId)
+  }
 }
 
 @Resolver(of => TemplateArea)
