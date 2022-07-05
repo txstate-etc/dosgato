@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { TemplateFilter, Template } from '../internal.js'
 
-const columns = ['templates.id', 'templates.key', 'templates.name', 'templates.type', 'templates.deleted']
+const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted']
 
 function processFilters (filter?: TemplateFilter) {
   const where: string[] = ['deleted = 0']

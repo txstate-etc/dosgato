@@ -90,7 +90,7 @@ describe('datafolder', () => {
     const { data } = await query('{ data(filter: { deleted: false }) { id folder { name template { name } } } }')
     const site2data = data.filter((d: any) => d.folder?.name === 'site2datafolder')
     for (const dataEntry of site2data) {
-      expect(dataEntry.folder.template.name).to.equal('datatemplate1')
+      expect(dataEntry.folder.template.name).to.equal('Colors')
     }
   })
   it('should return the site a datafolder belongs to', async () => {
@@ -235,7 +235,7 @@ describe('data', () => {
     const { data } = await query('{ data(filter: { deleted:false }) {id data template { name } site { name } } }')
     const site2entries = data.filter((d: any) => d.site?.name === 'site2')
     for (const entry of site2entries) {
-      expect(entry.template.name).to.equal('datatemplate1')
+      expect(entry.template.name).to.equal('Colors')
     }
   })
   it('should return a data entry\'s parent folder', async () => {

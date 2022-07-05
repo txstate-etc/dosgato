@@ -57,7 +57,7 @@ export async function syncRegistryWithDB () {
   await eachConcurrent(registryTemplates, async (template) => {
     if (!templatesInDB[template.templateKey]) {
       console.log(`Adding template ${template.templateKey}`)
-      await db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES (?,?,?,?)', [template.templateKey, `${template.name}`, template.type, 0])
+      await db.insert('INSERT INTO templates (`key`, `type`, `deleted`) VALUES (?,?,?)', [template.templateKey, template.type, 0])
     } else {
       found.add(template.templateKey)
     }
