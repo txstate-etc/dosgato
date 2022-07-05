@@ -7,7 +7,7 @@ import {
   PageResponse, PagesResponse, createPage, getPages, movePages,
   deletePages, renamePage, TemplateService, PagetreeService, SiteService,
   TemplateFilter, Template, getPageIndexes, undeletePages,
-  validatePage, DeletedFilter, copyPages, TemplateType
+  validatePage, DeletedFilter, copyPages, TemplateType, migratePage
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -280,17 +280,21 @@ export class PageService extends DosGatoService<Page> {
     return new PageResponse({ success: true, page: newPage })
   }
 
+  async validatePageTemplate (page: Page, templateKey: string) {
+    const template = await this.svc(TemplateService).findByKey(templateKey)
+    if (!template) throw new Error('Tried to use an unrecognized template.')
+    if (template.type !== TemplateType.PAGE) throw new Error('Tried to set template to a non-page template.')
+    if (!await this.svc(TemplateService).mayUseOnPage(template, page.dataId)) {
+      throw new Error(`Template ${template.name} is not approved for use in this site or pagetree.`)
+    }
+  }
+
   async createPage (name: string, templateKey: string, targetId: string, above?: boolean) {
     const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
     if (!(await this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
-    const template = await this.svc(TemplateService).findByKey(templateKey)
-    if (!template) throw new Error('Cannot find template.')
-    if (template.type !== TemplateType.PAGE) throw new Error('Tried to create a page with a non-page template.')
     // at the time of writing this comment, template usage is approved for an entire pagetree, so
     // it should be safe to simply check if the targeted parent/sibling is allowed to use this template
-    if (!await this.svc(TemplateService).mayUseOnPage(template, targetId)) {
-      throw new Error(`Template ${template.name} is not approved for use in this site or pagetree.`)
-    }
+    await this.validatePageTemplate(parent, templateKey)
     const page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, templateKey)
     return new PageResponse({ success: true, page })
   }
@@ -299,28 +303,21 @@ export class PageService extends DosGatoService<Page> {
     const page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
-    try {
-      const response = new PageResponse({})
-      const messages = await validatePage(data)
-      if (Object.keys(messages).length) {
-        for (const key of Object.keys(messages)) {
-          for (const message of messages[key]) {
-            response.addMessage(message, key, MutationMessageType.error)
-          }
-        }
-        return response
-      }
-      const indexes = getPageIndexes(data)
-      await this.svc(VersionedService).update(dataId, data, indexes, { user: this.login, comment: comment, version: dataVersion })
-      this.loaders.clear()
-      const updated = await this.raw.findById(dataId)
-      response.success = true
-      response.page = updated
-      return response
-    } catch (err: any) {
-      console.error(err)
-      throw new Error(`Could not update page ${String(page.name)}`)
+    await this.validatePageTemplate(page, data.templateKey)
+    const response = new PageResponse({ success: true })
+    const pageRecord = { id: page.dataId, linkId: page.linkId, path: page.path, data }
+    const migrated = await migratePage(this.ctx, pageRecord)
+    const messages = await validatePage(this.ctx, migrated)
+    for (const message of messages) {
+      response.addMessage(message.message, message.path, message.type as MutationMessageType)
     }
+    if (!response.success) return response
+    const indexes = getPageIndexes(data)
+    await this.svc(VersionedService).update(dataId, data, indexes, { user: this.login, comment: comment, version: dataVersion })
+    this.loaders.clear()
+    const updated = await this.raw.findById(dataId)
+    response.page = updated
+    return response
   }
 
   async renamePage (dataId: string, name: string) {

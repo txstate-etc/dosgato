@@ -1,5 +1,5 @@
 import multipart from '@fastify/multipart'
-import { APITemplate } from '@dosgato/templating'
+import { APIAnyTemplate } from '@dosgato/templating'
 import { Context, GQLServer, AuthError, GQLStartOpts } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { FastifyInstance } from 'fastify'
@@ -32,7 +32,7 @@ async function getEnabledUser (ctx: Context) {
 }
 
 export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
-  templates: APITemplate[]
+  templates: APIAnyTemplate[]
   fixtures?: () => Promise<void>
   migrations?: DBMigration[]
   resolvers?: Function[]

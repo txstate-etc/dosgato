@@ -67,7 +67,7 @@ describe('pages mutations', () => {
     const { movePages: { success, pages } } = await query('mutation movePages ($pageIds: [ID!]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { success pages { name, parent { name } } } }', { pageIds: [firstPageToMove.id, secondPageToMove.id], parentId: targetPage.id })
     expect(success).to.be.true
     for (const p of pages) {
-      expect(p.parent.name).to.equal('targetpageA')
+      expect(p.parent.name).to.equal('targetpagea')
     }
     const movedPages = await db.getall('SELECT dataId, displayOrder FROM pages where dataId IN (?,?) ORDER BY displayOrder', [firstPageToMove.id, secondPageToMove.id])
     expect(movedPages[0].dataId).to.equal(firstPageToMove.id)
@@ -111,8 +111,8 @@ describe('pages mutations', () => {
     for (const page of pages) {
       displayOrders[page.name] = page.displayOrder
     }
-    expect(displayOrders.movingpageH).to.equal(displayOrders.movingpageG + 1)
-    expect(displayOrders.targetpageD).to.equal(displayOrders.movingpageG + 2)
+    expect(displayOrders.movingpageh).to.equal(displayOrders.movingpageg + 1)
+    expect(displayOrders.targetpaged).to.equal(displayOrders.movingpageg + 2)
   })
   it('should not leave holes behind when pages are moved', async () => {
     const { page: originalParent } = await createPage('originalparent', testSite6PageRootId, 'keyp1')
@@ -150,9 +150,9 @@ describe('pages mutations', () => {
     for (const page of children) {
       displayOrders[page.name] = page.displayOrder
     }
-    expect(displayOrders.childpageB1).to.be.lessThan(displayOrders.childpageA2)
-    expect(displayOrders.childpageC1).to.be.lessThan(displayOrders.childpageA2)
-    expect(displayOrders.childpageA2).to.be.lessThan(displayOrders.childpageC4)
+    expect(displayOrders.childpageb1).to.be.lessThan(displayOrders.childpagea2)
+    expect(displayOrders.childpagec1).to.be.lessThan(displayOrders.childpagea2)
+    expect(displayOrders.childpagea2).to.be.lessThan(displayOrders.childpagec4)
   })
   it('should copy a page', async () => {
     const { page: pagetocopy } = await createPage('copytestpage1', testSite6PageRootId, 'keyp1')

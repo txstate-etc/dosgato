@@ -56,8 +56,8 @@ export class Template {
     this.universal = !!row.universal
     const tmpl = templateRegistry.get(this.key)
     this.name = tmpl.name
-    this.areas = Object.entries(tmpl.areas).map(([key, area]) => new TemplateArea(key, area.availableComponents))
-    this.templateProperties = tmpl.templateProperties
+    this.areas = Object.entries(tmpl.hydratedAreas).map(([key, area]) => new TemplateArea(key, area.availableComponents))
+    if (tmpl.type === 'page') this.templateProperties = tmpl.templateProperties
   }
 }
 

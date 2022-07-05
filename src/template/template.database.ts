@@ -1,5 +1,6 @@
 import db from 'mysql2-async/db'
-import { TemplateFilter, Template } from '../internal.js'
+import { keyby, eachConcurrent } from 'txstate-utils'
+import { TemplateFilter, Template, templateRegistry } from '../internal.js'
 
 const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted']
 
@@ -87,4 +88,28 @@ export async function deauthorizeForSite (templateId: string, siteId: string) {
 
 export async function setUniversal (templateId: string, universal: boolean) {
   return await db.update('UPDATE templates SET universal = ? where id = ?', [templateId, universal])
+}
+
+export async function syncRegistryWithDB () {
+  const templatesInDB = keyby(await db.getall('SELECT * FROM templates'), 'key')
+  const registryTemplates = [...templateRegistry.getType('page'), ...templateRegistry.getType('component'), ...templateRegistry.getType('data')]
+  const found = new Set<string>()
+  await eachConcurrent(registryTemplates, async (template) => {
+    if (!templatesInDB[template.templateKey]) {
+      console.log(`Adding template ${template.templateKey}`)
+      await db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES (?,?,?,?)', [template.templateKey, template.name, template.type, 0])
+    } else {
+      await db.update('UPDATE templates SET `name`=? WHERE `key`=?', [template.name, template.templateKey])
+      found.add(template.templateKey)
+    }
+  })
+  // TODO: This will set deleted = true for all templates in the database NOT added to the template registry.
+  // Does anything need to happen with the datarules or datafolders associated with deleted templates?
+  // Also need to consider the pagetrees_templates and sites_templates tables. What happens if an allowed template is deleted?
+  const notInRegistry = Object.keys(templatesInDB).filter((t) => !found.has(t))
+  if (notInRegistry.length > 0) {
+    const deleteTemplateBinds: string[] = []
+    const numDeleted = await db.update(`UPDATE templates SET deleted = true WHERE \`key\` IN (${db.in(deleteTemplateBinds, notInRegistry)})`, deleteTemplateBinds)
+    if (numDeleted > 0) console.info(`${numDeleted} templates marked deleted because they were not found in template registry.`)
+  }
 }

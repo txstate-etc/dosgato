@@ -7,7 +7,7 @@ import {
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, MoveDataTarget, moveDataEntries,
-  DataFolder, Site, TemplateService, DataRoot
+  DataFolder, Site, TemplateService, DataRoot, migrateData, DataRootService
 } from '../internal.js'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
@@ -146,78 +146,67 @@ export class DataService extends DosGatoService<Data> {
   }
 
   async create (args: CreateDataInput) {
-    const response = new DataResponse({})
+    let site: Site|undefined
+    let dataroot: DataRoot
+    const template = await this.svc(TemplateService).findByKey(args.data.templateKey)
+    if (!template) throw new Error('Tried to create data with an unrecognized template.')
     if (args.folderId) {
       const folder = await this.svc(DataFolderServiceInternal).findById(args.folderId)
       if (!folder) throw new Error('Data cannot be created in a data folder that does not exist.')
       if (!(await this.svc(DataFolderService).mayCreate(folder))) throw new Error(`Current user is not permitted to create data in folder ${String(folder.name)}`)
-      const template = await this.svc(TemplateService).findByKey(args.templateKey)
-      if (folder.templateId !== template!.id) {
+      if (folder.templateId !== template.id) {
         throw new Error('Data cannot be created in a folder using a different data template.')
       }
+      site = folder.siteId ? await this.svc(SiteServiceInternal).findById(folder.siteId) : undefined
+      dataroot = new DataRoot(site, template)
     } else if (args.siteId) {
-      const site = await this.svc(SiteServiceInternal).findById(args.siteId)
+      site = await this.svc(SiteServiceInternal).findById(args.siteId)
       if (!site) throw new Error('Data cannot be created in a site that does not exist.')
-      // TODO: Does the current user have permission to create data for the site?
-      const data = new Data({ id: 0, siteId: args.siteId })
-      if (!(await this.haveDataPerm(data, 'create'))) throw new Error(`Current user is not permitted to create data in site ${String(site.name)}.`)
+      dataroot = new DataRoot(site, template)
+      if (!await this.svc(DataRootService).mayCreate(dataroot)) throw new Error(`Current user is not permitted to create data in site ${String(site.name)}.`)
     } else {
       // global data
       if (!(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to create global data entries.')
+      dataroot = new DataRoot(undefined, template)
     }
-    try {
-      // validate data
-      const validator = templateRegistry.get(args.templateKey).validate
-      const messages = await validator(args.data)
-      if (Object.keys(messages).length) {
-        for (const key of Object.keys(messages)) {
-          // TODO: Not sure about this. The validator can return an array of message for each field, but MutationMessage has one
-          // message per field.
-          for (const message of messages[key]) {
-            response.addMessage(message, key, MutationMessageType.error)
-          }
-        }
-        return response
-      }
-      // passed validation, save it
-      const versionedService = this.svc(VersionedService)
-      const data = await createDataEntry(versionedService, this.login, args)
-      response.success = true
-      response.data = data
-      return response
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to create data entry')
+    // validate data
+    const tmpl = templateRegistry.getDataTemplate(template.key)
+    const migrated = await migrateData(this.ctx, args.data, dataroot.id, args.folderId)
+    const messages = await tmpl.validate?.(migrated, this.ctx.query, dataroot.id, args.folderId) ?? []
+    const response = new DataResponse({ success: true })
+    for (const message of messages) {
+      response.addMessage(message.message, message.path, message.type as MutationMessageType)
     }
+    if (!response.success) return response
+    // passed validation, save it
+    const versionedService = this.svc(VersionedService)
+    const data = await createDataEntry(versionedService, this.login, args)
+    response.success = true
+    response.data = data
+    return response
   }
 
   async update (dataId: string, args: UpdateDataInput) {
-    const response = new DataResponse({})
     const data = await this.raw.findById(dataId)
     if (!data) throw new Error('Data entry to be updated does not exist')
     if (!(await this.mayUpdate(data))) throw new Error('Current user is not permitted to update this data entry.')
-    try {
-      const validator = templateRegistry.get(args.data.templateKey).validate
-      const messages = await validator(args.data)
-      if (Object.keys(messages).length) {
-        for (const key of Object.keys(messages)) {
-          for (const message of messages[key]) {
-            response.addMessage(message, key, MutationMessageType.error)
-          }
-        }
-        return response
-      }
-      const indexes = getDataIndexes(args.data)
-      await this.svc(VersionedService).update(dataId, args.data, indexes, { user: this.login, comment: args.comment, version: args.dataVersion })
-      this.loaders.clear()
-      const updated = await this.raw.findById(dataId)
-      response.success = true
-      response.data = updated
-      return response
-    } catch (err: any) {
-      console.error(err)
-      throw new Error(`Unable to update data entry ${String(data.name)}`)
+    const tmpl = templateRegistry.getDataTemplate(args.data.templateKey)
+    const datarootId = `${data.siteId ?? 'global'}-${args.data.templateKey}`
+    const folder = data.folderInternalId ? await this.svc(DataFolderServiceInternal).findByInternalId(data.folderInternalId) : undefined
+    const migrated = await migrateData(this.ctx, args.data, datarootId, folder?.id, data.id)
+    const messages = await tmpl.validate?.(migrated, this.ctx.query, datarootId, folder?.id, data.id) ?? []
+    const response = new DataResponse({ success: true })
+    for (const message of messages) {
+      response.addMessage(message.message, message.path, message.type as MutationMessageType)
     }
+    if (!response.success) return response
+    const indexes = getDataIndexes(migrated)
+    await this.svc(VersionedService).update(dataId, args.data, indexes, { user: this.login, comment: args.comment, version: args.dataVersion })
+    this.loaders.clear()
+    const updated = await this.raw.findById(dataId)
+    response.success = true
+    response.data = updated
+    return response
   }
 
   async rename (dataId: string, name: string) {

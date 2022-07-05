@@ -1,9 +1,4 @@
-import { Migration } from '@dosgato/templating'
 import { Queryable } from 'mysql2-async'
-
-export interface MigrationWithTemplate extends Migration {
-  templateKey: string
-}
 
 export interface DBMigration {
   /**

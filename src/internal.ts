@@ -46,7 +46,6 @@ export * from './user/user.database.js'
 
 export * from './page/page.util.js'
 export * from './page/page.indexing.js'
-export * from './page/page.migrations.js'
 export * from './page/page.validation.js'
 
 export * from './data/data.indexing.js'
@@ -71,6 +70,9 @@ export * from './template/template.service.js'
 export * from './templaterule/templaterule.service.js'
 export * from './user/user.service.js'
 export * from './versionedservice/service.js'
+
+export * from './data/data.migrations.js'
+export * from './page/page.migrations.js'
 
 export * from './access/access.resolver.js'
 export * from './asset/asset.resolver.js'

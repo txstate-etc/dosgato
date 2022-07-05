@@ -1,7 +1,7 @@
-import { extractLinksFromText, getKeywords } from '@dosgato/templating'
-import { DataEntryData, Index, templateRegistry, processLink } from '../internal.js'
+import { DataData, extractLinksFromText, getKeywords } from '@dosgato/templating'
+import { Index, templateRegistry, processLink } from '../internal.js'
 
-export function getDataIndexes (data: DataEntryData): Index[] {
+export function getDataIndexes (data: DataData): Index[] {
   const storage: Record<string, Set<string>> = {}
   storage.templateKey = new Set([data.templateKey])
   const indexes = templateRegistry.get(data.templateKey).getLinks(data).map(processLink).flat()

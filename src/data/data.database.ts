@@ -178,8 +178,8 @@ async function updateSourceDisplayOrder (db: Queryable, versionedService: Versio
 export async function createDataEntry (versionedService: VersionedService, userId: string, args: CreateDataInput) {
   return await db.transaction(async db => {
     const dataFolderInternalId = args.folderId ? await db.getval<number>('SELECT id FROM datafolders WHERE guid = ?', [args.folderId]) : undefined
-    const displayOrder = await handleDisplayOrder(db, versionedService, args.templateKey, 1, dataFolderInternalId, args.siteId)
-    const data = Object.assign({}, args.data, { templateKey: args.templateKey, savedAtVersion: formatSavedAtVersion(args.schemaVersion) })
+    const displayOrder = await handleDisplayOrder(db, versionedService, args.data.templateKey, 1, dataFolderInternalId, args.siteId)
+    const data = args.data
     const indexes = await getDataIndexes(data)
     const dataId = await versionedService.create('data', data, indexes, userId, db)
     const columns = ['dataId', 'name', 'displayOrder']

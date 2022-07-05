@@ -1,8 +1,8 @@
-import { APITemplate, APITemplateType, WebLink, extractLinksFromText, getKeywords } from '@dosgato/templating'
-import { isBlank, isNull } from 'txstate-utils'
+import { WebLink, extractLinksFromText, getKeywords, ValidationFeedback, APIComponentTemplate, APIPageTemplate, APIDataTemplate } from '@dosgato/templating'
+import { isBlank } from 'txstate-utils'
 
-export const PageTemplate1 = {
-  type: 'page' as APITemplateType,
+export const PageTemplate1: APIPageTemplate = {
+  type: 'page',
   templateKey: 'keyp1',
   name: 'pagetemplate1',
   areas: {
@@ -13,14 +13,11 @@ export const PageTemplate1 = {
   getLinks: (data: any) => [],
   getFulltext: (data: any) => {
     return [data.title]
-  },
-  validate: async (data: any) => {
-    return {}
   }
 }
 
-export const PageTemplate2 = {
-  type: 'page' as APITemplateType,
+export const PageTemplate2: APIPageTemplate = {
+  type: 'page',
   templateKey: 'keyp2',
   name: 'pagetemplate2',
   areas: {
@@ -37,16 +34,16 @@ export const PageTemplate2 = {
     return [data.title]
   },
   validate: async (data: any) => {
-    const ret: Record<string, string[]> = {}
+    const errors: ValidationFeedback[] = []
     if (isBlank(data.title)) {
-      ret.title = ['Page title is required.']
+      errors.push({ path: 'title', message: 'Page title is required.' })
     }
-    return ret
+    return errors
   }
 }
 
-export const PageTemplate3 = {
-  type: 'page' as APITemplateType,
+export const PageTemplate3: APIPageTemplate = {
+  type: 'page',
   templateKey: 'keyp3',
   name: 'pagetemplate3',
   areas: {
@@ -56,14 +53,11 @@ export const PageTemplate3 = {
   getLinks: (data: any) => [],
   getFulltext: (data: any) => {
     return [data.title]
-  },
-  validate: async (data: any) => {
-    return {}
   }
 }
 
-export const PageTemplate4 = {
-  type: 'page' as APITemplateType,
+export const PageTemplate4: APIPageTemplate = {
+  type: 'page',
   templateKey: 'keyp4',
   name: 'pagetemplate4',
   areas: {
@@ -73,14 +67,11 @@ export const PageTemplate4 = {
   getLinks: (data: any) => [],
   getFulltext: (data: any) => {
     return [data.title]
-  },
-  validate: async (data: any) => {
-    return {}
   }
 }
 
-export const LinkComponent = {
-  type: 'component' as APITemplateType,
+export const LinkComponent: APIComponentTemplate = {
+  type: 'component',
   templateKey: 'keyc1',
   name: 'Link',
   areas: {},
@@ -92,14 +83,14 @@ export const LinkComponent = {
     return getKeywords(data.text)
   },
   validate: async (data: any) => {
-    const errors: Record<string, string[]> = {}
-    if (isBlank(data.link)) errors.link = ['Link target is required.']
+    const errors: ValidationFeedback[] = []
+    if (isBlank(data.link)) errors.push({ path: 'link', message: 'Link target is required.' })
     return errors
   }
 }
 
-export const PanelComponent = {
-  type: 'component' as APITemplateType,
+export const PanelComponent: APIComponentTemplate = {
+  type: 'component',
   templateKey: 'keyc2',
   name: 'Panel',
   areas: {},
@@ -107,14 +98,11 @@ export const PanelComponent = {
   getLinks: (data: any) => [],
   getFulltext: (data: any) => {
     return [data.text, data.title]
-  },
-  validate: async (data: any) => {
-    return {}
   }
 }
 
-export const QuoteComponent = {
-  type: 'component' as APITemplateType,
+export const QuoteComponent: APIComponentTemplate = {
+  type: 'component',
   templateKey: 'keyc3',
   name: 'Quote',
   areas: {},
@@ -122,14 +110,11 @@ export const QuoteComponent = {
   getLinks: (data: any) => [],
   getFulltext: (data: any) => {
     return [data.quote, data.author]
-  },
-  validate: async (data: any) => {
-    return {}
   }
 }
 
-export const RichTextComponent: APITemplate = {
-  type: 'component' as APITemplateType,
+export const RichTextComponent: APIComponentTemplate = {
+  type: 'component',
   templateKey: 'richtext',
   name: 'Rich Text',
   areas: {},
@@ -139,14 +124,14 @@ export const RichTextComponent: APITemplate = {
     return [...getKeywords(data.title), ...getKeywords(data.text)]
   },
   validate: async (data: any) => {
-    const errors: Record<string, string[]> = {}
-    if (isBlank(data.text)) errors.text = ['Rich text is required.']
+    const errors: ValidationFeedback[] = []
+    if (isBlank(data.text)) errors.push({ message: 'Rich text is required.', path: 'text' })
     return errors
   }
 }
 
-export const TextImageComponent = {
-  type: 'component' as APITemplateType,
+export const TextImageComponent: APIComponentTemplate = {
+  type: 'component',
   templateKey: 'textimage',
   name: 'Text & Image',
   areas: {},
@@ -156,36 +141,34 @@ export const TextImageComponent = {
     return [...getKeywords(data.title), ...getKeywords(data.text)]
   },
   validate: async (data: any) => {
-    const errors: Record<string, string[]> = {}
-    if (isBlank(data.title)) errors.title = ['Title is required.']
+    const errors: ValidationFeedback[] = []
+    if (isBlank(data.title)) errors.push({ path: 'title', message: 'Title is required.' })
     return errors
   }
 }
 
-export const ColorData = {
-  type: 'data' as APITemplateType,
+export const ColorData: APIDataTemplate = {
+  type: 'data',
   templateKey: 'keyd1',
   name: 'Colors',
-  areas: {},
   migrations: [],
   getLinks: (data: any) => [],
   getFulltext: (data: any) => {
     return [data.title]
   },
   validate: async (data: any) => {
-    const ret: Record<string, string[]> = {}
-    if (isNull(data.title)) {
-      ret.title = ['Title is required']
+    const errors: ValidationFeedback[] = []
+    if (isBlank(data.title)) {
+      errors.push({ path: 'title', message: 'Title is required' })
     }
-    return ret
+    return errors
   }
 }
 
-export const BuildingData = {
-  type: 'data' as APITemplateType,
+export const BuildingData: APIDataTemplate = {
+  type: 'data',
   templateKey: 'keyd2',
   name: 'Buildings',
-  areas: {},
   migrations: [],
   getLinks: (data: any) => {
     const links: WebLink[] = []
@@ -197,28 +180,24 @@ export const BuildingData = {
     return [data.name]
   },
   validate: async (data: any) => {
-    const ret: Record<string, string[]> = {}
-    if (isNull(data.name)) {
-      ret.name = ['Building name is required', 'You can not leave the building name blank.']
+    const errors: ValidationFeedback[] = []
+    if (isBlank(data.name)) {
+      errors.push({ path: 'name', message: 'Building name is required.' })
     }
     if (data.floors && data.floors > 5) {
-      ret.floors = ['Building is too tall. Too many stairs to climb']
+      errors.push({ path: 'floors', message: 'Building is too tall. Too many stairs to climb' })
     }
-    return ret
+    return errors
   }
 }
 
-export const ArticleData = {
-  type: 'data' as APITemplateType,
+export const ArticleData: APIDataTemplate = {
+  type: 'data',
   templateKey: 'articledatakey',
   name: 'Articles',
-  areas: {},
   migrations: [],
   getLinks: (data: any) => [],
   getFulltext: (data: any) => {
     return [data.title, data.author]
-  },
-  validate: async (data: any) => {
-    return {}
   }
 }

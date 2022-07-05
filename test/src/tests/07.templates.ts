@@ -15,10 +15,10 @@ describe('templates', () => {
     expect(keys).to.have.members(['keyp1', 'keyc1', 'keyd1'])
   })
   it('should retrieve templates by name', async () => {
-    const resp = await query('{ templates(filter: { names: ["pagetemplate1", "datatemplate1"] }) { key name } }')
+    const resp = await query('{ templates(filter: { names: ["pagetemplate1", "Colors"] }) { key name } }')
     expect(resp.templates).to.have.lengthOf(2)
     const names = resp.templates.map((t: any) => t.name)
-    expect(names).to.have.members(['pagetemplate1', 'datatemplate1'])
+    expect(names).to.have.members(['pagetemplate1', 'Colors'])
   })
   it('should retrieve templates by type', async () => {
     const resp = await query('{ templates(filter: { types: [COMPONENT] }) { key name } }')
