@@ -1,4 +1,4 @@
-import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Cache, filterAsync } from 'txstate-utils'
 import {
@@ -84,21 +84,38 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
     return await this.removeUnauthorized(await this.raw.findByAssetFolder(folder))
   }
 
-  async create (args: CreateAssetRuleInput) {
+  async create (args: CreateAssetRuleInput, validateOnly?: boolean) {
     const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new AssetRule({ id: '0', roleId: args.roleId, siteId: args.siteId, path: args.path ?? '/', mode: args.mode ?? RulePathMode.SELFANDSUB, ...args.grants })
-    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The proposed rule would have more privilege than you currently have, so you cannot create it.')
-    try {
-      const ruleId = await createAssetRule(args)
-      this.loaders.clear()
-      if (!newRule.siteId) await globalAssetRulesCache.clear()
-      const rule = await this.raw.findById(String(ruleId))
-      return new AssetRuleResponse({ assetRule: rule, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error occurred while creating the role.')
+    const rules = await this.findByRoleId(args.roleId)
+    const response = new ValidatedResponse()
+    if (rules.some((r: AssetRule) => {
+      if (r.siteId !== args.siteId) return false
+      if (!args.path) {
+        return r.path === '/'
+      } else return r.path === args.path
+    })) {
+      response.addMessage('The proposed rule has the same site and path as an existing rule for this role.', undefined, MutationMessageType.error)
+    }
+    if (await this.tooPowerful(newRule)) {
+      response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.', undefined, MutationMessageType.error)
+    }
+    if (response.hasErrors()) return response
+    if (!validateOnly) {
+      try {
+        const ruleId = await createAssetRule(args)
+        this.loaders.clear()
+        if (!newRule.siteId) await globalAssetRulesCache.clear()
+        const rule = await this.raw.findById(String(ruleId))
+        return new AssetRuleResponse({ assetRule: rule, success: true })
+      } catch (err: any) {
+        console.error(err)
+        throw new Error('An unknown error occurred while creating the role.')
+      }
+    } else {
+      return new ValidatedResponse({ success: true })
     }
   }
 
