@@ -2,7 +2,7 @@ import { Context } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Root, Arg, Mutation } from 'type-graphql'
 import { isNull } from 'txstate-utils'
 import {
-  Pagetree, Role, RoleService, Site, SiteService, CreatePageRuleInput, PageRule,
+  Role, RoleService, Site, SiteService, CreatePageRuleInput, PageRule,
   PageRulePermissions, PageRuleResponse, UpdatePageRuleInput, PageRuleService, PagetreeService
 } from '../internal.js'
 
@@ -12,12 +12,6 @@ export class PageRuleResolver {
   async site (@Ctx() ctx: Context, @Root() pagerule: PageRule) {
     if (isNull(pagerule.siteId)) return null
     else return await ctx.svc(SiteService).findById(pagerule.siteId)
-  }
-
-  @FieldResolver(returns => Pagetree, { nullable: true, description: 'The pagetree to which this rule applies. Null if it applies to all pagetrees. Note that specifying a pagetree also implies specifying a site. For multiple pagetrees, make multiple rules.' })
-  async pagetree (@Ctx() ctx: Context, @Root() pagerule: PageRule) {
-    if (isNull(pagerule.pagetreeId)) return null
-    else return await ctx.svc(PagetreeService).findById(pagerule.pagetreeId)
   }
 
   @FieldResolver(returns => Role)

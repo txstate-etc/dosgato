@@ -25,7 +25,8 @@ const pageRulesBySiteLoader = new OneToManyLoader({
   extractKey: r => r.siteId!
 })
 
-const globalPageRulesCache = new Cache(async () => await getPageRules({ siteIds: [null], pagetreeIds: [null] }), { freshseconds: 3 })
+// TODO: Need to check for pagetree type here?
+const globalPageRulesCache = new Cache(async () => await getPageRules({ siteIds: [null] }), { freshseconds: 3 })
 
 export class PageRuleServiceInternal extends BaseService {
   async findById (ruleId: string) {
@@ -45,9 +46,6 @@ export class PageRuleServiceInternal extends BaseService {
   async findByPage (page: Page) {
     const site = await this.svc(SiteService).findByPagetreeId(page.pagetreeId)
     // Get the page rules that apply to the site
-    // TODO: Is it safe to assume that if a PageRule has a pagetreeId, it also has a siteId?
-    // Or could there be a rule with a pagetreeId with siteId == null? In that case, we need to
-    // find PageRules by pagetreeId too to make sure we get them all.
     const rules = await this.findBySiteId(site!.id)
     // filter to get the ones that apply to this page
     const prService = this.svc(PageRuleService)
@@ -78,14 +76,14 @@ export class PageRuleService extends DosGatoService<PageRule> {
     const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
-    const newRule = new PageRule({ id: '0', path: args.path ?? '/', roleId: args.roleId, siteId: args.siteId, pagetreeId: args.pagetreeId, mode: args.mode ?? RulePathMode.SELFANDSUB, ...args.grants })
+    const newRule = new PageRule({ id: '0', path: args.path ?? '/', roleId: args.roleId, siteId: args.siteId, pagetreeType: args.pagetreeType, mode: args.mode ?? RulePathMode.SELFANDSUB, ...args.grants })
     if (await this.tooPowerful(newRule)) {
       return ValidatedResponse.error('The proposed rule would have more privilege than you currently have, so you cannot create it.')
     }
     try {
       const ruleId = await createPageRule(args)
       this.loaders.clear()
-      if (!newRule.siteId && !newRule.pagetreeId) await globalPageRulesCache.clear()
+      if (!newRule.siteId) await globalPageRulesCache.clear()
       const rule = await this.raw.findById(String(ruleId))
       return new PageRuleResponse({ pageRule: rule, success: true })
     } catch (err: any) {
@@ -103,7 +101,7 @@ export class PageRuleService extends DosGatoService<PageRule> {
       id: '0',
       roleId: rule.roleId,
       siteId: args.siteId ?? rule.siteId,
-      pagetreeId: args.pagetreeId ?? rule.pagetreeId,
+      pagetreeType: args.pagetreeType ?? rule.pagetreeType,
       path: args.path ?? rule.path,
       mode: args.mode ?? rule.mode,
       ...updatedGrants
@@ -136,10 +134,10 @@ export class PageRuleService extends DosGatoService<PageRule> {
   }
 
   async applies (rule: PageRule, page: Page) {
-    if (rule.pagetreeId && rule.pagetreeId !== page.pagetreeId) return false
     const pagetree = await this.svc(PagetreeServiceInternal).findById(page.pagetreeId)
     if (!pagetree) return false
     if (rule.siteId && rule.siteId !== pagetree.siteId) return false
+    if (rule.pagetreeType && rule.pagetreeType !== pagetree.type) return false
     const pagePath = await this.svc(PageServiceInternal).getPath(page)
     if (rule.mode === RulePathMode.SELF && rule.path !== pagePath) return false
     if (rule.mode === RulePathMode.SELFANDSUB && !pagePath.startsWith(rule.path)) return false
@@ -161,11 +159,7 @@ export class PageRuleService extends DosGatoService<PageRule> {
   asOrMorePowerful (ruleA: PageRule, ruleB: PageRule) { // is ruleA equal or more powerful than ruleB?
     let sitePagetreeMorePowerful = false
     if (!ruleA.siteId || ruleA.siteId === ruleB.siteId) { // ruleA is at least as powerful based on site alone
-      if (!ruleA.pagetreeId || ruleA.pagetreeId === ruleB.pagetreeId) { // pagetree is also at least as powerful
-        sitePagetreeMorePowerful = true
-      }
-    } else if (!ruleB.siteId) { // ruleA is less powerful than ruleB based on site alone, but maybe pagetree will equalize
-      if (ruleB.pagetreeId && ruleA.pagetreeId === ruleB.pagetreeId) {
+      if (!ruleA.pagetreeType || ruleA.pagetreeType === ruleB.pagetreeType) { // ruleA covers all pagetree types or the same one as ruleB
         sitePagetreeMorePowerful = true
       }
     }

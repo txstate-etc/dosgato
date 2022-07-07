@@ -31,7 +31,7 @@ describe('page rule mutations', () => {
           id
           role { id name }
           site { id name }
-          pagetree { id name }
+          pagetreeType
           path
           mode
           grants {

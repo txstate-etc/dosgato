@@ -19,12 +19,8 @@ function processFilters (filter: PageRuleFilter) {
     if (siteIds.length) ors.push(`pagerules.siteId IN (${db.in(binds, siteIds)})`)
     where.push(ors.join(' OR '))
   }
-  if (filter.pagetreeIds?.length) {
-    const ors = []
-    if (filter.pagetreeIds.some(id => !id)) ors.push('pagerules.pagetreeId IS NULL')
-    const pagetreeIds = filter.pagetreeIds.filter(isNotNull)
-    if (pagetreeIds.length) ors.push(`pagerules.pagetreeId IN (${db.in(binds, pagetreeIds)})`)
-    where.push(ors.join(' OR '))
+  if (filter.pagetreeTypes?.length) {
+    where.push(`pagerules.pagetreeType IN (${db.in(binds, filter.pagetreeTypes)})`)
   }
   if (filter.paths?.length) {
     where.push(`pagerules.path IN (${db.in(binds, filter.paths)})`)
@@ -85,7 +81,7 @@ export async function getPageRules (filter: PageRuleFilter) {
   const { binds, where } = processFilters(filter)
   const rules = await db.getall(`SELECT * FROM pagerules
                                  WHERE (${where.join(') AND (')})
-                                 ORDER BY siteId, pagetreeId, path`, binds)
+                                 ORDER BY siteId, path`, binds)
   return rules.map(row => new PageRule(row))
 }
 
@@ -100,9 +96,9 @@ export async function createPageRule (args: CreatePageRuleInput) {
     columns.push('`siteId`')
     binds.push(args.siteId)
   }
-  if (args.pagetreeId) {
-    columns.push('`pagetreeId`')
-    binds.push(args.pagetreeId)
+  if (args.pagetreeType) {
+    columns.push('`pagetreeType')
+    binds.push(args.pagetreeType)
   }
   if (args.path) {
     // TODO: the default path is /. If the specified a site and/or pagetree should it have a different default path?
@@ -153,9 +149,9 @@ export async function updatePageRule (args: UpdatePageRuleInput) {
     updates.push('`siteId` = ?')
     binds.push(args.siteId)
   }
-  if (typeof args.pagetreeId !== 'undefined') {
-    updates.push('`pagetreeId` = ?')
-    binds.push(args.pagetreeId)
+  if (typeof args.pagetreeType !== 'undefined') {
+    updates.push('`pagetreeType` = ?')
+    binds.push(args.pagetreeType)
   }
   if (typeof args.path !== 'undefined') {
     updates.push('`path` = ?')

@@ -347,7 +347,7 @@ export async function init (db: Queryable) {
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `roleId` MEDIUMINT UNSIGNED NOT NULL, \
       `siteId` SMALLINT UNSIGNED, \
-      `pagetreeId` MEDIUMINT UNSIGNED, \
+      `pagetreeType` ENUM('primary', 'sandbox', 'archive'), \
       `path` VARCHAR(255) NOT NULL DEFAULT '/', \
       `mode` ENUM('self', 'sub', 'selfsub') NOT NULL DEFAULT 'selfsub', \
       `create` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
@@ -361,10 +361,7 @@ export async function init (db: Queryable) {
       INDEX `path` (`path`), \
       CONSTRAINT `FK_pagerules_roles` \
         FOREIGN KEY (`roleId`) \
-        REFERENCES `roles` (`id`), \
-      CONSTRAINT `FK_pagerules_pagetrees` \
-        FOREIGN KEY (`pagetreeId`) \
-        REFERENCES `pagetrees` (`id`)) \
+        REFERENCES `roles` (`id`)) \
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;")

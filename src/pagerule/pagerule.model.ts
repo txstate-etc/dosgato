@@ -1,7 +1,7 @@
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { RuleType } from '../internal.js'
+import { RuleType, PagetreeType } from '../internal.js'
 
 export enum RulePathMode {
   SELF = 'self',
@@ -96,13 +96,15 @@ export class PageRule {
 
   roleId: string
   siteId?: string
-  pagetreeId?: string
+
+  @Field(type => PagetreeType, { nullable: true, description: 'The type of pagetree for which this rule applies. Null if it applies to all types' })
+  pagetreeType?: PagetreeType
 
   constructor (row: any) {
     this.id = String(row.id)
     this.roleId = String(row.roleId)
     this.siteId = optionalString(row.siteId)
-    this.pagetreeId = optionalString(row.pagetreeId)
+    this.pagetreeType = row.pagetreeType
     this.path = row.path
     this.mode = row.mode
     this.grants = new PageRuleGrants(row)
@@ -119,8 +121,8 @@ export class PageRuleFilter {
   @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that are NOT limited to a site.' })
   siteIds?: (string|null)[]
 
-  @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that are NOT limited to a pagetree.' })
-  pagetreeIds?: (string|null)[]
+  @Field(type => [PagetreeType], { nullable: true })
+  pagetreeTypes?: PagetreeType[]
 
   @Field(type => [String], { nullable: true, description: 'Return rules that apply to any of the given paths.' })
   paths?: string[]
@@ -167,7 +169,7 @@ export class CreatePageRuleInput {
   siteId?: string
 
   @Field({ nullable: true })
-  pagetreeId?: string
+  pagetreeType?: PagetreeType
 
   @Field({ nullable: true })
   path?: string
@@ -188,7 +190,7 @@ export class UpdatePageRuleInput {
   siteId?: string
 
   @Field({ nullable: true })
-  pagetreeId?: string
+  pagetreeType?: PagetreeType
 
   @Field({ nullable: true })
   path?: string
