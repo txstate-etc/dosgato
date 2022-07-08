@@ -8,6 +8,8 @@ export async function init (db: Queryable) {
       `login` VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL, \
       `name` VARCHAR(255) NOT NULL, \
       `email` VARCHAR(255) NOT NULL, \
+      `trained` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
+      `system` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `lastlogin` DATETIME, \
       `lastlogout` DATETIME, \
       `disabledAt` DATETIME, \

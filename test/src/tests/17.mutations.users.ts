@@ -40,4 +40,11 @@ describe('users mutations', () => {
   it('should not allow an unauthorized user to disable a user', async () => {
     await expect(queryAs('ed07', 'mutation DisableUsers ($ids: [ID!]!) { disableUsers(userIds: $ids) { success users { id name } } }', { ids: ['su01'] })).to.be.rejected
   })
+  it('should set the trained flag for a user', async () => {
+    const { updateUser: { success, user } } = await query('mutation UpdateUser ($id: ID!, $input: UpdateUserInput!) { updateUser (userId: $id, args: $input) { success user { id name trained } } }', { id: 'ed04', input: { trained: true } })
+    expect(success).to.be.true
+    expect(user.trained).to.be.true
+    const { users } = await query('{ users(filter: { trained: true }) { id } }')
+    expect(users.map((u: any) => u.id)).to.include.members(['ed04'])
+  })
 })

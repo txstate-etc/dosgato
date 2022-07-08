@@ -24,6 +24,20 @@ function processFilters (filter?: UserFilter) {
       where.push('users.disabledAt > ?')
       binds.push(filter.hideDisabledBefore.toISO())
     }
+    if (isNotNull(filter.trained)) {
+      if (filter.trained) {
+        where.push('users.trained IS TRUE')
+      } else {
+        where.push('users.trained IS FALSE')
+      }
+    }
+    if (isNotNull(filter.system)) {
+      if (filter.system) {
+        where.push('users.system IS TRUE')
+      } else {
+        where.push('users.system IS FALSE')
+      }
+    }
   }
   return { binds, where }
 }
@@ -95,9 +109,9 @@ export async function getUsersManagingGroups (groupIds: string[], direct?: boole
     .map(row => ({ key: String(row.groupId), value: new User(row) }))
 }
 
-export async function updateUser (id: string, name: string | undefined, email: string | undefined) {
+export async function updateUser (id: string, name: string | undefined, email: string | undefined, trained: boolean | undefined) {
   const updates: string[] = []
-  const binds: string[] = []
+  const binds: (string|boolean)[] = []
   if (name) {
     updates.push('name = ?')
     binds.push(name)
@@ -105,6 +119,10 @@ export async function updateUser (id: string, name: string | undefined, email: s
   if (email) {
     updates.push('email = ?')
     binds.push(email)
+  }
+  if (typeof trained !== 'undefined') {
+    updates.push('trained = ?')
+    binds.push(trained)
   }
   if (updates.length) {
     binds.push(id)

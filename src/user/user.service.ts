@@ -157,7 +157,7 @@ export class UserService extends DosGatoService<User, RedactedUser|User> {
     if (!(await this.mayUpdate(user))) throw new Error('Current user is not permitted to update this user.')
     const response = new UserResponse({})
     try {
-      await updateUser(id, args.name, args.email)
+      await updateUser(id, args.name, args.email, args.trained)
       this.loaders.clear()
       response.success = true
       response.user = await this.raw.findById(id)

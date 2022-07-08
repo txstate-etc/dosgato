@@ -19,6 +19,12 @@ export class User {
   @Field({ nullable: true, description: 'When the user was disabled. The UI may want to do something to hide these users.' })
   disabledAt?: DateTime
 
+  @Field()
+  trained: boolean
+
+  @Field()
+  system: boolean
+
   @Field({ nullable: true })
   lastlogin?: DateTime
 
@@ -32,6 +38,8 @@ export class User {
     this.email = row.email
     this.disabledAt = row.disabledAt ? DateTime.fromJSDate(row.disabledAt) : undefined
     this.disabled = this.disabledAt != null
+    this.trained = row.trained
+    this.system = row.system
     this.lastlogin = row.lastlogin ? DateTime.fromJSDate(row.lastlogin) : undefined
     this.lastlogout = row.lastlogout ? DateTime.fromJSDate(row.lastlogout) : undefined
   }
@@ -53,6 +61,12 @@ export class UserFilter {
   @Field({ nullable: true, description: 'true -> enabled users, false -> disabled users, null -> all users' })
   enabled?: boolean
 
+  @Field({ nullable: true, description: 'true -> trained users, false -> untrained users, null -> all users' })
+  trained?: boolean
+
+  @Field({ nullable: true, description: 'true -> system users, false -> non-system users, null -> all users' })
+  system?: boolean
+
   @Field({ nullable: true, description: 'When specified, get rid of any users that became disabled before the given date. Typically used to hide long-disabled users.' })
   hideDisabledBefore?: DateTime
 }
@@ -64,6 +78,9 @@ export class UpdateUserInput {
 
   @Field({ nullable: true })
   email!: string
+
+  @Field({ nullable: true })
+  trained!: boolean
 }
 
 @ObjectType()

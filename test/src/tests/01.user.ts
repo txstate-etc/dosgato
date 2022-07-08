@@ -40,6 +40,26 @@ describe('users', () => {
     })
     expect(found).to.be.false
   })
+  it('should retrieve trained users', async () => {
+    const { users } = await query('{ users(filter: { trained: true }) { id, name, trained } }')
+    for (const user of users) {
+      expect(user.trained).to.be.true
+    }
+    const found = users.some((user: any) => {
+      return user.id === 'ed04'
+    })
+    expect(found).to.be.false
+  })
+  it('should retrieve untrained users', async () => {
+    const { users } = await query('{ users(filter: { trained: false }) { id, name, trained } }')
+    for (const user of users) {
+      expect(user.trained).to.be.false
+    }
+    const found = users.some((user: any) => {
+      return user.id === 'ed04'
+    })
+    expect(found).to.be.true
+  })
   it('should retrieve a user\'s groups, direct and indirect', async () => {
     const { users } = await query('{ users(filter: { ids: ["su02"] }) { id name groups{ id name } } }')
     expect(users[0].groups).to.have.lengthOf(2)
