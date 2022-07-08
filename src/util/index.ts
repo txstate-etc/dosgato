@@ -9,6 +9,7 @@ export * from './rules.js'
 export * from './mutationlogger.js'
 export * from './filehandler.js'
 export * from './dates.js'
+export * from './login.js'
 
 export function normalizePath (path: string) {
   return (path.startsWith('/') ? '' : '/') + (path.endsWith('/') ? path.substr(0, -1) : path)

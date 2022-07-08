@@ -8,6 +8,7 @@ import { promises as fsp } from 'fs'
 import { GraphQLScalarType } from 'graphql'
 import { NonEmptyArray } from 'type-graphql'
 import { migrations } from './migrations.js'
+import { Cache } from 'txstate-utils'
 import {
   DateTimeScalar, UrlSafeString, UrlSafeStringScalar, AssetPermissionsResolver, AssetResolver,
   AssetRuleResolver, AssetRulePermissionsResolver, DataPermissionsResolver, DataResolver,
@@ -20,8 +21,12 @@ import {
   GlobalRulePermissionsResolver, GlobalRuleResolver, VersionResolver, OrganizationResolver,
   AccessResolver, DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, handleUpload, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
-  DataRootPermissionsResolver
+  DataRootPermissionsResolver, updateLastLogin
 } from './internal.js'
+
+const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
+  await updateLastLogin(userId, tokenIssuedAt)
+})
 
 async function getEnabledUser (ctx: Context) {
   await ctx.waitForAuth()
@@ -29,6 +34,10 @@ async function getEnabledUser (ctx: Context) {
   const user = await ctx.svc(UserServiceInternal).findById(ctx.auth.sub)
   if (!user || user.disabled) throw new AuthError()
   return user
+}
+
+async function updateLogin (queryTime: number, operationName: string, query: string, auth: any, variables: any) {
+  await loginCache.get(auth.sub, auth.iat)
 }
 
 export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
@@ -122,7 +131,8 @@ export class DGServer {
     const after = async (...args: [queryTime: number, operationName: string, query: string, auth: any, variables: any]) => {
       await Promise.all([
         opts.after?.(...args),
-        logMutation(...args)
+        logMutation(...args),
+        updateLogin(...args)
       ])
     }
     return await this.gqlServer.start({
