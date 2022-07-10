@@ -24,6 +24,7 @@ async function createDataFolder (name: string, templateKey: string, siteId?: str
 }
 
 async function createDataEntry (name: string, content: any, siteId?: string, folderId?: string, username?: string) {
+  content.savedAtVersion = '20220710120000'
   const { createDataEntry: { success, messages, data } } = await queryAs((username ?? 'su01'), `
     mutation CreateDataEntry ($args: CreateDataInput!) {
       createDataEntry (args: $args) {
@@ -301,7 +302,7 @@ describe('data mutations', () => {
           }
         }
       }
-    `, { dataId: dataEntry.id, args: { data: { name: 'Student Building', floors: 3, templateKey: 'keyd2' }, dataVersion: 1, comment: 'Fix spelling error' } })
+    `, { dataId: dataEntry.id, args: { data: { ...dataEntry.data, name: 'Student Building', floors: 3, templateKey: 'keyd2' }, dataVersion: 1, comment: 'Fix spelling error' } })
     expect(success).to.be.true
     expect(data.data.name).to.equal('Student Building')
   })
@@ -316,7 +317,7 @@ describe('data mutations', () => {
           }
         }
       }
-    `, { dataId: dataEntry.id, args: { data: { name: 'Oak Hall', floors: 8, templateKey: 'keyd2' }, dataVersion: 1, comment: 'Building remodled' } })
+    `, { dataId: dataEntry.id, args: { data: { ...dataEntry.data, name: 'Oak Hall', floors: 8, templateKey: 'keyd2' }, dataVersion: 1, comment: 'Building remodled' } })
     expect(success).to.be.false
     expect(messages).to.have.length.greaterThan(0)
   })
@@ -328,7 +329,7 @@ describe('data mutations', () => {
         success
       }
     }
-  `, { dataId: dataEntry.id, args: { data: { name: 'Building', floors: 6, templateKey: 'keyd2' }, dataVersion: 1, comment: 'Should not work' } })).to.be.rejected
+  `, { dataId: dataEntry.id, args: { data: { ...dataEntry.data, name: 'Building', floors: 6, templateKey: 'keyd2' }, dataVersion: 1, comment: 'Should not work' } })).to.be.rejected
   })
   it('should publish a data entry', async () => {
     const { data: dataEntry } = await createDataEntry('GlobalBuilding7', { templateKey: 'keyd2', name: 'James Hall', floors: 2 })

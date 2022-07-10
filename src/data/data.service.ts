@@ -172,7 +172,7 @@ export class DataService extends DosGatoService<Data> {
     // validate data
     const tmpl = templateRegistry.getDataTemplate(template.key)
     const migrated = await migrateData(this.ctx, args.data, dataroot.id, args.folderId)
-    const messages = await tmpl.validate?.(migrated, this.ctx.query, dataroot.id, args.folderId) ?? []
+    const messages = await tmpl.validate?.(migrated, { query: this.ctx.query, dataRootId: dataroot.id, dataFolderId: args.folderId }) ?? []
     const response = new DataResponse({ success: true })
     for (const message of messages) {
       response.addMessage(message.message, message.path, message.type as MutationMessageType)
@@ -191,10 +191,10 @@ export class DataService extends DosGatoService<Data> {
     if (!data) throw new Error('Data entry to be updated does not exist')
     if (!(await this.mayUpdate(data))) throw new Error('Current user is not permitted to update this data entry.')
     const tmpl = templateRegistry.getDataTemplate(args.data.templateKey)
-    const datarootId = `${data.siteId ?? 'global'}-${args.data.templateKey}`
+    const dataRootId = `${data.siteId ?? 'global'}-${args.data.templateKey}`
     const folder = data.folderInternalId ? await this.svc(DataFolderServiceInternal).findByInternalId(data.folderInternalId) : undefined
-    const migrated = await migrateData(this.ctx, args.data, datarootId, folder?.id, data.id)
-    const messages = await tmpl.validate?.(migrated, this.ctx.query, datarootId, folder?.id, data.id) ?? []
+    const migrated = await migrateData(this.ctx, args.data, dataRootId, folder?.id, data.id)
+    const messages = await tmpl.validate?.(migrated, { query: this.ctx.query, dataRootId, dataFolderId: folder?.id, dataId: data.id }) ?? []
     const response = new DataResponse({ success: true })
     for (const message of messages) {
       response.addMessage(message.message, message.path, message.type as MutationMessageType)

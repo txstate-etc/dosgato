@@ -6,7 +6,7 @@ export function collectTemplates (component: ComponentData) {
 }
 
 // recursive helper function to traverse a hydrated page and return a flat array
-// of Component instances
+// of Component instances including the Page instance, which will be first
 export function collectComponents (component: ComponentData) {
   const ret = [component] as ComponentData[]
   for (const areaList of Object.values(component.areas ?? {})) {

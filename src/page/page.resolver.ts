@@ -175,11 +175,12 @@ export class PageResolver {
   @Mutation(returns => PageResponse, { description: 'Create a new page.' })
   async createPage (@Ctx() ctx: Context,
     @Arg('name') name: UrlSafeString,
-    @Arg('templateKey', type => ID, { description: 'Template to use for the new page.' }) templateKey: string,
+    @Arg('data', type => JsonData, { description: "Page data after the user has saved the page properties dialog. Data should include templateKey and the admin UI's schemaVersion.\n\nNote that the mutation will fail if any content is provided underneath 'areas' - pages must be created empty." }) data: PageData,
     @Arg('targetId', type => ID, { description: "An existing page to be the new page's parent or sibling, depending on the 'above' arg." }) targetId: string,
-    @Arg('above', { nullable: true, description: 'When true, the page will be created above the target page instead of inside it.' }) above?: boolean
+    @Arg('above', { nullable: true, description: 'When true, the page will be created above the target page instead of inside it.' }) above?: boolean,
+    @Arg('validate', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validate?: boolean
   ) {
-    return await ctx.svc(PageService).createPage(name as string, templateKey, targetId, above)
+    return await ctx.svc(PageService).createPage(name as string, data, targetId, above, validate)
   }
 
   @Mutation(returns => PageResponse)
@@ -189,9 +190,10 @@ export class PageResolver {
       description: "When a user begins editing a page, they view the latest version and begin making changes. If time passes, it's possible there will be a new version in the database by the time the editor saves. We pass along the version that the editor thinks they are saving against so that we can return an error if it is no longer the latest version."
     }) dataVersion: number,
     @Arg('data', type => JsonData, { description: 'The full page data which should include the appropriate schemaVersion.' }) data: PageData,
-    @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string
+    @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string,
+    @Arg('validate', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validate?: boolean
   ) {
-    return await ctx.svc(PageService).updatePage(pageId, dataVersion, data, comment)
+    return await ctx.svc(PageService).updatePage(pageId, dataVersion, data, comment, validate)
   }
 
   @Mutation(returns => PageResponse)

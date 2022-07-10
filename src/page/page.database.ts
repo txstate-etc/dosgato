@@ -2,7 +2,8 @@ import db from 'mysql2-async/db'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, mapConcurrent, unique, someConcurrent, filterAsync, sortby } from 'txstate-utils'
-import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter, templateRegistry } from '../internal.js'
+import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter, templateRegistry, getPageIndexes } from '../internal.js'
+import { PageData } from '@dosgato/templating'
 
 async function convertPathsToIDPaths (pathstrings: string[]) {
   const paths = pathstrings.map(normalizePath).map(p => p.split(/\//).filter(isNotBlank))
@@ -153,18 +154,19 @@ async function updateSourceDisplayOrder (db: Queryable, page: Page, parent: Page
   await db.update('UPDATE pages SET displayOrder = displayOrder - 1 WHERE path = ? AND displayOrder > ?', [page.path, page.displayOrder])
 }
 
-export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page|undefined, name: string, templateKey: string) {
+export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page|undefined, name: string, data: PageData, linkId: string) {
   return await db.transaction(async db => {
     [parent, aboveTarget] = await refetch(db, parent, aboveTarget)
     if (aboveTarget && parent.internalId !== aboveTarget.parentInternalId) {
       throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
     }
     const displayOrder = await handleDisplayOrder(db, parent, aboveTarget)
-    const dataId = await versionedService.create('page', { templateKey, savedAtVersion: formatSavedAtVersion(templateRegistry.currentSchemaVersion) }, [{ name: 'template', values: [templateKey] }], userId, db)
+    const indexes = getPageIndexes(data)
+    const dataId = await versionedService.create('page', data, indexes, userId, db)
     const newInternalId = await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
       VALUES (?,?,?,?,?,?)
-    `, [name, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder, parent.pagetreeId, dataId, nanoid(10)])
+    `, [name, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder, parent.pagetreeId, dataId, linkId])
     // return the newly created page
     return new Page(await db.getrow('SELECT * FROM pages WHERE id=?', [newInternalId]))
   })

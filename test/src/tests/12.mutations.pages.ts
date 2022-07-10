@@ -7,7 +7,8 @@ import db from 'mysql2-async/db'
 chai.use(chaiAsPromised)
 
 async function createPage (name: string, parentId: string, templateKey: string, username?: string) {
-  const { createPage: { success, page, messages } } = await queryAs((username ?? 'su01'), 'mutation CreatePage ($name: UrlSafeString!, $templateKey: ID!, $targetId: ID!) { createPage (name: $name, templateKey: $templateKey, targetId: $targetId) { success messages { message } page { id name } } }', { name, targetId: parentId, templateKey })
+  const data = { savedAtVersion: '20220710120000', templateKey, title: 'Test Title' }
+  const { createPage: { success, page, messages } } = await queryAs((username ?? 'su01'), 'mutation CreatePage ($name: UrlSafeString!, $data: JsonData!, $targetId: ID!) { createPage (name: $name, data: $data, targetId: $targetId) { success messages { message } page { id name } } }', { name, targetId: parentId, data })
   return { success, page, messages }
 }
 

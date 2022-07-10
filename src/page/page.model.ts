@@ -11,8 +11,8 @@ export class Page {
   @Field(type => ID, { description: 'A globally unique identifier for this page.' })
   id: string
 
-  @Field({ description: 'Page names are used to construct the URL path to each page.' })
-  name: UrlSafeString
+  @Field(type => UrlSafeString, { description: 'Page names are used to construct the URL path to each page.' })
+  name: string
 
   @Field({
     description: 'Use linkId to construct an internal link. When a page is ' +

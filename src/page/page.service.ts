@@ -1,13 +1,14 @@
-import { PageData, PageLink } from '@dosgato/templating'
+import { PageData, PageExtras, PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { nanoid } from 'nanoid'
 import { eachConcurrent, intersect, isNotNull, isNull, mapConcurrent, someAsync, stringify, unique } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
   PageResponse, PagesResponse, createPage, getPages, movePages,
   deletePages, renamePage, TemplateService, PagetreeService, SiteService,
   TemplateFilter, Template, getPageIndexes, undeletePages,
-  validatePage, DeletedFilter, copyPages, TemplateType, migratePage
+  validatePage, DeletedFilter, copyPages, TemplateType, migratePage, Pagetree, PagetreeServiceInternal
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -120,7 +121,7 @@ export class PageServiceInternal extends BaseService {
 
   async getPath (page: Page) {
     const ancestors = await this.getPageAncestors(page)
-    return `/${ancestors.map(a => a.name).join('/')}${ancestors.length ? '/' : ''}${page.name as string}`
+    return `/${ancestors.map(a => a.name).join('/')}${ancestors.length ? '/' : ''}${page.name}`
   }
 
   async processFilters (filter: PageFilter) {
@@ -289,29 +290,48 @@ export class PageService extends DosGatoService<Page> {
     }
   }
 
-  async createPage (name: string, templateKey: string, targetId: string, above?: boolean) {
+  async validatePageData (data: PageData, pagetree: Pagetree, parent: Page|undefined, name: string, linkId: string, pageId?: string) {
+    const response = new PageResponse({ success: true })
+    const extras: PageExtras = {
+      query: this.ctx.query,
+      siteId: pagetree.siteId,
+      pagetreeId: pagetree.id,
+      parentId: parent?.id,
+      pagePath: `${parent ? await this.getPath(parent) : ''}/${name}`,
+      pageId,
+      linkId,
+      name
+    }
+    const migrated = await migratePage(data, extras)
+    const messages = await validatePage(migrated, extras)
+    for (const message of messages) {
+      response.addMessage(message.message, message.path, message.type as MutationMessageType)
+    }
+    return response
+  }
+
+  async createPage (name: string, data: PageData, targetId: string, above?: boolean, validate?: boolean) {
     const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
     if (!(await this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
     // at the time of writing this comment, template usage is approved for an entire pagetree, so
     // it should be safe to simply check if the targeted parent/sibling is allowed to use this template
-    await this.validatePageTemplate(parent, templateKey)
-    const page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, templateKey)
+    await this.validatePageTemplate(parent, data.templateKey)
+    const pagetree = (await this.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
+    const linkId = nanoid(10)
+    const response = await this.validatePageData(data, pagetree, parent, name, linkId)
+    if (!response.success) return response
+    const page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data, linkId)
     return new PageResponse({ success: true, page })
   }
 
-  async updatePage (dataId: string, dataVersion: number, data: PageData, comment?: string) {
+  async updatePage (dataId: string, dataVersion: number, data: PageData, comment?: string, validate?: boolean) {
     const page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
     await this.validatePageTemplate(page, data.templateKey)
-    const response = new PageResponse({ success: true })
-    const pageRecord = { id: page.dataId, linkId: page.linkId, path: page.path, data }
-    const migrated = await migratePage(this.ctx, pageRecord)
-    const messages = await validatePage(this.ctx, migrated)
-    for (const message of messages) {
-      response.addMessage(message.message, message.path, message.type as MutationMessageType)
-    }
-    if (!response.success) return response
+    const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
+    const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
+    const response = await this.validatePageData(data, pagetree, parent, page.name, page.linkId)
     const indexes = getPageIndexes(data)
     await this.svc(VersionedService).update(dataId, data, indexes, { user: this.login, comment: comment, version: dataVersion })
     this.loaders.clear()
