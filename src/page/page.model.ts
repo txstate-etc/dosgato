@@ -41,6 +41,10 @@ export class Page {
   parentInternalId?: number
   dataId: string
 
+  // this is a helper property for determining whether templates can be kept on a page
+  // see TemplateService.mayKeepOnPage()
+  existingTemplateKeys?: Set<string>
+
   constructor (row: any) {
     this.internalId = row.id
     this.id = row.dataId

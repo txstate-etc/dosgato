@@ -3,8 +3,10 @@ import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   Template, TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
   DosGatoService, authorizeForPagetree, deauthorizeForPagetree,
-  authorizeForSite, deauthorizeForSite, setUniversal, PagetreeServiceInternal, SiteServiceInternal, PageServiceInternal, getTemplatePagePairs
+  authorizeForSite, deauthorizeForSite, setUniversal, PagetreeServiceInternal,
+  SiteServiceInternal, getTemplatePagePairs, Page, collectTemplates, PageServiceInternal
 } from '../internal.js'
+import { stringify } from 'txstate-utils'
 
 const templatesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => {
@@ -42,13 +44,18 @@ const mayUseTemplateOnPageLoader = new PrimaryKeyLoader({
 })
 
 export class TemplateServiceInternal extends BaseService {
+  #findCache = new Map<string, Template[]>()
   async find (filter?: TemplateFilter) {
-    const templates = await getTemplates(filter)
-    for (const t of templates) {
-      this.loaders.get(templatesByIdLoader).prime(t.id, t)
-      this.loaders.get(templatesByKeyLoader).prime(t.key, t)
+    const filterKey = stringify(filter)
+    if (!this.#findCache.has(filterKey)) {
+      const templates = await getTemplates(filter)
+      for (const t of templates) {
+        this.loaders.get(templatesByIdLoader).prime(t.id, t)
+        this.loaders.get(templatesByKeyLoader).prime(t.key, t)
+      }
+      this.#findCache.set(filterKey, templates)
     }
-    return templates
+    return this.#findCache.get(filterKey)!
   }
 
   async findById (id: number) {
@@ -200,8 +207,34 @@ export class TemplateService extends DosGatoService<Template> {
     return await this.haveGlobalPerm('manageUsers')
   }
 
+  /**
+   * Returns true when the site allows the template or the current user
+   * is allowed to use the template in question.
+   *
+   * We also allow templates that are already in use on the page, but this function
+   * does NOT reflect that, because it would result in showing that template in the
+   * new component or change page template selection process.
+   *
+   * To take previously used templates into account, use mayKeepOnPage.
+   */
   async mayUseOnPage (template: Template, pageId: string) {
     if (await this.haveTemplatePerm(template, 'use')) return true
     return !!(await this.loaders.get(mayUseTemplateOnPageLoader).load({ pageId, templateKey: template.key }))
+  }
+
+  /**
+   * This should be used on page updates to validate whether a template is valid for a
+   * page. It may say 'yes' on templates that would otherwise not be valid because they
+   * are already on the page. This allows people with extra authority to add certain
+   * template types to a page without preventing later updates by less privileged users.
+   */
+  async mayKeepOnPage (templateKey: string, page: Page, template: Template|undefined) {
+    page.existingTemplateKeys ??= collectTemplates(await this.svc(PageServiceInternal).getData(page))
+    // It's important to check for pre-existence before checking whether the template is
+    // defined. We don't want pages getting stuck in non-editable state when they have an old
+    // templateKey in them.
+    if (page.existingTemplateKeys.has(templateKey)) return true
+    if (!template) return false
+    return await this.svc(TemplateService).mayUseOnPage(template, page.id)
   }
 }

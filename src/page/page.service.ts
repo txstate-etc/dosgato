@@ -2,13 +2,14 @@ import { PageData, PageExtras, PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { nanoid } from 'nanoid'
-import { eachConcurrent, intersect, isNotNull, isNull, mapConcurrent, someAsync, stringify, unique } from 'txstate-utils'
+import { eachConcurrent, filterAsync, intersect, isNotNull, keyby, someAsync, stringify, unique } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
   PageResponse, PagesResponse, createPage, getPages, movePages,
-  deletePages, renamePage, TemplateService, PagetreeService, SiteService,
-  TemplateFilter, Template, getPageIndexes, undeletePages,
-  validatePage, DeletedFilter, copyPages, TemplateType, migratePage, Pagetree, PagetreeServiceInternal
+  deletePages, renamePage, TemplateService,
+  TemplateFilter, getPageIndexes, undeletePages,
+  validatePage, DeletedFilter, copyPages, TemplateType, migratePage,
+  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -124,6 +125,26 @@ export class PageServiceInternal extends BaseService {
     return `/${ancestors.map(a => a.name).join('/')}${ancestors.length ? '/' : ''}${page.name}`
   }
 
+  async getData (page: Page, version?: number, published?: boolean, toSchemaVersion = templateRegistry.currentSchemaVersion) {
+    const [versioned, pagetree, parent, path] = await Promise.all([
+      this.svc(VersionedService).get(page.dataId, { tag: published ? 'published' : undefined, version }),
+      this.svc(PagetreeServiceInternal).findById(page.pagetreeId),
+      page.parentInternalId ? this.findByInternalId(page.parentInternalId) : undefined,
+      this.getPath(page)
+    ])
+    if (!versioned) throw new Error('Asked for page data version that does not exist.')
+    return await migratePage(versioned.data, {
+      query: this.ctx.query,
+      siteId: pagetree!.siteId,
+      pagetreeId: pagetree!.id,
+      parentId: parent?.id,
+      pagePath: path,
+      pageId: page.id,
+      linkId: page.linkId,
+      name: page.name
+    }, toSchemaVersion)
+  }
+
   async processFilters (filter: PageFilter) {
     if (filter.referencedByPageIds?.length) {
       const verService = this.svc(VersionedService)
@@ -175,28 +196,8 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async getApprovedTemplates (page: Page, filter?: TemplateFilter) {
-    const pageTree = await this.svc(PagetreeService).findById(page.pagetreeId)
-    const site = await this.svc(SiteService).findByPagetreeId(pageTree!.id)
-    const [pagetreeTemplates, siteTemplates] = await Promise.all([
-      this.svc(TemplateService).findByPagetreeId(page.pagetreeId, filter),
-      this.svc(TemplateService).findBySiteId(site!.id, filter)
-    ])
-    let templatesAuthForUser: Template[] = []
-    const templateRules = await this.currentTemplateRules()
-    // If there is a template rule that applies to all templates, this user can use all templates anywhere
-    // TODO: Should this be filtered by template type too? It doesn't make sense to have page templates approved
-    // for use in a page, but this could return all three template types
-    if (templateRules.some(r => isNull(r.templateId) && r.grants.use)) {
-      templatesAuthForUser = await this.svc(TemplateService).find()
-    } else {
-      const rules = templateRules.filter(r => isNotNull(r.templateId) && r.grants.use)
-      let ids = rules.map(r => r.templateId!)
-      if (filter?.ids?.length) {
-        ids = ids.filter(i => filter.ids?.includes(i))
-      }
-      if (ids) templatesAuthForUser = await this.svc(TemplateService).find({ ids })
-    }
-    return unique([...pagetreeTemplates, ...siteTemplates, ...templatesAuthForUser], 'id')
+    const templates = await this.svc(TemplateService).find(filter)
+    return await filterAsync(templates, async template => await this.svc(TemplateService).mayUseOnPage(template, page.id))
   }
 
   async getRootPage (page: Page) {
@@ -205,6 +206,11 @@ export class PageService extends DosGatoService<Page> {
 
   async getPath (page: Page) {
     return await this.raw.getPath(page)
+  }
+
+  async getData (page: Page, version?: number, published?: boolean, toSchemaVersion = templateRegistry.currentSchemaVersion) {
+    if (!published && !await this.mayViewLatest(page)) throw new Error('User is only permitted to see the published version of this page.')
+    return await this.raw.getData(page, version, published, toSchemaVersion)
   }
 
   async mayView (page: Page) {
@@ -281,13 +287,20 @@ export class PageService extends DosGatoService<Page> {
     return new PageResponse({ success: true, page: newPage })
   }
 
-  async validatePageTemplate (page: Page, templateKey: string) {
-    const template = await this.svc(TemplateService).findByKey(templateKey)
-    if (!template) throw new Error('Tried to use an unrecognized template.')
-    if (template.type !== TemplateType.PAGE) throw new Error('Tried to set template to a non-page template.')
-    if (!await this.svc(TemplateService).mayUseOnPage(template, page.dataId)) {
-      throw new Error(`Template ${template.name} is not approved for use in this site or pagetree.`)
+  async validatePageTemplates (page: Page, data: PageData, create: boolean) {
+    const templateKeys = Array.from(collectTemplates(data))
+    const templates = await Promise.all(templateKeys.map(async k => await this.svc(TemplateServiceInternal).findByKey(k)))
+    const templateByKey = keyby(templates.filter(isNotNull), 'key')
+    const oldData = await this.raw.getData(page)
+    if (oldData.templateKey !== data.templateKey) {
+      if (!templateByKey[data.templateKey]) throw new Error('Tried to set page template to a non-existing template.')
+      if (templateByKey[data.templateKey].type !== TemplateType.PAGE) throw new Error('Tried to set page template to a non-page template.')
     }
+
+    const invalid = create
+      ? await someAsync(templateKeys, async templateKey => !await this.svc(TemplateService).mayUseOnPage(templateByKey[templateKey], page.id))
+      : await someAsync(templateKeys, async templateKey => !await this.svc(TemplateService).mayKeepOnPage(templateKey, page, templateByKey[templateKey]))
+    if (invalid) throw new Error('Template is not approved for use in this site or pagetree.')
   }
 
   async validatePageData (data: PageData, pagetree: Pagetree, parent: Page|undefined, name: string, linkId: string, pageId?: string) {
@@ -315,7 +328,7 @@ export class PageService extends DosGatoService<Page> {
     if (!(await this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
     // at the time of writing this comment, template usage is approved for an entire pagetree, so
     // it should be safe to simply check if the targeted parent/sibling is allowed to use this template
-    await this.validatePageTemplate(parent, data.templateKey)
+    await this.validatePageTemplates(parent, data, true)
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const linkId = nanoid(10)
     const response = await this.validatePageData(data, pagetree, parent, name, linkId)
@@ -328,7 +341,7 @@ export class PageService extends DosGatoService<Page> {
     const page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
-    await this.validatePageTemplate(page, data.templateKey)
+    await this.validatePageTemplates(page, data, false)
     const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
     const response = await this.validatePageData(data, pagetree, parent, page.name, page.linkId)
@@ -377,7 +390,7 @@ export class PageService extends DosGatoService<Page> {
   async undeletePages (dataIds: string[], includeChildren?: boolean) {
     let pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (includeChildren) {
-      const children = (await mapConcurrent(pages, async (page) => await this.getPageChildren(page, true))).flat()
+      const children = (await Promise.all(pages.map(async page => await this.getPageChildren(page, true)))).flat()
       pages = [...pages, ...children]
     }
     if (await someAsync(pages, async (page: Page) => !(await this.mayUndelete(page)))) {
@@ -397,7 +410,7 @@ export class PageService extends DosGatoService<Page> {
   async publishPages (dataIds: string[], includeChildren?: boolean) {
     let pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (includeChildren) {
-      const children = (await mapConcurrent(pages, async (page) => await this.getPageChildren(page, true))).flat()
+      const children = (await Promise.all(pages.map(async (page) => await this.getPageChildren(page, true)))).flat()
       pages = [...pages, ...children]
     }
     if (await someAsync(pages, async (page: Page) => !(await this.mayPublish(page)))) {
@@ -416,7 +429,7 @@ export class PageService extends DosGatoService<Page> {
 
   async unpublishPages (dataIds: string[]) {
     let pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    const children = (await mapConcurrent(pages, async (page) => await this.getPageChildren(page, true))).flat()
+    const children = (await Promise.all(pages.flatMap(async (page) => await this.getPageChildren(page, true)))).flat()
     pages = [...pages, ...children]
     if (await someAsync(pages, async (page: Page) => !(await this.mayUnpublish(page)))) {
       throw new Error('Current user is not permitted to unpublish one or more pages')
