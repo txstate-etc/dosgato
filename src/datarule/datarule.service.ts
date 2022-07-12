@@ -102,21 +102,20 @@ export class DataRuleService extends DosGatoService<DataRule> {
     return await this.removeUnauthorized(await this.raw.findByDataFolder(folder))
   }
 
-  async create (args: CreateDataRuleInput) {
+  async create (args: CreateDataRuleInput, validateOnly?: boolean) {
     const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new DataRule({ id: '0', roleId: args.roleId, siteId: args.siteId, templateId: args.templateId, path: args.path ?? '/', ...args.grants })
     if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The proposed rule would have more privilege than you currently have, so you cannot create it.')
-    try {
+    if (!validateOnly) {
       const ruleId = await createDataRule(args)
       this.loaders.clear()
       if (!newRule.siteId) await dataRulesForAllSitesCache.clear()
       const rule = await this.raw.findById(String(ruleId))
       return new DataRuleResponse({ dataRule: rule, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error occurred while creating the role.')
+    } else {
+      return new ValidatedResponse({ success: true })
     }
   }
 

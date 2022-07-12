@@ -38,7 +38,7 @@ export async function getDataRules (filter: DataRuleFilter) {
 
 export async function createDataRule (args: CreateDataRuleInput) {
   const columns: string[] = ['roleId']
-  const binds: (string|boolean)[] = []
+  const binds: (string|boolean|number)[] = []
   if (!args.roleId) {
     throw new Error('Must include a role ID when creating an asset rule')
   }
@@ -49,7 +49,8 @@ export async function createDataRule (args: CreateDataRuleInput) {
   }
   if (args.templateId) {
     columns.push('templateId')
-    binds.push(args.templateId)
+    const templateId = await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', [args.templateId])
+    binds.push(templateId!)
   }
   if (args.path) {
     columns.push('path')
