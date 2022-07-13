@@ -25,6 +25,14 @@ const tagLoader = new PrimaryKeyLoader({
   extractId: tag => ({ id: tag.id, tag: tag.tag })
 })
 
+const currentTagsLoader = new OneToManyLoader({
+  fetch: async (ids: string[]) => {
+    const binds: string[] = []
+    return await db.getall<Tag>(`SELECT * FROM tags WHERE id IN (${db.in(binds, ids)})`, binds)
+  },
+  extractKey: tag => tag.id
+})
+
 const versionsByNumberLoader = new OneToManyLoader({
   fetch: async (keys: { id: string, version: number, current: number }[]) => {
     const binds: (string|number)[] = []
@@ -322,6 +330,15 @@ export class VersionedService extends BaseService {
   }
 
   /**
+   * Get the set of tags that apply to the latest version of the given object, not
+   * including 'latest'. For instance, if the latest version happens to be tagged as
+   * 'published', then this will return [{ id, version, tag: 'published', user, date }]
+   */
+  async getCurrentTags (id: string) {
+    return await this.loaders.get(currentTagsLoader).load(id)
+  }
+
+  /**
    * Remove a tag from an object, no matter which version it might be pointing at. Cannot be undone.
    */
   async removeTag (id: string, tag: string) {
@@ -342,20 +359,21 @@ export class VersionedService extends BaseService {
   }
 
   /**
-   * List versions of an object so one can be picked for retrieval.
+   * List old versions of an object so one can be picked for retrieval.
    */
   async listVersions (id: string) {
     const versions = await db.getall(`
       SELECT v.version, v.date, v.user, v.comment, t.tag
       FROM versions v LEFT JOIN tags t ON t.id=v.id AND t.version=v.version
       WHERE v.id=?
+      ORDER BY v.version DESC
     `, [id])
-    const versionhash: Record<number, Version> = {}
+    const versionMap = new Map<number, Version>()
     for (const { version, date, user, comment, tag } of versions) {
-      versionhash[version] ??= { id, version, date, user, comment, tags: [] }
-      if (tag) versionhash[version].tags.push(tag)
+      if (!versionMap.has(version)) versionMap.set(version, { id, version, date, user, comment, tags: [] })
+      if (tag) versionMap.get(version)!.tags.push(tag)
     }
-    return Object.values(versionhash)
+    return Array.from(versionMap.values())
   }
 
   /**

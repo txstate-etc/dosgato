@@ -74,7 +74,6 @@ export const LinkComponent: APIComponentTemplate = {
   type: 'component',
   templateKey: 'keyc1',
   name: 'Link',
-  areas: {},
   migrations: [],
   getLinks: (data: any) => {
     return [data.link]
@@ -93,7 +92,12 @@ export const PanelComponent: APIComponentTemplate = {
   type: 'component',
   templateKey: 'keyc2',
   name: 'Panel',
-  areas: {},
+  areas: {
+    content: [
+      'keyc3',
+      'richtext'
+    ]
+  },
   migrations: [],
   getLinks: (data: any) => [],
   getFulltext: (data: any) => {
@@ -105,7 +109,6 @@ export const QuoteComponent: APIComponentTemplate = {
   type: 'component',
   templateKey: 'keyc3',
   name: 'Quote',
-  areas: {},
   migrations: [],
   getLinks: (data: any) => [],
   getFulltext: (data: any) => {

@@ -177,7 +177,7 @@ export class TemplateService extends DosGatoService<Template> {
         return ValidatedResponse.error('Template was not authorized for site.')
       }
     } catch (err: any) {
-      console.log(err)
+      console.error(err)
       throw new Error('An unknown error occurred while deauthorizing a template for a site')
     }
   }

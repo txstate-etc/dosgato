@@ -257,7 +257,7 @@ export class GroupService extends DosGatoService<Group> {
       const removed = await removeUserFromGroups(groupIds, user.internalId)
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
-      console.log(err)
+      console.error(err)
       throw new Error('Unable to remove user from one or more groups')
     }
   }

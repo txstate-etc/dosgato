@@ -54,7 +54,7 @@ export async function postMultipart (endpoint: string, payload: any, filepath: s
     }
     return (await client.post(endpoint, formdata, config)).data
   } catch (err: any) {
-    console.log(err)
+    console.error(err)
     throw new Error('Could not post form data')
   }
 }

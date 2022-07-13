@@ -133,10 +133,6 @@ export async function getGroupsWithRole (roleIds: string[], filter?: GroupFilter
     joins.set('groups_roles', 'INNER JOIN groups_roles on groups.id = groups_roles.groupId')
   }
   where.push(`groups_roles.roleId IN (${db.in(binds, roleIds)})`)
-  console.log(`SELECT groups.*, groups_roles.roleId as roleId
-  FROM groups
-  ${Array.from(joins.values()).join('\n')}
-  WHERE (${where.join(') AND (')})`)
   const groups = await db.getall(`SELECT groups.*, groups_roles.roleId as roleId
                                   FROM groups
                                   ${Array.from(joins.values()).join('\n')}

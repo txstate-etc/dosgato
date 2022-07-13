@@ -74,12 +74,6 @@ export async function getLatestDownload (asset: Asset, resizeBinaryIds: number[]
                                   INNER JOIN assets on assets.shasum = binaries.shasum
                                   WHERE assets.id = ?`, [asset.internalId])
   if (!binaryId) throw new Error(`Could not find binary for asset ${String(asset.name)}`)
-  console.log(`SELECT binaryId, year, month, day, CONCAT(year,month,day) AS dateconcat
-  FROM downloads
-  WHERE binaryId in (${db.in(binds, [binaryId, ...resizeBinaryIds])})
-  ORDER BY dateconcat DESC
-  LIMIT 1`)
-  console.log(binds)
   const latestDownload = await db.getrow(`SELECT binaryId, year, month, day, CONCAT(year,month,day) AS dateconcat
                                           FROM downloads
                                           WHERE binaryId in (${db.in(binds, [binaryId, ...resizeBinaryIds])})

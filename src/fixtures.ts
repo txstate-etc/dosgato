@@ -7,7 +7,7 @@ import { stringify } from 'txstate-utils'
 import { VersionedService, Index } from './internal.js'
 
 export async function fixtures () {
-  console.log('running fixtures()')
+  console.info('running fixtures()')
   await db.transaction(async db => {
     await db.execute('SET FOREIGN_KEY_CHECKS = 0')
     await Promise.all([
@@ -754,5 +754,5 @@ export async function fixtures () {
     await createAsset('blankpdf', site8AssetRoot, 'd731d520ca21a90b2ca28b5068cfdd678dbd3ace', 'application/pdf', 1264, { checksum: 'd731d520ca21a90b2ca28b5068cfdd678dbd3ace' }, [{ name: 'type', values: ['application/pdf'] }], 'su01')
   }
 
-  console.log('finished fixtures()')
+  console.info('finished fixtures()')
 }

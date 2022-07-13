@@ -1,5 +1,5 @@
-import multipart from '@fastify/multipart'
 import { APIAnyTemplate } from '@dosgato/templating'
+import multipart from '@fastify/multipart'
 import { Context, GQLServer, AuthError, GQLStartOpts } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { FastifyInstance } from 'fastify'

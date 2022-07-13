@@ -96,7 +96,7 @@ export async function syncRegistryWithDB () {
   const found = new Set<string>()
   await eachConcurrent(registryTemplates, async (template) => {
     if (!templatesInDB[template.templateKey]) {
-      console.log(`Adding template ${template.templateKey}`)
+      console.info(`Adding template ${template.templateKey}`)
       await db.insert('INSERT INTO templates (`key`, `name`, `type`, `deleted`) VALUES (?,?,?,?)', [template.templateKey, template.name, template.type, 0])
     } else {
       await db.update('UPDATE templates SET `name`=? WHERE `key`=?', [template.name, template.templateKey])

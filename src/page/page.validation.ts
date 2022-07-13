@@ -2,7 +2,7 @@ import { ComponentData, ComponentExtras, PageData, PageExtras } from '@dosgato/t
 import { templateRegistry } from '../internal.js'
 
 async function validateRecurse (extras: ComponentExtras, data: ComponentData, path: string[]) {
-  const validator = templateRegistry.getComponentTemplate(data.templateKey).validate
+  const validator = templateRegistry.getComponentTemplate(data.templateKey)?.validate
   const messages = (await validator?.(data, extras)) ?? []
   for (const area of Object.keys(data.areas ?? {})) {
     const areaList = data.areas![area]

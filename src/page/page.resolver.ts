@@ -154,10 +154,27 @@ export class PageResolver {
     return await ctx.svc(RoleService).findByIds(rules.map(r => r.roleId))
   }
 
-  @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all versions of this page. One of the version numbers can be passed to the data property in order to retrieve that version of the data.' })
+  @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all old versions of this page in reverse order (latest version at position 0). One of the version numbers can be passed to the data property in order to retrieve that version of the data.' })
   async versions (@Ctx() ctx: Context, @Root() page: Page) {
     const versions = await ctx.svc(VersionedService).listVersions(page.dataId)
     return versions.map(v => new ObjectVersion(v))
+  }
+
+  @FieldResolver(returns => ObjectVersion, { description: 'Returns the latest version information for the page.' })
+  async version (@Ctx() ctx: Context, @Root() page: Page) {
+    const [versioned, tags] = await Promise.all([
+      ctx.svc(VersionedService).get(page.dataId),
+      ctx.svc(VersionedService).getCurrentTags(page.dataId)
+    ])
+    if (!versioned) throw new Error('Tried to retrieve version for a page that does not exist.')
+    return new ObjectVersion({
+      id: versioned.id,
+      version: versioned.version,
+      date: versioned.modified,
+      comment: versioned.comment,
+      tags: tags.map(t => t.tag),
+      user: versioned.modifiedBy
+    })
   }
 
   @FieldResolver(returns => PagePermissions, {

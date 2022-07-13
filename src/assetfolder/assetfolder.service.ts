@@ -127,7 +127,6 @@ export class AssetFolderServiceInternal extends BaseService {
     if (filter?.paths?.length) {
       const idpaths = await this.convertPathsToIDPaths(filter.paths)
       const ids = idpaths.map(p => +p.split(/\//).slice(-1)[0])
-      console.log('ids', ids, idpaths)
       filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, ids)
     }
 

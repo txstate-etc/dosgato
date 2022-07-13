@@ -364,7 +364,7 @@ export class PageService extends DosGatoService<Page> {
       const updated = await this.raw.findById(dataId)
       return new PageResponse({ success: true, page: updated })
     } catch (err: any) {
-      console.log(err)
+      console.error(err)
       throw new Error('An unknown error ocurred while trying to rename a page.')
     }
   }

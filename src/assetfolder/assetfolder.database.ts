@@ -57,7 +57,6 @@ async function processFilters (filter?: AssetFolderFilter) {
 
 export async function getAssetFolders (filter?: AssetFolderFilter) {
   const { where, binds } = await processFilters(filter)
-  console.log(where, binds)
   return (await db.getall(`
     SELECT *
     FROM assetfolders
