@@ -38,8 +38,8 @@ export class UserResolver {
   }
 
   @Mutation(returns => UserResponse)
-  async updateUser (@Ctx() ctx: Context, @Arg('userId', type => ID) userId: string, @Arg('args', type => UpdateUserInput) args: UpdateUserInput) {
-    return await ctx.svc(UserService).updateUser(userId, args)
+  async updateUser (@Ctx() ctx: Context, @Arg('userId', type => ID) userId: string, @Arg('args', type => UpdateUserInput) args: UpdateUserInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(UserService).updateUser(userId, args, validateOnly)
   }
 
   @Mutation(returns => UsersResponse, { description: 'Disabled users will stay in the system with their previous roles and group memberships for referential integrity and easy re-enable.' })

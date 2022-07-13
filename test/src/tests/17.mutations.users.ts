@@ -7,13 +7,13 @@ chai.use(chaiAsPromised)
 
 describe('users mutations', () => {
   it('should update a user\'s name', async () => {
-    const { updateUser: { success } } = await query('mutation UpdateUser ($id: ID!, $input: UpdateUserInput!) { updateUser (userId: $id, args: $input) { success user { id name } } }', { id: 'ed10', input: { name: 'Updated Username' } })
+    const { updateUser: { success } } = await query('mutation UpdateUser ($id: ID!, $input: UpdateUserInput!) { updateUser (userId: $id, args: $input) { success user { id name } } }', { id: 'ed10', input: { name: 'Updated Username', email: 'ed10@example.com', trained: false } })
     expect(success).to.be.true
     const { users } = await query('{ users(filter: { ids: ["ed10"]}) { id name } }')
     expect(users).to.deep.include({ id: 'ed10', name: 'Updated Username' })
   })
   it('should update a user\'s email', async () => {
-    const { updateUser: { success } } = await query('mutation UpdateUser ($id: ID!, $input: UpdateUserInput!) { updateUser (userId: $id, args: $input) { success user { id name email } } }', { id: 'ed10', input: { email: 'ed10alias@example.com' } })
+    const { updateUser: { success } } = await query('mutation UpdateUser ($id: ID!, $input: UpdateUserInput!) { updateUser (userId: $id, args: $input) { success user { id name email } } }', { id: 'ed10', input: { name: 'Updated Username', email: 'ed10alias@example.com', trained: false } })
     expect(success).to.be.true
     const { users } = await query('{ users(filter: { ids: ["ed10"]}) { id name email } }')
     expect(users).to.deep.include({ id: 'ed10', name: 'Updated Username', email: 'ed10alias@example.com' })
@@ -41,7 +41,7 @@ describe('users mutations', () => {
     await expect(queryAs('ed07', 'mutation DisableUsers ($ids: [ID!]!) { disableUsers(userIds: $ids) { success users { id name } } }', { ids: ['su01'] })).to.be.rejected
   })
   it('should set the trained flag for a user', async () => {
-    const { updateUser: { success, user } } = await query('mutation UpdateUser ($id: ID!, $input: UpdateUserInput!) { updateUser (userId: $id, args: $input) { success user { id name trained } } }', { id: 'ed04', input: { trained: true } })
+    const { updateUser: { success, user } } = await query('mutation UpdateUser ($id: ID!, $input: UpdateUserInput!) { updateUser (userId: $id, args: $input) { success user { id name trained } } }', { id: 'ed04', input: { name: 'Katniss Everdeen', email: 'ed04@example.com', trained: true } })
     expect(success).to.be.true
     expect(user.trained).to.be.true
     const { users } = await query('{ users(filter: { trained: true }) { id } }')

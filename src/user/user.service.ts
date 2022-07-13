@@ -1,7 +1,7 @@
 
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { isNotBlank, isNotNull, someAsync, unique } from 'txstate-utils'
+import { isNotBlank, isNotNull, someAsync, unique, isBlank } from 'txstate-utils'
 import {
   DosGatoService, GroupService, User, UserFilter, UserResponse, getUsers,
   getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId, RedactedUser, UsersResponse,
@@ -151,18 +151,28 @@ export class UserService extends DosGatoService<User, RedactedUser|User> {
     return await this.removeUnauthorized(await this.raw.findById(id))
   }
 
-  async updateUser (id: string, args: UpdateUserInput) {
+  async updateUser (id: string, args: UpdateUserInput, validateOnly?: boolean) {
     const user = await this.raw.findById(id)
     if (!user) throw new Error('User to be updated does not exist.')
     if (!(await this.mayUpdate(user))) throw new Error('Current user is not permitted to update this user.')
-    const response = new UserResponse({})
-    try {
+    const response = new UserResponse({ success: true })
+    if (isNotNull(args.name) && isBlank(args.name)) {
+      response.addMessage('This field is required', 'args.name')
+    }
+    if (isNotNull(args.email)) {
+      if (isBlank(args.email)) {
+        response.addMessage('This field is required', 'args.email')
+      }
+      if (!args.email.match(/^\s*[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}\s*$/i)) {
+        response.addMessage('Please enter a valid email address', 'args.email')
+      }
+    }
+    if (response.hasErrors()) return response
+    if (!validateOnly) {
       await updateUser(id, args.name, args.email, args.trained)
       this.loaders.clear()
       response.success = true
       response.user = await this.raw.findById(id)
-    } catch (err: any) {
-      throw new Error('An unknown error occurred while updating the user.')
     }
     return response
   }
