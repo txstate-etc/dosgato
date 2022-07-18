@@ -2,7 +2,7 @@ import db from 'mysql2-async/db'
 import { keyby, eachConcurrent } from 'txstate-utils'
 import { TemplateFilter, Template, templateRegistry } from '../internal.js'
 
-const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted']
+const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted', 'templates.universal']
 
 function processFilters (filter?: TemplateFilter) {
   const where: string[] = ['deleted = 0']
