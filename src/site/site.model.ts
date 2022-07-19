@@ -135,11 +135,9 @@ export class SitePermissions {}
 export enum SitePermission {
   LAUNCH = 'launch',
   RENAME = 'rename',
-  MANAGE_OWNERS = 'manageOwners',
-  MANAGE_PAGETREES = 'managePagetrees',
-  PROMOTE_PAGETREE = 'promotePagetree',
-  DELETE = 'delete',
-  UNDELETE = 'undelete'
+  GOVERNANCE = 'governance',
+  MANAGE_STATE = 'manageState',
+  DELETE = 'delete'
 }
 registerEnumType(SitePermission, {
   name: 'SitePermission',

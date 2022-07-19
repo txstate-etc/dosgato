@@ -12,30 +12,22 @@ export class SiteRuleGrantsInput {
   @Field({ description: 'Grants ability to rename the site.' })
   rename!: boolean
 
-  @Field({ description: 'Grants ability to set owner, managers, and organization for affected sites.' })
-  manageOwners!: boolean
+  @Field({ description: 'Grants ability to edit the owner, managers, organization, and comments for affected sites' })
+  governance!: boolean
 
-  @Field({ description: 'Grants ability to create, rename, delete, and undelete pagetrees in affected sites.' })
-  managePagetrees!: boolean
+  @Field({ description: 'Grants the ability to create, delete, promote, and archive pagetrees in affected sites.' })
+  manageState!: boolean
 
-  @Field({ description: 'Grants ability to promote a pagetree to be the active pagetree for the site; i.e. promote the sandbox to be live.' })
-  promotePagetree!: boolean
-
-  @Field({ description: 'Grants ability to delete the site.' })
+  @Field({ description: 'Grants ability to delete and undelete the site.' })
   delete!: boolean
-
-  @Field({ description: 'Grants ability to undelete the site.' })
-  undelete!: boolean
 
   constructor (row?: any) {
     if (row) {
       this.launch = !!row.launch
       this.rename = !!row.rename
-      this.manageOwners = !!row.manageOwners
-      this.managePagetrees = !!row.managePagetrees
-      this.promotePagetree = !!row.promotePagetree
+      this.governance = !!row.governance
+      this.manageState = !!row.manageState
       this.delete = !!row.delete
-      this.undelete = !!row.undelete
     }
   }
 }
@@ -91,20 +83,14 @@ export class SiteRuleFilter {
   @Field({ nullable: true, description: 'Return rules that grant the rename permission.' })
   rename?: boolean
 
-  @Field({ nullable: true, description: 'Return rules that grant the manageOwners permission.' })
-  manageOwners?: boolean
+  @Field({ nullable: true, description: 'Return rules that grant the governance permission.' })
+  governance?: boolean
 
-  @Field({ nullable: true, description: 'Return rules that grant the managePagetrees permission.' })
-  managePagetrees?: boolean
-
-  @Field({ nullable: true, description: 'Return rules that grant the promotePagetree permission.' })
-  promotePagetree?: boolean
+  @Field({ nullable: true, description: 'Return rules that grant the manageState permission.' })
+  manageState?: boolean
 
   @Field({ nullable: true, description: 'Return rules that grant the delete permission.' })
   delete?: boolean
-
-  @Field({ nullable: true, description: 'Return rules that grant the undelete permission.' })
-  undelete?: boolean
 }
 
 @InputType()

@@ -161,7 +161,7 @@ export class SiteService extends DosGatoService<Site> {
     const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site to be updated does not exist.')
     if (args.name && !(await this.mayRename(site))) throw new Error('Current user is not authorized to rename this site')
-    if ((args.ownerId ?? args.organizationId ?? args.managerIds?.length) && !(await this.mayManageOwners(site))) throw new Error('Current user is not authorized to update the organization, owner, or managers for this site')
+    if ((args.ownerId ?? args.organizationId ?? args.managerIds?.length) && !(await this.mayManageGovernance(site))) throw new Error('Current user is not authorized to update the organization, owner, or managers for this site')
     if ((args.launchHost ?? args.launchPath) && !(await this.mayLaunch(site))) throw new Error('Current user is not authorized to update the public URL for this site')
     try {
       await updateSite(site, args)
@@ -227,16 +227,12 @@ export class SiteService extends DosGatoService<Site> {
     return await this.haveSitePerm(site, 'rename')
   }
 
-  async mayManageOwners (site: Site) {
-    return await this.haveSitePerm(site, 'manageOwners')
+  async mayManageGovernance (site: Site) {
+    return await this.haveSitePerm(site, 'governance')
   }
 
-  async mayManagePagetrees (site: Site) {
-    return await this.haveSitePerm(site, 'managePagetrees')
-  }
-
-  async mayPromotePagetree (site: Site) {
-    return await this.haveSitePerm(site, 'promotePagetree')
+  async mayManageState (site: Site) {
+    return await this.haveSitePerm(site, 'manageState')
   }
 
   async mayDelete (site: Site) {
@@ -244,6 +240,6 @@ export class SiteService extends DosGatoService<Site> {
   }
 
   async mayUndelete (site: Site) {
-    return await this.haveSitePerm(site, 'undelete')
+    return await this.haveSitePerm(site, 'delete')
   }
 }

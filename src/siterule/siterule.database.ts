@@ -24,20 +24,14 @@ function processFilters (filter: SiteRuleFilter) {
   if (filter.rename) {
     where.push('`rename` IS TRUE')
   }
-  if (filter.manageOwners) {
-    where.push('manageOwners IS TRUE')
+  if (filter.governance) {
+    where.push('governance IS TRUE')
   }
-  if (filter.managePagetrees) {
-    where.push('managePagetrees IS TRUE')
-  }
-  if (filter.promotePagetree) {
-    where.push('promotePagetree IS TRUE')
+  if (filter.manageState) {
+    where.push('manageState IS TRUE')
   }
   if (filter.delete) {
     where.push('`delete` IS TRUE')
-  }
-  if (filter.undelete) {
-    where.push('undelete IS TRUE')
   }
   return { binds, where }
 }
@@ -69,25 +63,17 @@ export async function createSiteRule (args: CreateSiteRuleInput) {
       columns.push('`rename`')
       binds.push(args.grants.rename)
     }
-    if (args.grants.managePagetrees) {
-      columns.push('`managePagetrees`')
-      binds.push(args.grants.managePagetrees)
+    if (args.grants.governance) {
+      columns.push('`governance`')
+      binds.push(args.grants.governance)
     }
-    if (args.grants.promotePagetree) {
-      columns.push('`promotePagetree`')
-      binds.push(args.grants.promotePagetree)
-    }
-    if (args.grants.manageOwners) {
-      columns.push('`manageOwners`')
-      binds.push(args.grants.manageOwners)
+    if (args.grants.manageState) {
+      columns.push('`manageState`')
+      binds.push(args.grants.manageState)
     }
     if (args.grants.delete) {
       columns.push('`delete`')
       binds.push(args.grants.delete)
-    }
-    if (args.grants.undelete) {
-      columns.push('`undelete`')
-      binds.push(args.grants.undelete)
     }
   }
   return await db.insert(`INSERT INTO siterules (${columns.join(',')}) VALUES(${columns.map((c) => '?').join(',')})`, binds)
@@ -109,25 +95,17 @@ export async function updateSiteRule (args: UpdateSiteRuleInput) {
       updates.push('`rename` = ?')
       binds.push(args.grants.rename)
     }
-    if (isNotNull(args.grants.managePagetrees)) {
-      updates.push('`managePagetrees` = ?')
-      binds.push(args.grants.managePagetrees)
+    if (isNotNull(args.grants.governance)) {
+      updates.push('`governance` = ?')
+      binds.push(args.grants.governance)
     }
-    if (isNotNull(args.grants.promotePagetree)) {
-      updates.push('`promotePagetree` = ?')
-      binds.push(args.grants.promotePagetree)
-    }
-    if (isNotNull(args.grants.manageOwners)) {
-      updates.push('`manageOwners` = ?')
-      binds.push(args.grants.manageOwners)
+    if (isNotNull(args.grants.manageState)) {
+      updates.push('`manageState` = ?')
+      binds.push(args.grants.manageState)
     }
     if (isNotNull(args.grants.delete)) {
       updates.push('`delete` = ?')
       binds.push(args.grants.delete)
-    }
-    if (isNotNull(args.grants.undelete)) {
-      updates.push('`undelete` = ?')
-      binds.push(args.grants.undelete)
     }
   }
   binds.push(String(args.ruleId))

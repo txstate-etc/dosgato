@@ -33,17 +33,7 @@ export class PagetreeResolver {
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this pagetree, or any permission if null.' })
   async roles (@Ctx() ctx: Context, @Root() pagetree: Pagetree, @Arg('withPermission', type => [PagetreePermission], { nullable: true }) withPermission?: PagetreePermission[]) {
     let rules = await ctx.svc(SiteRuleService).findByPagetree(pagetree)
-    if (withPermission) {
-      rules = rules.filter(r => withPermission.some(p => {
-        if (p === PagetreePermission.PROMOTE) {
-          return r.grants.promotePagetree
-        } else {
-          return r.grants.managePagetrees
-        }
-      }))
-    } else {
-      rules = rules.filter(r => r.grants.promotePagetree || r.grants.managePagetrees)
-    }
+    rules = rules.filter(r => r.grants.manageState)
     return await ctx.svc(RoleService).findByIds(unique(rules.map(r => r.roleId)))
   }
 

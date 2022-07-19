@@ -212,11 +212,9 @@ export async function init (db: Queryable) {
       `siteId` SMALLINT UNSIGNED, \
       `launch` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `rename` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
-      `manageOwners` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
-      `managePagetrees` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
-      `promotePagetree` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
+      `governance` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
+      `manageState` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `delete` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
-      `undelete` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       PRIMARY KEY (`id`), \
       CONSTRAINT `FK_siterules_roles` \
         FOREIGN KEY (`roleId`) \

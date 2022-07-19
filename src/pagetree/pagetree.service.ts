@@ -60,7 +60,7 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     const site = await this.svc(SiteServiceInternal).findById(args.siteId)
     if (!site) throw new Error('Pagetree site does not exist.')
     const currentPagetrees = await this.raw.findBySiteId(args.siteId)
-    if (!(await this.svc(SiteService).mayManagePagetrees(site))) {
+    if (!(await this.svc(SiteService).mayManageState(site))) {
       throw new Error('Current user is not permitted to create pagetrees in this site.')
     }
     if (currentPagetrees.some(p => p.name === args.name)) {
@@ -175,7 +175,7 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (!site) {
       throw new Error(`Site not found for pagetree ${pagetree.name}`)
     }
-    return await this.haveSitePerm(site, 'managePagetrees')
+    return await this.haveSitePerm(site, 'manageState')
   }
 
   async mayDelete (pagetree: Pagetree) {
@@ -184,7 +184,7 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (!site) {
       throw new Error(`Site not found for pagetree ${pagetree.name}`)
     }
-    return await this.haveSitePerm(site, 'managePagetrees')
+    return await this.haveSitePerm(site, 'manageState')
   }
 
   async mayUndelete (pagetree: Pagetree) {
@@ -193,7 +193,7 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (!site) {
       throw new Error(`Site not found for pagetree ${pagetree.name}`)
     }
-    return await this.haveSitePerm(site, 'managePagetrees')
+    return await this.haveSitePerm(site, 'manageState')
   }
 
   async mayPromote (pagetree: Pagetree) {
@@ -203,7 +203,7 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (!site) {
       throw new Error(`Site not found for pagetree ${pagetree.name}`)
     }
-    return await this.haveSitePerm(site, 'promotePagetree')
+    return await this.haveSitePerm(site, 'manageState')
   }
 
   async mayArchive (pagetree: Pagetree) {
@@ -212,6 +212,6 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (!site) {
       throw new Error(`Site not found for pagetree ${pagetree.name}`)
     }
-    return await this.haveSitePerm(site, 'managePagetrees')
+    return await this.haveSitePerm(site, 'manageState')
   }
 }

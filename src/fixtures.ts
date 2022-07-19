@@ -294,19 +294,19 @@ export async function fixtures () {
   ])
   await Promise.all([
     db.insert('INSERT INTO siterules (roleId, launch) VALUES (?,?)', [siteLauncherRole, 1]),
-    db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, manageOwners, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?,?,?,?)', [superuserRole, site1, 1, 1, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, manageOwners, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?,?,?,?)', [superuserRole, site2, 1, 1, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, manageOwners, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?,?,?,?)', [superuserRole, site3, 1, 1, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO siterules (roleId, launch, `rename`, manageOwners, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, manageOwners, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?,?,?,?)', [site1editorRole, site1, 1, 1, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, manageOwners) VALUES (?,?,?,?,?)', [site1siterulestest1, site1, 1, 1, 1]),
-    db.insert('INSERT INTO siterules (roleId, siteId, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?)', [site1siterulestest2, site1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO siterules (roleId, siteId, launch, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?,?)', [site2siterulestest1, site2, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO siterules (roleId, siteId, managePagetrees) VALUES (?,?,?)', [site5siterulestest1, site5, 1]),
-    db.insert('INSERT INTO siterules (roleId, siteId, promotePagetree) VALUES (?,?,?)', [site5siterulestest2, site5, 1]),
+    db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, governance, manageState, `delete`) VALUES (?,?,?,?,?,?,?)', [superuserRole, site1, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, governance, manageState, `delete`) VALUES (?,?,?,?,?,?,?)', [superuserRole, site2, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, governance, manageState, `delete`) VALUES (?,?,?,?,?,?,?)', [superuserRole, site3, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO siterules (roleId, launch, `rename`, governance, manageState, `delete`) VALUES (?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, governance, manageState, `delete`) VALUES (?,?,?,?,?,?,?)', [site1editorRole, site1, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, governance) VALUES (?,?,?,?,?)', [site1siterulestest1, site1, 1, 1, 1]),
+    db.insert('INSERT INTO siterules (roleId, siteId, manageState, `delete`) VALUES (?,?,?,?)', [site1siterulestest2, site1, 1, 1]),
+    db.insert('INSERT INTO siterules (roleId, siteId, launch, manageState, `delete`) VALUES (?,?,?,?,?)', [site2siterulestest1, site2, 1, 1, 1]),
+    db.insert('INSERT INTO siterules (roleId, siteId, manageState) VALUES (?,?,?)', [site5siterulestest1, site5, 1]),
+    db.insert('INSERT INTO siterules (roleId, siteId, manageState) VALUES (?,?,?)', [site5siterulestest2, site5, 1]),
     db.insert('INSERT INTO siterules (roleId, siteId, `rename`) VALUES (?,?,?)', [site5siterulestest3, site5, 1]),
-    db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, manageOwners, managePagetrees, promotePagetree, `delete`, undelete) VALUES (?,?,?,?,?,?,?,?,?)', [siterolestest1, site6, 1, 1, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO siterules (roleId, siteId, launch, manageOwners) VALUES (?,?,?,?)', [siterolestest2, site6, 1, 1])
+    db.insert('INSERT INTO siterules (roleId, siteId, launch, `rename`, governance, manageState, `delete`) VALUES (?,?,?,?,?,?,?)', [siterolestest1, site6, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO siterules (roleId, siteId, launch, governance) VALUES (?,?,?,?)', [siterolestest2, site6, 1, 1])
   ])
 
   await Promise.all([db.insert('INSERT INTO assetrules (`roleId`, `create`, `update`, `move`, `delete`, `undelete`) VALUES (?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1]),
