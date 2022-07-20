@@ -156,21 +156,26 @@ export class SiteService extends DosGatoService<Site> {
     return response
   }
 
-  async update (siteId: string, args: UpdateSiteInput) {
+  async update (siteId: string, args: UpdateSiteInput, validateOnly?: boolean) {
     const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site to be updated does not exist.')
     if (args.name && !(await this.mayRename(site))) throw new Error('Current user is not authorized to rename this site')
     if ((args.ownerId ?? args.organizationId ?? args.managerIds?.length) && !(await this.mayManageGovernance(site))) throw new Error('Current user is not authorized to update the organization, owner, or managers for this site')
     if ((args.launchHost ?? args.launchPath) && !(await this.mayLaunch(site))) throw new Error('Current user is not authorized to update the public URL for this site')
-    try {
+    const response = new SiteResponse({ success: true })
+    if (args.name && !(await siteNameIsUnique(args.name))) {
+      response.addMessage(`Site ${args.name} already exists.`, 'args.name')
+    }
+    // TODO: Is any validation needed on the launch host or launch path? Or, should they be in a separate mutation?
+    if (response.hasErrors()) {
+      return response
+    }
+    if (!validateOnly) {
       await updateSite(site, args)
       this.loaders.clear()
-      const updatedSite = await this.raw.findById(siteId)
-      return new SiteResponse({ success: true, site: updatedSite })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An error occurred while updating the site')
+      response.site = await this.raw.findById(siteId)
     }
+    return response
   }
 
   async delete (siteId: string) {

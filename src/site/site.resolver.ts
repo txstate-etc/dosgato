@@ -115,8 +115,8 @@ export class SiteResolver {
   }
 
   @Mutation(returns => SiteResponse)
-  async updateSite (@Ctx() ctx: Context, @Arg('siteId', type => ID) siteId: string, @Arg('args', type => UpdateSiteInput) args: UpdateSiteInput) {
-    return await ctx.svc(SiteService).update(siteId, args)
+  async updateSite (@Ctx() ctx: Context, @Arg('siteId', type => ID) siteId: string, @Arg('args', type => UpdateSiteInput) args: UpdateSiteInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(SiteService).update(siteId, args, validateOnly)
   }
 
   @Mutation(returns => SiteResponse)
