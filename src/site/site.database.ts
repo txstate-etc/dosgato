@@ -100,6 +100,11 @@ export async function getSitesByManagerInternalId (managerInternalIds: number[])
   return rows.map(row => ({ key: row.userId, value: new Site(row) }))
 }
 
+export async function siteNameIsUnique (name: string) {
+  const count = await db.getval<number>('SELECT COUNT(*) FROM sites WHERE name = ?', [name])
+  return count === 0
+}
+
 export async function createSite (versionedService: VersionedService, userId: string, args: CreateSiteInput) {
   return await db.transaction(async db => {
     // create the site, get the internal id for the page template

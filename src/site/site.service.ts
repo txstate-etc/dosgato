@@ -3,7 +3,7 @@ import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-
 import {
   Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate, getSitesByGroupIds, undeleteSite,
   PagetreeService, DosGatoService, CreateSiteInput, createSite, VersionedService, SiteResponse, UpdateSiteInput,
-  updateSite, deleteSite, PageService, Group, getSitesByOwnerInternalId, getSitesByManagerInternalId
+  updateSite, deleteSite, PageService, Group, getSitesByOwnerInternalId, getSitesByManagerInternalId, siteNameIsUnique
 } from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({
@@ -140,21 +140,20 @@ export class SiteService extends DosGatoService<Site> {
     return await this.removeUnauthorized(await this.raw.findByManagerInternalId(managerInternalId))
   }
 
-  async create (args: CreateSiteInput) {
+  async create (args: CreateSiteInput, validateOnly?: boolean) {
     if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create sites.')
-    try {
-      const versionedService = this.svc(VersionedService)
-      const site = await createSite(versionedService, this.login, args)
-      return new SiteResponse({ success: true, site })
-    } catch (err: any) {
-      console.error(err)
-      if (err.code === 'ER_DUP_ENTRY') {
-        const response = new SiteResponse({})
-        response.addMessage(`Site ${args.name} already exists.`, 'args.name')
-        return response
-      }
-      throw new Error('An unknown error occurred while creating the site.')
+    const response = new SiteResponse({ success: true })
+    if (!(await siteNameIsUnique(args.name))) {
+      response.addMessage(`Site ${args.name} already exists.`, 'args.name')
     }
+    if (response.hasErrors()) {
+      return response
+    }
+    if (!validateOnly) {
+      const versionedService = this.svc(VersionedService)
+      response.site = await createSite(versionedService, this.login, args)
+    }
+    return response
   }
 
   async update (siteId: string, args: UpdateSiteInput) {

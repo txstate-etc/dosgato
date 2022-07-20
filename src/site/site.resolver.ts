@@ -110,8 +110,8 @@ export class SiteResolver {
 
   // MUTATIONS
   @Mutation(returns => SiteResponse, { description: 'Create a new site with a pagetree, root page, and asset folder' })
-  async createSite (@Ctx() ctx: Context, @Arg('args', type => CreateSiteInput) args: CreateSiteInput) {
-    return await ctx.svc(SiteService).create(args)
+  async createSite (@Ctx() ctx: Context, @Arg('args', type => CreateSiteInput) args: CreateSiteInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(SiteService).create(args, validateOnly)
   }
 
   @Mutation(returns => SiteResponse)
