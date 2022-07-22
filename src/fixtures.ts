@@ -212,6 +212,10 @@ export async function fixtures () {
   ])
 
   await Promise.all([
+    db.update('UPDATE roles SET siteId = ? WHERE id = ?', [site3, site3editorRole])
+  ])
+
+  await Promise.all([
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group1]),
     db.insert('INSERT INTO groups_managers (userId, groupId) VALUES (?,?)', [su01, group1]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group2]),

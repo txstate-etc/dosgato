@@ -1,10 +1,11 @@
 import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
+import { isNull } from 'txstate-utils'
 import {
   AssetRule, AssetRuleService, AssetRuleFilter, DataRule, DataRuleService, GlobalRule, GlobalRuleService,
   PageRule, PageRuleService, SiteRule, SiteRuleFilter, SiteRuleService, Group, GroupFilter,
   GroupService, User, UserFilter, UserService, Role, RoleFilter, RolePermissions, RoleResponse,
-  RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType
+  RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType, Site, SiteService
 } from '../internal.js'
 
 @Resolver(of => Role)
@@ -57,6 +58,12 @@ export class RoleResolver {
     @Arg('filter', { nullable: true }) filter?: GroupFilter
   ) {
     return await ctx.svc(GroupService).findByRoleId(role.id, direct, filter)
+  }
+
+  @FieldResolver(returns => Site, { nullable: true, description: 'Returns the site associated with this role or null if the role is not associated with a particular site' })
+  async site (@Ctx() ctx: Context, @Root() role: Role) {
+    if (isNull(role.siteId)) return null
+    else return await ctx.svc(SiteService).findById(role.siteId)
   }
 
   @FieldResolver(returns => RolePermissions, {

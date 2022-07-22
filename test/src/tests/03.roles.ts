@@ -74,4 +74,15 @@ describe('roles', () => {
     const site3role = resp.roles.find((r: any) => r.name === 'site3-editor')
     expect(site3role.groups.map((g: any) => g.name)).to.have.members(['group1', 'group3'])
   })
+  it('should get the site related to a role', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed09"] }) { name site { id name } } }')
+    const site3role = resp.roles.find((r: any) => r.name === 'site3-editor')
+    expect(site3role.site).to.not.be.null
+    expect(site3role.site.name).to.equal('site3')
+  })
+  it('should return null for the role\'s site if the role is not associated with a site', async () => {
+    const resp = await query('{ roles(filter: { users: ["su01"] }) { name site { id name } } }')
+    const superuserRole = resp.roles.find((r: any) => r.name === 'superuser')
+    expect(superuserRole.site).to.be.null
+  })
 })

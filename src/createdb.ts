@@ -200,8 +200,12 @@ export async function init (db: Queryable) {
     CREATE TABLE IF NOT EXISTS `roles` ( \
       `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `name` VARCHAR(255) NOT NULL, \
+      `siteId` SMALLINT UNSIGNED, \
       PRIMARY KEY (`id`), \
-      UNIQUE INDEX `name_UNIQUE` (`name`)) \
+      UNIQUE INDEX `name_UNIQUE` (`name`), \
+      CONSTRAINT `FK_roles_sites` \
+        FOREIGN KEY (`siteId`) \
+        REFERENCES `sites` (`id`)) \
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;')

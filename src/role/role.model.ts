@@ -1,5 +1,6 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
+import { optionalString } from 'txstate-utils'
 
 export enum RuleType {
   GLOBAL = 'global',
@@ -27,9 +28,13 @@ export class Role {
   @Field()
   name: string
 
+  @Field({ nullable: true })
+  siteId?: string
+
   constructor (row: any) {
     this.id = String(row.id)
     this.name = row.name
+    this.siteId = optionalString(row.siteId)
   }
 }
 
