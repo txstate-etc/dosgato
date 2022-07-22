@@ -5,8 +5,11 @@ import { RuleType } from '../internal.js'
 @ObjectType()
 @InputType('GlobalRuleGrantsInput')
 export class GlobalRuleGrants {
-  @Field({ description: 'Grants ability to create/read/update/delete all roles, add roles to users and groups, and add users to groups.' })
-  manageUsers!: boolean
+  @Field({ description: 'Grants ability to create/edit sub-roles, create/enable/disable/edit users, and assign users to roles associated with a site.' })
+  manageAccess!: boolean
+
+  @Field({ description: 'Grants ability to create/edit top-level roles and assign users to roles not associated with a site.' })
+  manageParentRoles!: boolean
 
   @Field({ description: 'Grants ability to create new sites in the system.' })
   createSites!: boolean
@@ -14,11 +17,20 @@ export class GlobalRuleGrants {
   @Field({ description: 'Grants ability to edit global data. Site-related data is governed by datarules instead.' })
   manageGlobalData!: boolean
 
+  @Field({ description: 'Grants ability to view the entire site list and details like launch url, owner, managers, comments.' })
+  viewSiteList!: boolean
+
+  @Field({ description: 'Grants ability to assign templates to sites and pagetrees and set templates as universal' })
+  manageTemplates!: boolean
+
   constructor (row?: any) {
     if (row) {
-      this.manageUsers = !!row.manageUsers
+      this.manageAccess = !!row.manageAccess
+      this.manageParentRoles = !!row.manageParentRoles
       this.createSites = !!row.createSites
       this.manageGlobalData = !!row.manageGlobalData
+      this.viewSiteList = !!row.viewSiteList
+      this.manageTemplates = !!row.manageTemplates
     }
   }
 }

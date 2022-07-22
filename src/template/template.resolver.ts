@@ -87,12 +87,12 @@ export class TemplateResolver {
 
 @Resolver(of => TemplatePermissions)
 export class TemplatePermissionsResolver {
-  @FieldResolver(returns => Boolean, { description: 'Authenticated user has permission to approve this template for use on a specific site. Currently based on GlobalRule.manageUsers.' })
+  @FieldResolver(returns => Boolean, { description: 'Authenticated user has permission to approve this template for use on a specific site.' })
   async assign (@Ctx() ctx: Context, @Root() template: Template) {
     return await ctx.svc(TemplateService).mayAssign(template)
   }
 
-  @FieldResolver(returns => Boolean, { description: 'Authenticated user has permission to make this template universal or not. Currently based on GlobalRule.manageUsers.' })
+  @FieldResolver(returns => Boolean, { description: 'Authenticated user has permission to make this template universal or not.' })
   async setUniversal (@Ctx() ctx: Context, @Root() template: Template) {
     return await ctx.svc(TemplateService).maySetUniversal(template)
   }

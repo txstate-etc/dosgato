@@ -5,11 +5,11 @@ import { hashify } from 'txstate-utils'
 
 describe('global rules', () => {
   it('should get global rules for a role', async () => {
-    const resp = await query('{ roles(filter: { users: ["su01"] }) { name globalRules { grants { manageUsers } } } }')
+    const resp = await query('{ roles(filter: { users: ["su01"] }) { name globalRules { grants { manageAccess } } } }')
     const superUserRole = resp.roles.find((r: any) => r.name === 'superuser')
     const globalRules = superUserRole.globalRules
     expect(globalRules).to.have.lengthOf(1)
-    expect(globalRules[0].grants.manageUsers).to.be.true
+    expect(globalRules[0].grants.manageAccess).to.be.true
   })
   it('should get the role attached to a global rule', async () => {
     const resp = await query('{ roles(filter: { users: ["su01"] }) { name globalRules { role { id name } } } }')

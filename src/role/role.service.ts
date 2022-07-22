@@ -1,6 +1,6 @@
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique } from 'txstate-utils'
+import { isNotNull, unique } from 'txstate-utils'
 import {
   DosGatoService, GroupService, UserService, Role, RoleFilter, RoleResponse,
   addRoleToUser, createRole, deleteRole, getRoles, getRolesWithGroup,
@@ -236,32 +236,37 @@ export class RoleService extends DosGatoService<Role> {
 
   protected currentRolesSet?: Set<string>
   async mayView (role: Role): Promise<boolean> {
-    if (await this.haveGlobalPerm('manageUsers')) return true
+    if (await this.haveGlobalPerm('manageAccess')) return true
     this.currentRolesSet ??= new Set((await this.currentRoles()).map(r => r.id))
     return this.currentRolesSet.has(role.id)
   }
 
   async mayViewManagerUI () {
-    return await this.haveGlobalPerm('manageUsers')
+    return await this.haveGlobalPerm('manageAccess')
   }
 
   async mayCreate () {
-    return await this.haveGlobalPerm('manageUsers')
+    // TODO: Check manageParentRoles permission if they are trying to create a top-level role
+    return await this.haveGlobalPerm('manageAccess')
   }
 
   async mayUpdate (role: Role) {
-    return await this.haveGlobalPerm('manageUsers')
+    // TODO: Check manageParentRoles permission if they are trying to update a top-level role
+    return await this.haveGlobalPerm('manageAccess')
   }
 
   async mayDelete (role: Role) {
-    return await this.haveGlobalPerm('manageUsers')
+    // TODO: Check manageParentRoles permission if they are trying to delete a top-level role?
+    return await this.haveGlobalPerm('manageAccess')
   }
 
   async mayAssign (role: Role) {
-    return await this.haveGlobalPerm('manageUsers')
+    if (isNotNull(role.siteId)) return await this.haveGlobalPerm('manageAccess')
+    else return await this.haveGlobalPerm('manageParentRoles')
   }
 
   async mayCreateRules (role: Role) {
-    return await this.haveGlobalPerm('manageUsers')
+    // TODO: Check manageParentRoles permission if they are trying to create rules for a top-level role
+    return await this.haveGlobalPerm('manageAccess')
   }
 }

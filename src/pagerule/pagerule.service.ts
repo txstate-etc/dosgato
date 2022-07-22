@@ -146,7 +146,7 @@ export class PageRuleService extends DosGatoService<PageRule> {
   }
 
   async mayView (rule: PageRule) {
-    if (await this.haveGlobalPerm('manageUsers')) return true
+    if (await this.haveGlobalPerm('manageAccess')) return true
     const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
     return !!role
   }

@@ -25,9 +25,13 @@ export async function createGlobalRule (args: CreateGlobalRuleInput) {
   }
   binds.push(args.roleId)
   if (args.grants) {
-    if (args.grants.manageUsers) {
-      columns.push('manageUsers')
-      binds.push(args.grants.manageUsers)
+    if (args.grants.manageAccess) {
+      columns.push('manageAccess')
+      binds.push(args.grants.manageAccess)
+    }
+    if (args.grants.manageParentRoles) {
+      columns.push('manageParentRoles')
+      binds.push(args.grants.manageParentRoles)
     }
     if (args.grants.createSites) {
       columns.push('createSites')
@@ -37,6 +41,14 @@ export async function createGlobalRule (args: CreateGlobalRuleInput) {
       columns.push('manageGlobalData')
       binds.push(args.grants.manageGlobalData)
     }
+    if (args.grants.viewSiteList) {
+      columns.push('viewSiteList')
+      binds.push(args.grants.viewSiteList)
+    }
+    if (args.grants.manageTemplates) {
+      columns.push('manageTemplates')
+      binds.push(args.grants.manageTemplates)
+    }
   }
   return await db.insert(`INSERT INTO globalrules (${columns.join(',')}) VALUES(${columns.map((c) => '?').join(',')})`, binds)
 }
@@ -45,9 +57,13 @@ export async function updateGlobalRule (args: UpdateGlobalRuleInput) {
   const updates: string[] = []
   const binds: (string|boolean)[] = []
   if (args.grants) {
-    if (isNotNull(args.grants.manageUsers)) {
-      updates.push('`manageUsers` = ?')
-      binds.push(args.grants.manageUsers)
+    if (isNotNull(args.grants.manageAccess)) {
+      updates.push('`manageAccess` = ?')
+      binds.push(args.grants.manageAccess)
+    }
+    if (isNotNull(args.grants.manageParentRoles)) {
+      updates.push('`manageParentRoles` = ?')
+      binds.push(args.grants.manageParentRoles)
     }
     if (isNotNull(args.grants.createSites)) {
       updates.push('`createSites` = ?')
@@ -56,6 +72,14 @@ export async function updateGlobalRule (args: UpdateGlobalRuleInput) {
     if (isNotNull(args.grants.manageGlobalData)) {
       updates.push('`manageGlobalData` = ?')
       binds.push(args.grants.manageGlobalData)
+    }
+    if (isNotNull(args.grants.viewSiteList)) {
+      updates.push('`viewSiteList` = ?')
+      binds.push(args.grants.viewSiteList)
+    }
+    if (isNotNull(args.grants.manageTemplates)) {
+      updates.push('`manageTemplates` = ?')
+      binds.push(args.grants.manageTemplates)
     }
   }
   binds.push(String(args.ruleId))

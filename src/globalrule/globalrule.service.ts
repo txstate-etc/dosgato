@@ -105,7 +105,7 @@ export class GlobalRuleService extends DosGatoService<GlobalRule> {
   }
 
   async mayView (rule: GlobalRule) {
-    if (await this.haveGlobalPerm('manageUsers')) return true
+    if (await this.haveGlobalPerm('manageAccess')) return true
     const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
     return !!role
   }

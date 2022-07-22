@@ -200,11 +200,11 @@ export class TemplateService extends DosGatoService<Template> {
   }
 
   async mayAssign (template: Template) {
-    return await this.haveGlobalPerm('manageUsers')
+    return await this.haveGlobalPerm('manageTemplates')
   }
 
   async maySetUniversal (template: Template) {
-    return await this.haveGlobalPerm('manageUsers')
+    return await this.haveGlobalPerm('manageTemplates')
   }
 
   /**

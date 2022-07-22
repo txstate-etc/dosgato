@@ -117,7 +117,7 @@ export class TemplateRuleService extends DosGatoService<TemplateRule> {
   }
 
   async mayView (rule: TemplateRule) {
-    if (await this.haveGlobalPerm('manageUsers')) return true
+    if (await this.haveGlobalPerm('manageAccess')) return true
     const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
     return !!role
   }

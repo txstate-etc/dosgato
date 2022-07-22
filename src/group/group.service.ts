@@ -358,7 +358,7 @@ export class GroupService extends DosGatoService<Group> {
   }
 
   async mayView (group: Group) {
-    if (await this.haveGlobalPerm('manageUsers')) return true
+    if (await this.haveGlobalPerm('manageAccess')) return true
     if (await this.currentGroupsById(group.id)) return true
     return await this.isManager(group)
   }
@@ -366,23 +366,23 @@ export class GroupService extends DosGatoService<Group> {
   async mayViewManagerUI () {
     const user = await this.currentUser()
     if (!user) return false
-    return (await this.haveGlobalPerm('manageUsers')) || (await this.findByManager(user)).length > 0
+    return (await this.haveGlobalPerm('manageAccess')) || (await this.findByManager(user)).length > 0
   }
 
   async mayCreate () {
-    return await this.haveGlobalPerm('manageUsers')
+    return await this.haveGlobalPerm('manageAccess')
   }
 
   async mayUpdate (group: Group) {
-    return await this.haveGlobalPerm('manageUsers')
+    return await this.haveGlobalPerm('manageAccess')
   }
 
   async mayDelete (group: Group) {
-    return await this.haveGlobalPerm('manageUsers')
+    return await this.haveGlobalPerm('manageAccess')
   }
 
   async mayManageUsers (group: Group) {
-    if (await this.haveGlobalPerm('manageUsers')) return true
+    if (await this.haveGlobalPerm('manageAccess')) return true
     return await this.isManager(group)
   }
 

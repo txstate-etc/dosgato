@@ -290,11 +290,11 @@ export async function fixtures () {
   ])
 
   await Promise.all([
-    db.insert('INSERT INTO globalrules (roleId, manageUsers, createSites, manageGlobalData) VALUES (?,?,?,?)', [superuserRole, 1, 1, 1]),
-    db.insert('INSERT INTO globalrules (roleId, manageUsers, createSites, manageGlobalData) VALUES (?,?,?,?)', [group6Role, 1, 0, 0]),
-    db.insert('INSERT INTO globalrules (roleId, manageUsers, createSites, manageGlobalData) VALUES (?,?,?,?)', [assetrulestest4, 1, 0, 0]),
-    db.insert('INSERT INTO globalrules (roleId, manageUsers, createSites, manageGlobalData) VALUES (?,?,?,?)', [pagerulestest3, 1, 0, 0]),
-    db.insert('INSERT INTO globalrules (roleId, manageUsers, createSites, manageGlobalData) VALUES (?,?,?,?)', [datarulestest3, 1, 0, 0])
+    db.insert('INSERT INTO globalrules (roleId, manageAccess, manageParentRoles, createSites, manageGlobalData, viewSiteList, manageTemplates) VALUES (?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO globalrules (roleId, manageAccess) VALUES (?,?)', [group6Role, 1]),
+    db.insert('INSERT INTO globalrules (roleId, manageAccess) VALUES (?,?)', [assetrulestest4, 1]),
+    db.insert('INSERT INTO globalrules (roleId, manageAccess) VALUES (?,?)', [pagerulestest3, 1]),
+    db.insert('INSERT INTO globalrules (roleId, manageAccess) VALUES (?,?)', [datarulestest3, 1])
   ])
   await Promise.all([
     db.insert('INSERT INTO siterules (roleId, launch) VALUES (?,?)', [siteLauncherRole, 1]),

@@ -189,7 +189,7 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
   }
 
   async mayView (rule: AssetRule) {
-    if (await this.haveGlobalPerm('manageUsers')) return true
+    if (await this.haveGlobalPerm('manageAccess')) return true
     const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
     return !!role
   }
