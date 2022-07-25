@@ -157,13 +157,14 @@ export async function fixtures () {
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree8', site8, 'primary'])
   ])
 
-  const [pagetemplate1, pagetemplate2, pagetemplate3, datatemplate1, datatemplate2, articleTemplate] = await Promise.all([
+  const [pagetemplate1, pagetemplate2, pagetemplate3, datatemplate1, datatemplate2, articleTemplate, linkTemplate] = await Promise.all([
     await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp1']),
     await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp2']),
     await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp3']),
     await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyd1']),
     await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyd2']),
-    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['articledatakey'])
+    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['articledatakey']),
+    await db.getval<number>('SELECT ID FROM templates WHERE `key` = ?', ['keyc1'])
   ])
 
   await Promise.all([
@@ -286,7 +287,8 @@ export async function fixtures () {
     db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site1, pagetemplate2!]),
     db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site3, pagetemplate3!]),
     db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site1, pagetemplate3!]),
-    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site6, pagetemplate3!])
+    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site6, pagetemplate3!]),
+    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site3, linkTemplate!])
   ])
 
   await Promise.all([
