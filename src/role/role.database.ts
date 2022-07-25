@@ -17,6 +17,7 @@ export async function getRoles (filter?: RoleFilter) {
   if (where.length) {
     query += `WHERE (${where.join(') AND (')})`
   }
+  query += ' ORDER BY roles.name'
   const roles = await db.getall(query, binds)
   return roles.map(r => new Role(r))
 }
