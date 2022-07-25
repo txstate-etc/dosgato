@@ -219,6 +219,10 @@ export class SiteService extends DosGatoService<Site> {
     return (await this.currentSiteRules()).some(r => r.grants.viewForEdit)
   }
 
+  async mayViewSiteList () {
+    return await this.haveGlobalPerm('viewSiteList')
+  }
+
   async mayCreate () {
     return await this.haveGlobalPerm('createSites')
   }

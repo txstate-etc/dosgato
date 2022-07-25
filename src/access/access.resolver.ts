@@ -1,6 +1,6 @@
 import { Context } from '@txstate-mws/graphql-server'
 import { Arg, Ctx, FieldResolver, Query, Resolver } from 'type-graphql'
-import { AssetService, DataService, GroupService, PageService, RoleService, UrlSafeString, SiteService, Access } from '../internal.js'
+import { AssetService, DataService, GroupService, PageService, RoleService, UrlSafeString, SiteService, Access, TemplateService } from '../internal.js'
 
 @Resolver(of => Access)
 export class AccessResolver {
@@ -57,5 +57,15 @@ export class AccessResolver {
   @FieldResolver(returns => Boolean, { description: 'Currently authenticated user is able to create global data entries of the specified type.' })
   async createGlobalData (@Ctx() ctx: Context, @Arg('type') type: UrlSafeString) {
     return await ctx.svc(DataService).mayCreateGlobal()
+  }
+
+  @FieldResolver(returns => Boolean, { description: 'Currently authenticated user is able to view the site list and site details'})
+  async viewSiteList (@Ctx() ctx: Context) {
+    return await ctx.svc(SiteService).mayViewSiteList()
+  }
+
+  @FieldResolver(returns => Boolean, { description: 'Currently authenticated user is able to assign templatess to sites and pagetrees and may mark templates as universal'})
+  async manageTemplates (@Ctx() ctx: Context) {
+    return await ctx.svc(TemplateService).mayManage()
   }
 }

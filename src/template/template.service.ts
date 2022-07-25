@@ -199,11 +199,17 @@ export class TemplateService extends DosGatoService<Template> {
     return true
   }
 
+  // TODO: Can we remove these two methods?
+
   async mayAssign (template: Template) {
     return await this.haveGlobalPerm('manageTemplates')
   }
 
   async maySetUniversal (template: Template) {
+    return await this.haveGlobalPerm('manageTemplates')
+  }
+
+  async mayManage () {
     return await this.haveGlobalPerm('manageTemplates')
   }
 
