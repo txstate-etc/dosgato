@@ -73,6 +73,23 @@ export async function init (db: Queryable) {
       ENGINE = InnoDB \
       DEFAULT CHARACTER SET = utf8mb4 \
       DEFAULT COLLATE = utf8mb4_general_ci;")
+  await db.execute('\
+    CREATE TABLE IF NOT EXISTS `comments` ( \
+      `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \
+      `siteId` SMALLINT UNSIGNED NOT NULL, \
+      `comment` VARCHAR(255) NOT NULL, \
+      `createdBy` MEDIUMINT UNSIGNED NOT NULL, \
+      `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, \
+      PRIMARY KEY (`id`), \
+      CONSTRAINT `FK_comments_sites` \
+        FOREIGN KEY (`siteId`) \
+        REFERENCES `sites` (`id`), \
+      CONSTRAINT `FK_comments_users` \
+        FOREIGN KEY (`createdBy`) \
+        REFERENCES `users` (`id`)) \
+    ENGINE = InnoDB \
+    DEFAULT CHARACTER SET = utf8mb4 \
+    DEFAULT COLLATE = utf8mb4_general_ci;')
   await db.execute("\
     CREATE TABLE IF NOT EXISTS `pagetrees` ( \
       `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \

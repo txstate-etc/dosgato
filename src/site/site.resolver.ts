@@ -13,7 +13,8 @@ import {
   DataRootService,
   DataRootFilter,
   Group,
-  GroupService
+  GroupService,
+  SiteComment, SiteCommentService
 } from '../internal.js'
 
 @Resolver(of => Site)
@@ -98,6 +99,11 @@ export class SiteResolver {
   @FieldResolver(returns => Boolean, { description: 'True if the site has been launched (i.e. is available on a specified URL outside the editing host.' })
   async launched (@Ctx() ctx: Context, @Root() site: Site) {
     return isNotNull(site.url)
+  }
+
+  @FieldResolver(returns => [SiteComment], { description: 'Returns comments about a site' })
+  async comments (@Ctx() ctx: Context, @Root() site: Site) {
+    return await ctx.svc(SiteCommentService).findBySiteId(site.id)
   }
 
   @FieldResolver(returns => SitePermissions, {

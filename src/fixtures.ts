@@ -36,6 +36,7 @@ export async function fixtures () {
       db.execute('TRUNCATE TABLE pages'),
       db.execute('TRUNCATE TABLE roles'),
       db.execute('TRUNCATE TABLE groups'),
+      db.execute('TRUNCATE TABLE comments'),
       // db.execute('TRUNCATE TABLE templates'),
       db.execute('TRUNCATE TABLE pagetrees'),
       db.execute('TRUNCATE TABLE assetfolders'),
@@ -210,6 +211,11 @@ export async function fixtures () {
     db.update('UPDATE sites SET primaryPagetreeId = ?, rootAssetFolderid = ? WHERE id = ?', [pagetree6, site6AssetRoot, site6]),
     db.update('UPDATE sites SET primaryPagetreeId = ?, rootAssetFolderid = ? WHERE id = ?', [pagetree7, site7AssetRoot, site7]),
     db.update('UPDATE sites SET primaryPagetreeId = ?, rootAssetFolderid = ? WHERE id = ?', [pagetree8, site8AssetRoot, site8])
+  ])
+
+  await Promise.all([
+    db.insert('INSERT INTO comments (siteId, comment, createdBy) VALUES (?,?,?)', [site3, 'Added owner su03', su01]),
+    db.insert('INSERT INTO comments (siteId, comment, createdBy) VALUES (?,?,?)', [site3, 'Added managers ed01 and ed03', su01])
   ])
 
   await Promise.all([

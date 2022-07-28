@@ -22,6 +22,7 @@ describe('sites', () => {
         assetroot { id name }
         launched
         roles { id name }
+        comments { id comment }
       }
     }`)
     sites = resp.sites
@@ -120,5 +121,9 @@ describe('sites', () => {
   it('should return whether or not a site is launched', async () => {
     expect(sitehash.site1.launched).to.be.true
     expect(sitehash.site2.launched).to.be.false
+  })
+  it('should return comments for sites', async () => {
+    expect(sitehash.site3.comments).to.have.lengthOf(2)
+    expect(sitehash.site3.comments.map(c => c.comment)).to.include.members(['Added owner su03', 'Added managers ed01 and ed03'])
   })
 })
