@@ -1,4 +1,4 @@
-import { Context } from '@txstate-mws/graphql-server'
+import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
 import { isNotNull, unique } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
@@ -7,7 +7,7 @@ import {
   Page, PageFilter, PagePermission, PageService, Pagetree, PagetreeFilter,
   PagetreeService, Role, Template, TemplateFilter, TemplateService, User, UserService,
   Site, SiteFilter, CreateSiteInput, SitePermission, SitePermissions, SiteResponse,
-  UpdateSiteInput, SiteService, AssetRuleService, PageRuleService, SiteRuleService, DataRuleService,
+  UpdateSiteManagementInput, SiteService, AssetRuleService, PageRuleService, SiteRuleService, DataRuleService,
   RoleService,
   DataRoot,
   DataRootService,
@@ -120,9 +120,19 @@ export class SiteResolver {
     return await ctx.svc(SiteService).create(args, validateOnly)
   }
 
-  @Mutation(returns => SiteResponse)
-  async updateSite (@Ctx() ctx: Context, @Arg('siteId', type => ID) siteId: string, @Arg('args', type => UpdateSiteInput) args: UpdateSiteInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
-    return await ctx.svc(SiteService).update(siteId, args, validateOnly)
+  @Mutation(returns => SiteResponse, { description: 'Rename a site. This will also rename the site\'s root asset folder and the root page for all of its pagetrees.' })
+  async renameSite (@Ctx() ctx: Context, @Arg('siteId', type => ID) siteId: string, @Arg('name') name: string, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(SiteService).rename(siteId, name, validateOnly)
+  }
+
+  @Mutation(returns => SiteResponse, { description: 'Set or unset the launch URL for a site. ' })
+  async setLaunchURL (@Ctx() ctx: Context, @Arg('siteId', type => ID) siteId: string, @Arg('host') host: string, @Arg('path') path: string, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(SiteService).setLaunchURL(siteId, host, path, validateOnly)
+  }
+
+  @Mutation(returns => SiteResponse, { description: 'Update a site\'s organization, owner, and/or managers' })
+  async updateSiteManagement (@Ctx() ctx: Context, @Arg('siteId', type => ID) siteId: string, @Arg('args', type => UpdateSiteManagementInput) args: UpdateSiteManagementInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(SiteService).updateSiteManagement(siteId, args, validateOnly)
   }
 
   @Mutation(returns => SiteResponse)

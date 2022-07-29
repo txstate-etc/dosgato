@@ -98,23 +98,14 @@ export class CreateSiteInput {
 }
 
 @InputType()
-export class UpdateSiteInput {
-  @Field({ nullable: true })
-  name?: string
-
-  @Field({ nullable: true })
+export class UpdateSiteManagementInput {
+  @Field(type => ID, { nullable: true })
   organizationId?: string
 
-  @Field({ nullable: true })
+  @Field(type => ID, { nullable: true })
   ownerId?: string
 
-  @Field({ nullable: true })
-  launchHost?: string
-
-  @Field({ nullable: true })
-  launchPath?: string
-
-  @Field(type => [String], { nullable: true })
+  @Field(type => [ID], { nullable: true })
   managerIds?: string[]
 }
 

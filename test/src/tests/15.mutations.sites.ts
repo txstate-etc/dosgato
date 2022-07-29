@@ -32,17 +32,17 @@ describe('sites mutations', () => {
   })
   it('should update a site name', async () => {
     const { site: siteC } = await createSite('newsiteC')
-    const { updateSite: { success, site } } = await query('mutation UpdateSite ($id: ID!, $args: UpdateSiteInput!) { updateSite (siteId:$id, args: $args) { success site { name } } }', { id: siteC.id, args: { name: 'updatedSiteC' } })
+    const { renameSite: { success, site } } = await query('mutation RenameSite ($id: ID!, $name: String!, $validateOnly: Boolean ) { renameSite (siteId:$id, name: $name, validateOnly: $validateOnly) { success site { name } } }', { id: siteC.id, name: 'updatedSiteC', validateOnly: false })
     expect(success).to.be.true
     expect(site.name).to.equal('updatedSiteC')
   })
   it('should not allow an unauthorized user to update a site name', async () => {
     const { site: siteD } = await createSite('newsiteD')
-    await expect(queryAs('ed07', 'mutation UpdateSite ($id: ID!, $args: UpdateSiteInput!) { updateSite (siteId:$id, args: $args) { success site { name } } }', { id: siteD.id, args: { name: 'updatedSiteD' } })).to.be.rejected
+    await expect(queryAs('ed07', 'mutation RenameSite ($id: ID!, $name: String!, $validateOnly: Boolean) { renameSite (siteId:$id, name: $name, validateOnly: $validateOnly) { success site { name } } }', { id: siteD.id, name: 'updatedSiteD', validateOnly: false })).to.be.rejected
   })
   it('should add a site owner to a site', async () => {
     const { site: siteE } = await createSite('newsiteE')
-    const { updateSite: { success } } = await query('mutation UpdateSite ($id: ID!, $args: UpdateSiteInput!) { updateSite (siteId:$id, args: $args) { success site { name owner { id } } } }', { id: siteE.id, args: { ownerId: 'ed07' } })
+    const { updateSiteManagement: { success } } = await query('mutation UpdateSiteManagement ($id: ID!, $args: UpdateSiteManagementInput!, $validateOnly: Boolean) { updateSiteManagement (siteId:$id, args: $args, validateOnly: $validateOnly) { success site { name owner { id } } } }', { id: siteE.id, args: { ownerId: 'ed07' }, validateOnly: false })
     expect(success).to.be.true
     const { sites } = await query(`{ sites(filter: { ids: [${siteE.id}] }) { name owner { id } } }`)
     expect(sites[0].owner.id).to.equal('ed07')
@@ -50,21 +50,21 @@ describe('sites mutations', () => {
   it('should add an organization to a site', async () => {
     const { site: siteF } = await createSite('newsiteF')
     const { organizations } = await query('{ organizations { id name } }')
-    const { updateSite: { success } } = await query('mutation UpdateSite ($id: ID!, $args: UpdateSiteInput!) { updateSite (siteId:$id, args: $args) { success site { name organization { name } } } }', { id: siteF.id, args: { organizationId: organizations[0].id } })
+    const { updateSiteManagement: { success } } = await query('mutation UpdateSiteManagement ($id: ID!, $args: UpdateSiteManagementInput!, $validateOnly: Boolean) { updateSiteManagement (siteId:$id, args: $args, validateOnly: $validateOnly) { success site { name organization { name } } } }', { id: siteF.id, args: { organizationId: organizations[0].id } })
     expect(success).to.be.true
     const { sites } = await query(`{ sites(filter: { ids: [${siteF.id}] }) { name organization { name } } }`)
     expect(sites[0].organization.name).to.equal(organizations[0].name)
   })
   it('should add managers to a site', async () => {
     const { site: siteG } = await createSite('newsiteG')
-    const { updateSite: { success } } = await query('mutation UpdateSite ($id: ID!, $args: UpdateSiteInput!) { updateSite (siteId:$id, args: $args) { success } }', { id: siteG.id, args: { managerIds: ['ed01', 'ed02', 'ed03', 'ed04'] } })
+    const { updateSiteManagement: { success } } = await query('mutation UpdateSiteManagement ($id: ID!, $args: UpdateSiteManagementInput!, $validateOnly: Boolean) { updateSiteManagement (siteId:$id, args: $args, validateOnly: $validateOnly) { success } }', { id: siteG.id, args: { managerIds: ['ed01', 'ed02', 'ed03', 'ed04'] } })
     expect(success).to.be.true
     const { sites } = await query(`{ sites(filter: { ids: [${siteG.id}] }) { name managers { id } } }`)
     expect(sites[0].managers.map((m: any) => m.id)).to.have.members(['ed01', 'ed02', 'ed03', 'ed04'])
   })
   it('should add a launch URL to a site', async () => {
     const { site: siteH } = await createSite('newsiteH')
-    const { updateSite: { success } } = await query('mutation UpdateSite ($id: ID!, $args: UpdateSiteInput!) { updateSite (siteId:$id, args: $args) { success } }', { id: siteH.id, args: { launchHost: 'www.example.com', launchPath: '/departmentH/' } })
+    const { setLaunchURL: { success } } = await query('mutation SetLaunchURL ($id: ID!, $host: String!, $path: String!, $validateOnly: Boolean) { setLaunchURL (siteId:$id, host: $host, path: $path, validateOnly: $validateOnly) { success } }', { id: siteH.id, host: 'www.example.com', path: '/departmentH/', validateOnly: false })
     expect(success).to.be.true
     const { sites } = await query(`{ sites(filter: { ids: [${siteH.id}] }) { launched url { host path prefix } } }`)
     expect(sites[0].launched).to.be.true
@@ -95,7 +95,7 @@ describe('sites mutations', () => {
   })
   it('should allow a site manager to manage group membership of a group associated with the site', async () => {
     const { site: siteK } = await createSite('newsiteK')
-    await query('mutation UpdateSite ($id: ID!, $args: UpdateSiteInput!) { updateSite (siteId:$id, args: $args) { success } }', { id: siteK.id, args: { managerIds: ['ed09'] } })
+    await query('mutation UpdateSiteManagement ($id: ID!, $args: UpdateSiteManagementInput!, $validateOnly: Boolean) { updateSiteManagement (siteId:$id, args: $args, validateOnly: $validateOnly) { success } }', { id: siteK.id, args: { managerIds: ['ed09'] } })
     const { createGroup: { group } } = await query('mutation CreateGroup ($name: String!) { createGroup (name: $name) { group { id name } } }', { name: 'siteKGroup' })
     await query('mutation AddGroupSite ($groupId: ID!, $siteId: ID!) { addGroupSite (groupId: $groupId, siteId: $siteId) { success } }', { groupId: group.id, siteId: siteK.id })
     const { groups } = await query(`{ groups(filter: { ids: [${group.id}] }) { name managers { id } } }`)

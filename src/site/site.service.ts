@@ -2,8 +2,9 @@ import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import {
   Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate, getSitesByGroupIds, undeleteSite,
-  PagetreeService, DosGatoService, CreateSiteInput, createSite, VersionedService, SiteResponse, UpdateSiteInput,
-  updateSite, deleteSite, PageService, Group, getSitesByOwnerInternalId, getSitesByManagerInternalId, siteNameIsUnique
+  PagetreeService, DosGatoService, CreateSiteInput, createSite, VersionedService, SiteResponse,
+  deleteSite, PageService, Group, getSitesByOwnerInternalId, getSitesByManagerInternalId, siteNameIsUnique,
+  renameSite, setLaunchURL, UpdateSiteManagementInput, updateSiteManagement
 } from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({
@@ -156,22 +157,50 @@ export class SiteService extends DosGatoService<Site> {
     return response
   }
 
-  async update (siteId: string, args: UpdateSiteInput, validateOnly?: boolean) {
+  async rename (siteId: string, name: string, validateOnly: boolean = false) {
     const site = await this.raw.findById(siteId)
-    if (!site) throw new Error('Site to be updated does not exist.')
-    if (args.name && !(await this.mayRename(site))) throw new Error('Current user is not authorized to rename this site')
-    if ((args.ownerId ?? args.organizationId ?? args.managerIds?.length) && !(await this.mayManageGovernance(site))) throw new Error('Current user is not authorized to update the organization, owner, or managers for this site')
-    if ((args.launchHost ?? args.launchPath) && !(await this.mayLaunch(site))) throw new Error('Current user is not authorized to update the public URL for this site')
+    if (!site) throw new Error('Site to be renamed does not exist.')
+    if (!(await this.mayRename(site))) throw new Error('Current user is not authorized to rename this site')
     const response = new SiteResponse({ success: true })
-    if (args.name && !(await siteNameIsUnique(args.name))) {
-      response.addMessage(`Site ${args.name} already exists.`, 'args.name')
+    if (!(await siteNameIsUnique(name))) {
+      response.addMessage(`Site ${name} already exists.`, 'name')
     }
-    // TODO: Is any validation needed on the launch host or launch path? Or, should they be in a separate mutation?
     if (response.hasErrors()) {
       return response
     }
     if (!validateOnly) {
-      await updateSite(site, args)
+      const currentUser = await this.currentUser()
+      await renameSite(site, name, currentUser!.internalId)
+      this.loaders.clear()
+      response.site = await this.raw.findById(siteId)
+    }
+    return response
+  }
+
+  async setLaunchURL (siteId: string, host: string, path: string, validateOnly: boolean = false) {
+    const site = await this.raw.findById(siteId)
+    if (!site) throw new Error('Site does not exist')
+    if (!(await this.mayLaunch(site))) throw new Error('Current user is not authorized to update the public URL for this site')
+    const response = new SiteResponse({ success: true })
+    // TODO: Do the launch host or launch path need any validation?
+    if (!validateOnly) {
+      const currentUser = await this.currentUser()
+      await setLaunchURL(site, host, path, currentUser!.internalId)
+      this.loaders.clear()
+      response.site = await this.raw.findById(siteId)
+    }
+    return response
+  }
+
+  async updateSiteManagement (siteId: string, args: UpdateSiteManagementInput, validateOnly?: boolean) {
+    const site = await this.raw.findById(siteId)
+    if (!site) throw new Error('Site does not exist')
+    if (!(await this.mayManageGovernance(site))) throw new Error('Current user is not authorized to update the organization, owner, or managers for this site')
+    const response = new SiteResponse({ success: true })
+    // TODO: Any validations needed?
+    if (!validateOnly) {
+      const currentUser = await this.currentUser()
+      await updateSiteManagement(site, args, currentUser!.internalId)
       this.loaders.clear()
       response.site = await this.raw.findById(siteId)
     }

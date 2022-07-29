@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { unique } from 'txstate-utils'
-import { Site, SiteFilter, CreateSiteInput, PagetreeType, VersionedService, UpdateSiteInput, formatSavedAtVersion } from '../internal.js'
+import { unique, keyby } from 'txstate-utils'
+import { Site, SiteFilter, CreateSiteInput, PagetreeType, VersionedService, formatSavedAtVersion, createSiteComment, UpdateSiteManagementInput } from '../internal.js'
 import { nanoid } from 'nanoid'
 
 const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
@@ -130,58 +130,78 @@ export async function createSite (versionedService: VersionedService, userId: st
   })
 }
 
-export async function updateSite (site: Site, siteArgs: UpdateSiteInput) {
-  const sitesUpdates: string[] = []
-  const sitesBinds: string[] = []
-  if (siteArgs.name) {
-    sitesUpdates.push('name = ?')
-    sitesBinds.push(siteArgs.name)
-  }
-  if (siteArgs.organizationId) {
-    sitesUpdates.push('organizationId = ?')
-    sitesBinds.push(siteArgs.organizationId)
-  }
-  if (siteArgs.launchHost) {
-    sitesUpdates.push('launchHost = ?')
-    sitesBinds.push(siteArgs.launchHost)
-  }
-  if (siteArgs.launchPath) {
-    sitesUpdates.push('launchPath = ?')
-    sitesBinds.push(siteArgs.launchPath)
-  }
+export async function renameSite (site: Site, name: string, currentUserInternalId: number) {
   return await db.transaction(async db => {
-    if (siteArgs.ownerId) {
-      const ownerId = await db.getval<string>('SELECT id FROM users WHERE login = ?', [siteArgs.ownerId])
-      if (ownerId) {
-        sitesUpdates.push('ownerId = ?')
-        sitesBinds.push(ownerId)
+    await db.update('UPDATE sites SET name = ? WHERE id = ?', [name, site.id])
+    // if the site is renamed, the root assetfolder and root page for all the pagetrees in the site need to be renamed too
+    await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [name, site.rootAssetFolderInternalId])
+    await db.update(`UPDATE pages
+                     INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id
+                     INNER JOIN sites ON pagetrees.siteId = sites.id
+                     SET pages.name = ?
+                     WHERE sites.id = ? AND pages.path = '/'`, [name, site.id])
+    await createSiteComment(site.id, `Site renamed. Former name: ${site.name} New name: ${name}`, currentUserInternalId, db)
+  })
+}
+
+export async function setLaunchURL (site: Site, host: string, path: string, currentUserInternalId: number) {
+  return await db.transaction(async db => {
+    await db.update('UPDATE sites SET launchHost = ?, launchPath = ? WHERE id = ?', [host, path, site.id])
+    await createSiteComment(site.id, `Public URL updated to ${`https://${host}${path}`}`, currentUserInternalId, db)
+  })
+}
+
+export async function updateSiteManagement (site: Site, args: UpdateSiteManagementInput, currentUserInternalId: number) {
+  const updates: string[] = []
+  const binds: (string|number|null)[] = []
+  const auditComments: string[] = []
+  return await db.transaction(async db => {
+    // Handle organization updates
+    const formerOrganization = site.organizationId ? await db.getval<string>('SELECT name FROM organizations WHERE id = ?', [site.organizationId]) : undefined
+    updates.push('organizationId = ?')
+    const orgId = args.organizationId ?? null
+    binds.push(orgId)
+    if (site.organizationId !== args.organizationId) {
+      if (formerOrganization) auditComments.push(`Removed organization ${formerOrganization}.`)
+      if (args.organizationId) {
+        const newOrganizationName = await db.getval<string>('SELECT name FROM organizations WHERE id = ?', [args.organizationId])
+        auditComments.push(`Added organization ${newOrganizationName!}.`)
       }
     }
-    sitesBinds.push(site.id)
-    if (sitesUpdates.length) {
+    // Handle owner updates
+    const formerOwnerId = site.ownerId ? await db.getval<string>('SELECT login FROM users WHERE id = ?', [site.ownerId]) : undefined
+    const newOwnerInternalId = args.ownerId ? await db.getval<number>('SELECT id FROM users WHERE login = ?', [args.ownerId]) : undefined
+    updates.push('ownerId = ?')
+    binds.push(newOwnerInternalId ?? null)
+    if (site.ownerId !== newOwnerInternalId) {
+      if (formerOwnerId) auditComments.push(`Removed owner ${formerOwnerId}`)
+      if (args.ownerId) auditComments.push(`Added owner ${args.ownerId}`)
+    }
+    if (updates.length) {
+      binds.push(site.id)
       await db.update(`UPDATE sites
-                        SET ${sitesUpdates.join(', ')}
-                        WHERE id = ?`, sitesBinds)
-      if (siteArgs.name) {
-        // if the site is renamed, the root assetfolder and root page for all the pagetrees in the site need to be renamed too
-        await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [siteArgs.name, site.rootAssetFolderInternalId])
-        await db.update(`UPDATE pages
-                          INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id
-                          INNER JOIN sites ON pagetrees.siteId = sites.id
-                          SET pages.name = ?
-                          WHERE sites.id = ? AND pages.path = '/'`, [siteArgs.name, site.id])
-      }
+                       SET ${updates.join(', ')}
+                       WHERE id = ?`, binds)
     }
-    if (siteArgs.managerIds?.length) {
-      const userBinds: string[] = []
-      const userIds = await db.getvals<string>(`SELECT id from users WHERE login IN (${db.in(userBinds, siteArgs.managerIds)})`, userBinds)
-      await db.delete('DELETE FROM sites_managers WHERE siteId = ?', [site.id])
-      const managerBinds: string[] = []
-      for (const id of userIds) {
-        managerBinds.push(site.id)
-        managerBinds.push(id)
-      }
-      await db.insert(`INSERT INTO sites_managers (siteId, userId) VALUES ${userIds.map(u => '(?,?)').join(', ')}`, managerBinds)
+    // Handle manager updates
+    const formerManagerInternalIds = await db.getvals<number>('SELECT userId FROM sites_managers WHERE siteId = ?', [site.id])
+    const newManagerInternalIds = args.managerIds?.length ? await db.getvals<number>(`SELECT id FROM users WHERE login IN (${db.in([], args.managerIds)})`, args.managerIds) : []
+    await db.delete('DELETE FROM sites_managers WHERE siteId = ?', [site.id])
+    const managerBinds: (string|number)[] = []
+    for (const id of newManagerInternalIds) {
+      managerBinds.push(site.id)
+      managerBinds.push(id)
+    }
+    if (newManagerInternalIds.length) {
+      await db.insert(`INSERT INTO sites_managers (siteId, userId) VALUES ${newManagerInternalIds.map(u => '(?,?)').join(', ')}`, managerBinds)
+    }
+    const managersRemoved = formerManagerInternalIds.filter(man => !newManagerInternalIds.includes(man))
+    const managersAdded = newManagerInternalIds.filter(man => !formerManagerInternalIds.includes(man))
+    const idsToLookup = [...managersRemoved, ...managersAdded]
+    if (idsToLookup.length) {
+      const managers = keyby((await db.getall(`SELECT id, login FROM users WHERE id IN (${db.in([], idsToLookup)})`, idsToLookup)), 'id')
+      auditComments.push(...managersRemoved.map(m => `Removed manager ${managers[m].login}.`))
+      auditComments.push(...managersAdded.map(m => `Added manager ${managers[m].login}.`))
     }
   })
 }
