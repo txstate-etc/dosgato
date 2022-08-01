@@ -162,7 +162,7 @@ export class SiteService extends DosGatoService<Site> {
     if (!site) throw new Error('Site to be renamed does not exist.')
     if (!(await this.mayRename(site))) throw new Error('Current user is not authorized to rename this site')
     const response = new SiteResponse({ success: true })
-    if (!(await siteNameIsUnique(name))) {
+    if (name !== site.name && !(await siteNameIsUnique(name))) {
       response.addMessage(`Site ${name} already exists.`, 'name')
     }
     if (response.hasErrors()) {

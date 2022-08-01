@@ -1,4 +1,4 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context } from '@txstate-mws/graphql-server'
 import { isNotNull, unique } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
@@ -14,7 +14,7 @@ import {
   DataRootFilter,
   Group,
   GroupService,
-  SiteComment, SiteCommentService
+  SiteComment, SiteCommentService, UrlSafeString
 } from '../internal.js'
 
 @Resolver(of => Site)
@@ -126,8 +126,9 @@ export class SiteResolver {
   }
 
   @Mutation(returns => SiteResponse, { description: 'Set or unset the launch URL for a site. ' })
-  async setLaunchURL (@Ctx() ctx: Context, @Arg('siteId', type => ID) siteId: string, @Arg('host') host: string, @Arg('path') path: string, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
-    return await ctx.svc(SiteService).setLaunchURL(siteId, host, path, validateOnly)
+  async setLaunchURL (@Ctx() ctx: Context, @Arg('siteId', type => ID) siteId: string, @Arg('host', { nullable: true }) host: UrlSafeString, @Arg('path', { nullable: true }) path: UrlSafeString, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    // TODO: The host and path are getting messed up when they are converted to URL safe strings. www.example.com is being changed to www-example.com
+    return await ctx.svc(SiteService).setLaunchURL(siteId, host as string, path as string, validateOnly)
   }
 
   @Mutation(returns => SiteResponse, { description: 'Update a site\'s organization, owner, and/or managers' })
