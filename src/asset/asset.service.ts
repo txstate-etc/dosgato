@@ -147,7 +147,7 @@ export class AssetService extends DosGatoService<Asset> {
   }
 
   async create (args: CreateAssetInput) {
-    const folder = await this.svc(AssetFolderService).findById(args.folderId)
+    const folder = await this.svc(AssetFolderServiceInternal).findById(args.folderId)
     if (!folder) throw new Error('Specified folder does not exist')
     if (!(await this.haveAssetFolderPerm(folder, 'create'))) throw new Error(`Current user is not permitted to add assets to folder ${String(folder.name)}.`)
     try {
@@ -166,7 +166,7 @@ export class AssetService extends DosGatoService<Asset> {
   async move (dataId: string, folderId: string) {
     const [asset, folder] = await Promise.all([
       this.loaders.get(assetsByIdLoader).load(dataId),
-      this.svc(AssetFolderService).findById(folderId)
+      this.svc(AssetFolderServiceInternal).findById(folderId)
     ])
     if (!asset) throw new Error('Asset to be moved does not exist')
     if (!folder) throw new Error('Target asset folder does not exist')
