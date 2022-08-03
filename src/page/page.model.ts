@@ -161,12 +161,24 @@ registerEnumType(PagePermission, {
 })
 
 @InputType()
+export class PageLinkInputContext {
+  @Field(type => ID)
+  pagetreeId!: string
+}
+
+@InputType()
 export class PageLinkInput {
+  @Field(type => ID)
+  siteId!: string
+
   @Field()
   linkId!: string
 
   @Field()
   path!: string
+
+  @Field(type => PageLinkInputContext, { nullable: true, description: 'Context information for where this link was placed. If the link is on a sandbox page, for instance, we would want to look up this link in the sandbox pagetree instead of the main pagetree. If no context is specified, links will only be found in the PRIMARY pagetree.' })
+  context?: PageLinkInputContext
 }
 
 // TODO: Move this enum somewhere else. utils?

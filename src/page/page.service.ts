@@ -9,7 +9,7 @@ import {
   deletePages, renamePage, TemplateService,
   TemplateFilter, getPageIndexes, undeletePages,
   validatePage, DeletedFilter, copyPages, TemplateType, migratePage,
-  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal
+  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal, Site, PageLinkInput, PagetreeType
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -51,6 +51,20 @@ const pagesByInternalIdPathRecursiveLoader = new OneToManyLoader({
   },
   matchKey: (path: string, p: Page) => p.path.startsWith(path),
   idLoader: [pagesByInternalIdLoader, pagesByDataIdLoader]
+})
+
+const pagesByLinkIdLoader = new OneToManyLoader({
+  fetch: async (linkIds: string[], filters: PageFilter) => {
+    return await getPages({ ...filters, linkIds })
+  },
+  extractKey: p => p.linkId
+})
+
+const pagesByPathLoader = new OneToManyLoader({
+  fetch: async (paths: string[], filters: PageFilter) => {
+    return await getPages({ ...filters, paths })
+  },
+  extractKey: p => p.path
 })
 
 export class PageServiceInternal extends BaseService {
@@ -147,13 +161,45 @@ export class PageServiceInternal extends BaseService {
 
   async processFilters (filter: PageFilter) {
     if (filter.referencedByPageIds?.length) {
+      // TODO: refactor this to use VersionedService indexes instead of rescanning the data
       const verService = this.svc(VersionedService)
       const pages = (await Promise.all(filter.referencedByPageIds.map(async id => await this.findById(id)))).filter(isNotNull)
       const pagedata = (await Promise.all(pages.map(async page => await verService.get<PageData>(page.dataId, { tag: filter.published ? 'published' : undefined })))).filter(isNotNull)
       const links = pagedata.flatMap(d => templateRegistry.get(d.data.templateKey).getLinks(d.data)).filter(l => l.type === 'page') as PageLink[]
-      filter.links = intersect({ skipEmpty: true, by: lnk => stringify({ ...lnk, type: 'page' }) }, links, filter.links)
+      filter.links = intersect({ skipEmpty: true, by: lnk => stringify({ ...lnk, type: 'page' }) }, links, filter.links?.map(l => ({ ...l, type: 'page' })) as PageLink[])
     }
-    // TODO: add missing filters: `links`
+    if (filter.links?.length) {
+      const pagetreeSvc = this.svc(PagetreeServiceInternal)
+      const pages = await Promise.all(filter.links.map(async l => {
+        const lookups: Promise<Page[]>[] = []
+        const contextPagetree = l.context && await pagetreeSvc.findById(l.context.pagetreeId)
+        if (contextPagetree?.siteId === l.siteId) {
+          // the link is targeting the same site as the context, so we need to look for the link in
+          // the same pagetree as the context
+          // if we don't find the link in our pagetree, we do NOT fall back to the primary page tree,
+          // we WANT the user to see a broken link in their sandbox because it will break when they go live
+          lookups.push(
+            this.loaders.get(pagesByLinkIdLoader, { pagetreeIds: [contextPagetree.id] }).load(l.linkId),
+            this.loaders.get(pagesByPathLoader, { pagetreeIds: [contextPagetree.id] }).load(l.path)
+          )
+        } else {
+          // the link is cross-site, so we only look in the primary tree in the site the link was targeting
+          // we do NOT fall back to finding the linkId in other sites that the link did not originally
+          // point at
+          // this means that links will break when pages are moved between sites, which is unfortunate but
+          // ignoring the link's siteId leads to madness because we could have multiple sites that all have
+          // pages with the same linkId, and now I have to try to pick: do I prefer launched sites? published
+          // pages? etc
+          lookups.push(
+            this.loaders.get(pagesByLinkIdLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.linkId),
+            this.loaders.get(pagesByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.path)
+          )
+        }
+        const pages = await Promise.all(lookups)
+        return pages.find(p => p.length > 1)?.[0]
+      }))
+      filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, pages.filter(isNotNull).map(p => p.internalId))
+    }
     return filter
   }
 }
