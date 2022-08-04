@@ -177,7 +177,7 @@ export class SiteService extends DosGatoService<Site> {
     return response
   }
 
-  async setLaunchURL (siteId: string, host: string, path: string, enabled: boolean, validateOnly: boolean = false) {
+  async setLaunchURL (siteId: string, host: string | undefined, path: string | undefined, enabled: boolean, validateOnly: boolean = false) {
     const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site does not exist')
     if (!(await this.mayLaunch(site))) throw new Error('Current user is not authorized to update the public URL for this site')

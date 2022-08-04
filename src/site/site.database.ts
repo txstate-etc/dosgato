@@ -144,10 +144,10 @@ export async function renameSite (site: Site, name: string, currentUserInternalI
   })
 }
 
-export async function setLaunchURL (site: Site, host: string, path: string, enabled: boolean, currentUserInternalId: number) {
+export async function setLaunchURL (site: Site, host: string | undefined, path: string | undefined, enabled: boolean, currentUserInternalId: number) {
   return await db.transaction(async db => {
-    await db.update('UPDATE sites SET launchHost = ?, launchPath = ?, launchEnabled = ? WHERE id = ?', [host, path, enabled, site.id])
-    await createSiteComment(site.id, `Public URL updated to ${`https://${host}${path}`}`, currentUserInternalId, db)
+    await db.update('UPDATE sites SET launchHost = ?, launchPath = ?, launchEnabled = ? WHERE id = ?', [host ?? null, path ?? null, enabled && !!host, site.id])
+    await createSiteComment(site.id, `Public URL updated to ${host ? `https://${host}${path ?? ''}` : 'an empty host.'}`, currentUserInternalId, db)
   })
 }
 
