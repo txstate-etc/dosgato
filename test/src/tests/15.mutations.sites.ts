@@ -64,7 +64,7 @@ describe('sites mutations', () => {
   })
   it('should add a launch URL to a site', async () => {
     const { site: siteH } = await createSite('newsiteH')
-    const { setLaunchURL: { success } } = await query('mutation SetLaunchURL ($id: ID!, $host: String!, $path: String!, $validateOnly: Boolean) { setLaunchURL (siteId:$id, host: $host, path: $path, validateOnly: $validateOnly) { success } }', { id: siteH.id, host: 'www.example.com', path: '/departmentH/', validateOnly: false })
+    const { setLaunchURL: { success } } = await query('mutation SetLaunchURL ($id: ID!, $host: String!, $path: String!, $enabled: Boolean!, $validateOnly: Boolean) { setLaunchURL (siteId:$id, host: $host, path: $path, enabled: $enabled, validateOnly: $validateOnly) { success } }', { id: siteH.id, host: 'www.example.com', path: '/departmentH/', enabled: true, validateOnly: false })
     expect(success).to.be.true
     const { sites } = await query(`{ sites(filter: { ids: [${siteH.id}] }) { launched url { host path prefix } } }`)
     expect(sites[0].launched).to.be.true

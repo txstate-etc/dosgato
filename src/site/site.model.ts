@@ -14,10 +14,14 @@ export class LaunchURL {
   @Field({ description: 'Full URL prefix for this site. Always ends with a slash.' })
   prefix: string
 
+  @Field({ description: 'When false the site should not be considered to be live. We are just saving the URL it was/will be hosted at, for future reference.' })
+  enabled: boolean
+
   constructor (row: any) {
     this.host = row.launchHost
     this.path = row.launchPath || '/'
     this.prefix = `https://${this.host}${this.path}`
+    this.enabled = row.launchEnabled
   }
 }
 

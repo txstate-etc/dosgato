@@ -177,7 +177,7 @@ export class SiteService extends DosGatoService<Site> {
     return response
   }
 
-  async setLaunchURL (siteId: string, host: string, path: string, validateOnly: boolean = false) {
+  async setLaunchURL (siteId: string, host: string, path: string, enabled: boolean, validateOnly: boolean = false) {
     const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site does not exist')
     if (!(await this.mayLaunch(site))) throw new Error('Current user is not authorized to update the public URL for this site')
@@ -185,7 +185,7 @@ export class SiteService extends DosGatoService<Site> {
     // TODO: Do the launch host or launch path need any validation?
     if (!validateOnly) {
       const currentUser = await this.currentUser()
-      await setLaunchURL(site, host, path, currentUser!.internalId)
+      await setLaunchURL(site, host, path, enabled, currentUser!.internalId)
       this.loaders.clear()
       response.site = await this.raw.findById(siteId)
     }

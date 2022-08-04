@@ -3,7 +3,7 @@ import { unique, keyby } from 'txstate-utils'
 import { Site, SiteFilter, CreateSiteInput, PagetreeType, VersionedService, formatSavedAtVersion, createSiteComment, UpdateSiteManagementInput } from '../internal.js'
 import { nanoid } from 'nanoid'
 
-const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
+const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.launchEnabled', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
 
 function processFilters (filter?: SiteFilter) {
   const binds: string[] = []
@@ -16,9 +16,9 @@ function processFilters (filter?: SiteFilter) {
   }
   if (filter?.launched != null) {
     if (filter.launched) {
-      where.push('sites.launchHost IS NOT NULL')
+      where.push('sites.launchEnabled = 1')
     } else {
-      where.push('sites.launchHost IS NULL')
+      where.push('sites.launchEnabled = 0')
     }
   }
   if (filter?.launchUrls?.length) {
@@ -144,9 +144,9 @@ export async function renameSite (site: Site, name: string, currentUserInternalI
   })
 }
 
-export async function setLaunchURL (site: Site, host: string, path: string, currentUserInternalId: number) {
+export async function setLaunchURL (site: Site, host: string, path: string, enabled: boolean, currentUserInternalId: number) {
   return await db.transaction(async db => {
-    await db.update('UPDATE sites SET launchHost = ?, launchPath = ? WHERE id = ?', [host, path, site.id])
+    await db.update('UPDATE sites SET launchHost = ?, launchPath = ?, launchEnabled = ? WHERE id = ?', [host, path, enabled, site.id])
     await createSiteComment(site.id, `Public URL updated to ${`https://${host}${path}`}`, currentUserInternalId, db)
   })
 }

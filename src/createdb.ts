@@ -52,6 +52,7 @@ export async function init (db: Queryable) {
         `rootAssetFolderId` MEDIUMINT UNSIGNED, \
         `launchHost` VARCHAR(255), \
         `launchPath` VARCHAR(255) DEFAULT '/', \
+        `launchEnabled` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
         `organizationId` SMALLINT UNSIGNED, \
         `ownerId` MEDIUMINT UNSIGNED, \
         `deletedAt` DATETIME, \

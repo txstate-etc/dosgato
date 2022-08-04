@@ -134,9 +134,9 @@ export async function fixtures () {
   ])
 
   const [site1, site2, site3, site4, site5, site6, site7, site8] = await Promise.all([
-    db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath) VALUES (?,?,?,?,?)', ['site1', artCollegeOrg, ed02, 'www.college.edu', '/site1/']),
+    db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath, launchEnabled) VALUES (?,?,?,?,?,?)', ['site1', artCollegeOrg, ed02, 'www.college.edu', '/site1/', true]),
     db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site2', mathDeptOrg, su01]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath) VALUES (?,?,?,?,?)', ['site3', officeOrg, su03, 'www.example.com', '/site3/']),
+    db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath, launchEnabled) VALUES (?,?,?,?,?,?)', ['site3', officeOrg, su03, 'www.example.com', '/site3/', true]),
     db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site4', artCollegeOrg, ed10]),
     db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site5', artCollegeOrg, su01]),
     db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site6', officeOrg, su02]),

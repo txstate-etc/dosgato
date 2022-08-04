@@ -98,7 +98,7 @@ export class SiteResolver {
 
   @FieldResolver(returns => Boolean, { description: 'True if the site has been launched (i.e. is available on a specified URL outside the editing host.' })
   async launched (@Ctx() ctx: Context, @Root() site: Site) {
-    return isNotNull(site.url)
+    return !!site.url?.enabled
   }
 
   @FieldResolver(returns => [SiteComment], { description: 'Returns comments about a site' })
@@ -126,9 +126,14 @@ export class SiteResolver {
   }
 
   @Mutation(returns => SiteResponse, { description: 'Set or unset the launch URL for a site. ' })
-  async setLaunchURL (@Ctx() ctx: Context, @Arg('siteId', type => ID) siteId: string, @Arg('host', { nullable: true }) host: UrlSafeString, @Arg('path', { nullable: true }) path: UrlSafeString, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
-    // TODO: The host and path are getting messed up when they are converted to URL safe strings. www.example.com is being changed to www-example.com
-    return await ctx.svc(SiteService).setLaunchURL(siteId, host as string, path as string, validateOnly)
+  async setLaunchURL (@Ctx() ctx: Context,
+    @Arg('siteId', type => ID) siteId: string,
+    @Arg('host', { nullable: true }) host: string,
+    @Arg('path', { nullable: true }) path: string,
+    @Arg('enabled', { nullable: true }) enabled: boolean,
+    @Arg('validateOnly', { nullable: true }) validateOnly?: boolean
+  ) {
+    return await ctx.svc(SiteService).setLaunchURL(siteId, host, path, enabled, validateOnly)
   }
 
   @Mutation(returns => SiteResponse, { description: 'Update a site\'s organization, owner, and/or managers' })
