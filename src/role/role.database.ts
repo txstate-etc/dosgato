@@ -4,18 +4,33 @@ import { Role, RoleFilter } from '../internal.js'
 export async function getRoles (filter?: RoleFilter) {
   const binds: string[] = []
   const where: string[] = []
+  const joins = new Map<string, string>()
   if (filter?.ids?.length) {
     where.push(`roles.id IN (${db.in(binds, filter.ids)})`)
   }
   if (filter?.users?.length) {
     where.push(`users.login IN (${db.in(binds, filter.users)})`)
   }
-  let query = 'SELECT roles.* from roles '
-  if (filter?.users?.length) {
-    query += 'INNER JOIN users_roles ON users_roles.roleId = roles.id INNER JOIN users on users_roles.userId = users.id '
+  if (filter?.siteIds?.length) {
+    joins.set('site', 'LEFT JOIN sites ON sites.id = roles.siteId')
+    where.push(`sites.id IN (${db.in(binds, filter.siteIds)})`)
   }
+  if (filter?.managerIds?.length) {
+    joins.set('managers', `
+      INNER JOIN sites_managers sm ON sm.siteId=roles.siteId
+      INNER JOIN users m ON m.id = sm.userId
+    `)
+    where.push(`m.login IN (${db.in(binds, filter.managerIds)})`)
+  }
+  if (filter?.users?.length) {
+    joins.set('users_roles', `
+      INNER JOIN users_roles ON users_roles.roleId = roles.id
+      INNER JOIN users on users_roles.userId = users.id
+    `)
+  }
+  let query = `SELECT DISTINCT roles.* FROM roles ${Array.from(joins.values()).join('\n')}`
   if (where.length) {
-    query += `WHERE (${where.join(') AND (')})`
+    query += ` WHERE (${where.join(') AND (')})`
   }
   query += ' ORDER BY roles.name'
   const roles = await db.getall(query, binds)
@@ -42,6 +57,17 @@ export async function getRolesForUsers (userIds: string[]) {
                                  INNER JOIN users ON users_roles.userId = users.id
                                  WHERE (${where.join(') AND (')})`, binds)
   return roles.map(row => ({ key: String(row.userId), value: new Role(row) }))
+}
+
+export async function getRolesWithManager (managerIds: string[]) {
+  if (!managerIds.length) return []
+  const siteGroups = await db.getall(`SELECT r.*, u.login
+    FROM roles r
+    INNER JOIN roles_sites rs ON rs.groupId=r.id
+    INNER JOIN sites_managers sm ON sm.siteId=rs.siteId
+    INNER JOIN users u ON u.id=sm.userId
+    WHERE u.login IN (${db.in([], managerIds)})`, managerIds)
+  return siteGroups.map(row => ({ key: row.login, value: new Role(row) }))
 }
 
 export async function createRole (name: string) {
@@ -82,4 +108,12 @@ export async function addRoleToGroup (groupId: string, roleId: string) {
 
 export async function removeRoleFromGroup (groupId: string, roleId: string) {
   return await db.delete('DELETE FROM groups_roles WHERE groupId = ? AND roleId = ?', [groupId, roleId])
+}
+
+export async function addRoleSite (roleId: string, siteId: string) {
+  return await db.update('INSERT IGNORE INTO roles_sites (roleId, siteId) VALUES (?, ?)', [roleId, siteId])
+}
+
+export async function removeRoleSite (roleId: string, siteId: string) {
+  return await db.update('DELETE FROM roles_sites WHERE roleId=? AND siteId=?', [roleId, siteId])
 }

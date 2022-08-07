@@ -1,11 +1,11 @@
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique, filterConcurrent, isNotNull, someAsync } from 'txstate-utils'
+import { unique, isNotNull, someAsync } from 'txstate-utils'
 import {
   Group, GroupFilter, GroupResponse, getGroups, getGroupsWithUser, getGroupsWithRole,
-  groupHierarchyCache, createGroup, updateGroup, deleteGroup, addGroupSite, removeGroupSite,
-  addUserToGroups, removeUserFromGroups, setGroupManager, removeSubgroup, addSubgroup, groupNameIsUnique,
-  UserService, DosGatoService, UserServiceInternal, setUserGroups, getGroupsWithManager, User, Site, getGroupsWithSite
+  groupHierarchyCache, createGroup, updateGroup, deleteGroup,
+  addUserToGroups, removeUserFromGroups, removeSubgroup, addSubgroup, groupNameIsUnique,
+  UserService, DosGatoService, UserServiceInternal, setUserGroups, User, Site
 } from '../internal.js'
 
 const groupsByIdLoader = new PrimaryKeyLoader({
@@ -17,20 +17,6 @@ const groupsByIdLoader = new PrimaryKeyLoader({
 const groupsByUserIdLoader = new ManyJoinedLoader({
   fetch: async (userIds: string[]) => {
     return await getGroupsWithUser(userIds)
-  },
-  idLoader: groupsByIdLoader
-})
-
-const groupsByManagerIdLoader = new ManyJoinedLoader({
-  fetch: async (managerIds: string[], direct?: boolean) => {
-    return await getGroupsWithManager(managerIds, direct)
-  },
-  idLoader: groupsByIdLoader
-})
-
-const groupsBySiteIdLoader = new ManyJoinedLoader({
-  fetch: async (siteIds: string[]) => {
-    return await getGroupsWithSite(siteIds)
   },
   idLoader: groupsByIdLoader
 })
@@ -66,14 +52,6 @@ export class GroupServiceInternal extends BaseService {
       }
     }
     return ret
-  }
-
-  async findByManager (manager: User, direct?: boolean) {
-    return await this.loaders.get(groupsByManagerIdLoader, direct).load(manager.id)
-  }
-
-  async findBySite (site: Site) {
-    return await this.loaders.get(groupsBySiteIdLoader).load(site.id)
   }
 
   async getSubgroups (groupId: string, recursive: boolean = true) {
@@ -117,13 +95,6 @@ export class GroupServiceInternal extends BaseService {
         const lookingFor = new Set(filter.ids)
         ret = ret.filter(sg => lookingFor.has(sg.id))
       }
-      if (filter?.managerIds?.length) {
-        const lookingFor = new Set(filter.managerIds)
-        ret = await filterConcurrent(ret, async (sg) => {
-          const managers = await this.svc(UserService).findGroupManagers(sg.id)
-          return managers.some(manager => lookingFor.has(manager.id))
-        })
-      }
     }
     return ret
   }
@@ -142,14 +113,6 @@ export class GroupService extends DosGatoService<Group> {
 
   async findByUserId (userId: string, direct?: boolean) {
     return await this.removeUnauthorized(await this.raw.findByUserId(userId, direct))
-  }
-
-  async findByManager (manager: User, direct?: boolean) {
-    return await this.removeUnauthorized(await this.raw.findByManager(manager, direct))
-  }
-
-  async findBySite (site: Site) {
-    return await this.removeUnauthorized(await this.raw.findBySite(site))
   }
 
   async getSubgroups (groupId: string, recursive: boolean = true) {
@@ -278,38 +241,6 @@ export class GroupService extends DosGatoService<Group> {
     }
   }
 
-  async setGroupManager (groupId: string, userId: string, manager: boolean) {
-    const group = await this.findById(groupId)
-    if (!group) throw new Error('Group to be updated does not exist.')
-    if (!(await this.mayUpdate(group))) throw new Error('Current user is not permitted to add or remove group managers.')
-    const user = await this.svc(UserService).findById(userId)
-    if (!user) throw new Error('User does not exist')
-    await setGroupManager(groupId, user.internalId, manager)
-    this.loaders.clear()
-    const updatedGroup = await this.findById(groupId)
-    return new GroupResponse({ success: true, group: updatedGroup })
-  }
-
-  async addGroupSite (groupId: string, siteId: string) {
-    const group = await this.raw.findById(groupId)
-    if (!group) throw new Error('Group to be updated does not exist.')
-    if (!await this.mayUpdate(group)) throw new Error('Current user is not permitted to add or remove sites from this group.')
-    await addGroupSite(groupId, siteId)
-    this.loaders.clear()
-    const updatedGroup = await this.findById(groupId)
-    return new GroupResponse({ success: true, group: updatedGroup })
-  }
-
-  async removeGroupSite (groupId: string, siteId: string) {
-    const group = await this.raw.findById(groupId)
-    if (!group) throw new Error('Group to be updated does not exist.')
-    if (!await this.mayUpdate(group)) throw new Error('Current user is not permitted to add or remove sites from this group.')
-    await removeGroupSite(groupId, siteId)
-    this.loaders.clear()
-    const updatedGroup = await this.findById(groupId)
-    return new GroupResponse({ success: true, group: updatedGroup })
-  }
-
   async addSubgroup (parentId: string, childId: string) {
     const [parentGroup, childGroup] = await Promise.all([
       this.findById(parentId),
@@ -352,21 +283,15 @@ export class GroupService extends DosGatoService<Group> {
     }
   }
 
-  async isManager (group: Group) {
-    const managers = await this.svc(UserServiceInternal).findGroupManagers(group.id)
-    return managers.some(m => m.id === this.login)
-  }
-
   async mayView (group: Group) {
     if (await this.haveGlobalPerm('manageAccess')) return true
-    if (await this.currentGroupsById(group.id)) return true
-    return await this.isManager(group)
+    return !!(await this.currentGroupsById(group.id))
   }
 
   async mayViewManagerUI () {
     const user = await this.currentUser()
     if (!user) return false
-    return (await this.haveGlobalPerm('manageAccess')) || (await this.findByManager(user)).length > 0
+    return await this.haveGlobalPerm('manageAccess')
   }
 
   async mayCreate () {
@@ -382,11 +307,10 @@ export class GroupService extends DosGatoService<Group> {
   }
 
   async mayManageUsers (group: Group) {
-    if (await this.haveGlobalPerm('manageAccess')) return true
-    return await this.isManager(group)
+    return await this.haveGlobalPerm('manageAccess')
   }
 
   async mayManageGroups (group: Group) {
-    return await this.mayManageUsers(group)
+    return await this.haveGlobalPerm('manageAccess')
   }
 }

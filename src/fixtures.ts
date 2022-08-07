@@ -26,8 +26,6 @@ export async function fixtures () {
       db.execute('TRUNCATE TABLE users_groups'),
       db.execute('TRUNCATE TABLE siterules'),
       db.execute('TRUNCATE TABLE groups_groups'),
-      db.execute('TRUNCATE TABLE groups_managers'),
-      db.execute('TRUNCATE TABLE groups_sites'),
       db.execute('TRUNCATE TABLE assets'),
       db.execute('TRUNCATE TABLE sites_managers'),
       db.execute('TRUNCATE TABLE templaterules'),
@@ -84,6 +82,24 @@ export async function fixtures () {
     db.insert('INSERT INTO groups (name) VALUES ("group6")'),
     db.insert('INSERT INTO groups (name) VALUES ("group7")')
   ])
+
+  const [artCollegeOrg, mathDeptOrg, officeOrg] = await Promise.all([
+    db.insert('INSERT INTO organizations (name) VALUES ("College of Arts and Crafts")'),
+    db.insert('INSERT INTO organizations (name) VALUES ("Department of Mathematics")'),
+    db.insert('INSERT INTO organizations (name) VALUES ("The Office")')
+  ])
+
+  const [site1, site2, site3, site4, site5, site6, site7, site8] = await Promise.all([
+    db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath, launchEnabled) VALUES (?,?,?,?,?,?)', ['site1', artCollegeOrg, ed02, 'www.college.edu', '/site1/', true]),
+    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site2', mathDeptOrg, su01]),
+    db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath, launchEnabled) VALUES (?,?,?,?,?,?)', ['site3', officeOrg, su03, 'www.example.com', '/site3/', true]),
+    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site4', artCollegeOrg, ed10]),
+    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site5', artCollegeOrg, su01]),
+    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site6', officeOrg, su02]),
+    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site7', officeOrg, su01]),
+    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site8', officeOrg, su02])
+  ])
+
   const [superuserRole, editorRole, site1editorRole, site2editorRole, site3editorRole, group6Role, group7Role,
     site1siterulestest1, site1siterulestest2, site2siterulestest1, site5siterulestest1, site5siterulestest2,
     site5siterulestest3, siteLauncherRole, templaterulestest1, templaterulestest2, assetrulestest1, assetrulestest2,
@@ -94,7 +110,7 @@ export async function fixtures () {
     db.insert('INSERT INTO roles (name) VALUES ("editor")'),
     db.insert('INSERT INTO roles (name) VALUES ("site1-editor")'),
     db.insert('INSERT INTO roles (name) VALUES ("site2-editor")'),
-    db.insert('INSERT INTO roles (name) VALUES ("site3-editor")'),
+    db.insert('INSERT INTO roles (name, siteId) VALUES ("site3-editor", ?)', [site3]),
     db.insert('INSERT INTO roles (name) VALUES ("group6role")'),
     db.insert('INSERT INTO roles (name) VALUES ("group7role")'),
     db.insert('INSERT INTO roles (name) VALUES ("site1-siterulestest1")'),
@@ -125,23 +141,6 @@ export async function fixtures () {
     db.insert('INSERT INTO roles (name) VALUES ("datarolestest2")'),
     db.insert('INSERT INTO roles (name) VALUES ("pagerolestest1")'),
     db.insert('INSERT INTO roles (name) VALUES ("pagerolestest2")')
-  ])
-
-  const [artCollegeOrg, mathDeptOrg, officeOrg] = await Promise.all([
-    db.insert('INSERT INTO organizations (name) VALUES ("College of Arts and Crafts")'),
-    db.insert('INSERT INTO organizations (name) VALUES ("Department of Mathematics")'),
-    db.insert('INSERT INTO organizations (name) VALUES ("The Office")')
-  ])
-
-  const [site1, site2, site3, site4, site5, site6, site7, site8] = await Promise.all([
-    db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath, launchEnabled) VALUES (?,?,?,?,?,?)', ['site1', artCollegeOrg, ed02, 'www.college.edu', '/site1/', true]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site2', mathDeptOrg, su01]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath, launchEnabled) VALUES (?,?,?,?,?,?)', ['site3', officeOrg, su03, 'www.example.com', '/site3/', true]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site4', artCollegeOrg, ed10]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site5', artCollegeOrg, su01]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site6', officeOrg, su02]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site7', officeOrg, su01]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site8', officeOrg, su02])
   ])
 
   const [pagetree1, pagetree2, pagetree3sandbox, pagetree3, pagetree4, pagetree4archive, pagetree4deleted, pagetree5, pagetree6, pagetree7, pagetree8] = await Promise.all([
@@ -224,17 +223,14 @@ export async function fixtures () {
 
   await Promise.all([
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group1]),
-    db.insert('INSERT INTO groups_managers (userId, groupId) VALUES (?,?)', [su01, group1]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group2]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su01, group3]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su02, group2]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed01, group1]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed02, group3]),
-    db.insert('INSERT INTO groups_managers (userId, groupId) VALUES (?,?)', [ed02, group3]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed02, group4]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su03, group4]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [su03, group1]),
-    db.insert('INSERT INTO groups_managers (userId, groupId) VALUES (?,?)', [su03, group1]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed03, group6]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed04, group7]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed10, group5]),
@@ -278,7 +274,6 @@ export async function fixtures () {
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group3, editorRole]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group6, group6Role]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group7, group7Role]),
-    db.insert('INSERT INTO groups_sites (groupId, siteId) VALUES (?,?)', [group1, site3]),
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site1, ed04]),
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site1, ed05]),
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site2, su02]),

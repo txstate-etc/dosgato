@@ -1,16 +1,24 @@
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
-import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { isNotNull, unique } from 'txstate-utils'
 import {
   DosGatoService, GroupService, UserService, Role, RoleFilter, RoleResponse,
-  addRoleToUser, createRole, deleteRole, getRoles, getRolesWithGroup,
-  getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup, GroupServiceInternal
+  addRoleToUser, createRole, deleteRole, getRoles, getRolesWithGroup, getRolesWithManager,
+  getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup, GroupServiceInternal, SiteServiceInternal
 } from '../internal.js'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
     return await getRoles({ ids })
   }
+})
+
+const rolesBySiteIdLoader = new OneToManyLoader({
+  fetch: async (siteIds: string[]) => {
+    return await getRoles({ siteIds })
+  },
+  extractKey: role => role.siteId!,
+  idLoader: rolesByIdLoader
 })
 
 const rolesByGroupIdLoader = new ManyJoinedLoader({
@@ -23,6 +31,13 @@ const rolesByGroupIdLoader = new ManyJoinedLoader({
 const rolesByUserIdLoader = new ManyJoinedLoader({
   fetch: async (userIds: string[]) => {
     return await getRolesForUsers(userIds)
+  },
+  idLoader: rolesByIdLoader
+})
+
+const rolesByManagerIdLoader = new ManyJoinedLoader({
+  fetch: async (managerIds: string[]) => {
+    return await getRolesWithManager(managerIds)
   },
   idLoader: rolesByIdLoader
 })
@@ -84,6 +99,14 @@ export class RoleServiceInternal extends BaseService {
       }
     }
   }
+
+  async findByManagerId (managerId: string) {
+    return await this.loaders.get(rolesByManagerIdLoader).load(managerId)
+  }
+
+  async findBySiteId (siteId: string) {
+    return await this.loaders.get(rolesBySiteIdLoader).load(siteId)
+  }
 }
 
 export class RoleService extends DosGatoService<Role> {
@@ -107,6 +130,14 @@ export class RoleService extends DosGatoService<Role> {
 
   async findByUserId (userId: string, direct?: boolean) {
     return await this.removeUnauthorized(await this.raw.findByUserId(userId, direct))
+  }
+
+  async findByManagerId (managerId: string) {
+    return await this.removeUnauthorized(await this.raw.findByManagerId(managerId))
+  }
+
+  async findBySiteId (siteId: string) {
+    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId))
   }
 
   async create (name: string) {
@@ -261,8 +292,12 @@ export class RoleService extends DosGatoService<Role> {
   }
 
   async mayAssign (role: Role) {
-    if (isNotNull(role.siteId)) return await this.haveGlobalPerm('manageAccess')
-    else return await this.haveGlobalPerm('manageParentRoles')
+    if (isNotNull(role.siteId)) {
+      const manageAccess = await this.haveGlobalPerm('manageAccess')
+      if (manageAccess) return true
+      const managers = await this.svc(UserService).findSiteManagers(role.siteId)
+      return managers.some(m => m.id === this.login)
+    } else return await this.haveGlobalPerm('manageParentRoles')
   }
 
   async mayCreateRules (role: Role) {

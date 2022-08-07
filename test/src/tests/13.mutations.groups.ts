@@ -88,30 +88,6 @@ describe('groups mutations', () => {
     await query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: ID!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupFF.id], userId: 'ed01' })
     await expect(queryAs('ed07', 'mutation removeUserFromGroups ($groupIds: [ID!]!, $userId: ID!) { removeUserFromGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupFF.id], userId: 'ed01' })).to.be.rejected
   })
-  it('should add a group manager', async () => {
-    const { group: groupH } = await createGroup('groupH')
-    await query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: ID!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupH.id], userId: 'ed01' })
-    const { setGroupManager: { success } } = await query('mutation SetGroupManager ($groupId: ID!, $userId: ID!, $manager: Boolean!) { setGroupManager (groupId: $groupId, userId: $userId, manager: $manager) { success } }', { groupId: groupH.id, userId: 'ed01', manager: true })
-    expect(success).to.be.true
-    const { groups } = await query('{ groups { id name managers { id } } }')
-    const group = groups.find((g: any) => g.id === groupH.id)
-    expect(group.managers).to.deep.include({ id: 'ed01' })
-  })
-  it('should not allow an unauthorized user to add a group manager', async () => {
-    const { group: groupHH } = await createGroup('groupHH')
-    await query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: ID!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupHH.id], userId: 'ed01' })
-    await expect(queryAs('ed07', 'mutation SetGroupManager ($groupId: ID!, $userId: ID!, $manager: Boolean!) { setGroupManager (groupId: $groupId, userId: $userId, manager: $manager) { success } }', { groupId: groupHH.id, userId: 'ed01', manager: true })).to.be.rejected
-  })
-  it('should remove a group manager', async () => {
-    const { group: groupI } = await createGroup('groupI')
-    await query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: ID!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupI.id], userId: 'ed01' })
-    await query('mutation SetGroupManager ($groupId: ID!, $userId: ID!, $manager: Boolean!) { setGroupManager (groupId: $groupId, userId: $userId, manager: $manager) { success } }', { groupId: groupI.id, userId: 'ed01', manager: true })
-    const { setGroupManager: { success } } = await query('mutation SetGroupManager ($groupId: ID!, $userId: ID!, $manager: Boolean!) { setGroupManager (groupId: $groupId, userId: $userId, manager: $manager) { success } }', { groupId: groupI.id, userId: 'ed01', manager: false })
-    expect(success).to.be.true
-    const { groups } = await query('{ groups { id name managers { id } } }')
-    const group = groups.find((g: any) => g.id === groupI.id)
-    expect(group.managers).to.have.lengthOf(0)
-  })
   it('should add a role to a group', async () => {
     const { roles } = await query('{ roles(filter: { ids: [2] }) { id name } }')
     const { group: groupJ } = await createGroup('groupJ')
@@ -169,23 +145,6 @@ describe('groups mutations', () => {
     const { group: groupQ } = await createGroup('groupQ')
     const { removeSubgroup: { success } } = await query('mutation RemoveSubgroup ($parentGroupId: ID!, $childGroupId: ID!) { removeSubgroup (parentGroupId: $parentGroupId, childGroupId: $childGroupId) { success } }', { parentGroupId: groupQ.id, childGroupId: '3' })
     expect(success).to.be.false
-  })
-  it('should associate a site with a group', async () => {
-    const { group: groupR } = await createGroup('groupR')
-    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name } } }', { args: { name: 'testgroupsiterelationship1', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
-    const { addGroupSite: { success } } = await query('mutation AddGroupSite ($groupId: ID!, $siteId: ID!) { addGroupSite (groupId: $groupId, siteId: $siteId) { success } }', { groupId: groupR.id, siteId: site.id })
-    expect(success).to.be.true
-    const { groups } = await query(`{ groups(filter: { ids: [${groupR.id}] }) { sites { id name } } }`)
-    expect(groups[0].sites[0].name).to.equal('testgroupsiterelationship1')
-  })
-  it('should remove the association between a site and a group', async () => {
-    const { group: groupS } = await createGroup('groupS')
-    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name } } }', { args: { name: 'testgroupsiterelationship2', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
-    await query('mutation AddGroupSite ($groupId: ID!, $siteId: ID!) { addGroupSite (groupId: $groupId, siteId: $siteId) { success } }', { groupId: groupS.id, siteId: site.id })
-    const { removeGroupSite: { success } } = await query('mutation RemoveGroupSite ($groupId: ID!, $siteId: ID!) { removeGroupSite (groupId: $groupId, siteId: $siteId) { success } }', { groupId: groupS.id, siteId: site.id })
-    expect(success).to.be.true
-    const { groups } = await query(`{ groups(filter: { ids: [${groupS.id}] }) { sites { id name } } }`)
-    expect(groups[0].sites.length).to.equal(0)
   })
   it('should create a group as a subgroup', async () => {
     const { group: groupT } = await createGroup('groupT')

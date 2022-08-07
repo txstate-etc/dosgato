@@ -151,4 +151,11 @@ before creating a rule relating a role to a target.`
   async createRules (@Ctx() ctx: Context, @Root() role: Role) {
     return await ctx.svc(RoleService).mayCreateRules(role)
   }
+
+  @FieldResolver(type => Boolean, {
+    description: 'Current user is able to assign this role to other users.'
+  })
+  async assign (@Ctx() ctx: Context, @Root() role: Role) {
+    return await ctx.svc(RoleService).mayAssign(role)
+  }
 }

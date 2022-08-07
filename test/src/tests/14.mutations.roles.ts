@@ -81,4 +81,7 @@ describe('roles mutations', () => {
     const { removeRoleFromUser: { success } } = await query('mutation RemoveRoleFromUser ($roleId: String!, $userId: String!) { removeRoleFromUser (roleId: $roleId, userId: $userId) { success } }', { roleId: roleH.id, userId: 'su01' })
     expect(success).to.be.false
   })
+  it.skip('should allow a site manager to assign the site\'s role to a user', async () => {
+    // TODO: this test is skipped until we have createSite also creating the site's base role
+  })
 })

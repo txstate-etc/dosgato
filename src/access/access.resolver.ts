@@ -59,12 +59,12 @@ export class AccessResolver {
     return await ctx.svc(DataService).mayCreateGlobal()
   }
 
-  @FieldResolver(returns => Boolean, { description: 'Currently authenticated user is able to view the site list and site details'})
+  @FieldResolver(returns => Boolean, { description: 'Currently authenticated user is able to view the site list and site details.' })
   async viewSiteList (@Ctx() ctx: Context) {
     return await ctx.svc(SiteService).mayViewSiteList()
   }
 
-  @FieldResolver(returns => Boolean, { description: 'Currently authenticated user is able to assign templatess to sites and pagetrees and may mark templates as universal'})
+  @FieldResolver(returns => Boolean, { description: 'Currently authenticated user is able to assign templatess to sites and pagetrees and may mark templates as universal.' })
   async manageTemplates (@Ctx() ctx: Context) {
     return await ctx.svc(TemplateService).mayManage()
   }

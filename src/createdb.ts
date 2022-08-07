@@ -187,34 +187,6 @@ export async function init (db: Queryable) {
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;')
   await db.execute('\
-    CREATE TABLE IF NOT EXISTS `groups_managers` ( \
-      `groupId` MEDIUMINT UNSIGNED NOT NULL, \
-      `userId` MEDIUMINT UNSIGNED NOT NULL, \
-      PRIMARY KEY (`groupId`,`userId`), \
-      CONSTRAINT `FK_groups_managers_groups` \
-        FOREIGN KEY (`groupId`) \
-        REFERENCES `groups` (`id`), \
-      CONSTRAINT `FK_groups_managers_users` \
-        FOREIGN KEY (`userId`) \
-        REFERENCES `users` (`id`)) \
-    ENGINE = InnoDB \
-    DEFAULT CHARACTER SET = utf8mb4 \
-    DEFAULT COLLATE = utf8mb4_general_ci;')
-  await db.execute('\
-    CREATE TABLE IF NOT EXISTS `groups_sites` ( \
-      `groupId` MEDIUMINT UNSIGNED NOT NULL, \
-      `siteId` SMALLINT UNSIGNED NOT NULL, \
-      PRIMARY KEY (`groupId`,`siteId`), \
-      CONSTRAINT `FK_groups_sites_groups` \
-        FOREIGN KEY (`groupId`) \
-        REFERENCES `groups` (`id`), \
-      CONSTRAINT `FK_groups_sites_sites` \
-        FOREIGN KEY (`siteId`) \
-        REFERENCES `sites` (`id`)) \
-    ENGINE = InnoDB \
-    DEFAULT CHARACTER SET = utf8mb4 \
-    DEFAULT COLLATE = utf8mb4_general_ci;')
-  await db.execute('\
     CREATE TABLE IF NOT EXISTS `roles` ( \
       `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `name` VARCHAR(255) NOT NULL, \

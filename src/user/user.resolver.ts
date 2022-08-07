@@ -17,7 +17,7 @@ export class UserResolver {
     return await ctx.svc(GroupService).findByUserId(user.id, direct)
   }
 
-  @FieldResolver(returns => [Role], { description: 'Roles related to the user, either directly or through a group.' })
+  @FieldResolver(returns => [Role], { description: 'Roles assigned to the user, either directly or through a group.' })
   async roles (@Ctx() ctx: Context, @Root() user: User, @Arg('direct', { nullable: true, description: 'true -> only roles the user has directly, false -> only roles the user has indirectly and not directly, null -> all roles the user has.' }) direct: boolean) {
     return await ctx.svc(RoleService).findByUserId(user.id, direct)
   }

@@ -67,6 +67,11 @@ export class SiteResolver {
     return await ctx.svc(RoleService).findByIds(unique(ruleIds))
   }
 
+  @FieldResolver(returns => Role, { description: 'Each site has exactly one primary role associated with it. This association gives the site managers authority to assign/unassign that role or any of its subroles to/from any valid user. This is completely different logic from the `Site.roles` property which returns roles based on the permissions granted by the role (see its description for details).' })
+  async role (@Ctx() ctx: Context, @Root() site: Site) {
+    return await ctx.svc(RoleService).findBySiteId(site.id)
+  }
+
   @FieldResolver(returns => User, { nullable: true })
   async owner (@Ctx() ctx: Context, @Root() site: Site) {
     if (isNotNull(site.ownerId)) {
@@ -84,11 +89,6 @@ export class SiteResolver {
   @FieldResolver(returns => [User])
   async managers (@Ctx() ctx: Context, @Root() site: Site) {
     return await ctx.svc(UserService).findSiteManagers(site.id)
-  }
-
-  @FieldResolver(returns => [Group], { description: 'Groups managed by managers of this site.' })
-  async groups (@Ctx() ctx: Context, @Root() site: Site) {
-    return await ctx.svc(GroupService).findBySite(site)
   }
 
   @FieldResolver(returns => [Template], { description: 'All templates that are approved for use in this site.' })

@@ -19,24 +19,6 @@ describe('groups', () => {
     const group3 = resp.groups.find((g: any) => g.name === 'group3')
     expect(group3.users).to.have.lengthOf(0)
   })
-  it('should retrieve group managers', async () => {
-    const resp = await query('{ groups { name managers { id name } } }')
-    const group1 = resp.groups.find((g: any) => g.name === 'group1')
-    const group1managers = group1.managers.map((m: any) => m.name)
-    expect(group1managers).to.have.members(['Michael Scott', 'Marge Simpson', 'Draco Malfoy', 'Luke Skywalker'])
-  })
-  it('should only retrieve group managers added directly to the group', async () => {
-    const { groups } = await query('{ groups { name managers(direct: true) { id name } } }')
-    const group1 = groups.find((g: any) => g.name === 'group1')
-    const group1managers = group1.managers.map((m: any) => m.name)
-    expect(group1managers).to.have.members(['Michael Scott', 'Marge Simpson'])
-  })
-  it('should only retrieve group managers that come from a site relationship', async () => {
-    const { groups } = await query('{ groups { name managers(direct: false) { id name } } }')
-    const group1 = groups.find((g: any) => g.name === 'group1')
-    const group1managers = group1.managers.map((m: any) => m.name)
-    expect(group1managers).to.have.members(['Draco Malfoy', 'Luke Skywalker'])
-  })
   it('should retrieve group and subgroup users for all groups', async () => {
     const resp = await query('{ groups { id name users { id name } } }')
     const group1 = resp.groups.find((g: any) => g.name === 'group1')
@@ -79,10 +61,5 @@ describe('groups', () => {
     expect(group4.supergroups.map((p: any) => p.name)).to.include('group2')
     const group5 = groups.find((g: any) => g.name === 'group5')
     expect(group5.supergroups.length).to.equal(0)
-  })
-  it('should retrieve a group\'s related site', async () => {
-    const { groups } = await query('{ groups { id name sites { id name } } }')
-    const group1 = groups.find((g: any) => g.name === 'group1')
-    expect(group1.sites[0].name).to.equal('site3')
   })
 })

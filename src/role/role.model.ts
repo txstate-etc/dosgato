@@ -43,7 +43,13 @@ export class RoleFilter {
   @Field(type => [ID], { nullable: true })
   ids?: string[]
 
-  @Field(type => [ID], { nullable: true, description: 'Return roles that are associated with any of the given users.' })
+  @Field(type => [ID], { nullable: true, description: 'Return roles managed by any of the specified user ids.' })
+  managerIds?: string[]
+
+  @Field(type => [ID], { nullable: true, description: 'Return roles associated with any of the given site ids.' })
+  siteIds?: string[]
+
+  @Field(type => [ID], { nullable: true, description: 'Return roles that have been granted to any of the given users.' })
   users?: string[]
 }
 
