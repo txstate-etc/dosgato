@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { unique } from 'txstate-utils'
-import { nanoid } from 'nanoid'
-import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, CreatePagetreeInput, formatSavedAtVersion } from '../internal.js'
+import { PageData } from '@dosgato/templating'
+import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, Site, getPageIndexes } from '../internal.js'
 
 function processFilters (filter?: PagetreeFilter) {
   const binds: string[] = []
@@ -54,15 +54,16 @@ export async function getPagetreesByTemplate (templateIds: number[], direct?: bo
   }
 }
 
-export async function createPagetree (versionedService: VersionedService, userId: string, siteName: string, args: CreatePagetreeInput) {
+export async function createPagetree (versionedService: VersionedService, userId: string, site: Site, name: string, data: PageData, linkId: string) {
   return await db.transaction(async db => {
     // create the pagetree
-    const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt) VALUES (?, ?, ?, NOW())', [args.siteId, PagetreeType.SANDBOX, args.name])
+    const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt) VALUES (?, ?, ?, NOW())', [site.id, PagetreeType.SANDBOX, name])
     // create the root page for the pagetree
-    const dataId = await versionedService.create('page', { templateKey: args.rootPageTemplateKey, savedAtVersion: formatSavedAtVersion(args.schemaVersion) }, [{ name: 'template', values: [args.rootPageTemplateKey] }], userId, db)
+    const indexes = getPageIndexes(data)
+    const dataId = await versionedService.create('page', data, indexes, userId, db)
     await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
-      VALUES (?,?,?,?,?,?)`, [siteName, '/', 1, pagetreeId, dataId, nanoid(10)])
+      VALUES (?,?,?,?,?,?)`, [site.name, '/', 1, pagetreeId, dataId, linkId])
     return new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE id=?', [pagetreeId]))
   })
 }

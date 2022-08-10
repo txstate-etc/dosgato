@@ -1,10 +1,11 @@
 import { Context } from '@txstate-mws/graphql-server'
 import { isNull, unique } from 'txstate-utils'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
+import { PageData } from '@dosgato/templating'
 import {
   Page, PageService, PageFilter, Role, Site, SiteService, Template, TemplateFilter, TemplateService,
-  Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, PagetreeType,
-  SiteRuleService, RoleService, CreatePagetreeInput
+  Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, SiteRuleService,
+  RoleService, JsonData
 } from '../internal.js'
 
 @Resolver(of => Pagetree)
@@ -47,8 +48,12 @@ export class PagetreeResolver {
 
   /* Mutations */
   @Mutation(returns => PagetreeResponse, { description: 'Create a pagetree in an existing site' })
-  async createPagetree (@Ctx() ctx: Context, @Arg('args') args: CreatePagetreeInput) {
-    return await ctx.svc(PagetreeService).create(args)
+  async createPagetree (@Ctx() ctx: Context,
+    @Arg('siteId', type => ID) siteId: string,
+    @Arg('name') name: string,
+    @Arg('data', type => JsonData, { description: "Page data after the user has saved the page properties dialog. Data should include templateKey and the admin UI's schemaVersion." }) data: PageData,
+    @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(PagetreeService).create(siteId, name, data, validateOnly)
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Update the name of a pagetree' })

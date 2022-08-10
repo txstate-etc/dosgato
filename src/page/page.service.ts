@@ -349,12 +349,12 @@ export class PageService extends DosGatoService<Page> {
     if (invalid) throw new Error('Template is not approved for use in this site or pagetree.')
   }
 
-  async validatePageData (data: PageData, pagetree: Pagetree, parent: Page|undefined, name: string, linkId: string, pageId?: string) {
+  async validatePageData (data: PageData, site: Site|undefined, pagetree: Pagetree|undefined, parent: Page|undefined, name: string, linkId: string, pageId?: string) {
     const response = new PageResponse({ success: true })
     const extras: PageExtras = {
       query: this.ctx.query,
-      siteId: pagetree.siteId,
-      pagetreeId: pagetree.id,
+      siteId: site?.id,
+      pagetreeId: pagetree?.id,
       parentId: parent?.id,
       pagePath: `${parent ? await this.getPath(parent) : ''}/${name}`,
       pageId,
@@ -376,8 +376,9 @@ export class PageService extends DosGatoService<Page> {
     // it should be safe to simply check if the targeted parent/sibling is allowed to use this template
     await this.validatePageTemplates(parent, data, true)
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
+    const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const linkId = nanoid(10)
-    const response = await this.validatePageData(data, pagetree, parent, name, linkId)
+    const response = await this.validatePageData(data, site, pagetree, parent, name, linkId)
     if (!response.success) return response
     const page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data, linkId)
     return new PageResponse({ success: true, page })
@@ -390,7 +391,8 @@ export class PageService extends DosGatoService<Page> {
     await this.validatePageTemplates(page, data, false)
     const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
-    const response = await this.validatePageData(data, pagetree, parent, page.name, page.linkId)
+    const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
+    const response = await this.validatePageData(data, site, pagetree, parent, page.name, page.linkId)
     const indexes = getPageIndexes(data)
     await this.svc(VersionedService).update(dataId, data, indexes, { user: this.login, comment: comment, version: dataVersion })
     this.loaders.clear()

@@ -1,10 +1,12 @@
 import { OneToManyLoader, ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { PageData } from '@dosgato/templating'
+import { nanoid } from 'nanoid'
 import {
   Pagetree, PagetreeFilter, getPagetreesById, getPagetreesBySite, renamePagetree,
   getPagetreesByTemplate, SiteService, DosGatoService, PagetreeType, PagetreeResponse,
-  promotePagetree, createPagetree, CreatePagetreeInput, VersionedService, deletePagetree,
-  undeletePagetree, archivePagetree, SiteServiceInternal
+  promotePagetree, createPagetree, VersionedService, deletePagetree,
+  undeletePagetree, archivePagetree, SiteServiceInternal, PageService
 } from '../internal.js'
 
 const PagetreesByIdLoader = new PrimaryKeyLoader({
@@ -56,25 +58,34 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     return await this.removeUnauthorized(await this.raw.findByTemplateId(templateId, direct))
   }
 
-  async create (args: CreatePagetreeInput) {
-    const site = await this.svc(SiteServiceInternal).findById(args.siteId)
+  async create (siteId: string, name: string, data: PageData, validateOnly?: boolean) {
+    const site = await this.svc(SiteServiceInternal).findById(siteId)
     if (!site) throw new Error('Pagetree site does not exist.')
-    const currentPagetrees = await this.raw.findBySiteId(args.siteId)
     if (!(await this.svc(SiteService).mayManageState(site))) {
       throw new Error('Current user is not permitted to create pagetrees in this site.')
     }
-    if (currentPagetrees.some(p => p.name === args.name)) {
-      return ValidatedResponse.error(`Site ${site.name} already has a pagetree with name ${args.name}.`, 'name')
+    const currentPagetrees = await this.raw.findBySiteId(siteId)
+    const response = new PagetreeResponse({ success: true })
+    if (currentPagetrees.some(p => p.name === name)) {
+      response.addMessage(`Site ${site.name} already has a pagetree with name ${name}.`, 'name')
     }
-    try {
+    // validate root page data
+    const linkId = nanoid(10)
+    const pageValidationResponse = await this.svc(PageService).validatePageData(data, site, undefined, undefined, site.name, linkId)
+    if (pageValidationResponse.hasErrors()) {
+      // take these errors and add them to the pagetree response
+      for (const message of pageValidationResponse.messages) {
+        response.addMessage(message.message, message.arg ? `data.${message.arg}` : undefined, message.type)
+      }
+    }
+    if (response.hasErrors()) return response
+    if (!validateOnly) {
       const versionedService = this.svc(VersionedService)
-      const pagetree = await createPagetree(versionedService, this.login, site.name, args)
+      const pagetree = await createPagetree(versionedService, this.login, site, name, data, linkId)
       this.loaders.clear()
-      return new PagetreeResponse({ pagetree, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Could not create pagetree')
+      response.pagetree = pagetree
     }
+    return response
   }
 
   async rename (pagetreeId: string, name: string) {
