@@ -17,7 +17,7 @@ class TemplateRegistry {
   public currentSchemaVersion!: DateTime
 
   register (template: APIAnyTemplate) {
-    this.currentSchemaVersion = DateTime.fromMillis(Math.max(this.currentSchemaVersion?.toMillis() ?? 0, ...template.migrations.map(m => m.createdAt.getTime())))
+    this.currentSchemaVersion = DateTime.fromMillis(Math.max(this.currentSchemaVersion?.toMillis() ?? 0, ...(template.migrations ?? []).map(m => m.createdAt.getTime())))
     const hydrated: AnyTemplate = { ...template, hydratedAreas: {} }
     if ('areas' in template && template.areas != null) {
       for (const key of Object.keys(template.areas)) {

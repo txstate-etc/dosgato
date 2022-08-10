@@ -22,7 +22,7 @@ export async function migrateData (ctx: Context, data: DataData, dataRootId: str
   const toSchemaVersionMillis = toSchemaVersion.toMillis()
   const backward = fromSchemaVersionMillis > toSchemaVersionMillis
   const tmpl = templateRegistry.getDataTemplate(migrated.templateKey)
-  const migrations = tmpl.migrations
+  const migrations = (tmpl.migrations ?? [])
     .filter(m => backward
       ? m.createdAt.getTime() < fromSchemaVersionMillis && m.createdAt.getTime() > toSchemaVersionMillis
       : m.createdAt.getTime() > fromSchemaVersionMillis && m.createdAt.getTime() < toSchemaVersionMillis
