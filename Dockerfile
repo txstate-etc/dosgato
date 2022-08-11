@@ -11,7 +11,6 @@ FROM node:18-alpine
 WORKDIR /usr/app
 COPY package.json ./
 RUN npm install --production --no-optional
-RUN npm install source-map-support
 COPY --from=build /usr/app/dist dist
 COPY tsconfig.json ./
 

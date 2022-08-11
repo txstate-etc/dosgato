@@ -1,6 +1,6 @@
 {
   "watch": ["src"],
   "ext": "ts",
-  "exec": "sleep 0.3; node --inspect=0.0.0.0:9229 --loader ts-node/esm ./src/run.ts",
+  "exec": "sleep 0.3; node --enable-source-maps --inspect=0.0.0.0:9229 --loader ts-node/esm ./src/run.ts",
   "delay": "100"
 }
