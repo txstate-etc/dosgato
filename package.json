@@ -33,8 +33,9 @@
     "prepublishOnly": "npm run build",
     "test": "./test.sh",
     "build": "rm -rf dist && tsc",
+    "buildrun": "rm -rf dest && (cd testserver ; tsc)",
     "start:dev": "nodemon",
-    "start": "node --enable-source-maps ./dist/run.js"
+    "start": "node --enable-source-maps ./dist/testserver/run.js"
   },
   "repository": {
     "type": "git",

@@ -4,7 +4,7 @@ import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { stringify } from 'txstate-utils'
-import { VersionedService, Index } from './internal.js'
+import { VersionedService, Index } from '../src/internal.js'
 
 export async function fixtures () {
   console.info('running fixtures()')

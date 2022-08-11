@@ -4,8 +4,9 @@ COPY package.json ./
 RUN npm install
 COPY tsconfig.json ./
 COPY src src
+COPY testserver testserver
 
-RUN npm run build
+RUN npm run buildrun
 
 FROM node:18-alpine
 WORKDIR /usr/app

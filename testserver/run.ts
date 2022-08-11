@@ -1,4 +1,4 @@
-import { DGServer } from './index.js'
+import { DGServer } from '../src/index.js'
 import { fixtures } from './fixtures.js'
 import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData } from './fixturetemplates.js'
 
