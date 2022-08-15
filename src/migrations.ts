@@ -1,7 +1,8 @@
 import db from 'mysql2-async/db'
+import { Queryable } from 'mysql2-async'
+import { sortby } from 'txstate-utils'
 import { init } from './createdb.js'
 import { type DBMigration, VersionedService } from './internal.js'
-import { sortby } from 'txstate-utils'
 
 const dgMigrations: DBMigration[] = [
   {
@@ -10,6 +11,7 @@ const dgMigrations: DBMigration[] = [
     run: async (db) => {
       await VersionedService.init(db)
       await init(db)
+      await seeddb(db)
     }
   }
 ]
@@ -39,4 +41,59 @@ export async function migrations (moreMigrations?: DBMigration[]) {
       }
     })
   }
+}
+
+export async function resetdb () {
+  await db.transaction(async db => {
+    await db.execute('SET FOREIGN_KEY_CHECKS = 0')
+    await Promise.all([
+      db.execute('TRUNCATE TABLE downloads'),
+      db.execute('TRUNCATE TABLE globalrules'),
+      db.execute('TRUNCATE TABLE mutationlog'),
+      db.execute('TRUNCATE TABLE datarules'),
+      db.execute('TRUNCATE TABLE data'),
+      db.execute('TRUNCATE TABLE pagetrees_templates'),
+      db.execute('TRUNCATE TABLE assetrules'),
+      db.execute('TRUNCATE TABLE pagerules'),
+      db.execute('TRUNCATE TABLE sites_templates'),
+      db.execute('TRUNCATE TABLE resizes'),
+      db.execute('TRUNCATE TABLE users_roles'),
+      db.execute('TRUNCATE TABLE groups_roles'),
+      db.execute('TRUNCATE TABLE users_groups'),
+      db.execute('TRUNCATE TABLE siterules'),
+      db.execute('TRUNCATE TABLE groups_groups'),
+      db.execute('TRUNCATE TABLE assets'),
+      db.execute('TRUNCATE TABLE sites_managers'),
+      db.execute('TRUNCATE TABLE templaterules'),
+      db.execute('TRUNCATE TABLE datafolders'),
+      db.execute('TRUNCATE TABLE binaries'),
+      db.execute('TRUNCATE TABLE pages'),
+      db.execute('TRUNCATE TABLE roles'),
+      db.execute('TRUNCATE TABLE groups'),
+      db.execute('TRUNCATE TABLE comments'),
+      db.execute('TRUNCATE TABLE pagetrees'),
+      db.execute('TRUNCATE TABLE assetfolders'),
+      db.execute('TRUNCATE TABLE organizations'),
+      db.execute('TRUNCATE TABLE indexes'),
+      db.execute('TRUNCATE TABLE tags'),
+      db.execute('TRUNCATE TABLE versions'),
+      db.execute('TRUNCATE TABLE sites'),
+      db.execute('TRUNCATE TABLE users'),
+      db.execute('TRUNCATE TABLE indexvalues'),
+      db.execute('TRUNCATE TABLE storage')
+    ])
+    await db.execute('SET FOREIGN_KEY_CHECKS = 1')
+  })
+}
+
+export async function seeddb (tdb: Queryable = db) {
+  const superuserRole = await tdb.insert('INSERT INTO roles (name) VALUES ("superuser")')
+  await Promise.all([
+    tdb.insert('INSERT INTO globalrules (roleId, manageAccess, manageParentRoles, createSites, manageGlobalData, viewSiteList, manageTemplates) VALUES (?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1]),
+    tdb.insert('INSERT INTO siterules (roleId, launch, `rename`, governance, manageState, `delete`) VALUES (?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1]),
+    tdb.insert('INSERT INTO assetrules (`roleId`, `create`, `update`, `move`, `delete`, `undelete`) VALUES (?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1]),
+    tdb.insert('INSERT INTO pagerules (`roleId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1, 1]),
+    tdb.insert('INSERT INTO datarules (`roleId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1, 1]),
+    tdb.insert('INSERT INTO templaterules (`roleId`, `use`) VALUES (?,?)', [superuserRole, 1])
+  ])
 }

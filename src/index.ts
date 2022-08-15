@@ -7,7 +7,7 @@ import { FastifyTxStateOptions } from 'fastify-txstate'
 import { promises as fsp } from 'fs'
 import { GraphQLScalarType } from 'graphql'
 import { NonEmptyArray } from 'type-graphql'
-import { migrations } from './migrations.js'
+import { migrations, resetdb, seeddb } from './migrations.js'
 import { Cache } from 'txstate-utils'
 import {
   DateTimeScalar, UrlSafeString, UrlSafeStringScalar, AssetPermissionsResolver, AssetResolver,
@@ -64,8 +64,12 @@ export class DGServer {
     // sync templates with database
     await syncRegistryWithDB()
 
-    if (process.env.NODE_ENV === 'development' && process.env.RESET_DB_ON_STARTUP === 'true') {
-      await opts.fixtures?.()
+    if (process.env.NODE_ENV === 'development' && process.env.RESET_DB_ON_STARTUP === 'true' && opts.fixtures) {
+      console.info('running fixtures')
+      await resetdb()
+      await seeddb()
+      await opts.fixtures()
+      console.info('finished fixtures')
     }
 
     // TODO: Add endpoint for getting assets. /assets/:id or /files/:id
