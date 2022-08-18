@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { unique } from 'txstate-utils'
 import { PageData } from '@dosgato/templating'
-import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, Site, getPageIndexes } from '../internal.js'
+import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, Site, getPageIndexes, createSiteComment, User } from '../internal.js'
 
 function processFilters (filter?: PagetreeFilter) {
   const binds: string[] = []
@@ -54,16 +54,17 @@ export async function getPagetreesByTemplate (templateIds: number[], direct?: bo
   }
 }
 
-export async function createPagetree (versionedService: VersionedService, userId: string, site: Site, name: string, data: PageData, linkId: string) {
+export async function createPagetree (versionedService: VersionedService, user: User, site: Site, name: string, data: PageData, linkId: string) {
   return await db.transaction(async db => {
     // create the pagetree
     const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt) VALUES (?, ?, ?, NOW())', [site.id, PagetreeType.SANDBOX, name])
     // create the root page for the pagetree
     const indexes = getPageIndexes(data)
-    const dataId = await versionedService.create('page', data, indexes, userId, db)
+    const dataId = await versionedService.create('page', data, indexes, user.id, db)
     await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
       VALUES (?,?,?,?,?,?)`, [site.name, '/', 1, pagetreeId, dataId, linkId])
+    await createSiteComment(site.id, `Added sandbox ${name}.`, user.internalId, db)
     return new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE id=?', [pagetreeId]))
   })
 }
