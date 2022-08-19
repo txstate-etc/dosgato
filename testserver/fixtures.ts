@@ -71,7 +71,8 @@ export async function fixtures () {
     db.insert('INSERT INTO users (login, name, email) VALUES ("ed15", "Test DataRules2", "ed15@example.com")'),
     db.insert('INSERT INTO users (login, name, email) VALUES ("ed16", "Test SiteRoles", "ed16@example.com")'),
     db.insert('INSERT INTO users (login, name, email) VALUES ("ed17", "Test PageRoles1", "ed17@example.com")'),
-    db.insert('INSERT INTO users (login, name, email) VALUES ("ed18", "Test PageRoles2", "ed18@example.com")')
+    db.insert('INSERT INTO users (login, name, email) VALUES ("ed18", "Test PageRoles2", "ed18@example.com")'),
+    db.insert('INSERT INTO users (login, name, email, system) VALUES ("service1", "Service Account 1", "sa1@example.com", true)')
   ])
   const [group1, group2, group3, group4, group5, group6, group7] = await Promise.all([
     db.insert('INSERT INTO groups (name) VALUES ("group1")'),
