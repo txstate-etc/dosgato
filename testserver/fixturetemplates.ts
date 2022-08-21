@@ -1,5 +1,5 @@
 import { WebLink, extractLinksFromText, getKeywords, ValidationFeedback, APIComponentTemplate, APIPageTemplate, APIDataTemplate } from '@dosgato/templating'
-import { isBlank } from 'txstate-utils'
+import { isBlank, isNotBlank } from 'txstate-utils'
 
 export const PageTemplate1: APIPageTemplate = {
   type: 'page',
@@ -13,6 +13,15 @@ export const PageTemplate1: APIPageTemplate = {
   getLinks: (data: any) => [],
   getFulltext: (data: any) => {
     return [data.title]
+  },
+  validate: async (data: any) => {
+    const errors: ValidationFeedback[] = []
+    if (isBlank(data.title)) {
+      errors.push({ path: 'title', message: 'Page title is required.' })
+    } else if (data.title.length < 5) {
+      errors.push({ path: 'title', message: 'Page title must be at least 5 characters.' })
+    }
+    return errors
   }
 }
 
