@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { unique } from 'txstate-utils'
 import { PageData } from '@dosgato/templating'
-import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, Site, getPageIndexes, createSiteComment, User } from '../internal.js'
+import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, Site, getPageIndexes, createSiteComment, User, DeletedFilter } from '../internal.js'
 
 function processFilters (filter?: PagetreeFilter) {
   const binds: string[] = []
@@ -12,11 +12,20 @@ function processFilters (filter?: PagetreeFilter) {
   if (filter?.types?.length) {
     where.push(`pagetrees.type IN (${db.in(binds, filter.types)})`)
   }
+  if (filter?.deleted) {
+    if (filter.deleted === DeletedFilter.ONLY) {
+      where.push('pagetrees.deletedAt IS NOT NULL')
+    } else if (filter.deleted === DeletedFilter.HIDE) {
+      where.push('pagetrees.deletedAt IS NULL')
+    }
+  } else {
+    where.push('pagetrees.deletedAt IS NULL')
+  }
   return { binds, where }
 }
 
 export async function getPagetreesById (ids: string[]) {
-  const { binds, where } = processFilters({ ids })
+  const { binds, where } = processFilters({ ids, deleted: DeletedFilter.SHOW })
   const pagetrees = await db.getall(`SELECT * FROM pagetrees
                                      WHERE (${where.join(') AND (')})`, binds)
   return pagetrees.map(p => new Pagetree(p))

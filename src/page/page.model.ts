@@ -183,9 +183,9 @@ export class PageLinkInput {
 
 // TODO: Move this enum somewhere else. utils?
 export enum DeletedFilter {
-  SHOW = 'show',
-  ONLY = 'only',
-  HIDE = 'hide'
+  SHOW = 'show', // show all
+  ONLY = 'only', // show only deleted
+  HIDE = 'hide' // show only non-deleted
 }
 
 registerEnumType(DeletedFilter, {

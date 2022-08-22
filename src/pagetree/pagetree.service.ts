@@ -1,5 +1,5 @@
 import { OneToManyLoader, ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService } from '@txstate-mws/graphql-server'
 import { PageData } from '@dosgato/templating'
 import { nanoid } from 'nanoid'
 import {

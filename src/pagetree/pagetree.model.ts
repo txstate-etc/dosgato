@@ -2,6 +2,7 @@ import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-s
 import { DateTime } from 'luxon'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { isNotNull } from 'txstate-utils'
+import { DeletedFilter } from '../internal.js'
 
 export enum PagetreeType {
   PRIMARY = 'primary',
@@ -70,6 +71,9 @@ export class PagetreeFilter {
 
   @Field(type => [PagetreeType], { nullable: true })
   types?: PagetreeType[]
+
+  @Field(type => DeletedFilter, { nullable: true })
+  deleted?: DeletedFilter
 }
 
 @ObjectType()
