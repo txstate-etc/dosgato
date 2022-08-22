@@ -78,25 +78,48 @@ export async function createPagetree (versionedService: VersionedService, user: 
   })
 }
 
-export async function renamePagetree (pagetreeId: string, name: string) {
-  return await db.update('UPDATE pagetrees SET name = ? WHERE id = ?', [name, pagetreeId])
-}
-
-export async function promotePagetree (oldPrimaryId: string, newPrimaryId: string) {
+export async function renamePagetree (pagetreeId: string, name: string, user: User) {
   return await db.transaction(async db => {
-    await db.update('UPDATE pagetrees SET type = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, oldPrimaryId])
-    await db.update('UPDATE pagetrees SET type = ?, promotedAt = NOW() WHERE id = ?', [PagetreeType.PRIMARY, newPrimaryId])
+    const pagetree = new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE ID=?', [pagetreeId]))
+    await db.update('UPDATE pagetrees SET name = ? WHERE id = ?', [name, pagetreeId])
+    await createSiteComment(pagetree.siteId, `Renamed pagetree. ${pagetree.name} is now ${name}.`, user.internalId, db)
   })
 }
 
-export async function archivePagetree (pagetreeId: string) {
-  return await db.update('UPDATE pagetrees SET type = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, pagetreeId])
+export async function promotePagetree (oldPrimaryId: string, newPrimaryId: string, user: User) {
+  return await db.transaction(async db => {
+    const [oldPrimaryPagetreeRow, newPrimaryPagetreeRow] = await Promise.all([
+      db.getrow('SELECT * FROM pagetrees WHERE ID=?', [oldPrimaryId]),
+      db.getrow('SELECT * FROM pagetrees WHERE ID=?', [newPrimaryId])
+    ])
+    const oldPrimaryPagetree = new Pagetree(oldPrimaryPagetreeRow)
+    const newPrimaryPagetree = new Pagetree(newPrimaryPagetreeRow)
+    await db.update('UPDATE pagetrees SET type = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, oldPrimaryId])
+    await db.update('UPDATE pagetrees SET type = ?, promotedAt = NOW() WHERE id = ?', [PagetreeType.PRIMARY, newPrimaryId])
+    await createSiteComment(oldPrimaryPagetree.siteId, `Promoted pagetree ${newPrimaryPagetree.name} to primary. Pagetree ${oldPrimaryPagetree.name} archived.`, user.internalId, db)
+  })
 }
 
-export async function deletePagetree (pagetreeId: string, currentUserInternalId: number) {
-  return await db.update('UPDATE pagetrees SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [currentUserInternalId, pagetreeId])
+export async function archivePagetree (pagetreeId: string, user: User) {
+  return await db.transaction(async db => {
+    const pagetree = new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE ID=?', [pagetreeId]))
+    await db.update('UPDATE pagetrees SET type = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, pagetreeId])
+    await createSiteComment(pagetree.siteId, `Archived pagetree ${pagetree.name}.`, user.internalId, db)
+  })
 }
 
-export async function undeletePagetree (pagetreeId: string) {
-  return await db.update('UPDATE pagetrees SET deletedAt = NULL, deletedBy = NULL WHERE id = ?', [pagetreeId])
+export async function deletePagetree (pagetreeId: string, user: User) {
+  return await db.transaction(async db => {
+    const pagetree = new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE ID=?', [pagetreeId]))
+    await db.update('UPDATE pagetrees SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [user.internalId, pagetreeId])
+    await createSiteComment(pagetree.siteId, `Deleted pagetree ${pagetree.name}.`, user.internalId, db)
+  })
+}
+
+export async function undeletePagetree (pagetreeId: string, user: User) {
+  return await db.transaction(async db => {
+    const pagetree = new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE ID=?', [pagetreeId]))
+    await db.update('UPDATE pagetrees SET deletedAt = NULL, deletedBy = NULL WHERE id = ?', [pagetreeId])
+    await createSiteComment(pagetree.siteId, `Restored pagetree ${pagetree.name}.`, user.internalId, db)
+  })
 }

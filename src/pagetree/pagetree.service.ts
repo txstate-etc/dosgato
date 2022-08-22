@@ -100,7 +100,8 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     }
     if (response.hasErrors()) return response
     if (!validateOnly) {
-      await renamePagetree(pagetreeId, name)
+      const currentUser = await this.currentUser()
+      await renamePagetree(pagetreeId, name, currentUser!)
       this.loaders.clear()
       response.pagetree = await this.raw.findById(pagetreeId)
     }
@@ -114,7 +115,7 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (pagetree.type === PagetreeType.PRIMARY) throw new Error('Cannot delete primary pagetree')
     const currentUser = await this.currentUser()
     try {
-      await deletePagetree(pagetreeId, currentUser!.internalId)
+      await deletePagetree(pagetreeId, currentUser!)
       this.loaders.clear()
       const deletedPagetree = await this.raw.findById(pagetreeId)
       return new PagetreeResponse({ success: true, pagetree: deletedPagetree })
@@ -129,7 +130,8 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (!pagetree) throw new Error('Pagetree to be restored does not exist.')
     if (!(await this.mayUndelete(pagetree))) throw new Error('Current user is not permitted to restore this pagetree.')
     try {
-      await undeletePagetree(pagetreeId)
+      const currentUser = await this.currentUser()
+      await undeletePagetree(pagetreeId, currentUser!)
       this.loaders.clear()
       const restoredPagetree = await this.raw.findById(pagetreeId)
       return new PagetreeResponse({ success: true, pagetree: restoredPagetree })
@@ -146,7 +148,8 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const currentPrimaryPagetree = await this.raw.findById(site.primaryPagetreeId)
     try {
-      await promotePagetree(currentPrimaryPagetree!.id, pagetreeId)
+      const currentUser = await this.currentUser()
+      await promotePagetree(currentPrimaryPagetree!.id, pagetreeId, currentUser!)
       this.loaders.clear()
       const updated = await this.raw.findById(pagetreeId)
       return new PagetreeResponse({ success: true, pagetree: updated })
@@ -162,7 +165,8 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (pagetree.type === PagetreeType.PRIMARY) throw new Error('Primary pagetree cannot be archived')
     if (!(await this.mayArchive(pagetree))) throw new Error('Current user is not permitted to archive this pagetree.')
     try {
-      await archivePagetree(pagetreeId)
+      const currentUser = await this.currentUser()
+      await archivePagetree(pagetreeId, currentUser!)
       this.loaders.clear()
       const updated = await this.raw.findById(pagetreeId)
       return new PagetreeResponse({ success: true, pagetree: updated })
