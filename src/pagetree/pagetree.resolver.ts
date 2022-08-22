@@ -57,8 +57,8 @@ export class PagetreeResolver {
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Update the name of a pagetree' })
-  async updatePagetree (@Ctx() ctx: Context, @Arg('pagetreeId', type => ID) pagetreeId: string, @Arg('name') name: string) {
-    return await ctx.svc(PagetreeService).rename(pagetreeId, name)
+  async updatePagetree (@Ctx() ctx: Context, @Arg('pagetreeId', type => ID) pagetreeId: string, @Arg('name') name: string, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(PagetreeService).rename(pagetreeId, name, validateOnly)
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Soft-delete a pagetree' })

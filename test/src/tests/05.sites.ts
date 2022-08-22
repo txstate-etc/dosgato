@@ -69,7 +69,7 @@ describe('sites', () => {
   })
   it('should get templates for sites', async () => {
     const templateNames = sitehash.site2.templates.map((t: any) => t.key)
-    expect(templateNames).to.have.members(['keyp1'])
+    expect(templateNames).to.have.members(['keyp1', 'keyp2'])
   })
   it('should get filtered templates for sites', async () => {
     const resp = await query('{ sites { id name templates(filter: { keys: ["keyp3"] }) { key name } } }')

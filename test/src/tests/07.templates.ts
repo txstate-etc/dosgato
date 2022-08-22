@@ -34,7 +34,7 @@ describe('templates', () => {
   it('should retrieve pagetrees authorized for a template through a site', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name pagetrees(direct: false) { id name } } }')
     const pagetreeNames = resp.templates[0].pagetrees.map((p: any) => p.name)
-    expect(pagetreeNames).to.have.members(['pagetree1'])
+    expect(pagetreeNames).to.have.members(['pagetree1', 'pagetree2'])
   })
   it('should retrieve pagetrees authorized for a template directly or through a site', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name pagetrees { id name } } }')
@@ -45,7 +45,7 @@ describe('templates', () => {
     const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name sites { name } } }')
     const template2data = resp.templates.find((t: any) => t.key === 'keyp2')
     const siteNames = template2data.sites.map((s: any) => s.name)
-    expect(siteNames).to.have.members(['site1'])
+    expect(siteNames).to.have.members(['site1', 'site2'])
   })
   it('should retrieve site where the whole site can use a template and sites where one or more pagetrees are able to use the template', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name sites(atLeastOneTree: true) { name } } }')

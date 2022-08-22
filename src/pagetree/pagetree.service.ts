@@ -89,22 +89,20 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     return response
   }
 
-  async rename (pagetreeId: string, name: string) {
+  async rename (pagetreeId: string, name: string, validateOnly?: boolean) {
     const pagetree = await this.raw.findById(pagetreeId)
     if (!pagetree) throw new Error('Pagetree to be renamed does not exist.')
     if (!(await this.mayRename(pagetree))) throw new Error('Current user is not permitted to rename this pagetree.')
-    const response = new PagetreeResponse({})
-    try {
+    const response = new PagetreeResponse({ success: true })
+    const currentPagetrees = await this.raw.findBySiteId(pagetree.siteId)
+    if (name !== pagetree.name && currentPagetrees.some(p => p.name === name)) {
+      response.addMessage(`This site already has a pagetree with name ${name}.`, 'name')
+    }
+    if (response.hasErrors()) return response
+    if (!validateOnly) {
       await renamePagetree(pagetreeId, name)
       this.loaders.clear()
-      response.success = true
       response.pagetree = await this.raw.findById(pagetreeId)
-    } catch (err: any) {
-      if (err.code === 'ER_DUP_ENTRY') {
-        response.addMessage(`Pagetree with name ${name} already exists.`, 'name')
-        return response
-      }
-      throw new Error('An unknown error occurred while renaming the pagetree.')
     }
     return response
   }
