@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { keyby, eachConcurrent } from 'txstate-utils'
-import { TemplateFilter, Template, templateRegistry } from '../internal.js'
+import { keyby, eachConcurrent, isNotNull } from 'txstate-utils'
+import { TemplateFilter, Template, templateRegistry, Site, Pagetree, TemplateType } from '../internal.js'
 
 const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted', 'templates.universal']
 
@@ -19,6 +19,13 @@ function processFilters (filter?: TemplateFilter) {
   }
   if (filter?.types?.length) {
     where.push(`templates.type IN (${db.in(binds, filter.types)})`)
+  }
+  if (isNotNull(filter?.universal)) {
+    if (filter?.universal) {
+      where.push('templates.universal = 1')
+    } else {
+      where.push('templates.universal = 0')
+    }
   }
   return { where, binds }
 }
@@ -68,6 +75,46 @@ export async function getTemplatePagePairs (pairs: { pageId: string, templateKey
     INNER JOIN templates t ON ptt.templateId=t.id
     WHERE (p.dataId, t.key) IN (${db.in(binds, pairs.map(p => [p.pageId, p.templateKey]))})
   `, binds)
+}
+
+export async function setSiteTemplates (site: Site, type: TemplateType, templates: Template[]) {
+  await db.transaction(async db => {
+    const currentTemplates = (await db.getall(`
+      SELECT * FROM templates
+      INNER JOIN sites_templates ON templates.id = sites_templates.templateId
+      WHERE sites_templates.siteId = ? AND templates.type = ?`, [site.id, type])).map(row => new Template(row))
+    let binds: (string|number)[] = [site.id]
+    if (currentTemplates.length) {
+      await db.delete(`DELETE FROM sites_templates WHERE siteId = ? and templateId IN (${db.in(binds, currentTemplates.map(t => t.id))})`, binds)
+    }
+    if (templates.length) {
+      binds = []
+      for (const template of templates) {
+        binds.push(site.id, template.id)
+      }
+      await db.insert(`INSERT INTO sites_templates (siteId, templateId) VALUES ${templates.map(t => '(?,?)').join(', ')}`, binds)
+    }
+  })
+}
+
+export async function setPagetreeTemplates (pagetree: Pagetree, type: TemplateType, templates: Template[]) {
+  await db.transaction(async db => {
+    const currentTemplates = (await db.getall(`
+      SELECT * FROM templates
+      INNER JOIN pagetrees_templates ON templates.id = pagetrees_templates.templateId
+      WHERE pagetrees_templates.pagetreeId = ? AND templates.type = ?`, [pagetree.id, type])).map(row => new Template(row))
+    let binds: (string|number)[] = [pagetree.id]
+    if (currentTemplates.length) {
+      await db.delete(`DELETE FROM pagetrees_templates WHERE pagetreeId = ? and templateId IN (${db.in(binds, currentTemplates.map(t => t.id))})`, binds)
+    }
+    if (templates.length) {
+      binds = []
+      for (const template of templates) {
+        binds.push(pagetree.id, template.id)
+      }
+      await db.insert(`INSERT INTO pagetrees_templates (pagtreeId, templateId) VALUES ${templates.map(t => '(?,?)').join(', ')}`, binds)
+    }
+  })
 }
 
 export async function authorizeForPagetree (templateId: string, pagetreeId: string) {

@@ -60,6 +60,16 @@ export class TemplateResolver {
   }
 
   @Mutation(returns => ValidatedResponse)
+  async setSiteTemplates (@Ctx() ctx: Context, @Arg('siteId', type => ID) siteId: string, @Arg('type', type => TemplateType) type: TemplateType, @Arg('templateKeys', type => [ID]) templateKeys: string[]) {
+    return await ctx.svc(TemplateService).setSiteTemplates(siteId, type, templateKeys)
+  }
+
+  @Mutation(returns => ValidatedResponse)
+  async setPagetreeTemplates (@Ctx() ctx: Context, @Arg('pagetreeId', type => ID) pagetreeId: string, @Arg('type', type => TemplateType) type: TemplateType, @Arg('templateKeys', type => [ID]) templateKeys: string[]) {
+    return await ctx.svc(TemplateService).setPagetreeTemplates(pagetreeId, type, templateKeys)
+  }
+
+  @Mutation(returns => ValidatedResponse)
   async authorizePagetreeTemplate (@Ctx() ctx: Context, @Arg('templateId', type => ID) templateId: string, @Arg('pagetreeId', type => ID) pagetreeId: string) {
     return await ctx.svc(TemplateService).authorizeForPagetree(templateId, pagetreeId)
   }

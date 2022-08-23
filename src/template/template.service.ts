@@ -4,9 +4,10 @@ import {
   Template, TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
   DosGatoService, authorizeForPagetree, deauthorizeForPagetree,
   authorizeForSite, deauthorizeForSite, setUniversal, PagetreeServiceInternal,
-  SiteServiceInternal, getTemplatePagePairs, Page, collectTemplates, PageServiceInternal
+  SiteServiceInternal, getTemplatePagePairs, Page, collectTemplates, PageServiceInternal,
+  setSiteTemplates, setPagetreeTemplates, TemplateType
 } from '../internal.js'
-import { stringify } from 'txstate-utils'
+import { isNotNull, someAsync, stringify } from 'txstate-utils'
 
 const templatesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => {
@@ -104,6 +105,30 @@ export class TemplateService extends DosGatoService<Template> {
 
   async findByPagetreeId (pagetreeId: string, filter?: TemplateFilter) {
     return await this.removeUnauthorized(await this.raw.findByPagetreeId(pagetreeId, filter))
+  }
+
+  async setSiteTemplates (siteId: string, type: TemplateType, templateKeys: string[]) {
+    const site = await this.svc(SiteServiceInternal).findById(siteId)
+    if (!site) throw new Error('Cannot authorize templates for a site that does not exist.')
+    const templates = await (await this.raw.findByKeys(templateKeys)).filter(isNotNull)
+    if (await someAsync(templates, async (t: Template) => !(await this.mayAssign(t)))) {
+      throw new Error('Current user is not permitted to authorize one or more templates for this site')
+    }
+    await setSiteTemplates(site, type, templates)
+    this.loaders.clear()
+    return new ValidatedResponse({ success: true })
+  }
+
+  async setPagetreeTemplates (pagetreeId: string, type: TemplateType, templateKeys: string[]) {
+    const pagetree = await this.svc(PagetreeServiceInternal).findById(pagetreeId)
+    if (!pagetree) throw new Error('Cannot authorize templates for a pagetree that does not exist.')
+    const templates = await (await this.raw.findByKeys(templateKeys)).filter(isNotNull)
+    if (await someAsync(templates, async (t: Template) => !(await this.mayAssign(t)))) {
+      throw new Error('Current user is not permitted to authorize one or more templates for this pagetree')
+    }
+    await setPagetreeTemplates(pagetree, type, templates)
+    this.loaders.clear()
+    return new ValidatedResponse({ success: true })
   }
 
   async authorizeForPagetree (templateId: string, pagetreeId: string) {

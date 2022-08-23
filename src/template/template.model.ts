@@ -1,5 +1,6 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { templateRegistry, JsonData, UrlSafeString } from '../internal.js'
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 
 export enum TemplateType {
   PAGE = 'page',
@@ -73,6 +74,9 @@ export class TemplateFilter {
 
   @Field(type => [TemplateType], { nullable: true })
   types?: TemplateType[]
+
+  @Field({ nullable: true })
+  universal?: boolean
 }
 
 @ObjectType()
