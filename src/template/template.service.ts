@@ -5,9 +5,9 @@ import {
   DosGatoService, authorizeForPagetree, deauthorizeForPagetree,
   authorizeForSite, deauthorizeForSite, setUniversal, PagetreeServiceInternal,
   SiteServiceInternal, getTemplatePagePairs, Page, collectTemplates, PageServiceInternal,
-  setSiteTemplates, setPagetreeTemplates, TemplateType
+  setSiteTemplates, setPagetreeTemplates, TemplateType, universalTemplateCache
 } from '../internal.js'
-import { isNotNull, someAsync, stringify } from 'txstate-utils'
+import { isNotNull, isNull, someAsync, stringify, unique } from 'txstate-utils'
 
 const templatesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => {
@@ -72,7 +72,16 @@ export class TemplateServiceInternal extends BaseService {
   }
 
   async findBySiteId (siteId: string, filter?: TemplateFilter) {
-    return await this.loaders.get(templatesBySiteIdLoader, filter).load(siteId)
+    const siteSpecificTemplates = await this.loaders.get(templatesBySiteIdLoader, filter).load(siteId)
+    if (isNull(filter?.universal) || filter?.universal) {
+      let universalTemplates = (await universalTemplateCache.get()).all
+      if (filter?.types?.length) {
+        universalTemplates = universalTemplates.filter(t => filter.types?.includes(t.type))
+      }
+      return unique([...siteSpecificTemplates, ...universalTemplates], 'key')
+    } else {
+      return siteSpecificTemplates
+    }
   }
 
   async findByPagetreeId (pagetreeId: string, filter?: TemplateFilter) {
@@ -208,11 +217,11 @@ export class TemplateService extends DosGatoService<Template> {
   }
 
   async setUniversal (templateId: string, universal: boolean) {
-    const template = await this.raw.findById(Number(templateId))
+    const template = await this.raw.findByKey(templateId)
     if (!template) throw new Error('Template to be modified does not exist')
     if (!(await this.maySetUniversal(template))) throw new Error('Current user is not permitted to change whether or not this template is universal.')
     try {
-      await setUniversal(templateId, universal)
+      await setUniversal(template.id, universal)
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.error(err)

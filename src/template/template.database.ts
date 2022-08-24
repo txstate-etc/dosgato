@@ -1,8 +1,13 @@
 import db from 'mysql2-async/db'
-import { keyby, eachConcurrent, isNotNull } from 'txstate-utils'
+import { Cache, keyby, eachConcurrent, isNotNull } from 'txstate-utils'
 import { TemplateFilter, Template, templateRegistry, Site, Pagetree, TemplateType } from '../internal.js'
 
 const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted', 'templates.universal']
+
+export const universalTemplateCache = new Cache(async () => {
+  const templates = (await db.getall('SELECT * FROM templates WHERE universal = 1')).map(row => new Template(row))
+  return { all: templates, ...keyby(templates, 'type') }
+})
 
 function processFilters (filter?: TemplateFilter) {
   const where: string[] = ['deleted = 0']
@@ -43,10 +48,10 @@ export async function getTemplates (filter?: TemplateFilter) {
 export async function getTemplatesBySite (siteIds: string[], filter?: TemplateFilter) {
   const { where, binds } = processFilters(filter)
   where.push(`sites_templates.siteId IN (${db.in(binds, siteIds)})`)
-  const sites = await db.getall(`SELECT ${columns.join(', ')}, sites_templates.siteId as siteId FROM templates
+  const templates = await db.getall(`SELECT ${columns.join(', ')}, sites_templates.siteId as siteId FROM templates
                            INNER JOIN sites_templates ON templates.id = sites_templates.templateId
                            WHERE (${where.join(') AND (')})`, binds)
-  return sites.map(row => ({ key: String(row.siteId), value: new Template(row) }))
+  return templates.map(row => ({ key: String(row.siteId), value: new Template(row) }))
 }
 
 export async function getTemplatesByPagetree (pagetreeIds: string[], filter?: TemplateFilter) {
@@ -133,8 +138,8 @@ export async function deauthorizeForSite (templateId: string, siteId: string) {
   return await db.delete('DELETE FROM sites_templates WHERE templateId = ? and siteId = ?', [templateId, siteId])
 }
 
-export async function setUniversal (templateId: string, universal: boolean) {
-  return await db.update('UPDATE templates SET universal = ? where id = ?', [templateId, universal])
+export async function setUniversal (templateId: number, universal: boolean) {
+  return await db.update('UPDATE templates SET universal = ? where id = ?', [universal, templateId])
 }
 
 export async function syncRegistryWithDB () {
