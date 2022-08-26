@@ -96,6 +96,7 @@ export async function promotePagetree (oldPrimaryId: string, newPrimaryId: strin
     const newPrimaryPagetree = new Pagetree(newPrimaryPagetreeRow)
     await db.update('UPDATE pagetrees SET type = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, oldPrimaryId])
     await db.update('UPDATE pagetrees SET type = ?, promotedAt = NOW() WHERE id = ?', [PagetreeType.PRIMARY, newPrimaryId])
+    await db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [newPrimaryPagetree.id, newPrimaryPagetree.siteId])
     await createSiteComment(oldPrimaryPagetree.siteId, `Promoted pagetree ${newPrimaryPagetree.name} to primary. Pagetree ${oldPrimaryPagetree.name} archived.`, user.internalId, db)
   })
 }
