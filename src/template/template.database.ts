@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { Cache, keyby, eachConcurrent, isNotNull } from 'txstate-utils'
-import { TemplateFilter, Template, templateRegistry, Site, Pagetree, TemplateType } from '../internal.js'
+import { TemplateFilter, Template, templateRegistry, Pagetree } from '../internal.js'
 
 const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted', 'templates.universal']
 
@@ -82,60 +82,32 @@ export async function getTemplatePagePairs (pairs: { pageId: string, templateKey
   `, binds)
 }
 
-export async function setSiteTemplates (site: Site, type: TemplateType, templates: Template[]) {
+export async function authorizeForSite (templateId: number, siteId: string) {
   await db.transaction(async db => {
-    const currentTemplates = (await db.getall(`
-      SELECT * FROM templates
-      INNER JOIN sites_templates ON templates.id = sites_templates.templateId
-      WHERE sites_templates.siteId = ? AND templates.type = ?`, [site.id, type])).map(row => new Template(row))
-    let binds: (string|number)[] = [site.id]
-    if (currentTemplates.length) {
-      await db.delete(`DELETE FROM sites_templates WHERE siteId = ? and templateId IN (${db.in(binds, currentTemplates.map(t => t.id))})`, binds)
-    }
-    if (templates.length) {
-      binds = []
-      for (const template of templates) {
-        binds.push(site.id, template.id)
-      }
-      await db.insert(`INSERT INTO sites_templates (siteId, templateId) VALUES ${templates.map(t => '(?,?)').join(', ')}`, binds)
-    }
+    const sitePagetreeIds = await db.getvals<number>('SELECT id FROM pagetrees WHERE siteId = ?', [siteId])
+    // If we are authorizing this template for a whole site, we don't need to authorize it for individual pagetrees within that site.
+    const binds: (string | number)[] = [templateId]
+    await db.delete(`DELETE FROM pagetrees_templates
+                     WHERE templateId = ? AND pagetreeId IN (${db.in(binds, sitePagetreeIds)})`, binds)
+    return await db.insert('INSERT INTO sites_templates (templateId, siteId) VALUES(?,?)', [templateId, siteId])
   })
 }
 
-export async function setPagetreeTemplates (pagetree: Pagetree, type: TemplateType, templates: Template[]) {
+export async function authorizeForPagetrees (templateId: number, pagetreeIds: string[]) {
   await db.transaction(async db => {
-    const currentTemplates = (await db.getall(`
-      SELECT * FROM templates
-      INNER JOIN pagetrees_templates ON templates.id = pagetrees_templates.templateId
-      WHERE pagetrees_templates.pagetreeId = ? AND templates.type = ?`, [pagetree.id, type])).map(row => new Template(row))
-    let binds: (string|number)[] = [pagetree.id]
-    if (currentTemplates.length) {
-      await db.delete(`DELETE FROM pagetrees_templates WHERE pagetreeId = ? and templateId IN (${db.in(binds, currentTemplates.map(t => t.id))})`, binds)
+    const pagetrees = (await db.getall(`SELECT * FROM pagetrees WHERE id IN (${db.in([], pagetreeIds)})`, pagetreeIds)).map((row) => new Pagetree(row))
+    const sitePagetreeIds = await db.getvals<number>('SELECT id FROM pagetrees WHERE siteId = ?', [pagetrees[0].siteId])
+    // If we are authorizing a template to specific pagetrees, we don't need to authorize it for the whole site
+    await db.delete('DELETE FROM sites_templates WHERE templateId = ? AND siteId = ?', [templateId, pagetrees[0].siteId])
+    let binds: (string | number)[] = [templateId]
+    await db.delete(`DELETE FROM pagetrees_templates WHERE templateId = ? AND pagetreeId IN (${db.in(binds, sitePagetreeIds)})`, binds)
+
+    binds = []
+    for (const id of pagetrees.map(p => p.id)) {
+      binds.push(templateId, id)
     }
-    if (templates.length) {
-      binds = []
-      for (const template of templates) {
-        binds.push(pagetree.id, template.id)
-      }
-      await db.insert(`INSERT INTO pagetrees_templates (pagtreeId, templateId) VALUES ${templates.map(t => '(?,?)').join(', ')}`, binds)
-    }
+    return await db.insert(`INSERT INTO pagetrees_templates (templateId, pagetreeId) VALUES ${pagetrees.map(p => '(?,?)').join(', ')}`, binds)
   })
-}
-
-export async function authorizeForPagetree (templateId: string, pagetreeId: string) {
-  return await db.insert('INSERT INTO pagetrees_templates (templateId, pagetreeId) VALUES (?,?)', [templateId, pagetreeId])
-}
-
-export async function deauthorizeForPagetree (templateId: string, pagetreeId: string) {
-  return await db.delete('DELETE FROM pagetrees_templates WHERE templateId = ? and pagetreeId = ?', [templateId, pagetreeId])
-}
-
-export async function authorizeForSite (templateId: string, siteId: string) {
-  return await db.insert('INSERT INTO sites_templates (templateId, siteId) VALUES (?,?)', [templateId, siteId])
-}
-
-export async function deauthorizeForSite (templateId: string, siteId: string) {
-  return await db.delete('DELETE FROM sites_templates WHERE templateId = ? and siteId = ?', [templateId, siteId])
 }
 
 export async function setUniversal (templateId: number, universal: boolean) {

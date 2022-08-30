@@ -29,7 +29,7 @@ describe('templates', () => {
   it('should retrieve pagetrees authorized directly for a template', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name pagetrees(direct: true) { id name } } }')
     const pagetreeNames = resp.templates[0].pagetrees.map((p: any) => p.name)
-    expect(pagetreeNames).to.have.members(['pagetree2', 'pagetree3sandbox'])
+    expect(pagetreeNames).to.have.members(['pagetree3sandbox'])
   })
   it('should retrieve pagetrees authorized for a template through a site', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name pagetrees(direct: false) { id name } } }')

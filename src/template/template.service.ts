@@ -2,12 +2,12 @@ import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   Template, TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
-  DosGatoService, authorizeForPagetree, deauthorizeForPagetree,
-  authorizeForSite, deauthorizeForSite, setUniversal, PagetreeServiceInternal,
+  DosGatoService, authorizeForPagetrees,
+  authorizeForSite, setUniversal, PagetreeServiceInternal,
   SiteServiceInternal, getTemplatePagePairs, Page, collectTemplates, PageServiceInternal,
-  setSiteTemplates, setPagetreeTemplates, TemplateType, universalTemplateCache
+  universalTemplateCache
 } from '../internal.js'
-import { isNotNull, isNull, someAsync, stringify, unique } from 'txstate-utils'
+import { isNotNull, isNull, stringify, unique, mapConcurrent } from 'txstate-utils'
 
 const templatesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => {
@@ -116,104 +116,36 @@ export class TemplateService extends DosGatoService<Template> {
     return await this.removeUnauthorized(await this.raw.findByPagetreeId(pagetreeId, filter))
   }
 
-  async setSiteTemplates (siteId: string, type: TemplateType, templateKeys: string[]) {
-    const site = await this.svc(SiteServiceInternal).findById(siteId)
-    if (!site) throw new Error('Cannot authorize templates for a site that does not exist.')
-    const templates = await (await this.raw.findByKeys(templateKeys)).filter(isNotNull)
-    if (await someAsync(templates, async (t: Template) => !(await this.mayAssign(t)))) {
-      throw new Error('Current user is not permitted to authorize one or more templates for this site')
-    }
-    await setSiteTemplates(site, type, templates)
-    this.loaders.clear()
-    return new ValidatedResponse({ success: true })
-  }
-
-  async setPagetreeTemplates (pagetreeId: string, type: TemplateType, templateKeys: string[]) {
-    const pagetree = await this.svc(PagetreeServiceInternal).findById(pagetreeId)
-    if (!pagetree) throw new Error('Cannot authorize templates for a pagetree that does not exist.')
-    const templates = await (await this.raw.findByKeys(templateKeys)).filter(isNotNull)
-    if (await someAsync(templates, async (t: Template) => !(await this.mayAssign(t)))) {
-      throw new Error('Current user is not permitted to authorize one or more templates for this pagetree')
-    }
-    await setPagetreeTemplates(pagetree, type, templates)
-    this.loaders.clear()
-    return new ValidatedResponse({ success: true })
-  }
-
-  async authorizeForPagetree (templateId: string, pagetreeId: string) {
-    const [template, pagetree] = await Promise.all([
-      this.raw.findById(Number(templateId)),
-      this.svc(PagetreeServiceInternal).findById(pagetreeId)
-    ])
+  async authorizeForPagetrees (templateKey: string, pagetreeIds: string[]) {
+    const template = await this.raw.findByKey(templateKey)
     if (!template) throw new Error('Template to be authorized does not exist')
-    if (!pagetree) throw new Error('Cannot authorize template for a pagetree that does not exist')
+    const pagetrees = (await mapConcurrent(pagetreeIds, async (id) => {
+      return await this.svc(PagetreeServiceInternal).findById(id)
+    })).filter(isNotNull)
+    const response: ValidatedResponse = new ValidatedResponse({ success: true })
     if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to authorize this template for this pagetree.')
-    try {
-      await authorizeForPagetree(templateId, pagetreeId)
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error occurred while authorizing a template for a pagetree')
+    if (unique(pagetrees.map(p => p.siteId)).length > 1) {
+      response.addMessage('Pagetrees must belong to the same site', 'pagetreeIds')
     }
+    if (response.hasErrors()) {
+      return response
+    }
+    await authorizeForPagetrees(template.id, pagetrees.map(p => p.id))
+    this.loaders.clear()
+    return response
   }
 
-  async deauthorizeForPagetree (templateId: string, pagetreeId: string) {
-    const [template, pagetree] = await Promise.all([
-      this.raw.findById(Number(templateId)),
-      this.svc(PagetreeServiceInternal).findById(pagetreeId)
-    ])
-    if (!template) throw new Error('Template to be deauthorized does not exist')
-    if (!pagetree) throw new Error('Cannot deauthorize template for a pagetree that does not exist')
-    if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to deauthorize this template for this pagetree')
-    try {
-      const removed = await deauthorizeForPagetree(templateId, pagetreeId)
-      if (removed) {
-        return new ValidatedResponse({ success: true })
-      } else {
-        return ValidatedResponse.error('Template was not authorized for pagetree.')
-      }
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error occurred while deauthorizing a template for a pagetree')
-    }
-  }
-
-  async authorizeForSite (templateId: string, siteId: string) {
+  async authorizeForSite (templateKey: string, siteId: string) {
     const [template, site] = await Promise.all([
-      this.raw.findById(Number(templateId)),
+      this.raw.findByKey(templateKey),
       this.svc(SiteServiceInternal).findById(siteId)
     ])
     if (!template) throw new Error('Template to be authorized does not exist')
     if (!site) throw new Error('Cannot authorize template for a site that does not exist')
     if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to authorize this template for this site')
-    try {
-      await authorizeForSite(templateId, siteId)
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error occurred while authorizing a template for a site.')
-    }
-  }
-
-  async deauthorizeForSite (templateId: string, siteId: string) {
-    const [template, site] = await Promise.all([
-      this.raw.findById(Number(templateId)),
-      this.svc(SiteServiceInternal).findById(siteId)
-    ])
-    if (!template) throw new Error('Template to be authorized does not exist')
-    if (!site) throw new Error('Cannot authorize template for a site that does not exist')
-    if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to deauthorize this template for this site')
-    try {
-      const removed = await deauthorizeForSite(templateId, siteId)
-      if (removed) {
-        return new ValidatedResponse({ success: true })
-      } else {
-        return ValidatedResponse.error('Template was not authorized for site.')
-      }
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error occurred while deauthorizing a template for a site')
-    }
+    await authorizeForSite(template.id, site.id)
+    this.loaders.clear()
+    return new ValidatedResponse({ success: true })
   }
 
   async setUniversal (templateId: string, universal: boolean) {
@@ -222,6 +154,7 @@ export class TemplateService extends DosGatoService<Template> {
     if (!(await this.maySetUniversal(template))) throw new Error('Current user is not permitted to change whether or not this template is universal.')
     try {
       await setUniversal(template.id, universal)
+      await universalTemplateCache.refresh()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.error(err)

@@ -59,34 +59,14 @@ export class TemplateResolver {
     return template
   }
 
-  @Mutation(returns => ValidatedResponse)
-  async setSiteTemplates (@Ctx() ctx: Context, @Arg('siteId', type => ID) siteId: string, @Arg('type', type => TemplateType) type: TemplateType, @Arg('templateKeys', type => [ID]) templateKeys: string[]) {
-    return await ctx.svc(TemplateService).setSiteTemplates(siteId, type, templateKeys)
+  @Mutation(returns => ValidatedResponse, { description: 'Authorize a template for a site. If this template is already authorized for pagetrees within the site, those authorizations will be removed because site-level authorization supersedes them.' })
+  async authorizeTemplateForSite (@Ctx() ctx: Context, @Arg('templateKey', type => ID) templateKey: string, @Arg('siteId', type => ID) siteId: string) {
+    return await ctx.svc(TemplateService).authorizeForSite(templateKey, siteId)
   }
 
-  @Mutation(returns => ValidatedResponse)
-  async setPagetreeTemplates (@Ctx() ctx: Context, @Arg('pagetreeId', type => ID) pagetreeId: string, @Arg('type', type => TemplateType) type: TemplateType, @Arg('templateKeys', type => [ID]) templateKeys: string[]) {
-    return await ctx.svc(TemplateService).setPagetreeTemplates(pagetreeId, type, templateKeys)
-  }
-
-  @Mutation(returns => ValidatedResponse)
-  async authorizePagetreeTemplate (@Ctx() ctx: Context, @Arg('templateId', type => ID) templateId: string, @Arg('pagetreeId', type => ID) pagetreeId: string) {
-    return await ctx.svc(TemplateService).authorizeForPagetree(templateId, pagetreeId)
-  }
-
-  @Mutation(returns => ValidatedResponse)
-  async authorizeSiteTemplate (@Ctx() ctx: Context, @Arg('templateId', type => ID) templateId: string, @Arg('siteId', type => ID) siteId: string) {
-    return await ctx.svc(TemplateService).authorizeForSite(templateId, siteId)
-  }
-
-  @Mutation(returns => ValidatedResponse)
-  async deauthorizePagetreeTemplate (@Ctx() ctx: Context, @Arg('templateId', type => ID) templateId: string, @Arg('pagetreeId', type => ID) pagetreeId: string) {
-    return await ctx.svc(TemplateService).deauthorizeForPagetree(templateId, pagetreeId)
-  }
-
-  @Mutation(returns => ValidatedResponse)
-  async deauthorizeSiteTemplate (@Ctx() ctx: Context, @Arg('templateId', type => ID) templateId: string, @Arg('siteId', type => ID) siteId: string) {
-    return await ctx.svc(TemplateService).deauthorizeForSite(templateId, siteId)
+  @Mutation(returns => ValidatedResponse, { description: 'Authorize a template for one or more pagetrees in a site. If the template is already authorized for the whole site, that authorization will be removed.' })
+  async authorizeTemplateForPagetrees (@Ctx() ctx: Context, @Arg('templateKey', type => ID) templateKey: string, @Arg('pagetreeIds', type => [ID]!) pagetreeIds: string[]) {
+    return await ctx.svc(TemplateService).authorizeForPagetrees(templateKey, pagetreeIds)
   }
 
   @Mutation(returns => ValidatedResponse)
