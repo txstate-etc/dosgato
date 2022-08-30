@@ -5,6 +5,15 @@ import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-s
 import { extension } from 'mime-types'
 import { JsonData, UrlSafeString } from '../internal.js'
 
+const resizeMimeToExt: Record<string, string> = {
+  'image/jpg': 'jpg',
+  'image/jpeg': 'jpg',
+  'image/gif': 'gif',
+  'image/png': 'png',
+  'image/avif': 'avif',
+  'image/webp': 'webp'
+}
+
 @ObjectType({ description: 'Asset attributes only available for visual inline assets like images, animated GIFS, or videos.' })
 export class BoxAttributes {
   @Field(type => Int)
@@ -175,8 +184,14 @@ registerEnumType(AssetPermission, {
 
 @ObjectType()
 export class AssetResize {
+  @Field(type => ID, { description: 'The checksum for this resized version. Used for retrieval/display.' })
+  id: string
+
   @Field({ description: 'The mime type of this particular resized version. For instance, we may have resizes for each of the popular image formats like JPEG, AVIF, and WEBP.' })
   mime: string
+
+  @Field({ description: 'The extension that matches the mime type of this resized version.' })
+  extension: string
 
   @Field(type => Int, { description: 'Pixel width of the resized image.' })
   width: number
@@ -200,8 +215,10 @@ export class AssetResize {
   originalBinaryId: number
 
   constructor (row: any) {
+    this.id = row.shasum
     this.size = row.bytes
     this.mime = row.mime
+    this.extension = resizeMimeToExt[this.mime] ?? 'jpg'
     this.width = row.width
     this.height = row.height
     this.quality = row.quality

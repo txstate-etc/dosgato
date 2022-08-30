@@ -17,6 +17,7 @@ services:
       JWT_SECRET: secret
     volumes:
       - ./src:/usr/app/src
+      - ./testserver:/usr/app/testserver
     depends_on:
       - mysql
   mysql:

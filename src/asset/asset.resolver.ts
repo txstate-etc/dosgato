@@ -49,6 +49,11 @@ export class AssetResolver {
     return await ctx.svc(AssetService).getResizes(asset)
   }
 
+  @FieldResolver(returns => AssetResize, { nullable: true, description: 'Returns a resize appropriate as a universal thumbnail. Will be in a format supported by all browsers and as small as possible.' })
+  async thumbnail (@Ctx() ctx: Context, @Root() asset: Asset) {
+    return await ctx.svc(AssetService).getThumbnail(asset)
+  }
+
   @FieldResolver(returns => DateTime)
   async createdAt (@Ctx() ctx: Context, @Root() asset: Asset) {
     const data = await ctx.svc(VersionedService).get(asset.dataId)

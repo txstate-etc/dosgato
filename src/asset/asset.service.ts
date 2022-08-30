@@ -1,12 +1,14 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { intersect, isNotNull, keyby } from 'txstate-utils'
+import { intersect, isNotNull, keyby, sortby } from 'txstate-utils'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, CreateAssetInput,
   createAsset, VersionedService, AssetResponse, FileSystemHandler, deleteAsset, undeleteAsset,
   moveAsset, popPath, basename
 } from '../internal.js'
+
+const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
 
 const assetsByIdLoader = new PrimaryKeyLoader({
   fetch: async (dataIds: string[]) => await getAssets({ ids: dataIds })
@@ -139,6 +141,11 @@ export class AssetService extends DosGatoService<Asset> {
 
   async getResizes (asset: Asset) {
     return await this.loaders.get(resizesByAssetIdLoader).load(asset.id)
+  }
+
+  async getThumbnail (asset: Asset) {
+    const resizes = sortby(await this.getResizes(asset), 'size')
+    return resizes.find(r => thumbnailMimes.has(r.mime))
   }
 
   async getLatestDownload (asset: Asset) {

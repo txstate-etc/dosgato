@@ -59,7 +59,7 @@ export async function getAssets (filter?: AssetFilter) {
 
 export async function getResizes (assetIds: string[]) {
   const binds: string[] = []
-  const resizes = await db.getall(`SELECT a.id as assetId, r.*, rb.bytes, rb.mime
+  const resizes = await db.getall(`SELECT a.id as assetId, r.*, rb.shasum, rb.bytes, rb.mime
   FROM resizes r
   INNER JOIN binaries b ON r.originalBinaryId = b.id
   INNER JOIN binaries rb ON r.binaryId = rb.id

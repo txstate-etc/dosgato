@@ -7,7 +7,7 @@ export const PageTemplate1: APIPageTemplate = {
   name: 'pagetemplate1',
   areas: {
     links: ['keyc1'],
-    main: ['keyc2', 'keyc3']
+    main: ['keyc2', 'keyc3', 'richtext']
   },
   migrations: [],
   getLinks: (data: any) => [],
@@ -30,7 +30,7 @@ export const PageTemplate2: APIPageTemplate = {
   templateKey: 'keyp2',
   name: 'pagetemplate2',
   areas: {
-    content: ['keyc1', 'keyc2', 'keyc3']
+    content: ['keyc1', 'keyc2', 'keyc3', 'richtext']
   },
   migrations: [],
   getLinks: (data: any) => {
@@ -56,7 +56,7 @@ export const PageTemplate3: APIPageTemplate = {
   templateKey: 'keyp3',
   name: 'pagetemplate3',
   areas: {
-    content: ['keyc1', 'keyc2', 'keyc3']
+    content: ['keyc1', 'keyc2', 'keyc3', 'richtext']
   },
   migrations: [],
   getLinks: (data: any) => [],
@@ -70,7 +70,7 @@ export const PageTemplate4: APIPageTemplate = {
   templateKey: 'keyp4',
   name: 'pagetemplate4',
   areas: {
-    content: ['keyc3']
+    content: ['keyc3', 'richtext']
   },
   migrations: [],
   getLinks: (data: any) => [],
