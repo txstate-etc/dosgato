@@ -69,6 +69,11 @@ export class TemplateResolver {
     return await ctx.svc(TemplateService).authorizeForPagetrees(templateKey, pagetreeIds)
   }
 
+  @Mutation(returns => ValidatedResponse, { description: 'Deauthorize a template for a site and all pagetrees within the site' })
+  async deauthorizeTemplate (@Ctx() ctx: Context, @Arg('templateKey', type => ID) templateKey: string, @Arg('siteId', type => ID) siteId: string) {
+    return await ctx.svc(TemplateService).deauthorizeTemplate(templateKey, siteId)
+  }
+
   @Mutation(returns => ValidatedResponse)
   async setTemplateUniversal (@Ctx() ctx: Context, @Arg('templateId', type => ID) templateId: string, @Arg('universal') universal: boolean) {
     return await ctx.svc(TemplateService).setUniversal(templateId, universal)

@@ -110,6 +110,16 @@ export async function authorizeForPagetrees (templateId: number, pagetreeIds: st
   })
 }
 
+export async function deauthorizeTemplate (templateId: number, siteId: string) {
+  await db.transaction(async d => {
+    const pagetreeIds = await db.getvals<number>('SELECT id FROM pagetrees WHERE siteId = ?', [siteId])
+    await db.delete('DELETE FROM sites_templates WHERE templateId = ? AND siteId = ?', [templateId, siteId])
+    if (pagetreeIds.length) {
+      await db.delete(`DELETE FROM pagetrees_templates WHERE templateId = ? AND pagetreeId IN (${db.in([], pagetreeIds)})`, [templateId, ...pagetreeIds])
+    }
+  })
+}
+
 export async function setUniversal (templateId: number, universal: boolean) {
   return await db.update('UPDATE templates SET universal = ? where id = ?', [universal, templateId])
 }

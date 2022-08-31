@@ -5,7 +5,7 @@ import {
   DosGatoService, authorizeForPagetrees,
   authorizeForSite, setUniversal, PagetreeServiceInternal,
   SiteServiceInternal, getTemplatePagePairs, Page, collectTemplates, PageServiceInternal,
-  universalTemplateCache
+  universalTemplateCache, deauthorizeTemplate
 } from '../internal.js'
 import { isNotNull, isNull, stringify, unique, mapConcurrent } from 'txstate-utils'
 
@@ -144,6 +144,19 @@ export class TemplateService extends DosGatoService<Template> {
     if (!site) throw new Error('Cannot authorize template for a site that does not exist')
     if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to authorize this template for this site')
     await authorizeForSite(template.id, site.id)
+    this.loaders.clear()
+    return new ValidatedResponse({ success: true })
+  }
+
+  async deauthorizeTemplate (templateKey: string, siteId: string) {
+    const [template, site] = await Promise.all([
+      this.raw.findByKey(templateKey),
+      this.svc(SiteServiceInternal).findById(siteId)
+    ])
+    if (!template) throw new Error('Template to be authorized does not exist')
+    if (!site) throw new Error('Cannot authorize template for a site that does not exist')
+    if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to deauthorize this template for this site')
+    await deauthorizeTemplate(template.id, site.id)
     this.loaders.clear()
     return new ValidatedResponse({ success: true })
   }
