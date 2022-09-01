@@ -1,7 +1,8 @@
 import db from 'mysql2-async/db'
 import { unique, keyby } from 'txstate-utils'
-import { Site, SiteFilter, CreateSiteInput, PagetreeType, VersionedService, formatSavedAtVersion, createSiteComment, UpdateSiteManagementInput } from '../internal.js'
+import { Site, SiteFilter, PagetreeType, VersionedService, createSiteComment, UpdateSiteManagementInput, getPageIndexes } from '../internal.js'
 import { nanoid } from 'nanoid'
+import { PageData } from '@dosgato/templating'
 
 const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.launchEnabled', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
 
@@ -105,27 +106,28 @@ export async function siteNameIsUnique (name: string) {
   return count === 0
 }
 
-export async function createSite (versionedService: VersionedService, userId: string, args: CreateSiteInput) {
+export async function createSite (versionedService: VersionedService, userId: string, name: string, data: PageData, linkId: string) {
   return await db.transaction(async db => {
     // create the site, get the internal id for the page template
     const [siteId, templateInternalId] = await Promise.all([
-      db.insert('INSERT INTO sites (name) VALUES (?)', [args.name]),
-      db.getval('SELECT id FROM templates WHERE `key`=?', [args.rootPageTemplateKey])
+      db.insert('INSERT INTO sites (name) VALUES (?)', [name]),
+      db.getval('SELECT id FROM templates WHERE `key`=?', [data.templateKey])
     ])
     // create the assetfolder
     // create the primary pagetree
     // add root page template key to list of templates approved for the site
     const [folderId, pagetreeId] = await Promise.all([
-      db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?,?,?,?)', [siteId, '/', args.name, nanoid(10)]),
-      db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt) VALUES (?,?,?, NOW())', [siteId, PagetreeType.PRIMARY, args.name]),
+      db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?,?,?,?)', [siteId, '/', name, nanoid(10)]),
+      db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt) VALUES (?,?,?, NOW())', [siteId, PagetreeType.PRIMARY, name]),
       db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [siteId, templateInternalId!])
     ])
     await db.update('UPDATE sites SET primaryPagetreeId = ?, rootAssetFolderId = ? WHERE id = ?', [pagetreeId, folderId, siteId])
     // create the root page.
-    const dataId = await versionedService.create('page', { templateKey: args.rootPageTemplateKey, savedAtVersion: formatSavedAtVersion(args.schemaVersion) }, [{ name: 'template', values: [args.rootPageTemplateKey] }], userId, db)
+    const indexes = getPageIndexes(data)
+    const dataId = await versionedService.create('page', data, indexes, userId, db)
     await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
-      VALUES (?,?,?,?,?,?)`, [args.name, '/', 1, pagetreeId, dataId, nanoid(10)])
+      VALUES (?,?,?,?,?,?)`, [name, '/', 1, pagetreeId, dataId, linkId])
     return new Site(await db.getrow('SELECT * FROM sites WHERE id=?', [siteId]))
   })
 }

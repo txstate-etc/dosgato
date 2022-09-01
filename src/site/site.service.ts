@@ -1,9 +1,11 @@
+import { PageData } from '@dosgato/templating'
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
+import { nanoid } from 'nanoid'
 import { isNotNull } from 'txstate-utils'
 import {
   Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate, getSitesByGroupIds, undeleteSite,
-  PagetreeService, DosGatoService, CreateSiteInput, createSite, VersionedService, SiteResponse,
+  PagetreeService, DosGatoService, createSite, VersionedService, SiteResponse,
   deleteSite, PageService, Group, getSitesByOwnerInternalId, getSitesByManagerInternalId, siteNameIsUnique,
   renameSite, setLaunchURL, UpdateSiteManagementInput, updateSiteManagement
 } from '../internal.js'
@@ -142,18 +144,27 @@ export class SiteService extends DosGatoService<Site> {
     return await this.removeUnauthorized(await this.raw.findByManagerInternalId(managerInternalId))
   }
 
-  async create (args: CreateSiteInput, validateOnly?: boolean) {
+  async create (name: string, data: PageData, validateOnly?: boolean) {
     if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create sites.')
     const response = new SiteResponse({ success: true })
-    if (!(await siteNameIsUnique(args.name))) {
-      response.addMessage(`Site ${args.name} already exists.`, 'args.name')
+    if (!(await siteNameIsUnique(name))) {
+      response.addMessage(`Site ${name} already exists.`, 'name')
+    }
+    // validate root page data
+    const linkId = nanoid(10)
+    const pageValidationResponse = await this.svc(PageService).validatePageData(data, undefined, undefined, undefined, name, linkId)
+    if (pageValidationResponse.hasErrors()) {
+      // take these errors and add them to the site response
+      for (const message of pageValidationResponse.messages) {
+        response.addMessage(message.message, message.arg ? `data.${message.arg}` : undefined, message.type)
+      }
     }
     if (response.hasErrors()) {
       return response
     }
     if (!validateOnly) {
       const versionedService = this.svc(VersionedService)
-      response.site = await createSite(versionedService, this.login, args)
+      response.site = await createSite(versionedService, this.login, name, data, linkId)
     }
     return response
   }

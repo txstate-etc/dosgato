@@ -15,7 +15,7 @@ describe('asset mutations', () => {
   let testSiteAId: string
   let siteAAssetRootId: string
   before(async () => {
-    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name assetroot { id } } } }', { args: { name: 'assetTestSiteA', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    const { createSite: { site } } = await query('mutation CreateSite ($name: String!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name assetroot { id } } } }', { name: 'assetTestSiteA', data: { templateKey: 'keyp1', savedAtVersion: '20220801120000', title: 'Test Title' } })
     testSiteAId = site.id
     siteAAssetRootId = site.assetroot.id
   })
@@ -78,7 +78,7 @@ describe('asset mutations', () => {
     expect(assetFolder.folder.id).to.equal(targetFolder.id)
   })
   it('should not allow the root asset folder to be moved', async () => {
-    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name assetroot { id } } } }', { args: { name: 'assetTestSiteB', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    const { createSite: { site } } = await query('mutation CreateSite ($name: String!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name assetroot { id } } } }', { name: 'assetTestSiteB', data: { templateKey: 'keyp1', savedAtVersion: '20220801120000', title: 'Test Title' } })
     const { assetFolder: targetFolder } = await createAssetFolder('childfolder9', site.id, site.assetroot.id)
     await expect(query('mutation MoveAssetFolder ($folderId: ID!, $targetId: ID!) { moveAssetFolder (folderId: $folderId, targetId: $targetId) { success assetFolder { id name folder { id name } } } }', { folderId: siteAAssetRootId, targetId: targetFolder.id })).to.be.rejected
   })

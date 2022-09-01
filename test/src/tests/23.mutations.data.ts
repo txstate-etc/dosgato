@@ -8,6 +8,17 @@ import { groupby } from 'txstate-utils'
 
 chai.use(chaiAsPromised)
 
+async function createSite (name: string) {
+  const resp = await query(`
+    mutation CreateSite ($name: String!, $data: JsonData!) {
+      createSite (name: $name, data: $data) {
+        success
+        site { id name }
+      }
+    }`, { name, data: { savedAtVersion: '20220901120000', templateKey: 'keyp1', title: 'Test Title' } })
+  return resp.createSite.site
+}
+
 async function createDataFolder (name: string, templateKey: string, siteId?: string, username?: string) {
   const { createDataFolder: { success, messages, dataFolder } } = await queryAs((username ?? 'su01'), `
     mutation CreateDataFolder ($args: CreateDataFolderInput!) {
@@ -67,22 +78,10 @@ describe('data mutations', () => {
   let datatestsite1Id: string
   let datatestsite2Id: string
   before(async () => {
-    let resp = await query(`
-      mutation CreateSite ($args: CreateSiteInput!) {
-        createSite (args: $args) {
-          success
-          site { id name }
-        }
-      }`, { args: { name: 'datatestsite1', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
-    datatestsite1Id = resp.createSite.site.id
-    resp = await query(`
-      mutation CreateSite ($args: CreateSiteInput!) {
-        createSite (args: $args) {
-          success
-          site { id name }
-        }
-      }`, { args: { name: 'datatestsite2', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
-    datatestsite2Id = resp.createSite.site.id
+    const site1 = await createSite('datatestsite1')
+    const site2 = await createSite('datatestsite2')
+    datatestsite1Id = site1.id
+    datatestsite2Id = site2.id
   })
   it('should create a data folder', async () => {
     const { success, dataFolder } = await createDataFolder('datafolderA', 'keyd1')
@@ -615,13 +614,7 @@ describe('data mutations', () => {
     expect(remaining[0].displayOrder).to.equal(1)
   })
   it('should move site-level data within a site', async () => {
-    const { createSite: { site } } = await query(`
-    mutation CreateSite ($args: CreateSiteInput!) {
-      createSite (args: $args) {
-        success
-        site { id name }
-      }
-    }`, { args: { name: 'datatestsite3', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    const site = await createSite('datatestsite3')
     const { data: data1 } = await createDataEntry('Medium Gray', { templateKey: 'keyd1', title: 'Medium Gray Text', color: 'mdgray', align: 'left' }, site.id)
     const { data: data2 } = await createDataEntry('Dark Gray', { templateKey: 'keyd1', title: 'Dark Gray Text', color: 'dkgray', align: 'left' }, site.id)
     const { data: data3 } = await createDataEntry('Light Gray', { templateKey: 'keyd1', title: 'Light Gray Text', color: 'ltgray', align: 'left' }, site.id)
@@ -632,13 +625,7 @@ describe('data mutations', () => {
     expect(ids).to.have.ordered.members([data3.id, data1.id, data2.id])
   })
   it('should move site-level data to a folder', async () => {
-    const { createSite: { site } } = await query(`
-    mutation CreateSite ($args: CreateSiteInput!) {
-      createSite (args: $args) {
-        success
-        site { id name }
-      }
-    }`, { args: { name: 'datatestsite4', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    const site = await createSite('datatestsite4')
     const { dataFolder: folder } = await createDataFolder('datafolderM', 'keyd1', site.id)
     const { data: data1 } = await createDataEntry('Pink', { templateKey: 'keyd1', title: 'Pink Text', color: 'pink', align: 'right' }, site.id)
     const { data: data2 } = await createDataEntry('Lavender', { templateKey: 'keyd1', title: 'Lavender Text', color: 'lavender', align: 'right' }, site.id)
@@ -655,12 +642,7 @@ describe('data mutations', () => {
     expect(remaining[1].displayOrder).to.equal(2)
   })
   it('should move site-level data to global data', async () => {
-    const { createSite: { site } } = await query(`
-    mutation CreateSite ($args: CreateSiteInput!) {
-      createSite (args: $args) {
-        site { id name }
-      }
-    }`, { args: { name: 'datatestsite5', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    const site = await createSite('datatestsite5')
     const { data: data1 } = await createDataEntry('Black', { templateKey: 'keyd1', title: 'Black Text', color: 'black', align: 'center' }, site.id)
     const { data: data2 } = await createDataEntry('Brown', { templateKey: 'keyd1', title: 'Brown Text', color: 'brown', align: 'right' }, site.id)
     const { data: data3 } = await createDataEntry('Lime', { templateKey: 'keyd1', title: 'Lime Text', color: 'lime', align: 'left' }, site.id)
@@ -704,12 +686,7 @@ describe('data mutations', () => {
     const { data: data1 } = await createDataEntry('Teal', { templateKey: 'keyd1', title: 'Teal Text', color: 'teal', align: 'center' })
     const { data: data2 } = await createDataEntry('Tangerine', { templateKey: 'keyd1', title: 'Tangerine Text', color: 'tangerine', align: 'right' })
     const { data: data3 } = await createDataEntry('Navy', { templateKey: 'keyd1', title: 'Navy Text', color: 'navy', align: 'left' })
-    const { createSite: { site } } = await query(`
-    mutation CreateSite ($args: CreateSiteInput!) {
-      createSite (args: $args) {
-        site { id name }
-      }
-    }`, { args: { name: 'datatestsite6', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    const site = await createSite('datatestsite6')
     const { success } = await moveDataEntries([data1.id], undefined, undefined, site.id)
     expect(success).to.be.true
     const { data: data4 } = await query(`{ data (filter: {siteIds: ["${site.id}"]}) { name } }`)
@@ -730,18 +707,8 @@ describe('data mutations', () => {
     expect(sortedDataP.map((d: any) => d.id)).to.have.ordered.members([data4.id, data2.id])
   })
   it('should move data from one site to another', async () => {
-    const { createSite: { site: site7 } } = await query(`
-      mutation CreateSite ($args: CreateSiteInput!) {
-        createSite (args: $args) {
-          site { id name }
-        }
-      }`, { args: { name: 'datatestsite7', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
-    const { createSite: { site: site8 } } = await query(`
-      mutation CreateSite ($args: CreateSiteInput!) {
-        createSite (args: $args) {
-          site { id name }
-        }
-      }`, { args: { name: 'datatestsite8', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    const site7 = await createSite('datatestsite7')
+    const site8 = await createSite('datatestsite8')
     const { data: data1 } = await createDataEntry('Hot Pink', { templateKey: 'keyd1', title: 'Hot Pink Text', color: 'hotpink', align: 'center' }, site7.id)
     const { data: data2 } = await createDataEntry('Rose', { templateKey: 'keyd1', title: 'Rose Text', color: 'rose', align: 'right' }, site7.id)
     const { data: data3 } = await createDataEntry('Tomato', { templateKey: 'keyd1', title: 'Tomato Text', color: 'tomato', align: 'right' }, site7.id)
@@ -799,13 +766,7 @@ describe('data mutations', () => {
     expect(remaining[1].displayOrder).to.equal(2)
   })
   it('should move multiple site-level data entries within a site', async () => {
-    const { createSite: { site } } = await query(`
-    mutation CreateSite ($args: CreateSiteInput!) {
-      createSite (args: $args) {
-        success
-        site { id name }
-      }
-    }`, { args: { name: 'datatestsite9', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    const site = await createSite('datatestsite9')
     const { data: data1 } = await createDataEntry('Blush', { templateKey: 'keyd1', title: 'Blush Text', color: 'blush', align: 'left' }, site.id)
     const { data: data2 } = await createDataEntry('Cerise', { templateKey: 'keyd1', title: 'Cerise', color: 'cerise', align: 'left' }, site.id)
     const { data: data3 } = await createDataEntry('Cerulean', { templateKey: 'keyd1', title: 'Cerulean Text', color: 'cerulean', align: 'left' }, site.id)
@@ -817,13 +778,7 @@ describe('data mutations', () => {
     expect(ids).to.have.ordered.members([data3.id, data1.id, data2.id, data4.id])
   })
   it('should move multiple site-level data entries to a folder', async () => {
-    const { createSite: { site } } = await query(`
-      mutation CreateSite ($args: CreateSiteInput!) {
-        createSite (args: $args) {
-          success
-          site { id name }
-        }
-      }`, { args: { name: 'datatestsite10', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    const site = await createSite('datatestsite10')
     const { dataFolder: folder } = await createDataFolder('datafolderT', 'keyd1', datatestsite1Id)
     const { data: data1 } = await createDataEntry('Khaki', { templateKey: 'keyd1', title: 'Khaki Text', color: 'khaki', align: 'right' }, site.id)
     const { data: data2 } = await createDataEntry('Ivory', { templateKey: 'keyd1', title: 'Ivory Text', color: 'ivory', align: 'left' }, site.id)
@@ -840,13 +795,7 @@ describe('data mutations', () => {
     expect(data3Order).to.equal(1)
   })
   it('should move multiple site-level data entries to global data', async () => {
-    const { createSite: { site } } = await query(`
-      mutation CreateSite ($args: CreateSiteInput!) {
-        createSite (args: $args) {
-          success
-          site { id name }
-        }
-      }`, { args: { name: 'datatestsite11', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    const site = await createSite('datatestsite11')
     const { data: data1 } = await createDataEntry('Peach', { templateKey: 'keyd1', title: 'Peach Text', color: 'peach', align: 'left' }, site.id)
     const { data: data2 } = await createDataEntry('Coral', { templateKey: 'keyd1', title: 'Coral Text', color: 'coral', align: 'left' }, site.id)
     const { data: data3 } = await createDataEntry('Rosewood', { templateKey: 'keyd1', title: 'Rosewood Text', color: 'rosewood', align: 'left' }, site.id)
@@ -887,13 +836,7 @@ describe('data mutations', () => {
     expect(ids).to.have.ordered.members([data3.id, data1.id, data5.id, data4.id])
   })
   it('should move multiple global data entries to a site', async () => {
-    const { createSite: { site } } = await query(`
-      mutation CreateSite ($args: CreateSiteInput!) {
-        createSite (args: $args) {
-          success
-          site { id name }
-        }
-      }`, { args: { name: 'datatestsite12', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    const site = await createSite('datatestsite12')
     const { data: data1 } = await createDataEntry('Sage', { templateKey: 'keyd1', title: 'Sage Text', color: 'sage', align: 'left' })
     const { data: data2 } = await createDataEntry('Taupe', { templateKey: 'keyd1', title: 'Taupe Text', color: 'taupe', align: 'left' })
     const { data: data3 } = await createDataEntry('Slate', { templateKey: 'keyd1', title: 'Slate Text', color: 'slate', align: 'left' })

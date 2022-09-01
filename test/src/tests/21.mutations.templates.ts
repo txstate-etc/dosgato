@@ -20,13 +20,14 @@ async function createPagetree (name: string, siteId: string, templateKey: string
 }
 
 async function createTestSiteAndPagetrees (name: string, templateKey: string) {
+  const data = { savedAtVersion: '20220901120000', templateKey, title: 'Test title' }
   const { createSite: { site } } = await query(`
-    mutation CreateSite ($args: CreateSiteInput!) {
-      createSite (args: $args) {
+    mutation CreateSite ($name: String!, $data: JsonData!) {
+      createSite (name: $name, data: $data) {
         success
         site { id name pagetrees(filter: { types: [PRIMARY] }) { id name } }
       }
-    }`, { args: { name, rootPageTemplateKey: templateKey, schemaVersion: DateTime.utc() } })
+    }`, { name, data })
   const { pagetree: sandbox1 } = await createPagetree('sandbox1', site.id, templateKey)
   const { pagetree: sandbox2 } = await createPagetree('sandbox2', site.id, templateKey)
   return { site, primaryPagetreeId: site.pagetrees[0].id, sandbox1Id: sandbox1.id, sandbox2Id: sandbox2.id }

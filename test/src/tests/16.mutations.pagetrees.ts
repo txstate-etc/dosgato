@@ -22,7 +22,7 @@ async function createPagetree (name: string, siteId: string, templateKey: string
 describe('pagetree mutations', () => {
   let testSiteId: string
   before(async () => {
-    const { createSite: { site } } = await query('mutation CreateSite ($args: CreateSiteInput!) { createSite (args: $args) { success site { id name } } }', { args: { name: 'pagetreetestsite', rootPageTemplateKey: 'keyp1', schemaVersion: DateTime.utc() } })
+    const { createSite: { site } } = await query('mutation CreateSite ($name: String!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name } } }', { name: 'pagetreetestsite', data: { savedAtVersion: '20220901120000', templateKey: 'keyp1', title: 'Test Title' } })
     testSiteId = site.id
   })
   it('should create a pagetree', async () => {

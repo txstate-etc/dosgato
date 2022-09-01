@@ -1,20 +1,18 @@
+import { PageData } from '@dosgato/templating'
 import { Context } from '@txstate-mws/graphql-server'
 import { isNotNull, unique } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
-  AssetPermission, AssetFolder, AssetFolderService, Data, DataFilter, DataPermission, DataService,
-  DataFolder, DataFolderFilter, DataFolderService, Organization, OrganizationService,
-  Page, PageFilter, PagePermission, PageService, Pagetree, PagetreeFilter,
-  PagetreeService, Role, Template, TemplateFilter, TemplateService, User, UserService,
-  Site, SiteFilter, CreateSiteInput, SitePermission, SitePermissions, SiteResponse,
+  AssetPermission, AssetFolder, AssetFolderService, DataPermission,
+  Organization, OrganizationService, Page, PageFilter, PagePermission, PageService, Pagetree,
+  PagetreeFilter, PagetreeService, Role, Template, TemplateFilter, TemplateService, User, UserService,
+  Site, SiteFilter, SitePermission, SitePermissions, SiteResponse,
   UpdateSiteManagementInput, SiteService, AssetRuleService, PageRuleService, SiteRuleService, DataRuleService,
   RoleService,
   DataRoot,
   DataRootService,
   DataRootFilter,
-  Group,
-  GroupService,
-  SiteComment, SiteCommentService, UrlSafeString
+  SiteComment, SiteCommentService, JsonData
 } from '../internal.js'
 
 @Resolver(of => Site)
@@ -116,8 +114,11 @@ export class SiteResolver {
 
   // MUTATIONS
   @Mutation(returns => SiteResponse, { description: 'Create a new site with a pagetree, root page, and asset folder' })
-  async createSite (@Ctx() ctx: Context, @Arg('args', type => CreateSiteInput) args: CreateSiteInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
-    return await ctx.svc(SiteService).create(args, validateOnly)
+  async createSite (@Ctx() ctx: Context,
+    @Arg('name', type => String) name: string,
+    @Arg('data', type => JsonData, { description: "Page data after the user has saved the page properties dialog for the root page. Data should include templateKey and the admin UI's schemaVersion." }) data: PageData,
+    @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(SiteService).create(name, data, validateOnly)
   }
 
   @Mutation(returns => SiteResponse, { description: 'Rename a site. This will also rename the site\'s root asset folder and the root page for all of its pagetrees.' })
