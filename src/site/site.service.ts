@@ -1,5 +1,6 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
+import { isNotNull } from 'txstate-utils'
 import {
   Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate, getSitesByGroupIds, undeleteSite,
   PagetreeService, DosGatoService, CreateSiteInput, createSite, VersionedService, SiteResponse,
@@ -182,7 +183,13 @@ export class SiteService extends DosGatoService<Site> {
     if (!site) throw new Error('Site does not exist')
     if (!(await this.mayLaunch(site))) throw new Error('Current user is not authorized to update the public URL for this site')
     const response = new SiteResponse({ success: true })
-    // TODO: Do the launch host or launch path need any validation?
+    // TODO: What other validation is needed? Host and path are not required. What if they enter a path but no host?
+    if (isNotNull(host)) {
+      host = host.replace(/^https?:\/\//i, '')
+    }
+    if (isNotNull(path)) {
+      path = (path.startsWith('/') ? '' : '/') + path + (path.endsWith('/') ? '' : '/')
+    }
     if (!validateOnly) {
       const currentUser = await this.currentUser()
       await setLaunchURL(site, host, path, enabled, currentUser!.internalId)
