@@ -132,7 +132,7 @@ describe('data rule mutations', () => {
           id
         }
       }
-    }`, { args: { ruleId: '1', templateId: '5' } })).to.be.rejected
+    }`, { args: { ruleId: '1', templateId: 'keyd2' } })).to.be.rejected
   })
   it('should remove a data rule', async () => {
     const { role } = await createRole('datarulestestD')

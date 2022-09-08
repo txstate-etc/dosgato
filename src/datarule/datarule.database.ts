@@ -91,14 +91,15 @@ export async function createDataRule (args: CreateDataRuleInput) {
 
 export async function updateDataRule (args: UpdateDataRuleInput) {
   const updates: string[] = []
-  const binds: (string|boolean)[] = []
+  const binds: (string|number|boolean)[] = []
   if (args.siteId) {
     updates.push('siteId = ?')
     binds.push(args.siteId)
   }
   if (args.templateId) {
     updates.push('templateId = ?')
-    binds.push(args.templateId)
+    const templateId = await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', [args.templateId])
+    binds.push(templateId!)
   }
   if (args.path) {
     updates.push('path = ?')

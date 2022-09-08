@@ -40,8 +40,8 @@ export class DataRuleResolver {
   }
 
   @Mutation(returns => DataRuleResponse)
-  async updateDataRule (@Ctx() ctx: Context, @Arg('args', type => UpdateDataRuleInput) args: UpdateDataRuleInput) {
-    return await ctx.svc(DataRuleService).update(args)
+  async updateDataRule (@Ctx() ctx: Context, @Arg('args', type => UpdateDataRuleInput) args: UpdateDataRuleInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(DataRuleService).update(args, validateOnly)
   }
 }
 

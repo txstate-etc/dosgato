@@ -1,5 +1,5 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { Cache, filterAsync } from 'txstate-utils'
+import { Cache, filterAsync, isNotNull } from 'txstate-utils'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   tooPowerfulHelper, DosGatoService, Data, DataService, DataFolder, getDataRules, DataRule,
@@ -106,24 +106,35 @@ export class DataRuleService extends DosGatoService<DataRule> {
     const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
+    const response = new DataRuleResponse({ success: true })
     const newRule = new DataRule({ id: '0', roleId: args.roleId, siteId: args.siteId, templateId: args.templateId, path: args.path ?? '/', ...args.grants })
-    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The proposed rule would have more privilege than you currently have, so you cannot create it.')
-    if (!validateOnly) {
-      const ruleId = await createDataRule(args)
-      this.loaders.clear()
-      if (!newRule.siteId) await dataRulesForAllSitesCache.clear()
-      const rule = await this.raw.findById(String(ruleId))
-      return new DataRuleResponse({ dataRule: rule, success: true })
-    } else {
-      return new ValidatedResponse({ success: true })
+    if (await this.tooPowerful(newRule)) response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')
+    if (isNotNull(args.path)) {
+      args.path = (args.path.startsWith('/') ? '' : '/') + args.path
+      if (args.path !== '/' && args.path.endsWith('/')) {
+        args.path = args.path.slice(0, -1)
+      }
     }
+    if (validateOnly || response.hasErrors()) return response
+    const ruleId = await createDataRule(args)
+    this.loaders.clear()
+    if (!newRule.siteId) await dataRulesForAllSitesCache.clear()
+    const rule = await this.raw.findById(String(ruleId))
+    response.dataRule = rule
+    return response
   }
 
-  async update (args: UpdateDataRuleInput) {
+  async update (args: UpdateDataRuleInput, validateOnly?: boolean) {
     const rule = await this.raw.findById(args.ruleId)
     if (!rule) throw new Error('Rule to be updated does not exist.')
     if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this data rule.')
     const updatedGrants = { ...rule.grants, ...args.grants }
+    if (isNotNull(args.path)) {
+      args.path = (args.path.startsWith('/') ? '' : '/') + args.path
+      if (args.path !== '/' && args.path.endsWith('/')) {
+        args.path = args.path.slice(0, -1)
+      }
+    }
     const newRule = new DataRule({
       id: '0',
       roleId: rule.roleId,
@@ -132,17 +143,15 @@ export class DataRuleService extends DosGatoService<DataRule> {
       path: args.path ?? rule.path,
       ...updatedGrants
     })
-    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The updated rule would have more privilege than you currently have, so you cannot create it.')
-    try {
-      await updateDataRule(args)
-      this.loaders.clear()
-      if (!rule.siteId || !newRule.siteId) await dataRulesForAllSitesCache.clear()
-      const updatedRule = await this.raw.findById(args.ruleId)
-      return new DataRuleResponse({ dataRule: updatedRule, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An error occurred while updating the data rule.')
-    }
+    const response = new DataRuleResponse({ success: true })
+    if (await this.tooPowerful(newRule)) response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
+    if (validateOnly || response.hasErrors()) return response
+    await updateDataRule(args)
+    this.loaders.clear()
+    if (!rule.siteId || !newRule.siteId) await dataRulesForAllSitesCache.clear()
+    const updatedRule = await this.raw.findById(args.ruleId)
+    response.dataRule = updatedRule
+    return response
   }
 
   async delete (ruleId: string) {
