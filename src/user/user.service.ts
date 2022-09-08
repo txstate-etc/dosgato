@@ -1,9 +1,9 @@
 
-import { BaseService } from '@txstate-mws/graphql-server'
+import { BaseService, MutationMessageType } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { isNotBlank, isNotNull, someAsync, unique, isBlank } from 'txstate-utils'
 import {
-  DosGatoService, GroupService, User, UserFilter, UserResponse, getUsers,
+  DosGatoService, GroupService, User, UserFilter, UserResponse, getUsers, createUser,
   getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId, RedactedUser, UsersResponse,
   UpdateUserInput, updateUser, disableUsers, enableUsers, getUsersManagingGroups
 } from '../internal.js'
@@ -149,6 +149,23 @@ export class UserService extends DosGatoService<User, RedactedUser|User> {
 
   async findById (id: string) {
     return await this.removeUnauthorized(await this.raw.findById(id))
+  }
+
+  async createUser (id: string, name: string, email: string, trained: boolean | undefined, validateOnly?: boolean) {
+    if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create users.')
+    const response = new UserResponse({ success: true })
+    const existing = await this.raw.findById(id)
+    if (existing) response.addMessage('Login is already present, update the user instead.', 'userId', MutationMessageType.error)
+    if (isBlank(name)) response.addMessage('Name is required.', 'name')
+    if (isBlank(email)) response.addMessage('E-mail address is required.', 'email')
+    if (!/^\s*[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}\s*$/i.test(email)) {
+      response.addMessage('Please enter a valid email address.', 'email')
+    }
+    if (validateOnly || response.hasErrors()) return response
+    await createUser(id, name, email, !!trained)
+    this.loaders.clear()
+    response.user = await this.raw.findById(id)
+    return response
   }
 
   async updateUser (id: string, args: UpdateUserInput, validateOnly?: boolean) {

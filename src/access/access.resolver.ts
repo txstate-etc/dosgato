@@ -1,12 +1,17 @@
 import { Context } from '@txstate-mws/graphql-server'
 import { Arg, Ctx, FieldResolver, Query, Resolver } from 'type-graphql'
-import { AssetService, DataService, GroupService, PageService, RoleService, UrlSafeString, SiteService, Access, TemplateService } from '../internal.js'
+import { Access, AssetService, DataService, GroupService, PageService, RoleService, SiteService, TemplateService, UrlSafeString, UserService } from '../internal.js'
 
 @Resolver(of => Access)
 export class AccessResolver {
   @Query(returns => Access, { description: 'Shows permissions for the currently authenticated user that are not related to a specific resource. Generally each resource has a `permissions` object stating all the things the currently authenticated user can do to or with that resource. This resolver is for determining permissions that are not related to any particular resource, like whether or not they should be able to view the user management interface.' })
   async access (@Ctx() ctx: Context) {
     return {}
+  }
+
+  @FieldResolver(returns => Boolean, { description: 'Currently authenticated user is able to create new users.' })
+  async createUsers (@Ctx() ctx: Context) {
+    return await ctx.svc(UserService).mayCreate()
   }
 
   @FieldResolver(returns => Boolean, { description: 'Currently authenticated user is able to create groups.' })

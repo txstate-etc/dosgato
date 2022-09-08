@@ -81,22 +81,22 @@ export class RoleResolver {
   }
 
   @Mutation(returns => RoleResponse, { description: 'Give a role a new name' })
-  async updateRole (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('name') name: string): Promise<RoleResponse> {
+  async updateRole (@Ctx() ctx: Context, @Arg('roleId', type => ID) roleId: string, @Arg('name') name: string): Promise<RoleResponse> {
     return await ctx.svc(RoleService).update(roleId, name)
   }
 
   @Mutation(returns => ValidatedResponse)
-  async deleteRole (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string): Promise<RoleResponse> {
+  async deleteRole (@Ctx() ctx: Context, @Arg('roleId', type => ID) roleId: string): Promise<RoleResponse> {
     return await ctx.svc(RoleService).delete(roleId)
   }
 
   @Mutation(returns => ValidatedResponse)
-  async addRoleToUser (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('userId') userId: string) {
-    return await ctx.svc(RoleService).addRoleToUser(roleId, userId)
+  async addRolesToUser (@Ctx() ctx: Context, @Arg('roleIds', type => [ID]) roleIds: string[], @Arg('userId', type => ID) userId: string) {
+    return await ctx.svc(RoleService).addRolesToUser(roleIds, userId)
   }
 
   @Mutation(returns => ValidatedResponse)
-  async removeRoleFromUser (@Ctx() ctx: Context, @Arg('roleId', type => String) roleId: string, @Arg('userId') userId: string) {
+  async removeRoleFromUser (@Ctx() ctx: Context, @Arg('roleId', type => ID) roleId: string, @Arg('userId', type => ID) userId: string) {
     return await ctx.svc(RoleService).removeRoleFromUser(roleId, userId)
   }
 

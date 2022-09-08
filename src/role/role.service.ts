@@ -3,8 +3,10 @@ import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-
 import { isNotNull, unique } from 'txstate-utils'
 import {
   DosGatoService, GroupService, UserService, Role, RoleFilter, RoleResponse,
-  addRoleToUser, createRole, deleteRole, getRoles, getRolesWithGroup, getRolesWithManager,
-  getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup, GroupServiceInternal, SiteServiceInternal
+  addRolesToUser, createRole, deleteRole, getRoles, getRolesWithGroup, getRolesWithManager,
+  getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup,
+  GroupServiceInternal, GlobalRuleServiceInternal, SiteRuleServiceInternal, AssetRuleServiceInternal,
+  DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, GlobalRuleService, AssetRuleService, DataRuleService, PageRuleService, SiteRuleService, TemplateRuleService
 } from '../internal.js'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
@@ -193,18 +195,20 @@ export class RoleService extends DosGatoService<Role> {
     }
   }
 
-  async addRoleToUser (roleId: string, userId: string) {
-    const role = await this.findById(roleId)
-    if (!role) throw new Error('Role to be assigned does not exist.')
-    if (!(await this.mayAssign(role))) throw new Error(`Current user is not permitted to assign users to role ${role.name}.`)
+  async addRolesToUser (roleIds: string[], userId: string) {
+    const roles = await this.findByIds(roleIds)
+    if (!roles.length) throw new Error('No valid roles were provided.')
+    const mayAssign = await Promise.all(roles.map(async role => await this.mayAssign(role)))
+    const mayNotAssignIndexes = mayAssign.map((allowed, i) => allowed ? undefined : i).filter(isNotNull)
+    if (mayNotAssignIndexes.length) return ValidatedResponse.error(`The current user is not allowed to assign roles:\n${mayNotAssignIndexes.map(i => roles[i].name).join('\n')}`, 'roleIds')
     const user = await this.svc(UserService).findById(userId)
     if (!user) throw new Error('Cannot assign role to user who does not exist')
     try {
-      await addRoleToUser(roleId, user.internalId)
+      await addRolesToUser(roleIds, user.internalId)
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.error(err)
-      throw new Error(`An unknown error occurred while trying to assign role ${role.name} to user ${user.id}.`)
+      throw new Error(`An unknown error occurred while trying to assign roles (${roles.map(role => role.name).join(', ')}) to user ${user.id}.`)
     }
   }
 
@@ -292,6 +296,23 @@ export class RoleService extends DosGatoService<Role> {
   }
 
   async mayAssign (role: Role) {
+    const [globalRules, siteRules, assetRules, dataRules, pageRules, templateRules] = (await Promise.all([
+      this.svc(GlobalRuleServiceInternal).findByRoleId(role.id),
+      this.svc(SiteRuleServiceInternal).findByRoleId(role.id),
+      this.svc(AssetRuleServiceInternal).findByRoleId(role.id),
+      this.svc(DataRuleServiceInternal).findByRoleId(role.id),
+      this.svc(PageRuleServiceInternal).findByRoleId(role.id),
+      this.svc(TemplateRuleServiceInternal).findByRoleId(role.id)
+    ]))
+    const tooPowerful = await Promise.all([
+      ...globalRules.map(async rule => await this.svc(GlobalRuleService).tooPowerful(rule)),
+      ...siteRules.map(async rule => await this.svc(SiteRuleService).tooPowerful(rule)),
+      ...assetRules.map(async rule => await this.svc(AssetRuleService).tooPowerful(rule)),
+      ...dataRules.map(async rule => await this.svc(DataRuleService).tooPowerful(rule)),
+      ...pageRules.map(async rule => await this.svc(PageRuleService).tooPowerful(rule)),
+      ...templateRules.map(async rule => await this.svc(TemplateRuleService).tooPowerful(rule))
+    ])
+    if (tooPowerful.some(b => b)) return false
     if (isNotNull(role.siteId)) {
       const manageAccess = await this.haveGlobalPerm('manageAccess')
       if (manageAccess) return true

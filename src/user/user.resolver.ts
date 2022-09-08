@@ -38,6 +38,17 @@ export class UserResolver {
   }
 
   @Mutation(returns => UserResponse)
+  async createUser (@Ctx() ctx: Context,
+    @Arg('userId', type => ID) userId: string,
+    @Arg('name') name: string,
+    @Arg('email') email: string,
+    @Arg('trained', type => Boolean, { nullable: true }) trained: boolean | undefined,
+    @Arg('validateOnly', { nullable: true }) validateOnly?: boolean
+  ) {
+    return await ctx.svc(UserService).createUser(userId, name, email, trained, validateOnly)
+  }
+
+  @Mutation(returns => UserResponse)
   async updateUser (@Ctx() ctx: Context, @Arg('userId', type => ID) userId: string, @Arg('args', type => UpdateUserInput) args: UpdateUserInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
     return await ctx.svc(UserService).updateUser(userId, args, validateOnly)
   }
