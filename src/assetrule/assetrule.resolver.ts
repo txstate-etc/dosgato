@@ -33,8 +33,8 @@ export class AssetRuleResolver {
   }
 
   @Mutation(returns => AssetRuleResponse)
-  async updateAssetRule (@Ctx() ctx: Context, @Arg('args', type => UpdateAssetRuleInput) args: UpdateAssetRuleInput) {
-    return await ctx.svc(AssetRuleService).update(args)
+  async updateAssetRule (@Ctx() ctx: Context, @Arg('args', type => UpdateAssetRuleInput) args: UpdateAssetRuleInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(AssetRuleService).update(args, validateOnly)
   }
 }
 

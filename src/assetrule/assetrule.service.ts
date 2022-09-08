@@ -1,6 +1,6 @@
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { Cache, filterAsync } from 'txstate-utils'
+import { Cache, filterAsync, isNotNull } from 'txstate-utils'
 import {
   Asset, AssetRule, AssetRuleResponse, AssetRuleFilter, AssetFolder,
   comparePathsWithMode, createAssetRule, CreateAssetRuleInput, DosGatoService,
@@ -102,6 +102,12 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
     if (await this.tooPowerful(newRule)) {
       response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.', undefined, MutationMessageType.error)
     }
+    if (isNotNull(args.path)) {
+      args.path = (args.path.startsWith('/') ? '' : '/') + args.path
+      if (args.path !== '/' && args.path.endsWith('/')) {
+        args.path = args.path.slice(0, -1)
+      }
+    }
     if (response.hasErrors()) return response
     if (!validateOnly) {
       try {
@@ -119,11 +125,17 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
     }
   }
 
-  async update (args: UpdateAssetRuleInput) {
+  async update (args: UpdateAssetRuleInput, validateOnly?: boolean) {
     const rule = await this.raw.findById(args.ruleId)
     if (!rule) throw new Error('Rule to be updated does not exist.')
     if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this asset rule.')
     const updatedGrants = { ...rule.grants, ...args.grants }
+    if (isNotNull(args.path)) {
+      args.path = (args.path.startsWith('/') ? '' : '/') + args.path
+      if (args.path !== '/' && args.path.endsWith('/')) {
+        args.path = args.path.slice(0, -1)
+      }
+    }
     const newRule = new AssetRule({
       id: '0',
       roleId: rule.roleId,
@@ -132,17 +144,19 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
       mode: args.mode ?? rule.mode,
       ...updatedGrants
     })
-    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The updated rule would have more privilege than you currently have, so you cannot create it.')
-    try {
+    const response = new AssetRuleResponse({ success: true })
+    if (await this.tooPowerful(newRule)) {
+      response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
+    }
+    if (response.hasErrors()) return response
+    if (!validateOnly) {
       await updateAssetRule(args)
       this.loaders.clear()
       if (!rule.siteId || !newRule.siteId) await globalAssetRulesCache.clear()
       const updatedRule = await this.raw.findById(args.ruleId)
-      return new AssetRuleResponse({ assetRule: updatedRule, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An error occurred while updating the asset rule.')
+      response.assetRule = updatedRule
     }
+    return response
   }
 
   async delete (ruleId: string) {
