@@ -43,9 +43,10 @@ export class UserResolver {
     @Arg('name') name: string,
     @Arg('email') email: string,
     @Arg('trained', type => Boolean, { nullable: true }) trained: boolean | undefined,
+    @Arg('system', type => Boolean, { nullable: true }) system: boolean | undefined,
     @Arg('validateOnly', { nullable: true }) validateOnly?: boolean
   ) {
-    return await ctx.svc(UserService).createUser(userId, name, email, trained, validateOnly)
+    return await ctx.svc(UserService).createUser(userId, name, email, trained, system, validateOnly)
   }
 
   @Mutation(returns => UserResponse)

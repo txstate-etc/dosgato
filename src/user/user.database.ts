@@ -109,8 +109,8 @@ export async function getUsersManagingGroups (groupIds: string[], direct?: boole
     .map(row => ({ key: String(row.groupId), value: new User(row) }))
 }
 
-export async function createUser (id: string, name: string, email: string, trained: boolean) {
-  return await db.insert('INSERT INTO users (login, name, email, trained) VALUES (?, ?, ?, ?)', [id, name, email, trained])
+export async function createUser (id: string, name: string, email: string, trained: boolean, system: boolean) {
+  return await db.insert('INSERT INTO users (login, name, email, trained) VALUES (?, ?, ?, ?, ?)', [id, name, email, trained, system])
 }
 
 export async function updateUser (id: string, name: string | undefined, email: string | undefined, trained: boolean | undefined) {

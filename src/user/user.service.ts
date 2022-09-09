@@ -151,7 +151,7 @@ export class UserService extends DosGatoService<User, RedactedUser|User> {
     return await this.removeUnauthorized(await this.raw.findById(id))
   }
 
-  async createUser (id: string, name: string, email: string, trained: boolean | undefined, validateOnly?: boolean) {
+  async createUser (id: string, name: string, email: string, trained: boolean | undefined, system: boolean | undefined, validateOnly?: boolean) {
     if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create users.')
     const response = new UserResponse({ success: true })
     const existing = await this.raw.findById(id)
@@ -162,7 +162,7 @@ export class UserService extends DosGatoService<User, RedactedUser|User> {
       response.addMessage('Please enter a valid email address.', 'email')
     }
     if (validateOnly || response.hasErrors()) return response
-    await createUser(id, name, email, !!trained)
+    await createUser(id, name, email, !!trained, !!system)
     this.loaders.clear()
     response.user = await this.raw.findById(id)
     return response
