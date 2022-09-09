@@ -70,6 +70,11 @@ export async function getRolesWithManager (managerIds: string[]) {
   return siteGroups.map(row => ({ key: row.login, value: new Role(row) }))
 }
 
+export async function roleNameIsUnique (name: string) {
+  const count = await db.getval('SELECT COUNT(*) FROM roles WHERE name = ?', [name])
+  return count === 0
+}
+
 export async function createRole (name: string) {
   return await db.insert('INSERT INTO roles (name) VALUES (?)', [name])
 }

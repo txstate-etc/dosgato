@@ -81,8 +81,8 @@ export class RoleResolver {
   }
 
   @Mutation(returns => RoleResponse, { description: 'Give a role a new name' })
-  async updateRole (@Ctx() ctx: Context, @Arg('roleId', type => ID) roleId: string, @Arg('name') name: string): Promise<RoleResponse> {
-    return await ctx.svc(RoleService).update(roleId, name)
+  async updateRole (@Ctx() ctx: Context, @Arg('roleId', type => ID) roleId: string, @Arg('name') name: string, @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean): Promise<RoleResponse> {
+    return await ctx.svc(RoleService).update(roleId, name, validateOnly)
   }
 
   @Mutation(returns => ValidatedResponse)

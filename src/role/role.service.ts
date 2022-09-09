@@ -6,7 +6,8 @@ import {
   addRolesToUser, createRole, deleteRole, getRoles, getRolesWithGroup, getRolesWithManager,
   getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup,
   GroupServiceInternal, GlobalRuleServiceInternal, SiteRuleServiceInternal, AssetRuleServiceInternal,
-  DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, GlobalRuleService, AssetRuleService, DataRuleService, PageRuleService, SiteRuleService, TemplateRuleService
+  DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, GlobalRuleService, AssetRuleService,
+  DataRuleService, PageRuleService, SiteRuleService, TemplateRuleService, roleNameIsUnique
 } from '../internal.js'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
@@ -161,24 +162,20 @@ export class RoleService extends DosGatoService<Role> {
     return response
   }
 
-  async update (id: string, name: string) {
+  async update (id: string, name: string, validateOnly?: boolean) {
     const role = await this.raw.findById(id)
     if (!role) throw new Error('Role to be edited does not exist.')
     if (!(await this.mayUpdate(role))) throw new Error('Current user is not permitted to update role names.')
-    const response = new RoleResponse({})
-    try {
-      await updateRole(id, name)
-      this.loaders.clear()
-      response.success = true
-      response.role = await this.raw.findById(id)
-    } catch (err: any) {
-      if (err.code === 'ER_DUP_ENTRY') {
-        response.addMessage(`${name} role already exists.`, 'name')
-        return response
-      }
-      console.error(err)
-      throw new Error(`An unknown error occurred while updating the name for role ${role.name}.`)
+    const response = new RoleResponse({ success: true })
+    if (name !== role.name && !(await roleNameIsUnique(name))) {
+      response.addMessage(`Role ${name}  already exists`, 'name')
     }
+    if (validateOnly || response.hasErrors()) {
+      return response
+    }
+    await updateRole(id, name)
+    this.loaders.clear()
+    response.role = await this.raw.findById(id)
     return response
   }
 
