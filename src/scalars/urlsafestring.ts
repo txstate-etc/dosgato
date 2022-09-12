@@ -1,7 +1,7 @@
 import { GraphQLScalarType, Kind } from 'graphql'
 
-function makeSafe (str: string) {
-  return str.toLocaleLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-')
+export function makeSafe (str: string) {
+  return str.normalize('NFKD').toLocaleLowerCase().replace(/[^.a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-/, '').replace(/-$/, '')
 }
 
 export class UrlSafeString extends String {}

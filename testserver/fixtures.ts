@@ -751,7 +751,7 @@ export async function fixtures () {
     const versionedService = new VersionedService(ctx)
     const id = await db.transaction(async db => {
       const dataId = await versionedService.create('testdata_asset', content, indexes, creator, db)
-      await db.insert('INSERT INTO binaries (shasum, mime, meta, bytes) VALUES (?,?,?,?)', [checksum, mime, stringify({}), size])
+      await db.insert('INSERT IGNORE INTO binaries (shasum, mime, meta, bytes) VALUES (?,?,?,?)', [checksum, mime, stringify({}), size])
       await db.insert('INSERT INTO assets (name, folderId, dataId, shasum) VALUES (?,?,?,?)', [name, folder, dataId, checksum])
     })
     return id

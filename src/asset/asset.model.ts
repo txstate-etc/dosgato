@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { isNotNull } from 'txstate-utils'
+import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { extension } from 'mime-types'
@@ -39,8 +39,11 @@ export class Asset {
   @Field(type => ID, { description: 'A globally unique identifier for this asset. Should be used any time content links to an asset, so that content can migrate to new instances and point at the same asset.' })
   id: string
 
-  @Field({ description: 'Filename that will be used when downloading the asset. Does not include an extension. May be different than the filename of the original upload.' })
+  @Field({ description: 'Name of the asset, not including extension. May be different than the filename of the original upload.' })
   name: UrlSafeString
+
+  @Field({ description: 'Filename that will be used when downloading the asset. Includes the extension.' })
+  filename: string
 
   @Field(type => Int, { description: 'Filesize in bytes.' })
   size: number
@@ -77,6 +80,7 @@ export class Asset {
     this.size = row.filesize
     this.mime = row.mime // should be detected upon upload
     this.extension = extension(this.mime) || '' // TODO: extension can return false if mime is blank, not a string, or unrecognized. What should the extension be in that case?
+    this.filename = [this.name as string, this.extension].filter(isNotBlank).join('.')
     this.box = BoxAttributes.hasBox(row) ? new BoxAttributes(row) : undefined
     this.folderInternalId = row.folderId
     this.dataId = row.dataId

@@ -21,7 +21,7 @@ import {
   GlobalRulePermissionsResolver, GlobalRuleResolver, VersionResolver, OrganizationResolver,
   AccessResolver, DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, handleUpload, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
-  DataRootPermissionsResolver, updateLastLogin
+  DataRootPermissionsResolver, updateLastLogin, AssetService
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -75,10 +75,14 @@ export class DGServer {
     // TODO: Add endpoint for getting assets. /assets/:id or /files/:id
     await this.app.register(multipart)
     await fsp.mkdir('/files/tmp', { recursive: true })
-    this.app.post('/files', async (req, res) => {
+    this.app.post('/assets', async (req, res) => {
       const ctx = new Context(req)
       await getEnabledUser(ctx) // throws if not authorized
-      const files = await handleUpload(req, res)
+      const { files, data } = await handleUpload(req)
+      const assetService = ctx.svc(AssetService)
+      for (const file of files) {
+        await assetService.create({ folderId: data.folderId, name: file.name, checksum: file.shasum, mime: file.mime, size: file.size })
+      }
       return files
     })
 

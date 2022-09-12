@@ -1,25 +1,38 @@
-import { FastifyRequest, FastifyReply } from 'fastify'
 import crypto from 'crypto'
-import * as util from 'util'
-import stream from 'stream'
-import { nanoid } from 'nanoid'
+import { FastifyRequest } from 'fastify'
+import { fileTypeStream } from 'file-type'
 import fs, { promises as fsp } from 'fs'
+import { lookup } from 'mime-types'
+import { nanoid } from 'nanoid'
 import { dirname } from 'path'
+import stream from 'stream'
+import * as util from 'util'
+import { makeSafe } from '../internal.js'
 const pipelinep = util.promisify(stream.pipeline)
 
-export async function handleUpload (req: FastifyRequest, res: FastifyReply) {
+export async function handleUpload (req: FastifyRequest) {
+  const data: any = {}
   const files = []
-  const parts = req.files()
-  for await (const part of parts) {
-    const hash = crypto.createHash('sha1').setEncoding('hex')
-    const tempName = nanoid(10)
-    await pipelinep(part.file, fs.createWriteStream(`/files/tmp/${tempName}`))
-    await pipelinep(fs.createReadStream(`/files/tmp/${tempName}`), hash)
-    const checksum = hash.read()
-    await fsp.rename(`/files/tmp/${tempName}`, `/files/tmp/${checksum}`)
-    files.push({ filename: part.filename, shasum: checksum, mime: part.mimetype, size: part.file.bytesRead })
+  for await (const part of req.parts()) {
+    if (part.file) {
+      const tempName = nanoid(10)
+      const fileTypePassthru = await fileTypeStream(part.file)
+      const hash = crypto.createHash('sha1')
+      const hashingPassthru = new stream.PassThrough()
+      hashingPassthru.on('data', (chunk) => hash.update(chunk))
+      await pipelinep(fileTypePassthru.pipe(hashingPassthru), fs.createWriteStream(`/files/tmp/${tempName}`))
+      const checksum = hash.digest('hex')
+      const { mime } = fileTypePassthru.fileType ?? { ext: '', mime: part.mimetype }
+      let name = part.filename
+      const extFromFileName = name.match(/\.(\w+)$/)?.[1]
+      if (extFromFileName && lookup(extFromFileName)) name = name.replace(new RegExp('\\.' + extFromFileName + '$'), '')
+      await fsp.rename(`/files/tmp/${tempName}`, `/files/tmp/${checksum}`)
+      files.push({ name: makeSafe(name), shasum: checksum, mime, size: part.file.bytesRead })
+    } else {
+      data[part.fieldname] = (part as any).value
+    }
   }
-  return files
+  return { files, data }
 }
 
 interface FileHandler {
