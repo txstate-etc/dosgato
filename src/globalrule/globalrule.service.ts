@@ -39,24 +39,22 @@ export class GlobalRuleService extends DosGatoService<GlobalRule> {
     return await this.removeUnauthorized(await this.raw.findByRoleId(roleId))
   }
 
-  async create (args: CreateGlobalRuleInput) {
+  async create (args: CreateGlobalRuleInput, validateOnly?: boolean) {
     const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
+    const response = new GlobalRuleResponse({ success: true })
     const newRule = new GlobalRule({ roleId: args.roleId, ...args.grants })
-    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The proposed rule would have more privilege than you currently have, so you cannot create it.')
-    try {
-      const ruleId = await createGlobalRule(args)
-      this.loaders.clear()
-      const rule = await this.raw.findById(String(ruleId))
-      return new GlobalRuleResponse({ globalRule: rule, success: true })
-    } catch (err) {
-      console.error(err)
-      throw new Error('An unknown error occurred while creating the global rule.')
-    }
+    if (await this.tooPowerful(newRule)) response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')
+    if (validateOnly || response.hasErrors()) return response
+    const ruleId = await createGlobalRule(args)
+    this.loaders.clear()
+    const rule = await this.raw.findById(String(ruleId))
+    response.globalRule = rule
+    return response
   }
 
-  async update (args: UpdateGlobalRuleInput) {
+  async update (args: UpdateGlobalRuleInput, validateOnly?: boolean) {
     const rule = await this.raw.findById(args.ruleId)
     if (!rule) throw new Error('Rule to be updated does not exist.')
     if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this global rule.')
@@ -66,16 +64,14 @@ export class GlobalRuleService extends DosGatoService<GlobalRule> {
       roleId: rule.roleId,
       ...updatedGrants
     })
-    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The updated rule would have more privilege than you currently have, so you cannot create it.')
-    try {
-      await updateGlobalRule(args)
-      this.loaders.clear()
-      const updatedRule = await this.raw.findById(args.ruleId)
-      return new GlobalRuleResponse({ globalRule: updatedRule, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An error occurred while updating the global rule.')
-    }
+    const response = new GlobalRuleResponse({ success: true })
+    if (await this.tooPowerful(newRule)) response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
+    if (validateOnly || response.hasErrors()) return response
+    await updateGlobalRule(args)
+    this.loaders.clear()
+    const updatedRule = await this.raw.findById(args.ruleId)
+    response.globalRule = updatedRule
+    return response
   }
 
   async delete (ruleId: string) {

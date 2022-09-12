@@ -28,13 +28,13 @@ export class PageRuleResolver {
   }
 
   @Mutation(returns => PageRuleResponse)
-  async createPageRule (@Ctx() ctx: Context, @Arg('args', type => CreatePageRuleInput) args: CreatePageRuleInput) {
-    return await ctx.svc(PageRuleService).create(args)
+  async createPageRule (@Ctx() ctx: Context, @Arg('args', type => CreatePageRuleInput) args: CreatePageRuleInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(PageRuleService).create(args, validateOnly)
   }
 
   @Mutation(returns => PageRuleResponse)
-  async updatePageRule (@Ctx() ctx: Context, @Arg('args', type => UpdatePageRuleInput) args: UpdatePageRuleInput) {
-    return await ctx.svc(PageRuleService).update(args)
+  async updatePageRule (@Ctx() ctx: Context, @Arg('args', type => UpdatePageRuleInput) args: UpdatePageRuleInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(PageRuleService).update(args, validateOnly)
   }
 }
 

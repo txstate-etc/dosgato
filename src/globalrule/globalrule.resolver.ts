@@ -21,13 +21,13 @@ export class GlobalRuleResolver {
   }
 
   @Mutation(returns => GlobalRuleResponse)
-  async createGlobalRule (@Ctx() ctx: Context, @Arg('args', type => CreateGlobalRuleInput) args: CreateGlobalRuleInput) {
-    return await ctx.svc(GlobalRuleService).create(args)
+  async createGlobalRule (@Ctx() ctx: Context, @Arg('args', type => CreateGlobalRuleInput) args: CreateGlobalRuleInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(GlobalRuleService).create(args, validateOnly)
   }
 
   @Mutation(returns => GlobalRuleResponse)
-  async updateGlobalRule (@Ctx() ctx: Context, @Arg('args', type => UpdateGlobalRuleInput) args: UpdateGlobalRuleInput) {
-    return await ctx.svc(GlobalRuleService).update(args)
+  async updateGlobalRule (@Ctx() ctx: Context, @Arg('args', type => UpdateGlobalRuleInput) args: UpdateGlobalRuleInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(GlobalRuleService).update(args, validateOnly)
   }
 }
 

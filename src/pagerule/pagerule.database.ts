@@ -97,7 +97,7 @@ export async function createPageRule (args: CreatePageRuleInput) {
     binds.push(args.siteId)
   }
   if (args.pagetreeType) {
-    columns.push('`pagetreeType')
+    columns.push('`pagetreeType`')
     binds.push(args.pagetreeType)
   }
   if (args.path) {
