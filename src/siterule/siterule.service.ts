@@ -71,25 +71,28 @@ export class SiteRuleService extends DosGatoService<SiteRule> {
     return await this.removeUnauthorized(await this.raw.findByPagetree(pagetree))
   }
 
-  async create (args: CreateSiteRuleInput) {
+  async create (args: CreateSiteRuleInput, validateOnly?: boolean) {
     const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new SiteRule({ id: '0', roleId: args.roleId, siteId: args.siteId, ...args.grants })
-    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The proposed rule would have more privilege than you currently have, so you cannot create it.')
-    try {
-      const ruleId = await createSiteRule(args)
-      this.loaders.clear()
-      if (!newRule.siteId) await globalSiteRulesCache.clear()
-      const rule = await this.loaders.get(siteRulesByIdLoader).load(String(ruleId))
-      return new SiteRuleResponse({ siteRule: rule, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error occurred while creating the site rule.')
+    const response = new SiteRuleResponse({ success: true })
+    const rules = await this.findByRoleId(args.roleId)
+    if (rules.some((r: SiteRule) => {
+      return r.siteId === args.siteId
+    })) {
+      response.addMessage('The proposed rule has the same site as an existing rule for this role.')
     }
+    if (await this.tooPowerful(newRule)) response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')
+    if (validateOnly || response.hasErrors()) return response
+    const ruleId = await createSiteRule(args)
+    this.loaders.clear()
+    if (!newRule.siteId) await globalSiteRulesCache.clear()
+    response.siteRule = await this.loaders.get(siteRulesByIdLoader).load(String(ruleId))
+    return response
   }
 
-  async update (args: UpdateSiteRuleInput) {
+  async update (args: UpdateSiteRuleInput, validateOnly?: boolean) {
     const rule = await this.raw.findById(args.ruleId)
     if (!rule) throw new Error('Rule to be updated does not exist.')
     if (!await this.mayWrite(rule)) throw new Error('Current user is not permitted to update this site rule.')
@@ -100,17 +103,14 @@ export class SiteRuleService extends DosGatoService<SiteRule> {
       siteId: args.siteId ?? rule.siteId,
       ...updatedGrants
     })
-    if (await this.tooPowerful(newRule)) return ValidatedResponse.error('The updated rule would have more privilege than you currently have, so you cannot create it.')
-    try {
-      await updateSiteRule(args)
-      this.loaders.clear()
-      if (!rule.siteId || !newRule.siteId) await globalSiteRulesCache.clear()
-      const updatedRule = await this.raw.findById(args.ruleId)
-      return new SiteRuleResponse({ siteRule: updatedRule, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An error occurred while updating the asset rule.')
-    }
+    const response = new SiteRuleResponse({ success: true })
+    if (await this.tooPowerful(newRule)) response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
+    if (validateOnly || response.hasErrors()) return response
+    await updateSiteRule(args)
+    this.loaders.clear()
+    if (!rule.siteId || !newRule.siteId) await globalSiteRulesCache.clear()
+    response.siteRule = await this.raw.findById(args.ruleId)
+    return response
   }
 
   async delete (ruleId: string) {

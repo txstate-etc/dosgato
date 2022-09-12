@@ -28,13 +28,13 @@ export class SiteRuleResolver {
   }
 
   @Mutation(returns => SiteRuleResponse)
-  async createSiteRule (@Ctx() ctx: Context, @Arg('args', type => CreateSiteRuleInput) args: CreateSiteRuleInput) {
-    return await ctx.svc(SiteRuleService).create(args)
+  async createSiteRule (@Ctx() ctx: Context, @Arg('args', type => CreateSiteRuleInput) args: CreateSiteRuleInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(SiteRuleService).create(args, validateOnly)
   }
 
   @Mutation(returns => SiteRuleResponse)
-  async updateSiteRule (@Ctx() ctx: Context, @Arg('args', type => UpdateSiteRuleInput) args: UpdateSiteRuleInput) {
-    return await ctx.svc(SiteRuleService).update(args)
+  async updateSiteRule (@Ctx() ctx: Context, @Arg('args', type => UpdateSiteRuleInput) args: UpdateSiteRuleInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(SiteRuleService).update(args, validateOnly)
   }
 }
 

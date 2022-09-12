@@ -28,13 +28,13 @@ export class TemplateRuleResolver {
   }
 
   @Mutation(returns => TemplateRuleResponse)
-  async createTemplateRule (@Ctx() ctx: Context, @Arg('args', type => CreateTemplateRuleInput) args: CreateTemplateRuleInput) {
-    return await ctx.svc(TemplateRuleService).create(args)
+  async createTemplateRule (@Ctx() ctx: Context, @Arg('args', type => CreateTemplateRuleInput) args: CreateTemplateRuleInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(TemplateRuleService).create(args, validateOnly)
   }
 
   @Mutation(returns => TemplateRuleResponse)
-  async updateTemplateRule (@Ctx() ctx: Context, @Arg('args', type => UpdateTemplateRuleInput) args: UpdateTemplateRuleInput) {
-    return await ctx.svc(TemplateRuleService).update(args)
+  async updateTemplateRule (@Ctx() ctx: Context, @Arg('args', type => UpdateTemplateRuleInput) args: UpdateTemplateRuleInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(TemplateRuleService).update(args, validateOnly)
   }
 }
 

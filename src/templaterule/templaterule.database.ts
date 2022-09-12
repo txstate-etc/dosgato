@@ -43,14 +43,15 @@ export async function getTemplateRules (filter: TemplateRuleFilter) {
 
 export async function createTemplateRule (args: CreateTemplateRuleInput) {
   const columns: string[] = ['roleId']
-  const binds: (string|boolean)[] = []
+  const binds: (string|number|boolean)[] = []
   if (!args.roleId) {
     throw new Error('Must include a role ID when creating a template rule')
   }
   binds.push(args.roleId)
   if (args.templateId) {
     columns.push('templateId')
-    binds.push(args.templateId)
+    const templateId = await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', [args.templateId])
+    binds.push(templateId!)
   }
   if (args.grants?.use) {
     columns.push('`use`')
@@ -61,10 +62,11 @@ export async function createTemplateRule (args: CreateTemplateRuleInput) {
 
 export async function updateTemplateRule (args: UpdateTemplateRuleInput) {
   const updates: string[] = []
-  const binds: (string|boolean)[] = []
+  const binds: (string|number|boolean)[] = []
   if (typeof args.templateId !== 'undefined') {
     updates.push('templateId = ?')
-    binds.push(args.templateId)
+    const templateId = await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', [args.templateId])
+    binds.push(templateId!)
   }
   if (isNotNull(args.grants?.use)) {
     updates.push('`use` = ?')
