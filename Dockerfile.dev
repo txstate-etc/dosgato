@@ -1,4 +1,6 @@
 FROM node:18-alpine
+#RUN apk add build-base
+#RUN apk add vips-heif vips-dev --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
 WORKDIR /usr/app
 COPY package.json ./
 RUN npm install

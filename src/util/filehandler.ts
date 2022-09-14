@@ -5,6 +5,7 @@ import fs, { promises as fsp } from 'fs'
 import { lookup } from 'mime-types'
 import { nanoid } from 'nanoid'
 import { dirname } from 'path'
+import sharp from 'sharp'
 import stream from 'stream'
 import * as util from 'util'
 import { makeSafe } from '../internal.js'
@@ -19,15 +20,46 @@ export async function handleUpload (req: FastifyRequest) {
       const fileTypePassthru = await fileTypeStream(part.file)
       const hash = crypto.createHash('sha1')
       const hashingPassthru = new stream.PassThrough()
+
+      const sharpBuffer = Buffer.alloc(1000000)
+      const sharpPassthru = new stream.PassThrough()
+      let offset = 0
+      let len = 1000000
+      sharpPassthru.on('data', (chunk: Buffer) => {
+        if (offset < 1000000) sharpBuffer.write(chunk.toString('binary'), offset, len, 'binary')
+        offset += chunk.length
+        len -= chunk.length
+      })
+
       hashingPassthru.on('data', (chunk) => hash.update(chunk))
-      await pipelinep(fileTypePassthru.pipe(hashingPassthru), fs.createWriteStream(`/files/tmp/${tempName}`))
+      await pipelinep(fileTypePassthru.pipe(hashingPassthru).pipe(sharpPassthru), fs.createWriteStream(`/files/tmp/${tempName}`))
       const checksum = hash.digest('hex')
       const { mime } = fileTypePassthru.fileType ?? { ext: '', mime: part.mimetype }
+
       let name = part.filename
       const extFromFileName = name.match(/\.(\w+)$/)?.[1]
       if (extFromFileName && lookup(extFromFileName)) name = name.replace(new RegExp('\\.' + extFromFileName + '$'), '')
+      name = makeSafe(name)
+
+      let metadata: sharp.Metadata
+      let width: number | undefined
+      let height: number | undefined
+      if (mime.startsWith('image/')) {
+        try {
+          metadata = await sharp(sharpBuffer).metadata()
+          width = metadata.width!
+          height = metadata.height!
+          if ((metadata.orientation ?? 1) > 4) {
+            width = height
+            height = metadata.width!
+          }
+        } catch (e) {
+          console.warn('SharpJS was unable to read metadata for image', name, 'of type', mime)
+        }
+      }
+
       await fsp.rename(`/files/tmp/${tempName}`, `/files/tmp/${checksum}`)
-      files.push({ name: makeSafe(name), shasum: checksum, mime, size: part.file.bytesRead })
+      files.push({ name, shasum: checksum, mime, size: part.file.bytesRead, width, height })
     } else {
       data[part.fieldname] = (part as any).value
     }

@@ -1,12 +1,19 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { intersect, isNotNull, keyby, sortby } from 'txstate-utils'
+import { nanoid } from 'nanoid'
+import crypto from 'node:crypto'
+import sharp from 'sharp'
+import { pipeline } from 'node:stream/promises'
+import { intersect, isNotNull, keyby, roundTo, sortby } from 'txstate-utils'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, CreateAssetInput,
   createAsset, VersionedService, AssetResponse, FileSystemHandler, deleteAsset, undeleteAsset,
-  moveAsset, popPath, basename
+  moveAsset, popPath, basename, registerResize, getResizesById
 } from '../internal.js'
+import { mkdir } from 'node:fs/promises'
+import { dirname } from 'node:path'
+import { lookup } from 'mime-types'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
 
@@ -14,15 +21,26 @@ const assetsByIdLoader = new PrimaryKeyLoader({
   fetch: async (dataIds: string[]) => await getAssets({ ids: dataIds })
 })
 
+const assetsByInternalIdLoader = new PrimaryKeyLoader({
+  fetch: async (internalIds: number[]) => await getAssets({ internalIds }),
+  extractId: asset => asset.internalId,
+  idLoader: assetsByIdLoader
+})
+assetsByIdLoader.addIdLoader(assetsByInternalIdLoader)
+
 const assetsByFolderInternalIdLoader = new OneToManyLoader({
   fetch: async (folderInternalIds: number[], filter: AssetFilter) => await getAssets({ ...filter, folderInternalIds }),
   keysFromFilter: (filter: AssetFilter | undefined) => filter?.folderInternalIds ?? [],
   extractKey: asset => asset.folderInternalId,
-  idLoader: assetsByIdLoader
+  idLoader: [assetsByIdLoader, assetsByInternalIdLoader]
 })
 
 const resizesByAssetIdLoader = new ManyJoinedLoader({
-  fetch: async (assetIds: string[]) => await getResizes(assetIds)
+  fetch: async (assetInternalIds: number[]) => await getResizes(assetInternalIds)
+})
+
+const resizeLoader = new PrimaryKeyLoader({
+  fetch: async (ids: string[]) => await getResizesById(ids)
 })
 
 export class AssetServiceInternal extends BaseService {
@@ -34,6 +52,10 @@ export class AssetServiceInternal extends BaseService {
 
   async findById (id: string) {
     return await this.loaders.get(assetsByIdLoader).load(id)
+  }
+
+  async findByInternalId (id: number) {
+    return await this.loaders.get(assetsByInternalIdLoader).load(id)
   }
 
   async findByIds (ids: string[]) {
@@ -140,7 +162,11 @@ export class AssetService extends DosGatoService<Asset> {
   }
 
   async getResizes (asset: Asset) {
-    return await this.loaders.get(resizesByAssetIdLoader).load(asset.id)
+    return await this.loaders.get(resizesByAssetIdLoader).load(asset.internalId)
+  }
+
+  async getResize (resizeId: string) {
+    return await this.loaders.get(resizeLoader).load(resizeId)
   }
 
   async getThumbnail (asset: Asset) {
@@ -160,8 +186,10 @@ export class AssetService extends DosGatoService<Asset> {
     try {
       await FileSystemHandler.moveToPermLocation(args.checksum)
       const versionedService = this.svc(VersionedService)
-      const asset = await createAsset(versionedService, this.auth!.sub, args)
+      const assetId = await createAsset(versionedService, this.auth!.sub, args)
       this.loaders.clear()
+      const asset = (await this.raw.findByInternalId(assetId))!
+      this.createResizes(asset).catch(console.error)
       return new AssetResponse({ asset, success: true })
     } catch (err: any) {
       console.error(err)
@@ -219,6 +247,56 @@ export class AssetService extends DosGatoService<Asset> {
       console.error(err)
       throw new Error('Could not restore asset folder')
     }
+  }
+
+  async createResizes (asset: Asset) {
+    if (!asset.box) return
+    const filepath = FileSystemHandler.getFileLocation(asset.checksum)
+    const info = await sharp(filepath).metadata()
+    console.log(info)
+    const colors = await new Promise<number>((resolve, reject) => {
+      const colorSet = new Set<string>()
+      sharp(filepath)
+        .raw()
+        .on('data', (b: Buffer) => {
+          for (let offset = 0; offset < b.length && colorSet.size < 10000; offset += info.channels!) {
+            const colorString = Array.from({ length: info.channels! }, (_, i) => b[offset + i]).join(',')
+            if (colorString === '212,222,214') console.log(colorString)
+            colorSet.add(colorString)
+          }
+        })
+        .on('error', () => reject(new Error('there was a problem counting colors in image ' + asset.filename)))
+        .on('end', () => resolve(colorSet.size))
+    })
+    console.log(colors)
+    const outputformat: 'jpg' | 'png' | 'gif' = colors >= 10000
+      ? 'jpg'
+      : (info.pages ?? 0) > 0 && info.format !== 'heif'
+        ? 'gif'
+        : 'png'
+
+    const img = sharp(filepath, { animated: outputformat === 'gif' }).rotate()
+    const resizePromises: Promise<void>[] = []
+    for (let w = asset.box.width; w > 100; w = roundTo(w / 2)) {
+      const id = nanoid()
+      resizePromises.push((async () => {
+        const resized = img.clone().resize(w)
+        const formatted = outputformat === 'jpg'
+          ? resized.jpeg({ quality: 60 })
+          : outputformat === 'png'
+            ? resized.png({ palette: colors <= 256, compressionLevel: 9, progressive: true })
+            : resized.gif({ effort: 10, reoptimize: true, loop: info.loop ?? 0 } as any)
+        const hash = crypto.createHash('sha1', { encoding: 'hex' })
+        await pipeline(formatted.clone(), hash)
+        const shasum = hash.read() as string
+        const filepath = FileSystemHandler.getFileLocation(shasum)
+        await mkdir(dirname(filepath), { recursive: true })
+        const outputinfo = await formatted.toFile(FileSystemHandler.getFileLocation(shasum))
+        await registerResize(asset, w, shasum, lookup(outputformat) as string, outputformat === 'jpg' ? 60 : 0, outputinfo.size)
+      })())
+    }
+
+    await Promise.all(resizePromises)
   }
 
   async mayViewManagerUI () {

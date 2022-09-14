@@ -1,10 +1,8 @@
 import { APIAnyTemplate } from '@dosgato/templating'
-import multipart from '@fastify/multipart'
-import { Context, GQLServer, AuthError, GQLStartOpts } from '@txstate-mws/graphql-server'
+import { Context, GQLServer, GQLStartOpts } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { FastifyInstance } from 'fastify'
 import { FastifyTxStateOptions } from 'fastify-txstate'
-import { promises as fsp } from 'fs'
 import { GraphQLScalarType } from 'graphql'
 import { NonEmptyArray } from 'type-graphql'
 import { migrations, resetdb, seeddb } from './migrations.js'
@@ -20,21 +18,13 @@ import {
   DataFolderPermissionsResolver, DataFolderResolver, GroupPermissionsResolver, GroupResolver,
   GlobalRulePermissionsResolver, GlobalRuleResolver, VersionResolver, OrganizationResolver,
   AccessResolver, DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
-  logMutation, handleUpload, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
-  DataRootPermissionsResolver, updateLastLogin, AssetService
+  logMutation, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
+  DataRootPermissionsResolver, updateLastLogin, createAssetRoutes
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
   await updateLastLogin(userId, tokenIssuedAt)
 })
-
-async function getEnabledUser (ctx: Context) {
-  await ctx.waitForAuth()
-  if (!ctx.auth?.sub) throw new AuthError()
-  const user = await ctx.svc(UserServiceInternal).findById(ctx.auth.sub)
-  if (!user || user.disabled) throw new AuthError()
-  return user
-}
 
 async function updateLogin (queryTime: number, operationName: string, query: string, auth: any, variables: any) {
   await loginCache.get(auth.sub, auth.iat)
@@ -72,19 +62,7 @@ export class DGServer {
       console.info('finished fixtures')
     }
 
-    // TODO: Add endpoint for getting assets. /assets/:id or /files/:id
-    await this.app.register(multipart)
-    await fsp.mkdir('/files/tmp', { recursive: true })
-    this.app.post('/assets', async (req, res) => {
-      const ctx = new Context(req)
-      await getEnabledUser(ctx) // throws if not authorized
-      const { files, data } = await handleUpload(req)
-      const assetService = ctx.svc(AssetService)
-      for (const file of files) {
-        await assetService.create({ folderId: data.folderId, name: file.name, checksum: file.shasum, mime: file.mime, size: file.size })
-      }
-      return files
-    })
+    await createAssetRoutes(this.app)
 
     const resolvers: NonEmptyArray<Function> = [
       AccessResolver,

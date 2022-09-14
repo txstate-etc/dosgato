@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { isNotNull, stringify } from 'txstate-utils'
+import { isNotNull, pick, stringify } from 'txstate-utils'
 import { Asset, AssetFilter, AssetResize, VersionedService, CreateAssetInput, AssetFolder } from '../internal.js'
 import { DateTime } from 'luxon'
 
@@ -50,22 +50,33 @@ function processFilters (filter?: AssetFilter) {
 export async function getAssets (filter?: AssetFilter) {
   const { binds, where, joins } = processFilters(filter)
   const assets = await db.getall(`
-    SELECT assets.id, assets.dataId, assets.name, assets.folderId, assets.deletedAt, assets.deletedBy, binaries.bytes AS filesize, binaries.mime, binaries.shasum FROM assets
+    SELECT assets.id, assets.dataId, assets.name, assets.folderId, assets.deletedAt, assets.deletedBy, binaries.bytes AS filesize, binaries.mime, binaries.shasum, binaries.meta FROM assets
     INNER JOIN binaries on assets.shasum = binaries.shasum
     ${joins.size ? Array.from(joins.values()).join('\n') : ''}
     WHERE (${where.join(') AND (')})`, binds)
   return assets.map(a => new Asset(a))
 }
 
-export async function getResizes (assetIds: string[]) {
+export async function getResizes (assetInternalIds: number[]) {
   const binds: string[] = []
+  const where: string[] = []
+  where.push(`a.id IN (${db.in(binds, assetInternalIds)})`)
   const resizes = await db.getall(`SELECT a.id as assetId, r.*, rb.shasum, rb.bytes, rb.mime
   FROM resizes r
   INNER JOIN binaries b ON r.originalBinaryId = b.id
   INNER JOIN binaries rb ON r.binaryId = rb.id
-  INNER JOIN assets a ON b.shasum = assets.shasum
-  WHERE assets.id IN (${db.in(binds, assetIds)})`, binds)
-  return resizes.map(row => ({ key: String(row.assetId), value: new AssetResize(row) }))
+  INNER JOIN assets a ON b.shasum = a.shasum
+  WHERE (${where.join(') AND (')})
+  ORDER BY rb.bytes`, binds)
+  return resizes.map(row => ({ key: row.assetId, value: new AssetResize(row) }))
+}
+
+export async function getResizesById (resizeIds: string[]) {
+  const rows = await db.getall(`SELECT r.*, rb.shasum, rb.bytes, rb.mime
+  FROM resizes r
+  INNER JOIN binaries rb ON r.binaryId = rb.id
+  WHERE rb.shasum IN (${db.in([], resizeIds)})`, [resizeIds])
+  return rows.map(r => new AssetResize(r))
 }
 
 export async function getLatestDownload (asset: Asset, resizeBinaryIds: number[]) {
@@ -88,14 +99,27 @@ export async function createAsset (versionedService: VersionedService, userId: s
     // TODO: What else should go in the data for an asset? What indexes does it need?
     const dataId = await versionedService.create('asset', { shasum: args.checksum }, [{ name: 'type', values: [args.mime] }], userId, db)
     const folderInternalId = await db.getval<string>('SELECT id FROM assetfolders WHERE guid = ?', [args.folderId])
-    // TODO: What goes in the meta field?
     await db.insert(`
       INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)
-      VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify({}), args.size])
+      VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify(pick(args, 'width', 'height')), args.size])
     const newInternalId = await db.insert(`
       INSERT INTO assets (name, folderId, dataId, shasum)
       VALUES(?, ?, ?, ?)`, [args.name, folderInternalId!, dataId, args.checksum])
-    return new Asset(await db.getrow('SELECT * FROM assets WHERE id=?', [newInternalId]))
+    return newInternalId
+  })
+}
+
+export async function registerResize (asset: Asset, width: number, shasum: string, mime: string, quality: number, size: number) {
+  const height = asset.box!.height * width / asset.box!.width
+  return await db.transaction(async db => {
+    const binaryId = await db.insert(`
+      INSERT IGNORE INTO binaries (shasum, mime, meta, bytes) VALUES (?, ?, ?, ?)
+    `, [shasum, mime, stringify({ width, height }), size])
+    const origBinaryId = await db.getval<number>('SELECT id FROM binaries WHERE shasum=?', [asset.checksum])
+    await db.insert(`
+      INSERT INTO resizes (binaryId, originalBinaryId, width, height, quality, othersettings) VALUES (?, ?, ?, ?, ?, ?)
+    `, [binaryId, origBinaryId!, width, height, quality, stringify({})])
+    return binaryId
   })
 }
 

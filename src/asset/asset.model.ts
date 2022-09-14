@@ -23,12 +23,12 @@ export class BoxAttributes {
   height: number
 
   constructor (row: any) {
-    this.width = row.width
-    this.height = row.height
+    this.width = row.meta.width
+    this.height = row.meta.height
   }
 
   static hasBox (row: any) {
-    return !!row.width
+    return !!row.meta?.width
   }
 }
 
@@ -54,7 +54,7 @@ export class Asset {
   @Field({ description: 'The preferred extension for the mime type of the asset. May be different than the extension of the original upload since we use file inspection to identify file types.' })
   extension: string
 
-  @Field()
+  @Field({ nullable: true })
   box?: BoxAttributes
 
   @Field({ description: 'This is only the current checksum, old versions could have another checksum.' })
@@ -147,6 +147,12 @@ export class CreateAssetInput {
   @Field(type => Int)
   size!: number
 
+  @Field(type => Int, { nullable: true, description: 'Must provide if asset is an image.' })
+  width?: number
+
+  @Field(type => Int, { nullable: true, description: 'Must provide if asset is an image.' })
+  height?: number
+
   // TODO: Other fields? Fields for binaries table?
 }
 
@@ -188,8 +194,11 @@ registerEnumType(AssetPermission, {
 
 @ObjectType()
 export class AssetResize {
-  @Field(type => ID, { description: 'The checksum for this resized version. Used for retrieval/display.' })
+  @Field(type => ID, { description: 'Used for retrieval/display.' })
   id: string
+
+  @Field()
+  checksum: string
 
   @Field({ description: 'The mime type of this particular resized version. For instance, we may have resizes for each of the popular image formats like JPEG, AVIF, and WEBP.' })
   mime: string
@@ -221,6 +230,7 @@ export class AssetResize {
   constructor (row: any) {
     this.id = row.shasum
     this.size = row.bytes
+    this.checksum = row.shasum
     this.mime = row.mime
     this.extension = resizeMimeToExt[this.mime] ?? 'jpg'
     this.width = row.width
