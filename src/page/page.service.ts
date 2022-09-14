@@ -379,7 +379,7 @@ export class PageService extends DosGatoService<Page> {
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const linkId = nanoid(10)
     const response = await this.validatePageData(data, site, pagetree, parent, name, linkId)
-    if (!response.success) return response
+    if (validate || !response.success) return response
     const page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data, linkId)
     return new PageResponse({ success: true, page })
   }
