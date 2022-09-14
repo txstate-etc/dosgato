@@ -69,23 +69,23 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (currentPagetrees.some(p => p.name === name)) {
       response.addMessage(`Site ${site.name} already has a pagetree with name ${name}.`, 'name')
     }
-    // validate root page data
     const linkId = nanoid(10)
-    const pageValidationResponse = await this.svc(PageService).validatePageData(data, site, undefined, undefined, site.name, linkId)
-    if (pageValidationResponse.hasErrors()) {
-      // take these errors and add them to the pagetree response
-      for (const message of pageValidationResponse.messages) {
-        response.addMessage(message.message, message.arg ? `data.${message.arg}` : undefined, message.type)
+    // validate root page data if a template has been chosen
+    if (data.templateKey) {
+      const pageValidationResponse = await this.svc(PageService).validatePageData(data, site, undefined, undefined, site.name, linkId)
+      if (pageValidationResponse.hasErrors()) {
+        // take these errors and add them to the pagetree response
+        for (const message of pageValidationResponse.messages) {
+          response.addMessage(message.message, message.arg ? `data.${message.arg}` : undefined, message.type)
+        }
       }
     }
-    if (response.hasErrors()) return response
-    if (!validateOnly) {
-      const versionedService = this.svc(VersionedService)
-      const currentUser = await this.currentUser()
-      const pagetree = await createPagetree(versionedService, currentUser!, site, name, data, linkId)
-      this.loaders.clear()
-      response.pagetree = pagetree
-    }
+    if (validateOnly || response.hasErrors()) return response
+    const versionedService = this.svc(VersionedService)
+    const currentUser = await this.currentUser()
+    const pagetree = await createPagetree(versionedService, currentUser!, site, name, data, linkId)
+    this.loaders.clear()
+    response.pagetree = pagetree
     return response
   }
 
