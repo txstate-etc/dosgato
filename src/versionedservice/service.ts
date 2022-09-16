@@ -35,7 +35,7 @@ const currentTagsLoader = new OneToManyLoader({
 
 const versionsByNumberLoader = new OneToManyLoader({
   fetch: async (keys: { id: string, version: number, current: number }[]) => {
-    const binds: (string|number)[] = []
+    const binds: (string | number)[] = []
     const where = []
     for (const { id, version, current } of keys) {
       where.push('id=? AND version >= ? AND version < ?')
@@ -48,7 +48,7 @@ const versionsByNumberLoader = new OneToManyLoader({
   maxBatchSize: 50
 })
 
-function zerofill (n: number|string) {
+function zerofill (n: number | string) {
   return typeof n === 'number' ? String(Math.floor(n)).padStart(12, '0') + (2.3 % 1).toFixed(4).substring(1) : n
 }
 
@@ -203,7 +203,7 @@ export class VersionedService extends BaseService {
       const tobeadded = sindex.values.filter(v => !currentSet.has(v))
       const valuehash = await this.getIndexValueIds(tobeadded, db)
       const indexEntries = tobeadded.map(value => [id, version, index.name, valuehash[value]])
-      const binds: (string|number)[] = []
+      const binds: (string | number)[] = []
       await db.insert(`
         INSERT INTO indexes (id, version, name, value_id) VALUES ${db.in(binds, indexEntries)}
       `, binds)
@@ -281,7 +281,7 @@ export class VersionedService extends BaseService {
     const toberestored = await this.get(id, { tag, version })
     if (!toberestored) throw new NotFoundError('Could not restore version for non-existing id: ' + id)
     indexes ??= await this.getIndexes(id, toberestored.version)
-    await this.update(id, toberestored.data, indexes, { user: user, comment: `restored from earlier version ${toberestored.version}${comment ? '\n' + comment : ''}` })
+    await this.update(id, toberestored.data, indexes, { user, comment: `restored from earlier version ${toberestored.version}${comment ? '\n' + comment : ''}` })
   }
 
   /**
@@ -381,6 +381,7 @@ export class VersionedService extends BaseService {
    * inserts any values that do not already exist
    */
   protected async getIndexValueIds (values: string[], db: Queryable) {
+    if (!values.length) return {} as Record<string, number>
     await db.insert(`INSERT INTO indexvalues (value) VALUES (${values.map(v => '?').join('),(')}) ON DUPLICATE KEY UPDATE value=value`, values)
     const valuerows = await db.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${values.map(v => '?').join(',')})`, values, { rowsAsArray: true })
     const valuehash: Record<string, number> = {}
@@ -410,10 +411,12 @@ export class VersionedService extends BaseService {
     }
     const alreadyhave = new Set(currentEntries.map(r => `${r.name}.${r.value_id}`))
     const tobeadded = indexEntries.filter(e => !alreadyhave.has(`${e[2]}.${e[3]}`))
-    const binds: (string|number)[] = []
-    await db.insert(`
-      INSERT INTO indexes (id, version, name, value_id) VALUES ${db.in(binds, tobeadded)}
-    `, binds)
+    if (tobeadded.length) {
+      const binds: (string | number)[] = []
+      await db.insert(`
+        INSERT INTO indexes (id, version, name, value_id) VALUES ${db.in(binds, tobeadded)}
+      `, binds)
+    }
   }
 
   /**

@@ -7,7 +7,6 @@ export * from './migrations.js'
 export * from './registry.js'
 export * from './rules.js'
 export * from './mutationlogger.js'
-export * from './filehandler.js'
 export * from './dates.js'
 export * from './login.js'
 

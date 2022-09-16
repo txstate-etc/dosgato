@@ -5,7 +5,7 @@ import { isNull } from 'txstate-utils'
 import {
   AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
-  RoleService, AssetResponse, CreateAssetInput, UpdateAssetInput
+  RoleService, AssetResponse, UpdateAssetInput
 } from '../internal.js'
 
 @Resolver(of => Asset)
@@ -105,11 +105,6 @@ export class AssetResolver {
   })
   permissions (@Root() asset: Asset) {
     return asset
-  }
-
-  @Mutation(returns => AssetResponse, { description: 'Create a new asset asset in an asset folder.' })
-  async createAsset (@Ctx() ctx: Context, @Arg('args', type => CreateAssetInput) args: CreateAssetInput) {
-    return await ctx.svc(AssetService).create(args)
   }
 
   @Mutation(returns => AssetResponse, { description: 'Update an asset' })

@@ -1,7 +1,18 @@
 import db from 'mysql2-async/db'
 import { isNotNull, pick, stringify } from 'txstate-utils'
-import { Asset, AssetFilter, AssetResize, VersionedService, CreateAssetInput, AssetFolder } from '../internal.js'
+import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder } from '../internal.js'
 import { DateTime } from 'luxon'
+import { Queryable } from 'mysql2-async'
+
+export interface CreateAssetInput {
+  name: string
+  folderId: string
+  checksum: string
+  mime: string
+  size: number
+  width?: number
+  height?: number
+}
 
 function processFilters (filter?: AssetFilter) {
   const binds: string[] = []
@@ -47,9 +58,9 @@ function processFilters (filter?: AssetFilter) {
   return { binds, where, joins }
 }
 
-export async function getAssets (filter?: AssetFilter) {
+export async function getAssets (filter?: AssetFilter, tdb: Queryable = db) {
   const { binds, where, joins } = processFilters(filter)
-  const assets = await db.getall(`
+  const assets = await tdb.getall(`
     SELECT assets.id, assets.dataId, assets.name, assets.folderId, assets.deletedAt, assets.deletedBy, binaries.bytes AS filesize, binaries.mime, binaries.shasum, binaries.meta FROM assets
     INNER JOIN binaries on assets.shasum = binaries.shasum
     ${joins.size ? Array.from(joins.values()).join('\n') : ''}
@@ -96,8 +107,7 @@ export async function getLatestDownload (asset: Asset, resizeBinaryIds: number[]
 
 export async function createAsset (versionedService: VersionedService, userId: string, args: CreateAssetInput) {
   return await db.transaction(async db => {
-    // TODO: What else should go in the data for an asset? What indexes does it need?
-    const dataId = await versionedService.create('asset', { shasum: args.checksum }, [{ name: 'type', values: [args.mime] }], userId, db)
+    const dataId = await versionedService.create('asset', { shasum: args.checksum }, [], userId, db)
     const folderInternalId = await db.getval<string>('SELECT id FROM assetfolders WHERE guid = ?', [args.folderId])
     await db.insert(`
       INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)
@@ -105,7 +115,7 @@ export async function createAsset (versionedService: VersionedService, userId: s
     const newInternalId = await db.insert(`
       INSERT INTO assets (name, folderId, dataId, shasum)
       VALUES(?, ?, ?, ?)`, [args.name, folderInternalId!, dataId, args.checksum])
-    return newInternalId
+    return (await getAssets({ internalIds: [newInternalId] }, db))[0]
   })
 }
 

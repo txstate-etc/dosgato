@@ -100,4 +100,5 @@ export * from './templaterule/templaterule.resolver.js'
 export * from './user/user.resolver.js'
 export * from './version/version.resolver.js'
 
+export * from './asset/asset.storage.js'
 export * from './asset/asset.routes.js'

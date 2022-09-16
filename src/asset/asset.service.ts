@@ -1,18 +1,12 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { nanoid } from 'nanoid'
-import crypto from 'node:crypto'
-import sharp from 'sharp'
-import { pipeline } from 'node:stream/promises'
 import { intersect, isNotNull, keyby, roundTo, sortby } from 'txstate-utils'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
-  SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, CreateAssetInput,
-  createAsset, VersionedService, AssetResponse, FileSystemHandler, deleteAsset, undeleteAsset,
-  moveAsset, popPath, basename, registerResize, getResizesById
+  SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
+  fileHandler, deleteAsset, undeleteAsset, moveAsset, popPath, basename, registerResize,
+  getResizesById
 } from '../internal.js'
-import { mkdir } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import { lookup } from 'mime-types'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
@@ -179,25 +173,6 @@ export class AssetService extends DosGatoService<Asset> {
     return await getLatestDownload(asset, resizes.map(r => r.binaryId))
   }
 
-  async create (args: CreateAssetInput) {
-    const folder = await this.svc(AssetFolderServiceInternal).findById(args.folderId)
-    if (!folder) throw new Error('Specified folder does not exist')
-    if (!(await this.haveAssetFolderPerm(folder, 'create'))) throw new Error(`Current user is not permitted to add assets to folder ${String(folder.name)}.`)
-    try {
-      await FileSystemHandler.moveToPermLocation(args.checksum)
-      const versionedService = this.svc(VersionedService)
-      const assetId = await createAsset(versionedService, this.auth!.sub, args)
-      this.loaders.clear()
-      const asset = (await this.raw.findByInternalId(assetId))!
-      this.createResizes(asset).catch(console.error)
-      return new AssetResponse({ asset, success: true })
-    } catch (err: any) {
-      console.error(err)
-      // TODO: Need to distinguish between errors that happen when moving the file and errors releated to the database
-      throw new Error('Could not create asset')
-    }
-  }
-
   async move (dataId: string, folderId: string) {
     const [asset, folder] = await Promise.all([
       this.loaders.get(assetsByIdLoader).load(dataId),
@@ -251,52 +226,50 @@ export class AssetService extends DosGatoService<Asset> {
 
   async createResizes (asset: Asset) {
     if (!asset.box) return
-    const filepath = FileSystemHandler.getFileLocation(asset.checksum)
-    const info = await sharp(filepath).metadata()
-    console.log(info)
+    const resizes = await this.getResizes(asset)
+    const info = await fileHandler.sharp(asset.checksum).metadata()
     const colors = await new Promise<number>((resolve, reject) => {
       const colorSet = new Set<string>()
-      sharp(filepath)
+      fileHandler.sharp(asset.checksum)
         .raw()
         .on('data', (b: Buffer) => {
           for (let offset = 0; offset < b.length && colorSet.size < 10000; offset += info.channels!) {
             const colorString = Array.from({ length: info.channels! }, (_, i) => b[offset + i]).join(',')
-            if (colorString === '212,222,214') console.log(colorString)
             colorSet.add(colorString)
           }
         })
         .on('error', () => reject(new Error('there was a problem counting colors in image ' + asset.filename)))
         .on('end', () => resolve(colorSet.size))
     })
-    console.log(colors)
     const outputformat: 'jpg' | 'png' | 'gif' = colors >= 10000
       ? 'jpg'
       : (info.pages ?? 0) > 0 && info.format !== 'heif'
         ? 'gif'
         : 'png'
+    const outputmime = lookup(outputformat) as string
 
-    const img = sharp(filepath, { animated: outputformat === 'gif' }).rotate()
-    const resizePromises: Promise<void>[] = []
+    const img = fileHandler.sharp(asset.checksum, { animated: outputformat === 'gif' }).rotate()
     for (let w = asset.box.width; w > 100; w = roundTo(w / 2)) {
-      const id = nanoid()
-      resizePromises.push((async () => {
-        const resized = img.clone().resize(w)
-        const formatted = outputformat === 'jpg'
-          ? resized.jpeg({ quality: 60 })
-          : outputformat === 'png'
-            ? resized.png({ palette: colors <= 256, compressionLevel: 9, progressive: true })
-            : resized.gif({ effort: 10, reoptimize: true, loop: info.loop ?? 0 } as any)
-        const hash = crypto.createHash('sha1', { encoding: 'hex' })
-        await pipeline(formatted.clone(), hash)
-        const shasum = hash.read() as string
-        const filepath = FileSystemHandler.getFileLocation(shasum)
-        await mkdir(dirname(filepath), { recursive: true })
-        const outputinfo = await formatted.toFile(FileSystemHandler.getFileLocation(shasum))
-        await registerResize(asset, w, shasum, lookup(outputformat) as string, outputformat === 'jpg' ? 60 : 0, outputinfo.size)
-      })())
+      const needregular = !resizes.some(r => r.mime === outputmime && r.width === w)
+      const needwebp = !resizes.some(r => r.mime === 'image/webp' && r.width === w)
+      if (needregular || needwebp) {
+        const resized = img.clone().resize(w, null, { kernel: 'mitchell' })
+        if (needregular) {
+          const formatted = outputformat === 'jpg'
+            ? resized.clone().jpeg({ quality: 65 })
+            : outputformat === 'png'
+              ? resized.clone().png({ palette: colors <= 256, compressionLevel: 9, progressive: true })
+              : resized.clone().gif({ effort: 10, reoptimize: true, loop: info.loop ?? 0 } as any)
+          const { checksum, info: outputinfo } = await fileHandler.sharpWrite(formatted)
+          await registerResize(asset, w, checksum, outputmime, outputformat === 'jpg' ? 60 : 0, outputinfo.size)
+        }
+        if (needwebp) {
+          const webp = resized.webp({ quality: 65, effort: 6, loop: info.loop ?? 0 })
+          const { checksum: webpsum, info: webpinfo } = await fileHandler.sharpWrite(webp)
+          await registerResize(asset, w, webpsum, 'image/webp', 65, webpinfo.size)
+        }
+      }
     }
-
-    await Promise.all(resizePromises)
   }
 
   async mayViewManagerUI () {

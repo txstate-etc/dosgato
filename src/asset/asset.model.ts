@@ -131,32 +131,6 @@ export class AssetFilter {
 }
 
 @InputType()
-export class CreateAssetInput {
-  @Field()
-  name!: string
-
-  @Field(type => ID)
-  folderId!: string
-
-  @Field()
-  checksum!: string
-
-  @Field()
-  mime!: string
-
-  @Field(type => Int)
-  size!: number
-
-  @Field(type => Int, { nullable: true, description: 'Must provide if asset is an image.' })
-  width?: number
-
-  @Field(type => Int, { nullable: true, description: 'Must provide if asset is an image.' })
-  height?: number
-
-  // TODO: Other fields? Fields for binaries table?
-}
-
-@InputType()
 export class UpdateAssetInput {
   @Field()
   name!: string
