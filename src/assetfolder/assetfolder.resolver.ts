@@ -67,8 +67,8 @@ export class AssetFolderResolver {
   }
 
   @Mutation(returns => AssetFolderResponse, { description: 'Create a new asset folder.' })
-  async createAssetFolder (@Ctx() ctx: Context, @Arg('args', type => CreateAssetFolderInput) args: CreateAssetFolderInput) {
-    return await ctx.svc(AssetFolderService).create(args)
+  async createAssetFolder (@Ctx() ctx: Context, @Arg('args', type => CreateAssetFolderInput) args: CreateAssetFolderInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(AssetFolderService).create(args, validateOnly)
   }
 
   @Mutation(returns => AssetFolderResponse)

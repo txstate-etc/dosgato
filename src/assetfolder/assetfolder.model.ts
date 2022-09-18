@@ -20,7 +20,7 @@ export class AssetFolder {
   @Field({ nullable: true, description: 'Date this folder was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
-  siteId?: string
+  siteId: string
   deletedBy?: number
   path: string
   pathSplit: number[]
@@ -86,9 +86,6 @@ export class AssetFolderFilter {
 export class CreateAssetFolderInput {
   @Field()
   name!: string
-
-  @Field(type => ID)
-  siteId!: string
 
   @Field(type => ID, { description: 'The existing asset folder that will be the new asset folder\'s parent' })
   parentId!: string // guid

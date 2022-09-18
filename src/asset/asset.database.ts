@@ -41,6 +41,9 @@ function processFilters (filter?: AssetFilter) {
         joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
       }
     }
+    if (filter.names?.length) {
+      where.push(`assets.name IN (${db.in(binds, filter.names)})`)
+    }
     if (isNotNull(filter.referenced)) {
       // TODO
     }

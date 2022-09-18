@@ -3,9 +3,9 @@ import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
   AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
   CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
-  moveAssetFolder, deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter, normalizePath
+  moveAssetFolder, deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter, normalizePath, makeSafe
 } from '../internal.js'
-import { isNull, isNotNull, unique, mapConcurrent, intersect, isNotBlank, keyby } from 'txstate-utils'
+import { isNull, isNotNull, unique, mapConcurrent, intersect, isNotBlank, keyby, isBlank } from 'txstate-utils'
 
 const assetFolderByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids }),
@@ -222,10 +222,16 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     return await this.raw.getPath(folder)
   }
 
-  async create (args: CreateAssetFolderInput) {
+  async create (args: CreateAssetFolderInput, validateOnly?: boolean) {
     const parentFolder = await this.loaders.get(assetFolderByIdLoader).load(args.parentId)
     if (!parentFolder) throw new Error('Parent folder does not exist.')
     if (!(await this.haveAssetFolderPerm(parentFolder, 'create'))) throw new Error(`Current user is not permitted to create folders in ${String(parentFolder.name)}.`)
+    args.name = makeSafe(args.name)
+    const resp = new AssetFolderResponse({ success: true })
+    if (isBlank(args.name)) resp.addMessage('You must enter a folder name.', 'args.name')
+    const [folders, assets] = await Promise.all([this.raw.getChildFolders(parentFolder, false, { names: [args.name] }), this.raw.getChildAssets(parentFolder, false, { names: [args.name] })])
+    if (folders.length || assets.length) resp.addMessage('That name is already in use.', 'args.name')
+    if (validateOnly || resp.hasErrors()) return resp
     try {
       const assetfolder = await createAssetFolder(args)
       this.loaders.clear()

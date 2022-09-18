@@ -69,7 +69,7 @@ export async function createAssetFolder (args: CreateAssetFolderInput) {
     const parent = new AssetFolder(await db.getrow('SELECT * from assetfolders WHERE guid = ?', [args.parentId]))
     const newInternalId = await db.insert(`
       INSERT INTO assetfolders (siteId, path, name, guid)
-      VALUES (?, ?, ?, ?)`, [args.siteId, `/${[...parent.pathSplit, parent.internalId].join('/')}`, args.name, nanoid(10)])
+      VALUES (?, ?, ?, ?)`, [parent.siteId, `/${[...parent.pathSplit, parent.internalId].join('/')}`, args.name, nanoid(10)])
     return new AssetFolder(await db.getrow('SELECT * FROM assetfolders WHERE id=?', [newInternalId]))
   })
 }

@@ -20,7 +20,7 @@ export async function handleUpload (req: FastifyRequest) {
   const data: any = {}
   const files = []
   for await (const part of req.parts()) {
-    if (part.file) {
+    if ('file' in part) {
       const fileTypePassthru = await fileTypeStream(part.file)
       const probePassthru = new PassThrough()
       const metadataPromise = probe(probePassthru, true)
