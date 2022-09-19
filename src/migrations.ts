@@ -13,6 +13,14 @@ const dgMigrations: DBMigration[] = [
       await init(db)
       await seeddb(db)
     }
+  },
+  {
+    id: 20220915000000,
+    description: 'add unique index on (path,name) to pages table',
+    run: async (db) => {
+      await db.execute('ALTER TABLE `pages` MODIFY path varchar(255)')
+      await db.execute('ALTER TABLE `pages` ADD CONSTRAINT nameinpath UNIQUE (`pagetreeId`,`path`, `name`)')
+    }
   }
 ]
 
