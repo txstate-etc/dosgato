@@ -67,8 +67,8 @@ export class DataFolderResolver {
   }
 
   @Mutation(returns => DataFolderResponse)
-  async renameDataFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string, @Arg('name') name: string) {
-    return await ctx.svc(DataFolderService).rename(folderId, name)
+  async renameDataFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string, @Arg('name') name: string, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(DataFolderService).rename(folderId, name, validateOnly)
   }
 
   @Mutation(returns => DataFoldersResponse)

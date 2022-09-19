@@ -124,34 +124,30 @@ export class DataFolderService extends DosGatoService<DataFolder> {
     } else {
       if (!(await this.haveGlobalPerm('manageGlobalData'))) throw new Error('Current user is not permitted to create global data folders.')
     }
+    const response = new DataFolderResponse({ success: true })
     if (!(await folderNameUniqueInDataRoot(args.name, args.siteId))) {
-      const response = new DataFolderResponse({})
       response.addMessage(`A folder with this name already exists in ${args.siteId ? 'this site' : 'global data'}.`, 'args.name')
-      return response
-    } else {
-      if (validateOnly) {
-        return new DataFolderResponse({ success: true, messages: [] })
-      } else {
-        const dataFolder = await createDataFolder(args.name, template.id, args.siteId)
-        this.loaders.clear()
-        return new DataFolderResponse({ success: true, dataFolder })
-      }
     }
+    if (validateOnly || response.hasErrors()) return response
+    const dataFolder = await createDataFolder(args.name, template.id, args.siteId)
+    this.loaders.clear()
+    response.dataFolder = dataFolder
+    return response
   }
 
-  async rename (folderId: string, name: string) {
+  async rename (folderId: string, name: string, validateOnly?: boolean) {
     const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Cannot rename a data folder that does not exist.')
     if (!(await this.haveDataFolderPerm(folder, 'update'))) throw new Error(`Current user is not permitted to rename folder ${String(folder.name)}.`)
-    try {
-      await renameDataFolder(folder.id, name)
-      this.loaders.clear()
-      const updatedFolder = await this.raw.findById(folderId)
-      return new DataFolderResponse({ dataFolder: updatedFolder, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Could not rename data folder')
+    const response = new DataFolderResponse({ success: true })
+    if (name !== folder.name && !(await folderNameUniqueInDataRoot(name, folder.siteId))) {
+      response.addMessage(`A folder with this name already exists in ${folder.siteId ? 'this site' : 'global data'}.`, 'name')
     }
+    if (validateOnly || response.hasErrors()) return response
+    await renameDataFolder(folder.id, name)
+    this.loaders.clear()
+    response.dataFolder = await await this.raw.findById(folderId)
+    return response
   }
 
   async move (folderIds: string[], siteId?: string) {
