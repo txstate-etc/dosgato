@@ -32,6 +32,7 @@ class FileSystemHandler implements FileHandler {
 
   async init () {
     await mkdir('/files/tmp', { recursive: true })
+    await mkdir('/files/storage', { recursive: true })
   }
 
   get (checksum: string) {
