@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { unique, keyby } from 'txstate-utils'
-import { Site, SiteFilter, PagetreeType, VersionedService, createSiteComment, UpdateSiteManagementInput, getPageIndexes } from '../internal.js'
+import { Site, SiteFilter, PagetreeType, VersionedService, createSiteComment, UpdateSiteManagementInput, getPageIndexes, DeletedFilter } from '../internal.js'
 import { nanoid } from 'nanoid'
 import { PageData } from '@dosgato/templating'
 
@@ -29,6 +29,21 @@ function processFilters (filter?: SiteFilter) {
       db.in(binds, [launchUrl.host, `${launchUrl.path}%`])
     }
     where.push(ors.join(' OR '))
+  }
+  if (filter?.deleted) {
+    if (filter.deleted === DeletedFilter.ONLY) {
+      where.push('sites.deletedAt IS NOT NULL')
+    } else if (filter.deleted === DeletedFilter.HIDE) {
+      where.push('sites.deletedAt IS NULL')
+    }
+  } else {
+    where.push('sites.deletedAt IS NULL')
+  }
+  if (filter?.organizationIds) {
+    where.push(`sites.organizationId IN (${db.in(binds, filter.organizationIds)})`)
+  }
+  if (filter?.ownerInternalIds) {
+    where.push(`sites.ownerId IN (${db.in(binds, filter.ownerInternalIds)})`)
   }
   if (filter?.assetRootIds?.length) {
     where.push(`sites.rootAssetFolderId IN (${db.in(binds, filter.assetRootIds)})`)
@@ -77,14 +92,6 @@ export async function getSitesByTemplate (templateIds: number[], atLeastOneTree?
   }
 }
 
-export async function getSitesByGroupIds (groupIds: string[]) {
-  const rows = await db.getall(`SELECT s.*, gs.groupId
-                                FROM sites s
-                                INNER JOIN groups_sites gs ON gs.siteId=s.id
-                                WHERE gs.groupId IN (${db.in([], groupIds)})`, groupIds)
-  return rows.map(r => ({ key: String(r.groupId), value: new Site(r) }))
-}
-
 export async function getSitesByOwnerInternalId (ownerInternalIds: number[]) {
   const rows = await db.getall(`SELECT sites.*
                                 FROM sites
@@ -93,11 +100,15 @@ export async function getSitesByOwnerInternalId (ownerInternalIds: number[]) {
   return rows.map(row => new Site(row))
 }
 
-export async function getSitesByManagerInternalId (managerInternalIds: number[]) {
+export async function getSitesByManagerInternalId (managerInternalIds: number[], filter?: SiteFilter) {
+  const { binds, where } = processFilters(filter)
+
+  where.push(`sites_managers.userId IN (${db.in(binds, managerInternalIds)})`)
+
   const rows = await db.getall(`SELECT sites.*, sites_managers.userId
                                 FROM sites
                                 INNER JOIN sites_managers ON sites.id = sites_managers.siteId
-                                WHERE sites_managers.userId IN (${db.in([], managerInternalIds)})`, managerInternalIds)
+                                WHERE (${where.join(') AND (')})`, binds)
   return rows.map(row => ({ key: row.userId, value: new Site(row) }))
 }
 

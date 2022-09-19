@@ -4,21 +4,21 @@ import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-
 import { nanoid } from 'nanoid'
 import { isNotNull } from 'txstate-utils'
 import {
-  Site, SiteFilter, getSites, getSitesByOrganization, getSitesByTemplate, getSitesByGroupIds, undeleteSite,
+  Site, SiteFilter, getSites, getSitesByTemplate, undeleteSite,
   PagetreeService, DosGatoService, createSite, VersionedService, SiteResponse,
-  deleteSite, PageService, Group, getSitesByOwnerInternalId, getSitesByManagerInternalId, siteNameIsUnique,
-  renameSite, setLaunchURL, UpdateSiteManagementInput, updateSiteManagement
+  deleteSite, PageService, getSitesByManagerInternalId, siteNameIsUnique,
+  renameSite, setLaunchURL, UpdateSiteManagementInput, updateSiteManagement, DeletedFilter
 } from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
-    return await getSites({ ids })
+    return await getSites({ ids, deleted: DeletedFilter.SHOW })
   }
 })
 
 const siteByOrganizationIdLoader = new OneToManyLoader({
-  fetch: async (orgIds: string[]) => {
-    return await getSitesByOrganization(orgIds)
+  fetch: async (orgIds: string[], filter?: SiteFilter) => {
+    return await getSites({ ...filter, organizationIds: orgIds })
   },
   extractKey: (item: Site) => item.organizationId!,
   idLoader: sitesByIdLoader
@@ -26,12 +26,14 @@ const siteByOrganizationIdLoader = new OneToManyLoader({
 
 const sitesByAssetRootLoader = new PrimaryKeyLoader({
   fetch: async (assetRootIds: number[]) => {
-    return await getSites({ assetRootIds })
+    return await getSites({ assetRootIds, deleted: DeletedFilter.SHOW })
   },
   extractId: site => site.rootAssetFolderInternalId,
   idLoader: sitesByIdLoader
 })
 
+// TODO: does this loader need a filter parameter too? Without it, deleted
+// sites will be returned too
 const sitesByTemplateIdLoader = new ManyJoinedLoader({
   fetch: async (templateIds: number[], atLeastOneTree?: boolean) => {
     return await getSitesByTemplate(templateIds, atLeastOneTree)
@@ -39,24 +41,17 @@ const sitesByTemplateIdLoader = new ManyJoinedLoader({
   idLoader: sitesByIdLoader
 })
 
-const sitesByGroupLoader = new ManyJoinedLoader({
-  fetch: async (groupIds: string[]) => {
-    return await getSitesByGroupIds(groupIds)
-  },
-  idLoader: sitesByIdLoader
-})
-
 const sitesByOwnerInternalIdLoader = new OneToManyLoader({
-  fetch: async (ownerInternalIds: number[]) => {
-    return await getSitesByOwnerInternalId(ownerInternalIds)
+  fetch: async (ownerInternalIds: number[], filter?: SiteFilter) => {
+    return await getSites({ ...filter, ownerInternalIds: ownerInternalIds })
   },
   extractKey: (item: Site) => item.ownerId!,
   idLoader: sitesByIdLoader
 })
 
 const sitesByManagerInternalIdLoader = new ManyJoinedLoader({
-  fetch: async (managerInternalIds: number[]) => {
-    return await getSitesByManagerInternalId(managerInternalIds)
+  fetch: async (managerInternalIds: number[], filter?: SiteFilter) => {
+    return await getSitesByManagerInternalId(managerInternalIds, filter)
   },
   idLoader: sitesByIdLoader
 })
@@ -74,16 +69,12 @@ export class SiteServiceInternal extends BaseService {
     return await this.loaders.get(sitesByIdLoader).load(siteId)
   }
 
-  async findByOrganization (orgId: string) {
-    return await this.loaders.get(siteByOrganizationIdLoader).load(orgId)
+  async findByOrganization (orgId: string, filter?: SiteFilter) {
+    return await this.loaders.get(siteByOrganizationIdLoader, filter).load(orgId)
   }
 
   async findByTemplateId (templateId: number, atLeastOneTree?: boolean) {
     return await this.loaders.get(sitesByTemplateIdLoader, atLeastOneTree).load(templateId)
-  }
-
-  async findByGroup (group: Group) {
-    return await this.loaders.get(sitesByGroupLoader).load(group.id)
   }
 
   async findByPagetreeId (pagetreeId: string) {
@@ -96,12 +87,12 @@ export class SiteServiceInternal extends BaseService {
     return await this.loaders.get(sitesByAssetRootLoader).load(assetFolderId)
   }
 
-  async findByOwnerInternalId (ownerInternalId: number) {
-    return await this.loaders.get(sitesByOwnerInternalIdLoader).load(ownerInternalId)
+  async findByOwnerInternalId (ownerInternalId: number, filter?: SiteFilter) {
+    return await this.loaders.get(sitesByOwnerInternalIdLoader, filter).load(ownerInternalId)
   }
 
-  async findByManagerInternalId (managerInternalId: number) {
-    return await this.loaders.get(sitesByManagerInternalIdLoader).load(managerInternalId)
+  async findByManagerInternalId (managerInternalId: number, filter?: SiteFilter) {
+    return await this.loaders.get(sitesByManagerInternalIdLoader, filter).load(managerInternalId)
   }
 }
 
@@ -116,16 +107,12 @@ export class SiteService extends DosGatoService<Site> {
     return await this.removeUnauthorized(await this.raw.findById(siteId))
   }
 
-  async findByOrganization (orgId: string) {
-    return await this.removeUnauthorized(await this.raw.findByOrganization(orgId))
+  async findByOrganization (orgId: string, filter?: SiteFilter) {
+    return await this.removeUnauthorized(await this.raw.findByOrganization(orgId, filter))
   }
 
   async findByTemplateId (templateId: number, atLeastOneTree?: boolean) {
     return await this.removeUnauthorized(await this.raw.findByTemplateId(templateId, atLeastOneTree))
-  }
-
-  async findByGroup (group: Group) {
-    return await this.removeUnauthorized(await this.raw.findByGroup(group))
   }
 
   async findByPagetreeId (pagetreeId: string) {
@@ -136,12 +123,12 @@ export class SiteService extends DosGatoService<Site> {
     return await this.removeUnauthorized(await this.raw.findByAssetRootId(assetFolderId))
   }
 
-  async findByOwnerInternalId (ownerInternalId: number) {
-    return await this.removeUnauthorized(await this.raw.findByOwnerInternalId(ownerInternalId))
+  async findByOwnerInternalId (ownerInternalId: number, filter?: SiteFilter) {
+    return await this.removeUnauthorized(await this.raw.findByOwnerInternalId(ownerInternalId, filter))
   }
 
-  async findByManagerInternalId (managerInternalId: number) {
-    return await this.removeUnauthorized(await this.raw.findByManagerInternalId(managerInternalId))
+  async findByManagerInternalId (managerInternalId: number, filter?: SiteFilter) {
+    return await this.removeUnauthorized(await this.raw.findByManagerInternalId(managerInternalId, filter))
   }
 
   async create (name: string, data: PageData, validateOnly?: boolean) {

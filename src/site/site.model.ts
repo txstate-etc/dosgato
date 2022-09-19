@@ -2,6 +2,7 @@ import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-s
 import { DateTime } from 'luxon'
 import { optionalString, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
+import { DeletedFilter } from '../internal.js'
 
 @ObjectType()
 export class LaunchURL {
@@ -85,6 +86,15 @@ export class SiteFilter {
 
   @Field({ nullable: true, description: 'Return sites that are currently launched (i.e. they are publicly available at a specified URL other than the editing host).' })
   launched?: boolean
+
+  @Field(type => DeletedFilter, { nullable: true })
+  deleted?: DeletedFilter
+
+  ownerInternalIds?: number[]
+
+  managerInternalIds?: number[]
+
+  organizationIds?: string[]
 
   assetRootIds?: number[]
 }

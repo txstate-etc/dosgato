@@ -77,7 +77,7 @@ describe('sites mutations', () => {
     const { site: siteI } = await createSite('newsiteI', 'keyp1')
     const { deleteSite: { success } } = await query('mutation DeleteSite ($id: ID!) { deleteSite (siteId: $id) { success } }', { id: siteI.id })
     expect(success).to.be.true
-    const { sites } = await query(`{ sites(filter: { ids: [${siteI.id}] }) { name deletedAt } }`)
+    const { sites } = await query(`{ sites(filter: { ids: [${siteI.id}], deleted: SHOW }) { name deletedAt } }`)
     expect(sites[0].deletedAt).to.not.be.null
   })
   it('should not allow an unauthorized user to delete a site', async () => {
