@@ -37,6 +37,39 @@ const resizeLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => await getResizesById(ids)
 })
 
+const exifToRotation: Record<number, number> = {
+  1: 0,
+  2: 0,
+  3: 180,
+  4: 0,
+  5: 270,
+  6: 90,
+  7: 270,
+  8: 270
+}
+
+const exifToFlip: Record<number, boolean> = {
+  1: false,
+  2: false,
+  3: false,
+  4: true,
+  5: false,
+  6: false,
+  7: true,
+  8: false
+}
+
+const exifToFlop: Record<number, boolean> = {
+  1: false,
+  2: true,
+  3: false,
+  4: false,
+  5: true,
+  6: false,
+  7: false,
+  8: false
+}
+
 export class AssetServiceInternal extends BaseService {
   async find (filter: AssetFilter) {
     const assets = await getAssets(await this.processAssetFilters(filter))
@@ -228,6 +261,7 @@ export class AssetService extends DosGatoService<Asset> {
     if (!asset.box) return
     const resizes = await this.getResizes(asset)
     const info = await fileHandler.sharp(asset.checksum).metadata()
+    const orientation = info.orientation ?? 1
     const colors = await new Promise<number>((resolve, reject) => {
       const colorSet = new Set<string>()
       fileHandler.sharp(asset.checksum)
@@ -248,12 +282,19 @@ export class AssetService extends DosGatoService<Asset> {
         : 'png'
     const outputmime = lookup(outputformat) as string
 
-    const img = fileHandler.sharp(asset.checksum, { animated: outputformat === 'gif' }).rotate()
-    for (let w = asset.box.width; w > 100; w = roundTo(w / 2)) {
+    const img = fileHandler.sharp(asset.checksum, { animated: outputformat === 'gif' })
+    for (let w = asset.box.width / 2; w > 100; w = roundTo(w / 2)) {
       const needregular = !resizes.some(r => r.mime === outputmime && r.width === w)
       const needwebp = !resizes.some(r => r.mime === 'image/webp' && r.width === w)
       if (needregular || needwebp) {
         const resized = img.clone().resize(w, null, { kernel: 'mitchell' })
+          // theoretically one call to .rotate() is supposed to fix orientation, but
+          // there seems to be a bug in sharpjs where the rotation doesn't take
+          // if there is a later resize to a sufficiently small size
+          // this is a workaround to make sure the exif rotation is applied in all cases
+          .flip(exifToFlip[orientation])
+          .flop(exifToFlop[orientation])
+          .rotate(exifToRotation[orientation])
         if (needregular) {
           const formatted = outputformat === 'jpg'
             ? resized.clone().jpeg({ quality: 65 })
