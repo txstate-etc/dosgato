@@ -145,7 +145,7 @@ export class DataService extends DosGatoService<Data> {
     return await this.raw.getPath(data)
   }
 
-  async create (args: CreateDataInput) {
+  async create (args: CreateDataInput, validateOnly?: boolean) {
     let site: Site|undefined
     let dataroot: DataRoot
     const template = await this.svc(TemplateService).findByKey(args.data.templateKey)
@@ -175,9 +175,9 @@ export class DataService extends DosGatoService<Data> {
     const messages = await tmpl.validate?.(migrated, { query: this.ctx.query, dataRootId: dataroot.id, dataFolderId: args.folderId }) ?? []
     const response = new DataResponse({ success: true })
     for (const message of messages) {
-      response.addMessage(message.message, message.path, message.type as MutationMessageType)
+      response.addMessage(message.message, `args.data.${message.path}`, message.type as MutationMessageType)
     }
-    if (!response.success) return response
+    if (validateOnly || response.hasErrors()) return response
     // passed validation, save it
     const versionedService = this.svc(VersionedService)
     const data = await createDataEntry(versionedService, this.login, args)

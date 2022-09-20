@@ -112,8 +112,8 @@ export class DataResolver {
   }
 
   @Mutation(returns => DataResponse, { description: 'Create a new data entry.' })
-  async createDataEntry (@Ctx() ctx: Context, @Arg('args', type => CreateDataInput) args: CreateDataInput) {
-    return await ctx.svc(DataService).create(args)
+  async createDataEntry (@Ctx() ctx: Context, @Arg('args', type => CreateDataInput) args: CreateDataInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(DataService).create(args, validateOnly)
   }
 
   @Mutation(returns => DataResponse)
