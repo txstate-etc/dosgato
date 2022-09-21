@@ -258,7 +258,7 @@ export class AssetService extends DosGatoService<Asset> {
   }
 
   async createResizes (asset: Asset) {
-    if (!asset.box) return
+    if (!asset.box || asset.mime === 'image/svg+xml') return
     const resizes = await this.getResizes(asset)
     const info = await fileHandler.sharp(asset.checksum).metadata()
     const orientation = info.orientation ?? 1

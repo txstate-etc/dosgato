@@ -6,7 +6,7 @@
   "rules": {
     "@typescript-eslint/explicit-function-return-type": "off", // useless boilerplate
     "@typescript-eslint/array-type": "off", // would have forced you to use Array<CustomType> instead of CustomType[], silly
-    "@typescript-eslint/indent": "off",
+    "@typescript-eslint/indent": "off", // too buggy when using decorators
     "@typescript-eslint/no-extraneous-class": ["error", { "allowEmpty": true }],
     "@typescript-eslint/no-non-null-assertion": "off", // would have disabled using ! to mark something as non-null,
                                                        // generally not avoidable without wasting cpu cycles on a check
