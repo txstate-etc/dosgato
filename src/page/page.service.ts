@@ -379,6 +379,10 @@ export class PageService extends DosGatoService<Page> {
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const linkId = nanoid(10)
     const response = await this.validatePageData(data, site, pagetree, parent, name, linkId)
+    const pages = await this.raw.getPageChildren(parent, false)
+    if (pages.some(p => p.name === name)) {
+      response.addMessage('A page with this name already exists', 'name')
+    }
     if (validate || !response.success) return response
     const page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data, linkId)
     return new PageResponse({ success: true, page })

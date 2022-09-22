@@ -1,7 +1,7 @@
 /* eslint-disable no-trailing-spaces */
 import { BaseService, ValidatedResponse, MutationMessageType, Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique, isNotNull, someAsync, eachConcurrent, mapConcurrent, intersect } from 'txstate-utils'
+import { unique, isNotNull, someAsync, eachConcurrent, mapConcurrent, intersect, isNull } from 'txstate-utils'
 import {
   Data, DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
@@ -150,6 +150,7 @@ export class DataService extends DosGatoService<Data> {
     let dataroot: DataRoot
     const template = await this.svc(TemplateService).findByKey(args.data.templateKey)
     if (!template) throw new Error('Tried to create data with an unrecognized template.')
+    const response = new DataResponse({ success: true })
     if (args.folderId) {
       const folder = await this.svc(DataFolderServiceInternal).findById(args.folderId)
       if (!folder) throw new Error('Data cannot be created in a data folder that does not exist.')
@@ -159,21 +160,32 @@ export class DataService extends DosGatoService<Data> {
       }
       site = folder.siteId ? await this.svc(SiteServiceInternal).findById(folder.siteId) : undefined
       dataroot = new DataRoot(site, template)
+      const otherData = await this.raw.findByFolderInternalId(folder.internalId)
+      if (otherData.some(d => d.name === args.name)) {
+        response.addMessage('A data entry with this name already exists', 'args.name')
+      }
     } else if (args.siteId) {
       site = await this.svc(SiteServiceInternal).findById(args.siteId)
       if (!site) throw new Error('Data cannot be created in a site that does not exist.')
       dataroot = new DataRoot(site, template)
       if (!await this.svc(DataRootService).mayCreate(dataroot)) throw new Error(`Current user is not permitted to create data in site ${String(site.name)}.`)
+      const dataEntries = await (await this.raw.findByDataRoot(dataroot)).filter(d => isNull(d.folderInternalId))
+      if (dataEntries.some(d => d.name === args.name)) {
+        response.addMessage('A data entry with this name already exists', 'args.name')
+      }
     } else {
       // global data
       if (!(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to create global data entries.')
       dataroot = new DataRoot(undefined, template)
+      const dataEntries = await (await this.raw.findByDataRoot(dataroot)).filter(d => isNull(d.folderInternalId) && isNull(d.siteId))
+      if (dataEntries.some(d => d.name === args.name)) {
+        response.addMessage('A data entry with this name already exists', 'args.name')
+      }
     }
     // validate data
     const tmpl = templateRegistry.getDataTemplate(template.key)
     const migrated = await migrateData(this.ctx, args.data, dataroot.id, args.folderId)
     const messages = await tmpl.validate?.(migrated, { query: this.ctx.query, dataRootId: dataroot.id, dataFolderId: args.folderId }) ?? []
-    const response = new DataResponse({ success: true })
     for (const message of messages) {
       response.addMessage(message.message, `args.data.${message.path}`, message.type as MutationMessageType)
     }
@@ -186,7 +198,7 @@ export class DataService extends DosGatoService<Data> {
     return response
   }
 
-  async update (dataId: string, args: UpdateDataInput) {
+  async update (dataId: string, args: UpdateDataInput, validateOnly?: boolean) {
     const data = await this.raw.findById(dataId)
     if (!data) throw new Error('Data entry to be updated does not exist')
     if (!(await this.mayUpdate(data))) throw new Error('Current user is not permitted to update this data entry.')
@@ -199,7 +211,7 @@ export class DataService extends DosGatoService<Data> {
     for (const message of messages) {
       response.addMessage(message.message, message.path, message.type as MutationMessageType)
     }
-    if (!response.success) return response
+    if (validateOnly || response.hasErrors()) return response
     const indexes = getDataIndexes(migrated)
     await this.svc(VersionedService).update(dataId, args.data, indexes, { user: this.login, comment: args.comment, version: args.dataVersion })
     this.loaders.clear()
