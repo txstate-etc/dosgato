@@ -96,7 +96,7 @@ export class UpdateDataInput {
   @Field(type => Number, { description: 'The version of the data you had when you started the update' })
   dataVersion?: number
 
-  @Field({ description: 'An optional comment describing the update' })
+  @Field({ nullable: true, description: 'An optional comment describing the update' })
   comment?: string
 }
 

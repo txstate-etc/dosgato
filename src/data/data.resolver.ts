@@ -103,6 +103,23 @@ export class DataResolver {
     return versions.map(v => new ObjectVersion(v))
   }
 
+  @FieldResolver(returns => ObjectVersion, { description: 'Returns the latest version information for the data entry.' })
+  async version (@Ctx() ctx: Context, @Root() data: Data) {
+    const [versioned, tags] = await Promise.all([
+      ctx.svc(VersionedService).get(data.dataId),
+      ctx.svc(VersionedService).getCurrentTags(data.dataId)
+    ])
+    if (!versioned) throw new Error('Tried to retrieve version for a data entry that does not exist.')
+    return new ObjectVersion({
+      id: versioned.id,
+      version: versioned.version,
+      date: versioned.modified,
+      comment: versioned.comment,
+      tags: tags.map(t => t.tag),
+      user: versioned.modifiedBy
+    })
+  }
+
   @FieldResolver(returns => DataPermissions, {
     description: `Reveal the simplified results after all authorization rules are taken into account
       for the current user. Makes it easy to light up, disable, or hide buttons in the UI.`
@@ -122,8 +139,8 @@ export class DataResolver {
   }
 
   @Mutation(returns => DataResponse, { description: 'Update a data entry.' })
-  async updateDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string, @Arg('args', type => UpdateDataInput) args: UpdateDataInput) {
-    return await ctx.svc(DataService).update(dataId, args)
+  async updateDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string, @Arg('args', type => UpdateDataInput) args: UpdateDataInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(DataService).update(dataId, args, validateOnly)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Mark the latest version of data entries "published."' })

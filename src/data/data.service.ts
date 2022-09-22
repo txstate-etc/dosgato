@@ -209,7 +209,7 @@ export class DataService extends DosGatoService<Data> {
     const messages = await tmpl.validate?.(migrated, { query: this.ctx.query, dataRootId, dataFolderId: folder?.id, dataId: data.id }) ?? []
     const response = new DataResponse({ success: true })
     for (const message of messages) {
-      response.addMessage(message.message, message.path, message.type as MutationMessageType)
+      response.addMessage(message.message, `args.data.${message.path}`, message.type as MutationMessageType)
     }
     if (validateOnly || response.hasErrors()) return response
     const indexes = getDataIndexes(migrated)
