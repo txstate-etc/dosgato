@@ -4,14 +4,21 @@ import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder } from '
 import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 
-export interface CreateAssetInput {
+export interface AssetInput {
   name: string
-  folderId: string
   checksum: string
   mime: string
   size: number
   width?: number
   height?: number
+}
+
+export interface CreateAssetInput extends AssetInput {
+  folderId: string
+}
+
+export interface ReplaceAssetInput extends AssetInput {
+  assetId: string
 }
 
 function processFilters (filter?: AssetFilter) {
@@ -119,6 +126,19 @@ export async function createAsset (versionedService: VersionedService, userId: s
       INSERT INTO assets (name, folderId, dataId, shasum)
       VALUES(?, ?, ?, ?)`, [args.name, folderInternalId!, dataId, args.checksum])
     return (await getAssets({ internalIds: [newInternalId] }, db))[0]
+  })
+}
+
+export async function replaceAsset (versionedService: VersionedService, userId: string, args: ReplaceAssetInput) {
+  return await db.transaction(async db => {
+    const data = await versionedService.get(args.assetId)
+    if (!data) throw new Error('Asset to be updated had no backing data.')
+    await db.insert(`
+    INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)
+    VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify(pick(args, 'width', 'height')), args.size])
+    await versionedService.update(args.assetId, { ...data, shasum: args.checksum }, [], { user: userId }, db)
+    await db.update('UPDATE assets SET shasum=? WHERE dataId=?', [args.checksum, args.assetId])
+    return (await getAssets({ ids: [args.assetId] }, db))[0]
   })
 }
 

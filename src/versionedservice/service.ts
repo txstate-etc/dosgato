@@ -234,7 +234,7 @@ export class VersionedService extends BaseService {
       else await db.transaction(action)
       return id
     } catch (e: any) {
-      if (e.errno === 1062) return await this.create(type, data, indexes, user, tdb)
+      if (e.errno === 1062) return await this.create(type, data, indexes, user, tdb ?? db)
       throw e
     }
   }
@@ -250,8 +250,8 @@ export class VersionedService extends BaseService {
    * You may also optionally provide the version that you had when you started the update for
    * an optimistic concurrency check.
    */
-  async update (id: string, data: any, indexes: Index[], { user, comment, version }: { user?: string, comment?: string, version?: number } = {}) {
-    await db.transaction(async db => {
+  async update (id: string, data: any, indexes: Index[], { user, comment, version }: { user?: string, comment?: string, version?: number } = {}, tdb?: Queryable) {
+    const action = async (db: Queryable) => {
       const current = await db.getrow<VersionedStorage>('SELECT * FROM storage WHERE id=?', [id])
       if (!current) throw new NotFoundError('Unable to find node with id: ' + id)
       if (typeof version !== 'undefined' && version !== current.version) throw new UpdateConflictError(id)
@@ -267,8 +267,10 @@ export class VersionedService extends BaseService {
       `, [current.id, current.version, current.modified, current.modifiedBy, current.comment, JSON.stringify(undo)])
       await this._setIndexes(current.id, newversion, indexes, db)
       this.loaders.get(storageLoader).clear(id)
-    })
-  }
+    }
+    if (tdb) await action(tdb)
+    else await db.transaction(action)
+}
 
   /**
    * Restore a previous version of the object. Creates a new version. You could do

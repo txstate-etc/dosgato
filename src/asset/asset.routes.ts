@@ -8,19 +8,21 @@ import { DateTime } from 'luxon'
 import { lookup } from 'mime-types'
 import probe from 'probe-image-size'
 import { PassThrough } from 'stream'
-import { pLimit } from 'txstate-utils'
+import { keyby, pLimit } from 'txstate-utils'
 import {
-  AssetFolderService, AssetFolderServiceInternal, AssetService, AssetServiceInternal, createAsset, fileHandler,
-  makeSafe, UserServiceInternal, VersionedService
+  Asset,
+  AssetFolderService, AssetFolderServiceInternal, AssetResize, AssetService, AssetServiceInternal, createAsset, fileHandler,
+  makeSafe, replaceAsset, UserServiceInternal, VersionedService
 } from '../internal.js'
 
 const resizeLimiter = pLimit(2)
 
-export async function handleUpload (req: FastifyRequest) {
+export async function handleUpload (req: FastifyRequest, maxFiles = 200) {
   const data: any = {}
   const files = []
   for await (const part of req.parts()) {
     if ('file' in part) {
+      if (files.length >= maxFiles) continue
       const fileTypePassthru = await fileTypeStream(part.file)
       const probePassthru = new PassThrough()
       const metadataPromise = probe(probePassthru, true)
@@ -72,7 +74,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const ctx = new Context(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
     const folder = await ctx.svc(AssetFolderServiceInternal).findById(req.params.folderId)
-    if (!folder) throw new HttpError(404, 'Specified folder does not exist')
+    if (!folder) throw new HttpError(404, 'Specified folder does not exist.')
     if (!(await ctx.svc(AssetFolderService).mayCreate(folder))) throw new HttpError(403, `Current user is not permitted to add assets to folder ${String(folder.name)}.`)
 
     const assetService = ctx.svc(AssetService)
@@ -88,7 +90,28 @@ export async function createAssetRoutes (app: FastifyInstance) {
     }
     return 'Success.'
   })
-  app.get<{ Params: { assetid: string, resizeid: string, filename: string } }>('/resize/:resizeid/:filename', async (req, res) => {
+  app.post<{ Params: { assetid: string } }>('/assets/replace/:assetid', async (req, res) => {
+    const ctx = new Context(req)
+    const user = await getEnabledUser(ctx) // throws if not authorized
+    const asset = await ctx.svc(AssetServiceInternal).findById(req.params.assetid)
+    if (!asset) throw new HttpError(404, 'Specified asset does not exist.')
+    if (!(await ctx.svc(AssetService).mayUpdate(asset))) throw new HttpError(403, `You are not permitted to update asset ${String(asset.name)}.`)
+
+    const assetService = ctx.svc(AssetService)
+    const versionedService = ctx.svc(VersionedService)
+
+    const { files } = await handleUpload(req, 1)
+    for (const file of files) {
+      const newAsset = await replaceAsset(versionedService, user.id, {
+        ...file,
+        assetId: asset.id
+      })
+      ctx.loaders.clear()
+      resizeLimiter(async () => await assetService.createResizes(newAsset)).catch(console.error)
+    }
+    return 'Success.'
+  })
+  app.get<{ Params: { resizeid: string, filename: string } }>('/resize/:resizeid/:filename', async (req, res) => {
     const ctx = new Context(req)
     const resize = await ctx.svc(AssetService).getResize(req.params.resizeid)
     if (!resize) throw new HttpError(404)
@@ -104,6 +127,32 @@ export async function createAssetRoutes (app: FastifyInstance) {
     void res.header('Cache-Control', `public, max-age=${String(60 * 60 * 24 * 30)}`)
 
     return await res.status(200).send(fileHandler.get(resize.checksum))
+  })
+  app.get<{ Params: { assetid: string, width: string, filename: string } }>('/assets/:assetid/w/:width/*', async (req, res) => {
+    const ctx = new Context(req)
+    const asset = await ctx.svc(AssetServiceInternal).findById(req.params.assetid)
+    if (!asset) throw new HttpError(404)
+    if (!asset.box) throw new HttpError(400, 'Asset is not an image - width parameter is not supported.')
+    const resizes = await ctx.svc(AssetService).getResizes(asset)
+
+    const formats = keyby((req.headers.accept?.split(',') ?? []).map(t => t.split(';')[0]))
+
+    let chosen: Asset | AssetResize = asset
+    for (const resize of resizes) {
+      if (formats[resize.mime] && (resize.width >= Number(req.params.width) || resize.width === asset.box.width) && resize.size <= chosen.size) chosen = resize
+    }
+
+    const etag = req.headers['if-none-match']
+    const resizeEtag = `"${chosen.checksum}"`
+    if (etag && resizeEtag === etag) return await res.status(304).send()
+
+    void res.header('Content-Type', chosen.mime)
+    void res.header('Content-Disposition', 'inline')
+    void res.header('Content-Length', chosen.size)
+    void res.header('ETag', resizeEtag)
+    void res.header('Cache-Control', `public, max-age=${String(60 * 60)}`)
+
+    return await res.status(200).send(fileHandler.get(chosen.checksum))
   })
   app.get<{ Params: { id: string, filename: string } }>('/assets/:id/:filename', async (req, res) => {
     const ctx = new Context(req)
