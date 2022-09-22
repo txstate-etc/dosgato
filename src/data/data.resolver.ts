@@ -117,8 +117,8 @@ export class DataResolver {
   }
 
   @Mutation(returns => DataResponse)
-  async renameDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string, @Arg('name') name: string) {
-    return await ctx.svc(DataService).rename(dataId, name)
+  async renameDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string, @Arg('name') name: string, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(DataService).rename(dataId, name, validateOnly)
   }
 
   @Mutation(returns => DataResponse, { description: 'Update a data entry.' })

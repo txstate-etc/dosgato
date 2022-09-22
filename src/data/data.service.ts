@@ -221,19 +221,35 @@ export class DataService extends DosGatoService<Data> {
     return response
   }
 
-  async rename (dataId: string, name: string) {
+  async rename (dataId: string, name: string, validateOnly?: boolean) {
     const data = await this.raw.findById(dataId)
     if (!data) throw new Error('Data entry to be renamed does not exist')
     if (!(await this.mayUpdate(data))) throw new Error('Current user is not permitted to rename this data entry.')
-    try {
-      await renameDataEntry(dataId, name)
-      this.loaders.clear()
-      const updated = await this.raw.findById(dataId)
-      return new DataResponse({ success: true, data: updated })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error(`Unable to rename data entry ${String(data.name)}`)
+    const response = new DataResponse({ success: true })
+    if (name !== data.name) {
+      if (data.folderInternalId) {
+        const sameNameEntryInFolder = (await this.raw.findByFolderInternalId(data.folderInternalId)).find(d => d.name === name)
+        if (isNotNull(sameNameEntryInFolder)) {
+          response.addMessage('A data entry with this name already exists', 'name')
+        }
+      } else if (data.siteId) {
+        const sameNameEntryInSite = (await this.raw.findBySiteId(data.siteId)).filter(d => isNull(d.folderInternalId) && d.name === name)
+        if (sameNameEntryInSite.length) {
+          response.addMessage('A data entry with this name already exists', 'name')
+        }
+      } else {
+        // check the global entries that are not in a folder
+        const sameNameGlobal = (await this.raw.find({ global: true })).filter(d => isNull(d.folderInternalId) && d.name === name)
+        if (sameNameGlobal.length) {
+          response.addMessage('A data entry with this name already exists', 'name')
+        }
+      }
     }
+    if (validateOnly || response.hasErrors()) return response
+    await renameDataEntry(dataId, name)
+    this.loaders.clear()
+    response.data = await this.raw.findById(dataId)
+    return response
   }
 
   async move (dataIds: string[], target: MoveDataTarget) {
