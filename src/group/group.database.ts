@@ -153,7 +153,9 @@ export async function setUserGroups (userId: number, groupIds: string[]) {
   }
   return await db.transaction(async db => {
     await db.delete('DELETE FROM users_groups WHERE userId = ?', [userId])
-    return await db.insert(`INSERT INTO users_groups (userId, groupId) VALUES ${groupIds.map(g => '(?,?)').join(',')}`, binds)
+    if (groupIds.length) {
+      return await db.insert(`INSERT INTO users_groups (userId, groupId) VALUES ${groupIds.map(g => '(?,?)').join(',')}`, binds)
+    }
   })
 }
 
