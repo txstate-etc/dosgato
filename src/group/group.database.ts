@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { Cache, hashify, unique } from 'txstate-utils'
-import { Group, GroupFilter } from '../internal.js'
+import { Group, GroupFilter, User } from '../internal.js'
 
 class HierarchyGroup extends Group {
   children: HierarchyGroup[]
@@ -154,6 +154,17 @@ export async function setUserGroups (userId: number, groupIds: string[]) {
   return await db.transaction(async db => {
     await db.delete('DELETE FROM users_groups WHERE userId = ?', [userId])
     return await db.insert(`INSERT INTO users_groups (userId, groupId) VALUES ${groupIds.map(g => '(?,?)').join(',')}`, binds)
+  })
+}
+
+export async function setGroupUsers (groupId: string, userIds: number[]) {
+  const binds: (string|number)[] = []
+  for (const id of userIds) {
+    binds.push(id, groupId)
+  }
+  return await db.transaction(async db => {
+    await db.delete('DELETE FROM users_groups WHERE groupId = ?', [groupId])
+    return await db.insert(`INSERT INTO users_groups (userId, groupId) VALUES ${userIds.map(u => '(?,?)').join(', ')}`, binds)
   })
 }
 

@@ -71,6 +71,11 @@ export class GroupResolver {
     return await ctx.svc(GroupService).setUserGroups(userId, groupIds)
   }
 
+  @Mutation(returns => ValidatedResponse, { description: 'Sets the members for a group' })
+  async setGroupUsers (@Ctx() ctx: Context, @Arg('groupId', type => ID) groupId: string, @Arg('userIds', type => [ID]) userIds: string[]) {
+    return await ctx.svc(GroupService).setGroupUsers(groupId, userIds)
+  }
+
   @Mutation(returns => ValidatedResponse, { description: 'Make one group a subgroup of another' })
   async addSubgroup (@Ctx() ctx: Context, @Arg('parentGroupId', type => ID) parentGroupId: string, @Arg('childGroupId', type => ID) childGroupId: string) {
     return await ctx.svc(GroupService).addSubgroup(parentGroupId, childGroupId)

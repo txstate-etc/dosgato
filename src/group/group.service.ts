@@ -1,11 +1,11 @@
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique, isNotNull, someAsync } from 'txstate-utils'
+import { unique, isNotNull, someAsync, mapConcurrent } from 'txstate-utils'
 import {
   Group, GroupFilter, GroupResponse, getGroups, getGroupsWithUser, getGroupsWithRole,
   groupHierarchyCache, createGroup, updateGroup, deleteGroup,
   addUserToGroups, removeUserFromGroups, removeSubgroup, addSubgroup, groupNameIsUnique,
-  UserService, DosGatoService, UserServiceInternal, setUserGroups, User, Site
+  UserService, DosGatoService, setUserGroups, setGroupUsers
 } from '../internal.js'
 
 const groupsByIdLoader = new PrimaryKeyLoader({
@@ -162,21 +162,16 @@ export class GroupService extends DosGatoService<Group> {
     const group = await this.findById(id)
     if (!group) throw new Error('Group to be updated does not exist.')
     if (!(await this.mayUpdate(group))) throw new Error('Current user is not permitted to update group names.')
+    const response = new GroupResponse({ success: true })
     if (name !== group.name && !(await groupNameIsUnique(name))) {
-      const response = new GroupResponse({})
       response.addMessage(`Group ${name} already exists.`, 'name')
-      return response
-    } else {
-      if (validateOnly) {
-        return new GroupResponse({ success: true, messages: [] })
-      } else {
-        await updateGroup(id, name)
-        await groupHierarchyCache.clear()
-        this.loaders.clear()
-        const updated = await this.loaders.get(groupsByIdLoader).load(id)
-        return new GroupResponse({ success: true, group: updated })
-      }
     }
+    if (validateOnly || response.hasErrors()) return response
+    await updateGroup(id, name)
+    await groupHierarchyCache.clear()
+    this.loaders.clear()
+    response.group = await this.loaders.get(groupsByIdLoader).load(id)
+    return response
   }
 
   async delete (id: string) {
@@ -239,6 +234,18 @@ export class GroupService extends DosGatoService<Group> {
       console.error(err)
       throw new Error(`Unable to update group memberships for user ${user.id}`)
     }
+  }
+
+  async setGroupUsers (groupId: string, userIds: string[]) {
+    const group = await this.findById(groupId)
+    if (!group) throw new Error('Group to be deleted does not exist.')
+    if (!(await this.mayManageUsers(group))) {
+      throw new Error('Current user is not permitted to manage users for this group.')
+    }
+    const users = (await mapConcurrent(userIds, async (id) => await this.svc(UserService).findById(id))).filter(isNotNull)
+    if (!users.length) throw new Error('Cannot assign user(s) to group')
+    await setGroupUsers(group.id, users.map(u => u.internalId))
+    return new ValidatedResponse({ success: true })
   }
 
   async addSubgroup (parentId: string, childId: string) {
