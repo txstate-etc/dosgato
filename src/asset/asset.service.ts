@@ -283,7 +283,7 @@ export class AssetService extends DosGatoService<Asset> {
     const outputmime = lookup(outputformat) as string
 
     const img = fileHandler.sharp(asset.checksum, { animated: outputformat === 'gif' })
-    for (let w = asset.box.width; w > 100; w = roundTo(w / 2)) {
+    for (let w = asset.box.width; w >= 100; w = roundTo(w / 2)) {
       const needregular = !resizes.some(r => r.mime === outputmime && r.width === w)
       const needwebp = !resizes.some(r => r.mime === 'image/webp' && r.width === w)
       if (needregular || needwebp) {

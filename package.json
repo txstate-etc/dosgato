@@ -11,7 +11,7 @@
     "@dosgato/templating": ">=0.0.53",
     "@fastify/multipart": "^7.2.0",
     "@types/sharp": "^0.30.5",
-    "@txstate-mws/graphql-server": "2.0.0",
+    "@txstate-mws/graphql-server": "2.0.1",
     "dataloader-factory": "^4.4.3",
     "fast-json-patch": "^3.1.0",
     "file-type": "^18.0.0",
@@ -40,7 +40,7 @@
     "build": "rm -rf dist && tsc",
     "buildrun": "rm -rf dest && (cd testserver ; tsc)",
     "start:dev": "nodemon",
-    "start": "node --enable-source-maps ./dist/testserver/run.js"
+    "start": "node --no-warnings --enable-source-maps ./dist/testserver/run.js"
   },
   "repository": {
     "type": "git",
