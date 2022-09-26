@@ -27,7 +27,7 @@ const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
 })
 
 async function updateLogin (queryTime: number, operationName: string, query: string, auth: any, variables: any) {
-  await loginCache.get(auth.sub, auth.iat)
+  await loginCache.get(auth.sub, Number(auth.iat))
 }
 
 export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
