@@ -43,7 +43,7 @@ export async function getTemplateRules (filter: TemplateRuleFilter) {
 
 export async function createTemplateRule (args: CreateTemplateRuleInput) {
   const columns: string[] = ['roleId']
-  const binds: (string|number|boolean)[] = []
+  const binds: (string | number | boolean)[] = []
   if (!args.roleId) {
     throw new Error('Must include a role ID when creating a template rule')
   }
@@ -62,7 +62,7 @@ export async function createTemplateRule (args: CreateTemplateRuleInput) {
 
 export async function updateTemplateRule (args: UpdateTemplateRuleInput) {
   const updates: string[] = []
-  const binds: (string|number|boolean)[] = []
+  const binds: (string | number | boolean)[] = []
   if (typeof args.templateId !== 'undefined') {
     updates.push('templateId = ?')
     const templateId = await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', [args.templateId])

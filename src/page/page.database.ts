@@ -130,7 +130,7 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db) {
   return pages.map(p => new Page(p))
 }
 
-async function refetch (db: Queryable, ...pages: (Page|undefined)[]) {
+async function refetch (db: Queryable, ...pages: (Page | undefined)[]) {
   const refetched = keyby(await getPages({ internalIds: pages.filter(isNotNull).map(p => p.internalId), deleted: DeletedFilter.SHOW }, db), 'internalId')
   return pages.map(p => refetched[p?.internalId ?? 0])
 }
@@ -154,7 +154,7 @@ async function updateSourceDisplayOrder (db: Queryable, page: Page, parent: Page
   await db.update('UPDATE pages SET displayOrder = displayOrder - 1 WHERE path = ? AND displayOrder > ?', [page.path, page.displayOrder])
 }
 
-export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page|undefined, name: string, data: PageData, linkId: string) {
+export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page | undefined, name: string, data: PageData, linkId: string) {
   return await db.transaction(async db => {
     [parent, aboveTarget] = await refetch(db, parent, aboveTarget)
     if (aboveTarget && parent.internalId !== aboveTarget.parentInternalId) {

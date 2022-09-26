@@ -134,7 +134,7 @@ export async function deleteGroup (id: string) {
 }
 
 export async function addUserToGroups (groupIds: string[], userId: number) {
-  const binds: (string|number)[] = []
+  const binds: (string | number)[] = []
   for (const id of groupIds) {
     binds.push(userId, id)
   }
@@ -142,12 +142,12 @@ export async function addUserToGroups (groupIds: string[], userId: number) {
 }
 
 export async function removeUserFromGroups (groupIds: string[], userId: number) {
-  const binds: (string|number)[] = [userId]
+  const binds: (string | number)[] = [userId]
   return await db.delete(`DELETE FROM users_groups WHERE userId = ? AND groupId IN (${db.in(binds, groupIds)})`, binds)
 }
 
 export async function setUserGroups (userId: number, groupIds: string[]) {
-  const binds: (string|number)[] = []
+  const binds: (string | number)[] = []
   for (const id of groupIds) {
     binds.push(userId, id)
   }
@@ -160,7 +160,7 @@ export async function setUserGroups (userId: number, groupIds: string[]) {
 }
 
 export async function setGroupUsers (groupId: string, userIds: number[]) {
-  const binds: (string|number)[] = []
+  const binds: (string | number)[] = []
   for (const id of userIds) {
     binds.push(id, groupId)
   }

@@ -71,14 +71,14 @@ export async function moveDataFolders (folderIds: string[], siteId?: string) {
     const binds: string[] = []
     const dataFolders = (await db.getall(`SELECT * FROM datafolders WHERE guid IN (${db.in(binds, folderIds)})`, binds)).map((row) => new DataFolder(row))
     const site = siteId ? new Site(await db.getrow('SELECT * FROM sites WHERE id = ?', [siteId])) : undefined
-    const moveBinds: (string|null)[] = []
+    const moveBinds: (string | null)[] = []
     moveBinds.push(site ? site.id : null)
     return await db.update(`UPDATE datafolders SET siteId = ? WHERE guid IN (${db.in(moveBinds, dataFolders.map(f => f.id))})`, moveBinds)
   })
 }
 
 export async function deleteDataFolder (folderIds: string[], userInternalId: number) {
-  const binds: (string|number)[] = [userInternalId]
+  const binds: (string | number)[] = [userInternalId]
   return await db.update(`UPDATE datafolders SET deletedBy = ?, deletedAt = NOW() WHERE guid IN (${db.in(binds, folderIds)})`, binds)
 }
 

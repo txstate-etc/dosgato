@@ -50,9 +50,9 @@ export class TemplateRuleFilter {
   roleIds?: string[]
 
   @Field(type => [ID], { nullable: 'itemsAndList', description: 'Rules targeting all templates will NOT be returned when this filter is used. Include `null` to return those rules.' })
-  templateKeys?: (string|null)[]
+  templateKeys?: (string | null)[]
 
-  templateIds?: (number|null)[]
+  templateIds?: (number | null)[]
 
   @Field({ nullable: true, description: 'Return rules that grant the use permission.' })
   use?: boolean

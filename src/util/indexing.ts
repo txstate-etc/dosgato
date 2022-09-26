@@ -21,7 +21,7 @@ export interface SingleValueIndex {
   value: string
 }
 
-export type LinkIndexTypes = 'link_asset'|'link_page'|'link_hostname'|'link_data'|'link_assetfolder'|'link_datafolder'
+export type LinkIndexTypes = 'link_asset' | 'link_page' | 'link_hostname' | 'link_data' | 'link_assetfolder' | 'link_datafolder'
 
 export function processLink (link: LinkDefinition) {
   let ret: { name: LinkIndexTypes, value: any }[] = []

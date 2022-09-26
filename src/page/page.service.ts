@@ -349,7 +349,7 @@ export class PageService extends DosGatoService<Page> {
     if (invalid) throw new Error('Template is not approved for use in this site or pagetree.')
   }
 
-  async validatePageData (data: PageData, site: Site|undefined, pagetree: Pagetree|undefined, parent: Page|undefined, name: string, linkId: string, pageId?: string) {
+  async validatePageData (data: PageData, site: Site | undefined, pagetree: Pagetree | undefined, parent: Page | undefined, name: string, linkId: string, pageId?: string) {
     const response = new PageResponse({ success: true })
     const extras: PageExtras = {
       query: this.ctx.query,
@@ -398,7 +398,7 @@ export class PageService extends DosGatoService<Page> {
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const response = await this.validatePageData(data, site, pagetree, parent, page.name, page.linkId)
     const indexes = getPageIndexes(data)
-    await this.svc(VersionedService).update(dataId, data, indexes, { user: this.login, comment: comment, version: dataVersion })
+    await this.svc(VersionedService).update(dataId, data, indexes, { user: this.login, comment, version: dataVersion })
     this.loaders.clear()
     const updated = await this.raw.findById(dataId)
     response.page = updated

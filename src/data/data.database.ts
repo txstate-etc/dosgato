@@ -154,7 +154,7 @@ async function updateSourceDisplayOrder (db: Queryable, versionedService: Versio
     // was it in a site?
     if (data.siteId) {
       if ((aboveTarget && data.siteId !== aboveTarget.siteId) || (!aboveTarget && data.siteId !== siteId)) {
-        const binds: (number|string)[] = [data.siteId]
+        const binds: (number | string)[] = [data.siteId]
         const remaining = await db.getvals<number>(`
           SELECT id from data
           WHERE siteId = ? AND folderId IS NULL AND id IN (${db.in(binds, remainingEntriesWithTemplate.map((e) => e.internalId))})
@@ -164,7 +164,7 @@ async function updateSourceDisplayOrder (db: Queryable, versionedService: Versio
     } else {
       // global data moved to a site or folder
       if (aboveTarget?.siteId || aboveTarget?.folderInternalId || folderInternalId || siteId) {
-        const binds: (number|string)[] = []
+        const binds: (number | string)[] = []
         const remaining = await db.getvals<number>(`
           SELECT id from data
           WHERE siteId IS NULL AND folderId IS NULL AND id IN (${db.in(binds, remainingEntriesWithTemplate.map((e) => e.internalId))})
@@ -253,7 +253,7 @@ export async function moveDataEntries (versionedService: VersionedService, dataI
 }
 
 export async function deleteDataEntries (dataIds: string[], userInternalId: number) {
-  const binds: (string|number)[] = [userInternalId]
+  const binds: (string | number)[] = [userInternalId]
   return await db.update(`UPDATE data SET deletedAt = NOW(), deletedBy = ? WHERE dataId IN (${db.in(binds, dataIds)})`, binds)
 }
 

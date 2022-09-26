@@ -166,7 +166,7 @@ export async function setLaunchURL (site: Site, host: string | undefined, path: 
 
 export async function updateSiteManagement (site: Site, args: UpdateSiteManagementInput, currentUserInternalId: number) {
   const updates: string[] = []
-  const binds: (string|number|null)[] = []
+  const binds: (string | number | null)[] = []
   const auditComments: string[] = []
   return await db.transaction(async db => {
     // Handle organization updates
@@ -200,7 +200,7 @@ export async function updateSiteManagement (site: Site, args: UpdateSiteManageme
     const formerManagerInternalIds = await db.getvals<number>('SELECT userId FROM sites_managers WHERE siteId = ?', [site.id])
     const newManagerInternalIds = args.managerIds?.length ? await db.getvals<number>(`SELECT id FROM users WHERE login IN (${db.in([], args.managerIds)})`, args.managerIds) : []
     await db.delete('DELETE FROM sites_managers WHERE siteId = ?', [site.id])
-    const managerBinds: (string|number)[] = []
+    const managerBinds: (string | number)[] = []
     for (const id of newManagerInternalIds) {
       managerBinds.push(site.id)
       managerBinds.push(id)

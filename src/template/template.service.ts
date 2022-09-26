@@ -214,7 +214,7 @@ export class TemplateService extends DosGatoService<Template> {
    * are already on the page. This allows people with extra authority to add certain
    * template types to a page without preventing later updates by less privileged users.
    */
-  async mayKeepOnPage (templateKey: string, page: Page, template: Template|undefined) {
+  async mayKeepOnPage (templateKey: string, page: Page, template: Template | undefined) {
     page.existingTemplateKeys ??= collectTemplates(await this.svc(PageServiceInternal).getData(page))
     // It's important to check for pre-existence before checking whether the template is
     // defined. We don't want pages getting stuck in non-editable state when they have an old

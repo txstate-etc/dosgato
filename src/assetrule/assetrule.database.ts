@@ -68,7 +68,7 @@ export async function getAssetRules (filter: AssetRuleFilter) {
 
 export async function createAssetRule (args: CreateAssetRuleInput) {
   const columns: string[] = ['roleId']
-  const binds: (string|boolean)[] = []
+  const binds: (string | boolean)[] = []
   if (!args.roleId) {
     throw new Error('Must include a role ID when creating an asset rule')
   }
@@ -112,7 +112,7 @@ export async function createAssetRule (args: CreateAssetRuleInput) {
 
 export async function updateAssetRule (args: UpdateAssetRuleInput) {
   const updates: string[] = []
-  const binds: (string|boolean)[] = []
+  const binds: (string | boolean)[] = []
   if (typeof args.siteId !== 'undefined') {
     updates.push('siteId = ?')
     binds.push(args.siteId)

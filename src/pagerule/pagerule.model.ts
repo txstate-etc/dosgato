@@ -119,7 +119,7 @@ export class PageRuleFilter {
   roleIds?: string[]
 
   @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that are NOT limited to a site.' })
-  siteIds?: (string|null)[]
+  siteIds?: (string | null)[]
 
   @Field(type => [PagetreeType], { nullable: true })
   pagetreeTypes?: PagetreeType[]

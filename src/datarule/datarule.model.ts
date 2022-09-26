@@ -94,8 +94,8 @@ export class DataRule {
 export class DataRuleFilter {
   ids?: string[]
   roleIds?: string[]
-  siteIds?: (string|null)[]
-  templateIds?: (string|null)[]
+  siteIds?: (string | null)[]
+  templateIds?: (string | null)[]
 }
 
 @InputType()

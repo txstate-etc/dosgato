@@ -136,7 +136,7 @@ export class GroupService extends DosGatoService<Group> {
   }
 
   async create (name: string, parentId?: string, validateOnly?: boolean) {
-    let parentGroup: Group|undefined
+    let parentGroup: Group | undefined
     if (parentId) {
       parentGroup = await this.findById(parentId)
       if (!parentGroup) throw new Error('Parent group does not exist.')

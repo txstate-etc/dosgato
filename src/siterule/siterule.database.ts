@@ -45,7 +45,7 @@ export async function getSiteRules (filter: SiteRuleFilter) {
 
 export async function createSiteRule (args: CreateSiteRuleInput) {
   const columns: string[] = ['roleId']
-  const binds: (string|boolean)[] = []
+  const binds: (string | boolean)[] = []
   if (!args.roleId) {
     throw new Error('Must include a role ID when creating a site rule')
   }
@@ -81,7 +81,7 @@ export async function createSiteRule (args: CreateSiteRuleInput) {
 
 export async function updateSiteRule (args: UpdateSiteRuleInput) {
   const updates: string[] = []
-  const binds: (string|boolean)[] = []
+  const binds: (string | boolean)[] = []
   if (typeof args.siteId !== 'undefined') {
     updates.push('siteId = ?')
     binds.push(args.siteId)

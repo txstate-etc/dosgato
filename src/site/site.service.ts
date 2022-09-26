@@ -43,7 +43,7 @@ const sitesByTemplateIdLoader = new ManyJoinedLoader({
 
 const sitesByOwnerInternalIdLoader = new OneToManyLoader({
   fetch: async (ownerInternalIds: number[], filter?: SiteFilter) => {
-    return await getSites({ ...filter, ownerInternalIds: ownerInternalIds })
+    return await getSites({ ...filter, ownerInternalIds })
   },
   extractKey: (item: Site) => item.ownerId!,
   idLoader: sitesByIdLoader

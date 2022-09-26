@@ -12,7 +12,7 @@ export class DataRoot {
   @Field(type => Template)
   template: Template
 
-  constructor (site: Site|undefined, template: Template) {
+  constructor (site: Site | undefined, template: Template) {
     this.id = `${site?.id ?? 'global'}-${template.id}`
     this.site = site
     this.template = template

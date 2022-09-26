@@ -4,16 +4,16 @@ import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RulePathMode, RuleType } from '../internal.js'
 
 interface AssetRuleRow {
-  id: number|string
-  roleId: number|string
-  siteId?: number|string
+  id: number | string
+  roleId: number | string
+  siteId?: number | string
   path: string
   mode: RulePathMode
-  create?: number|boolean
-  update?: number|boolean
-  move?: number|boolean
-  delete?: number|boolean
-  undelete?: number|boolean
+  create?: number | boolean
+  update?: number | boolean
+  move?: number | boolean
+  delete?: number | boolean
+  undelete?: number | boolean
 }
 
 @ObjectType()
@@ -98,7 +98,7 @@ export class AssetRuleFilter {
   ids?: string[]
 
   @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that are NOT limited to a site.' })
-  siteIds?: (string|null)[]
+  siteIds?: (string | null)[]
 
   @Field(type => [ID], { nullable: true })
   roleIds?: string[]

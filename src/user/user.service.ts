@@ -116,7 +116,7 @@ export class UserServiceInternal extends BaseService {
   }
 }
 
-export class UserService extends DosGatoService<User, RedactedUser|User> {
+export class UserService extends DosGatoService<User, RedactedUser | User> {
   raw = this.svc(UserServiceInternal)
 
   async find (filter: UserFilter) {

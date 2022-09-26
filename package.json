@@ -39,6 +39,7 @@
     "test": "./test.sh",
     "build": "rm -rf dist && tsc",
     "buildrun": "rm -rf dest && (cd testserver ; tsc)",
+    "lint": "eslint --ignore-path .gitignore .",
     "start:dev": "nodemon",
     "start": "node --no-warnings --enable-source-maps ./dist/testserver/run.js"
   },

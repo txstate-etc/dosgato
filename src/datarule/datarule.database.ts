@@ -38,7 +38,7 @@ export async function getDataRules (filter: DataRuleFilter) {
 
 export async function createDataRule (args: CreateDataRuleInput) {
   const columns: string[] = ['roleId']
-  const binds: (string|boolean|number)[] = []
+  const binds: (string | boolean | number)[] = []
   if (!args.roleId) {
     throw new Error('Must include a role ID when creating an asset rule')
   }
@@ -91,7 +91,7 @@ export async function createDataRule (args: CreateDataRuleInput) {
 
 export async function updateDataRule (args: UpdateDataRuleInput) {
   const updates: string[] = []
-  const binds: (string|number|boolean)[] = []
+  const binds: (string | number | boolean)[] = []
   if (args.siteId) {
     updates.push('siteId = ?')
     binds.push(args.siteId)

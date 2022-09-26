@@ -40,7 +40,7 @@ const dataBySiteIdLoader = new OneToManyLoader({
 })
 
 const dataByTemplateLoader = new OneToManyLoader({
-  fetch: async (templateKeys: string[], filter: DataFilter|undefined, ctx: Context) => {
+  fetch: async (templateKeys: string[], filter: DataFilter | undefined, ctx: Context) => {
     const idToTemplateKey = new Map<string, string>()
     await Promise.all(templateKeys.map(async key => {
       const searchRule = { indexName: 'templateKey', equal: key }
@@ -146,7 +146,7 @@ export class DataService extends DosGatoService<Data> {
   }
 
   async create (args: CreateDataInput, validateOnly?: boolean) {
-    let site: Site|undefined
+    let site: Site | undefined
     let dataroot: DataRoot
     const template = await this.svc(TemplateService).findByKey(args.data.templateKey)
     if (!template) throw new Error('Tried to create data with an unrecognized template.')
@@ -187,7 +187,7 @@ export class DataService extends DosGatoService<Data> {
     const migrated = await migrateData(this.ctx, args.data, dataroot.id, args.folderId)
     const messages = await tmpl.validate?.(migrated, { query: this.ctx.query, dataRootId: dataroot.id, dataFolderId: args.folderId }) ?? []
     for (const message of messages) {
-      response.addMessage(message.message, `args.data.${message.path}`, message.type as MutationMessageType)
+      response.addMessage(message.message, message.path && `args.data.${message.path}`, message.type as MutationMessageType)
     }
     if (validateOnly || response.hasErrors()) return response
     // passed validation, save it
@@ -209,7 +209,7 @@ export class DataService extends DosGatoService<Data> {
     const messages = await tmpl.validate?.(migrated, { query: this.ctx.query, dataRootId, dataFolderId: folder?.id, dataId: data.id }) ?? []
     const response = new DataResponse({ success: true })
     for (const message of messages) {
-      response.addMessage(message.message, `args.data.${message.path}`, message.type as MutationMessageType)
+      response.addMessage(message.message, message.path && `args.data.${message.path}`, message.type as MutationMessageType)
     }
     if (validateOnly || response.hasErrors()) return response
     const indexes = getDataIndexes(migrated)
@@ -267,14 +267,14 @@ export class DataService extends DosGatoService<Data> {
       throw new Error('Data entries being moved must all have the same template')
     }
     const template = await this.svc(TemplateService).findByKey(templateKeys[0])
-    let folder: DataFolder|undefined
+    let folder: DataFolder | undefined
     if (target.folderId) {
       folder = await this.svc(DataFolderServiceInternal).findById(target.folderId)
       if (!folder) throw new Error('Data cannot be moved to a data folder that does not exist.')
       if (!(await this.svc(DataFolderService).mayCreate(folder))) throw new Error(`Current user is not permitted to move data to folder ${String(folder.name)}`)
       if (folder.templateId !== template!.id) throw new Error('Data can only be moved to a folder using the same template.')
     }
-    let site: Site|undefined
+    let site: Site | undefined
     if (target.siteId) {
       site = await this.svc(SiteServiceInternal).findById(target.siteId)
       if (!site) throw new Error('Data cannot be moved to a site that does not exist.')
@@ -282,7 +282,7 @@ export class DataService extends DosGatoService<Data> {
       const tempdata = new Data({ id: 0, siteId: target.siteId })
       if (!(await this.haveDataPerm(tempdata, 'move'))) throw new Error(`Current user is not permitted to move data to site ${String(site.name)}.`)
     }
-    let aboveTarget: Data|undefined
+    let aboveTarget: Data | undefined
     if (target.aboveTarget) {
       aboveTarget = await this.raw.findById(target.aboveTarget)
       if (!aboveTarget) throw new Error('Data entry cannont be moved above a data entry that does not exist')

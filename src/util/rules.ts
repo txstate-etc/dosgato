@@ -1,8 +1,8 @@
 import { AssetRule, DataRule, GlobalRule, PageRule, RulePathMode, SiteRule, TemplateRule } from '../internal.js'
 
-type Rule = AssetRule|DataRule|GlobalRule|PageRule|SiteRule|TemplateRule
+type Rule = AssetRule | DataRule | GlobalRule | PageRule | SiteRule | TemplateRule
 
-type RuleWithPath = AssetRule|PageRule
+type RuleWithPath = AssetRule | PageRule
 
 const comparePathsMap = {
   [RulePathMode.SELF]: {

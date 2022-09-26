@@ -75,7 +75,7 @@ export class SiteRuleFilter {
   roleIds?: string[]
 
   @Field(type => [ID], { nullable: true })
-  siteIds?: (string|null)[]
+  siteIds?: (string | null)[]
 
   @Field({ nullable: true, description: 'Return rules that grant the launch permission.' })
   launch?: boolean

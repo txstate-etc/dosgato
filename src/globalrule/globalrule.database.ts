@@ -19,7 +19,7 @@ export async function getGlobalRules (filter: GlobalRuleFilter) {
 
 export async function createGlobalRule (args: CreateGlobalRuleInput) {
   const columns: string[] = ['roleId']
-  const binds: (string|boolean)[] = []
+  const binds: (string | boolean)[] = []
   if (!args.roleId) {
     throw new Error('Must include a role ID when creating a global rule')
   }
@@ -55,7 +55,7 @@ export async function createGlobalRule (args: CreateGlobalRuleInput) {
 
 export async function updateGlobalRule (args: UpdateGlobalRuleInput) {
   const updates: string[] = []
-  const binds: (string|boolean)[] = []
+  const binds: (string | boolean)[] = []
   if (args.grants) {
     if (isNotNull(args.grants.manageAccess)) {
       updates.push('`manageAccess` = ?')

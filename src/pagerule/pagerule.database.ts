@@ -87,7 +87,7 @@ export async function getPageRules (filter: PageRuleFilter) {
 
 export async function createPageRule (args: CreatePageRuleInput) {
   const columns: string[] = ['roleId']
-  const binds: (string|boolean)[] = []
+  const binds: (string | boolean)[] = []
   if (!args.roleId) {
     throw new Error('Must include a role ID when creating a page rule')
   }
@@ -144,7 +144,7 @@ export async function createPageRule (args: CreatePageRuleInput) {
 
 export async function updatePageRule (args: UpdatePageRuleInput) {
   const updates: string[] = []
-  const binds: (string|boolean)[] = []
+  const binds: (string | boolean)[] = []
   if (typeof args.siteId !== 'undefined') {
     updates.push('`siteId` = ?')
     binds.push(args.siteId)

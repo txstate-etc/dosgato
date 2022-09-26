@@ -9,7 +9,7 @@ interface HasHydratedAreas {
 type PageTemplate = APIPageTemplate & HasHydratedAreas
 type ComponentTemplate = APIComponentTemplate & HasHydratedAreas
 type DataTemplate = APIDataTemplate & HasHydratedAreas
-type AnyTemplate = PageTemplate|ComponentTemplate|DataTemplate
+type AnyTemplate = PageTemplate | ComponentTemplate | DataTemplate
 
 class TemplateRegistry {
   protected byType: { page: PageTemplate[], component: ComponentTemplate[], data: DataTemplate[] } = { page: [], component: [], data: [] }
@@ -55,7 +55,7 @@ class TemplateRegistry {
   }
 
   getPageOrComponentTemplate (templateKey: string) {
-    return this.get(templateKey) as PageTemplate|ComponentTemplate
+    return this.get(templateKey) as PageTemplate | ComponentTemplate
   }
 
   getType (type: APITemplateType) {
