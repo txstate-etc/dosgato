@@ -22,7 +22,6 @@ export const UrlSafeStringScalar = new GraphQLScalarType({
     if (ast.kind !== Kind.STRING) {
       throw new Error('UrlSafeString must be a string')
     }
-    if (typeof ast.custom === 'undefined') ast.custom = makeSafe(ast.value)
-    return ast.custom
+    return makeSafe(ast.value)
   }
 })

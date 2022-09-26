@@ -5,7 +5,7 @@ import { PageData } from '@dosgato/templating'
 import {
   Page, PageService, PageFilter, Role, Site, SiteService, Template, TemplateFilter, TemplateService,
   Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, SiteRuleService,
-  RoleService, JsonData
+  RoleService, JsonData, UrlSafeString
 } from '../internal.js'
 
 @Resolver(of => Pagetree)
@@ -50,14 +50,18 @@ export class PagetreeResolver {
   @Mutation(returns => PagetreeResponse, { description: 'Create a pagetree in an existing site' })
   async createPagetree (@Ctx() ctx: Context,
     @Arg('siteId', type => ID) siteId: string,
-    @Arg('name') name: string,
+    @Arg('name', type => UrlSafeString) name: string,
     @Arg('data', type => JsonData, { description: "Page data after the user has saved the page properties dialog. Data should include templateKey and the admin UI's schemaVersion." }) data: PageData,
     @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
     return await ctx.svc(PagetreeService).create(siteId, name, data, validateOnly)
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Update the name of a pagetree' })
-  async updatePagetree (@Ctx() ctx: Context, @Arg('pagetreeId', type => ID) pagetreeId: string, @Arg('name') name: string, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+  async updatePagetree (@Ctx() ctx: Context,
+    @Arg('pagetreeId', type => ID) pagetreeId: string,
+    @Arg('name', type => UrlSafeString) name: string,
+    @Arg('validateOnly', { nullable: true }) validateOnly?: boolean
+  ) {
     return await ctx.svc(PagetreeService).rename(pagetreeId, name, validateOnly)
   }
 

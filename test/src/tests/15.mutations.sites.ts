@@ -8,7 +8,7 @@ chai.use(chaiAsPromised)
 
 async function createSite (name: string, templateKey: string, username?: string) {
   const data = { savedAtVersion: '20220901120000', templateKey, title: 'Test Title' }
-  const { createSite: { success, site, messages } } = await queryAs((username ?? 'su01'), 'mutation CreateSite ($name: String!, $data: JsonData!) { createSite (name: $name, data: $data) { success messages { message } site { id name } } }', { name, data })
+  const { createSite: { success, site, messages } } = await queryAs((username ?? 'su01'), 'mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) { createSite (name: $name, data: $data) { success messages { message } site { id name } } }', { name, data })
   return { success, site, messages }
 }
 
@@ -33,13 +33,13 @@ describe('sites mutations', () => {
   })
   it('should update a site name', async () => {
     const { site: siteC } = await createSite('newsiteC', 'keyp1')
-    const { renameSite: { success, site } } = await query('mutation RenameSite ($id: ID!, $name: String!, $validateOnly: Boolean ) { renameSite (siteId:$id, name: $name, validateOnly: $validateOnly) { success site { name } } }', { id: siteC.id, name: 'updatedSiteC', validateOnly: false })
+    const { renameSite: { success, site } } = await query('mutation RenameSite ($id: ID!, $name: UrlSafeString!, $validateOnly: Boolean ) { renameSite (siteId:$id, name: $name, validateOnly: $validateOnly) { success site { name } } }', { id: siteC.id, name: 'updatedSiteC', validateOnly: false })
     expect(success).to.be.true
     expect(site.name).to.equal('updatedSiteC')
   })
   it('should not allow an unauthorized user to update a site name', async () => {
     const { site: siteD } = await createSite('newsiteD', 'keyp1')
-    await expect(queryAs('ed07', 'mutation RenameSite ($id: ID!, $name: String!, $validateOnly: Boolean) { renameSite (siteId:$id, name: $name, validateOnly: $validateOnly) { success site { name } } }', { id: siteD.id, name: 'updatedSiteD', validateOnly: false })).to.be.rejected
+    await expect(queryAs('ed07', 'mutation RenameSite ($id: ID!, $name: UrlSafeString!, $validateOnly: Boolean) { renameSite (siteId:$id, name: $name, validateOnly: $validateOnly) { success site { name } } }', { id: siteD.id, name: 'updatedSiteD', validateOnly: false })).to.be.rejected
   })
   it('should add a site owner to a site', async () => {
     const { site: siteE } = await createSite('newsiteE', 'keyp1')

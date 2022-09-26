@@ -12,7 +12,7 @@ import {
   DataRoot,
   DataRootService,
   DataRootFilter,
-  SiteComment, SiteCommentService, JsonData
+  SiteComment, SiteCommentService, JsonData, UrlSafeString
 } from '../internal.js'
 
 @Resolver(of => Site)
@@ -115,14 +115,19 @@ export class SiteResolver {
   // MUTATIONS
   @Mutation(returns => SiteResponse, { description: 'Create a new site with a pagetree, root page, and asset folder' })
   async createSite (@Ctx() ctx: Context,
-    @Arg('name', type => String) name: string,
+    @Arg('name', type => UrlSafeString) name: string,
     @Arg('data', type => JsonData, { description: "Page data after the user has saved the page properties dialog for the root page. Data should include templateKey and the admin UI's schemaVersion." }) data: PageData,
-    @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    @Arg('validateOnly', { nullable: true }) validateOnly?: boolean
+  ) {
     return await ctx.svc(SiteService).create(name, data, validateOnly)
   }
 
   @Mutation(returns => SiteResponse, { description: 'Rename a site. This will also rename the site\'s root asset folder and the root page for all of its pagetrees.' })
-  async renameSite (@Ctx() ctx: Context, @Arg('siteId', type => ID) siteId: string, @Arg('name') name: string, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+  async renameSite (@Ctx() ctx: Context,
+    @Arg('siteId', type => ID) siteId: string,
+    @Arg('name', type => UrlSafeString) name: string,
+    @Arg('validateOnly', { nullable: true }) validateOnly?: boolean
+  ) {
     return await ctx.svc(SiteService).rename(siteId, name, validateOnly)
   }
 

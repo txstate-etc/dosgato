@@ -9,7 +9,7 @@ chai.use(chaiAsPromised)
 async function createPagetree (name: string, siteId: string, templateKey: string, username?: string, validateOnly?: boolean) {
   const data = { savedAtVersion: '20220801120000', templateKey, title: 'Test Title' }
   const { createPagetree: { success, messages, pagetree } } = await queryAs((username ?? 'su01'), `
-    mutation CreatePagetree ($siteId: ID!, $name: String!, $data: JsonData!, $validateOnly: Boolean) {
+    mutation CreatePagetree ($siteId: ID!, $name: UrlSafeString!, $data: JsonData!, $validateOnly: Boolean) {
       createPagetree (siteId: $siteId, name: $name, data: $data, validateOnly: $validateOnly) {
         success
         messages { message }
@@ -22,7 +22,7 @@ async function createPagetree (name: string, siteId: string, templateKey: string
 describe('pagetree mutations', () => {
   let testSiteId: string
   before(async () => {
-    const { createSite: { site } } = await query('mutation CreateSite ($name: String!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name } } }', { name: 'pagetreetestsite', data: { savedAtVersion: '20220901120000', templateKey: 'keyp1', title: 'Test Title' } })
+    const { createSite: { site } } = await query('mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name } } }', { name: 'pagetreetestsite', data: { savedAtVersion: '20220901120000', templateKey: 'keyp1', title: 'Test Title' } })
     testSiteId = site.id
   })
   it('should create a pagetree', async () => {
@@ -44,13 +44,13 @@ describe('pagetree mutations', () => {
   })
   it('should update a pagetree name', async () => {
     const { pagetree: newPagetree } = await createPagetree('sandboxD', testSiteId, 'keyp1')
-    const { updatePagetree: { success, pagetree } } = await query('mutation UpdatePagetree ($pagetreeId: ID!, $name: String!) { updatePagetree (pagetreeId: $pagetreeId, name: $name) { success pagetree { id name } } }', { pagetreeId: newPagetree.id, name: 'sandboxD_renamed' })
+    const { updatePagetree: { success, pagetree } } = await query('mutation UpdatePagetree ($pagetreeId: ID!, $name: UrlSafeString!) { updatePagetree (pagetreeId: $pagetreeId, name: $name) { success pagetree { id name } } }', { pagetreeId: newPagetree.id, name: 'sandboxD_renamed' })
     expect(success).to.be.true
     expect(pagetree.name).to.equal('sandboxD_renamed')
   })
   it('should not allow an unauthorized user to update a pagetree name', async () => {
     const { pagetree: newPagetree } = await createPagetree('sandboxE', testSiteId, 'keyp1')
-    await expect(queryAs('ed07', 'mutation UpdatePagetree ($pagetreeId: ID!, $name: String!) { updatePagetree (pagetreeId: $pagetreeId, name: $name) { success pagetree { id name } } }', { pagetreeId: newPagetree.id, name: 'sandboxE_renamed' })).to.be.rejected
+    await expect(queryAs('ed07', 'mutation UpdatePagetree ($pagetreeId: ID!, $name: UrlSafeString!) { updatePagetree (pagetreeId: $pagetreeId, name: $name) { success pagetree { id name } } }', { pagetreeId: newPagetree.id, name: 'sandboxE_renamed' })).to.be.rejected
   })
   it('should soft-delete a pagetree', async () => {
     const { pagetree: newPagetree } = await createPagetree('sandboxF', testSiteId, 'keyp3')

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import { expect } from 'chai'
 import { query } from '../common.js'
-import { hashify } from 'txstate-utils'
+import { keyby } from 'txstate-utils'
 
 describe('sites', () => {
   let sitehash: any
@@ -26,7 +26,7 @@ describe('sites', () => {
       }
     }`)
     sites = resp.sites
-    sitehash = hashify(sites, 'name')
+    sitehash = keyby(sites, 'name')
   })
   it('should retrieve all sites', async () => {
     expect(sites).to.have.length.greaterThan(0)

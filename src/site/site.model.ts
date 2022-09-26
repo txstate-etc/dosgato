@@ -2,7 +2,7 @@ import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-s
 import { DateTime } from 'luxon'
 import { optionalString, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { DeletedFilter } from '../internal.js'
+import { DeletedFilter, UrlSafeString } from '../internal.js'
 
 @ObjectType()
 export class LaunchURL {
@@ -78,7 +78,7 @@ export class SiteFilter {
   @Field(type => [ID], { nullable: true })
   ids?: string[]
 
-  @Field(type => [String], { nullable: true })
+  @Field(type => [UrlSafeString], { nullable: true })
   names?: string[]
 
   @Field(type => [LaunchURLInput], { nullable: true, description: 'Return sites that match at least one of the given host/path combinations. The path may be longer than what is recorded as the site\'s launched path and it will still match.' })
@@ -97,18 +97,6 @@ export class SiteFilter {
   organizationIds?: string[]
 
   assetRootIds?: number[]
-}
-
-@InputType()
-export class CreateSiteInput {
-  @Field()
-  name!: string
-
-  @Field(type => ID)
-  rootPageTemplateKey!: string
-
-  @Field({ description: 'The current schema version of the admin UI. Used to tag the root page of the new site.' })
-  schemaVersion!: DateTime
 }
 
 @InputType()
