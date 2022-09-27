@@ -223,39 +223,39 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   }
 
   async create (args: CreateAssetFolderInput, validateOnly?: boolean) {
-    const parentFolder = await this.loaders.get(assetFolderByIdLoader).load(args.parentId)
+    const parentFolder = await this.raw.findById(args.parentId)
     if (!parentFolder) throw new Error('Parent folder does not exist.')
-    if (!(await this.haveAssetFolderPerm(parentFolder, 'create'))) throw new Error(`Current user is not permitted to create folders in ${String(parentFolder.name)}.`)
-    args.name = makeSafe(args.name)
+    if (!(await this.haveAssetFolderPerm(parentFolder, 'create'))) throw new Error(`You are not permitted to create folders in ${String(parentFolder.name)}.`)
+
     const resp = new AssetFolderResponse({ success: true })
     if (isBlank(args.name)) resp.addMessage('You must enter a folder name.', 'args.name')
     const [folders, assets] = await Promise.all([this.raw.getChildFolders(parentFolder, false, { names: [args.name] }), this.raw.getChildAssets(parentFolder, false, { names: [args.name] })])
     if (folders.length || assets.length) resp.addMessage('That name is already in use.', 'args.name')
     if (validateOnly || resp.hasErrors()) return resp
-    try {
-      const assetfolder = await createAssetFolder(args)
-      this.loaders.clear()
-      return new AssetFolderResponse({ assetFolder: assetfolder, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Could not create asset folder')
-    }
+
+    const assetfolder = await createAssetFolder(args)
+    this.loaders.clear()
+    return new AssetFolderResponse({ assetFolder: assetfolder, success: true })
   }
 
-  async rename (folderId: string, name: string) {
+  async rename (folderId: string, name: string, validateOnly?: boolean) {
     const folder = await this.raw.findById(folderId)
-    if (!folder) throw new Error('Folder to be renamed does not exist')
+    if (!folder) throw new Error('Folder to be renamed does not exist.')
     if (isNull(folder.parentInternalId)) throw new Error('Root asset folders cannot be renamed.')
-    if (!(await this.haveAssetFolderPerm(folder, 'update'))) throw new Error(`Current user is not permitted to rename folder ${String(folder.name)}.`)
-    try {
-      await renameAssetFolder(folderId, name)
-      this.loaders.clear()
-      const updatedFolder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
-      return new AssetFolderResponse({ assetFolder: updatedFolder, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Could not rename asset folder')
-    }
+    if (!(await this.haveAssetFolderPerm(folder, 'update'))) throw new Error(`You are not permitted to rename folder ${String(folder.name)}.`)
+
+    const resp = new AssetFolderResponse({ success: true })
+    if (isBlank(name)) resp.addMessage('You must enter a folder name.', 'name')
+    const parent = await this.raw.findByInternalId(folder.parentInternalId)
+    if (!parent) throw new Error('Folder has a non-existing parent.')
+    const [folders, assets] = await Promise.all([this.raw.getChildFolders(parent, false, { names: [name] }), this.raw.getChildAssets(parent, false, { names: [name] })])
+    if (folders.some(f => f.internalId !== folder.internalId) || assets.length) resp.addMessage('That name is already in use.', 'name')
+    if (validateOnly || resp.hasErrors()) return resp
+
+    await renameAssetFolder(folderId, name)
+    this.loaders.clear()
+    const updatedFolder = await this.raw.findById(folderId)
+    return new AssetFolderResponse({ assetFolder: updatedFolder, success: true })
   }
 
   async move (folderId: string, targetFolderId: string) {

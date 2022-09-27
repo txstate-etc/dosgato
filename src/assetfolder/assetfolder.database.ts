@@ -75,10 +75,7 @@ export async function createAssetFolder (args: CreateAssetFolderInput) {
 }
 
 export async function renameAssetFolder (folderId: string, name: string) {
-  return await db.transaction(async db => {
-    const id = await db.getval<number>('SELECT id FROM assetfolders WHERE guid = ?', [folderId])
-    return await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [name, id!])
-  })
+  return await db.update('UPDATE assetfolders SET name = ? WHERE guid = ?', [name, folderId])
 }
 
 export async function moveAssetFolder (id: number, targetFolder: AssetFolder) {

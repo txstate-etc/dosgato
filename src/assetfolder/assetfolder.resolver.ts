@@ -3,7 +3,7 @@ import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'ty
 import {
   Asset, AssetFilter, Role, RoleService, User, AssetFolder, AssetFolderFilter,
   AssetFolderPermission, AssetFolderPermissions, AssetFolderService, AssetRuleService,
-  UserService, AssetFolderResponse, CreateAssetFolderInput
+  UserService, AssetFolderResponse, CreateAssetFolderInput, UrlSafeString
 } from '../internal.js'
 import { isNull } from 'txstate-utils'
 
@@ -72,8 +72,8 @@ export class AssetFolderResolver {
   }
 
   @Mutation(returns => AssetFolderResponse)
-  async renameAssetFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string, @Arg('name') name: string) {
-    return await ctx.svc(AssetFolderService).rename(folderId, name)
+  async renameAssetFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string, @Arg('name', type => UrlSafeString) name: string, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(AssetFolderService).rename(folderId, name, validateOnly)
   }
 
   @Mutation(returns => AssetFolderResponse)

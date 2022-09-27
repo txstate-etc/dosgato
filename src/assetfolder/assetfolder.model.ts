@@ -84,7 +84,7 @@ export class AssetFolderFilter {
 
 @InputType()
 export class CreateAssetFolderInput {
-  @Field()
+  @Field(type => UrlSafeString)
   name!: string
 
   @Field(type => ID, { description: 'The existing asset folder that will be the new asset folder\'s parent' })
