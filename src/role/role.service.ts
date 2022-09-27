@@ -143,22 +143,15 @@ export class RoleService extends DosGatoService<Role> {
     return await this.removeUnauthorized(await this.raw.findBySiteId(siteId))
   }
 
-  async create (name: string) {
+  async create (name: string, validateOnly?: boolean) {
     if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create roles.')
-    const response = new RoleResponse({})
-    try {
-      const id = await createRole(name)
-      const role = await this.raw.findById(String(id))
-      response.success = true
-      response.role = role
-    } catch (err: any) {
-      if (err.code === 'ER_DUP_ENTRY') {
-        response.addMessage(`Role ${name} already exists.`, 'name')
-        return response
-      }
-      console.error(err)
-      throw new Error(`An unknown error occurred while creating role ${name}.`)
+    const response = new RoleResponse({ success: true })
+    if (!(await roleNameIsUnique(name))) {
+      response.addMessage(`Role ${name}  already exists`, 'name')
     }
+    if (validateOnly || response.hasErrors()) return response
+    const id = await createRole(name)
+    response.role = await this.raw.findById(String(id))
     return response
   }
 
