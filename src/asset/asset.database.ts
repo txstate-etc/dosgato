@@ -11,6 +11,7 @@ export interface AssetInput {
   size: number
   width?: number
   height?: number
+  legacyId?: string
 }
 
 export interface CreateAssetInput extends AssetInput {
@@ -117,7 +118,8 @@ export async function getLatestDownload (asset: Asset, resizeBinaryIds: number[]
 
 export async function createAsset (versionedService: VersionedService, userId: string, args: CreateAssetInput) {
   return await db.transaction(async db => {
-    const dataId = await versionedService.create('asset', { shasum: args.checksum }, [], userId, db)
+    const indexes = args.legacyId ? [{ name: 'legacyId', values: [args.legacyId] }] : []
+    const dataId = await versionedService.create('asset', { legacyId: args.legacyId, shasum: args.checksum }, indexes, userId, db)
     const folderInternalId = await db.getval<string>('SELECT id FROM assetfolders WHERE guid = ?', [args.folderId])
     await db.insert(`
       INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)

@@ -100,6 +100,9 @@ export class AssetFilter {
   ids?: string[]
 
   @Field(type => [ID], { nullable: true })
+  legacyIds?: string[]
+
+  @Field(type => [ID], { nullable: true })
   siteIds?: string[]
 
   @Field(type => [AssetLinkInput], { nullable: true, description: 'Resolve asset links preferring id and falling back to path or checksum.' })

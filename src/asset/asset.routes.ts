@@ -51,7 +51,7 @@ export async function handleUpload (req: FastifyRequest, maxFiles = 200) {
         }
       }
 
-      files.push({ name, checksum, mime, size: part.file.bytesRead, width, height })
+      files.push({ fieldname: part.fieldname, name, checksum, mime, size: part.file.bytesRead, width, height })
     } else {
       data[part.fieldname] = (part as any).value
     }
@@ -80,10 +80,11 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const assetService = ctx.svc(AssetService)
     const versionedService = ctx.svc(VersionedService)
 
-    const { files } = await handleUpload(req)
+    const { files, data } = await handleUpload(req)
     for (const file of files) {
       const asset = await createAsset(versionedService, user.id, {
         ...file,
+        legacyId: data[file.fieldname + '_legacyId'],
         folderId: folder.id
       })
       resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)

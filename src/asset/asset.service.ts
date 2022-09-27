@@ -5,7 +5,7 @@ import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
   fileHandler, deleteAsset, undeleteAsset, moveAsset, popPath, basename, registerResize,
-  getResizesById
+  getResizesById, VersionedService
 } from '../internal.js'
 import { lookup } from 'mime-types'
 
@@ -117,6 +117,11 @@ export class AssetServiceInternal extends BaseService {
   }
 
   async processAssetFilters (filter?: AssetFilter) {
+    if (filter?.legacyIds?.length) {
+      const ids = await this.svc(VersionedService).find([{ indexName: 'legacyId', in: filter.legacyIds }], 'latest')
+      filter.ids = intersect({ skipEmpty: true }, filter.ids, ids)
+    }
+
     if (filter?.paths?.length) {
       const folderidpaths = await this.svc(AssetFolderServiceInternal).convertPathsToIDPaths(filter.paths.map(popPath))
       const folderids = folderidpaths.map(p => +p.split(/\//).slice(-1)[0])
