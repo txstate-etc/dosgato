@@ -10,7 +10,7 @@ chai.use(chaiAsPromised)
 
 async function createSite (name: string) {
   const resp = await query(`
-    mutation CreateSite ($name: String!, $data: JsonData!) {
+    mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) {
       createSite (name: $name, data: $data) {
         success
         site { id name }

@@ -9,7 +9,7 @@ chai.use(chaiAsPromised)
 async function createPagetree (name: string, siteId: string, templateKey: string, validateOnly?: boolean) {
   const data = { savedAtVersion: '20220801120000', templateKey, title: 'Test Title' }
   const { createPagetree: { success, messages, pagetree } } = await query(`
-    mutation CreatePagetree ($siteId: ID!, $name: String!, $data: JsonData!, $validateOnly: Boolean) {
+    mutation CreatePagetree ($siteId: ID!, $name: UrlSafeString!, $data: JsonData!, $validateOnly: Boolean) {
       createPagetree (siteId: $siteId, name: $name, data: $data, validateOnly: $validateOnly) {
         success
         messages { message }
@@ -22,7 +22,7 @@ async function createPagetree (name: string, siteId: string, templateKey: string
 async function createTestSiteAndPagetrees (name: string, templateKey: string) {
   const data = { savedAtVersion: '20220901120000', templateKey, title: 'Test title' }
   const { createSite: { site } } = await query(`
-    mutation CreateSite ($name: String!, $data: JsonData!) {
+    mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) {
       createSite (name: $name, data: $data) {
         success
         site { id name pagetrees(filter: { types: [PRIMARY] }) { id name } }

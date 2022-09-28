@@ -14,14 +14,14 @@ async function createSite (name: string, templateKey: string, username?: string)
 
 describe('sites mutations', () => {
   it('should create a site', async () => {
-    const { success, site } = await createSite('newsiteA', 'keyp1')
+    const { success, site } = await createSite('newsitea', 'keyp1')
     expect(success).to.be.true
-    expect(site.name).to.equal('newsiteA')
+    expect(site.name).to.equal('newsitea')
     const { pages } = await query(`{ pages(filter: { siteIds: [${site.id}] }) { id name } }`)
-    expect(pages[0].name).to.equal('newsiteA')
+    expect(pages[0].name).to.equal('newsitea')
     const { sites } = await query('{ sites { name assetroot { name } } }')
-    const newSite = sites.find((s: any) => s.name === 'newsiteA')
-    expect(newSite.assetroot.name).to.equal('newsiteA')
+    const newSite = sites.find((s: any) => s.name === 'newsitea')
+    expect(newSite.assetroot.name).to.equal('newsitea')
   })
   it('should not allow a duplicate site name', async () => {
     const { success, messages } = await createSite('site1', 'keyp2')
@@ -33,9 +33,9 @@ describe('sites mutations', () => {
   })
   it('should update a site name', async () => {
     const { site: siteC } = await createSite('newsiteC', 'keyp1')
-    const { renameSite: { success, site } } = await query('mutation RenameSite ($id: ID!, $name: UrlSafeString!, $validateOnly: Boolean ) { renameSite (siteId:$id, name: $name, validateOnly: $validateOnly) { success site { name } } }', { id: siteC.id, name: 'updatedSiteC', validateOnly: false })
+    const { renameSite: { success, site } } = await query('mutation RenameSite ($id: ID!, $name: UrlSafeString!, $validateOnly: Boolean ) { renameSite (siteId:$id, name: $name, validateOnly: $validateOnly) { success site { name } } }', { id: siteC.id, name: 'updatedSitec', validateOnly: false })
     expect(success).to.be.true
-    expect(site.name).to.equal('updatedSiteC')
+    expect(site.name).to.equal('updatedsitec')
   })
   it('should not allow an unauthorized user to update a site name', async () => {
     const { site: siteD } = await createSite('newsiteD', 'keyp1')

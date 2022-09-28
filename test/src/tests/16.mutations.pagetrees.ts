@@ -26,9 +26,9 @@ describe('pagetree mutations', () => {
     testSiteId = site.id
   })
   it('should create a pagetree', async () => {
-    const { success, pagetree } = await createPagetree('sandboxA', testSiteId, 'keyp1')
+    const { success, pagetree } = await createPagetree('sandboxa', testSiteId, 'keyp1')
     expect(success).to.be.true
-    expect(pagetree.name).to.equal('sandboxA')
+    expect(pagetree.name).to.equal('sandboxa')
     expect(pagetree.type).to.equal('SANDBOX')
     const { pages } = await query(`{ pages(filter: { pagetreeIds: [${pagetree.id}] }) { id name } }`)
     expect(pages[0].name).to.equal('pagetreetestsite')
@@ -44,9 +44,9 @@ describe('pagetree mutations', () => {
   })
   it('should update a pagetree name', async () => {
     const { pagetree: newPagetree } = await createPagetree('sandboxD', testSiteId, 'keyp1')
-    const { updatePagetree: { success, pagetree } } = await query('mutation UpdatePagetree ($pagetreeId: ID!, $name: UrlSafeString!) { updatePagetree (pagetreeId: $pagetreeId, name: $name) { success pagetree { id name } } }', { pagetreeId: newPagetree.id, name: 'sandboxD_renamed' })
+    const { updatePagetree: { success, pagetree } } = await query('mutation UpdatePagetree ($pagetreeId: ID!, $name: UrlSafeString!) { updatePagetree (pagetreeId: $pagetreeId, name: $name) { success pagetree { id name } } }', { pagetreeId: newPagetree.id, name: 'sandboxd-renamed' })
     expect(success).to.be.true
-    expect(pagetree.name).to.equal('sandboxD_renamed')
+    expect(pagetree.name).to.equal('sandboxd-renamed')
   })
   it('should not allow an unauthorized user to update a pagetree name', async () => {
     const { pagetree: newPagetree } = await createPagetree('sandboxE', testSiteId, 'keyp1')
