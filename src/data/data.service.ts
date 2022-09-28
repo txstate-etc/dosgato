@@ -278,7 +278,10 @@ export class DataService extends DosGatoService<Data> {
     if (target.siteId) {
       site = await this.svc(SiteServiceInternal).findById(target.siteId)
       if (!site) throw new Error('Data cannot be moved to a site that does not exist.')
-      // TODO: Does the current user have permission to move data to this site?
+      const dataroot = new DataRoot(site, template!)
+      if (!(await this.haveDataRootPerm(dataroot, 'create'))) {
+        throw new Error(`Current user is not permitted to move data to this site ${String(site.name)}.`)
+      }
       const tempdata = new Data({ id: 0, siteId: target.siteId })
       if (!(await this.haveDataPerm(tempdata, 'move'))) throw new Error(`Current user is not permitted to move data to site ${String(site.name)}.`)
     }

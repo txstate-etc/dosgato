@@ -6,7 +6,8 @@ import {
   DataServiceInternal, CreateDataFolderInput, createDataFolder, DataFolderResponse,
   renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
   SiteService, DataFoldersResponse, moveDataFolders, DeletedFilter, DataRoot, DataRootService,
-  folderNameUniqueInDataRoot
+  folderNameUniqueInDataRoot,
+  TemplateServiceInternal
 } from '../internal.js'
 
 const dataFoldersByIdLoader = new PrimaryKeyLoader({
@@ -157,8 +158,12 @@ export class DataFolderService extends DosGatoService<DataFolder> {
     }
     if (siteId) {
       const site = await this.svc(SiteService).findById(siteId)
-      if (!site) throw new Error('Data folders cannot be added to a site that does not exist.')
-      // TODO: Does the user have permission to move data folders to this site?
+      if (!site) throw new Error('Data folders cannot be moved to a site that does not exist.')
+      const template = await this.svc(TemplateServiceInternal).findById(dataFolders[0].templateId)
+      const dataroot = new DataRoot(site, template!)
+      if (!(await this.haveDataRootPerm(dataroot, 'create'))) {
+        throw new Error('Current user is not permitted to move folders to this site.')
+      }
     } else {
       if (!(await this.haveGlobalPerm('manageGlobalData'))) throw new Error('Current user is not permitted to add global data folders')
     }
