@@ -405,20 +405,25 @@ export class PageService extends DosGatoService<Page> {
     return response
   }
 
-  async renamePage (dataId: string, name: string) {
+  async renamePage (dataId: string, name: string, validateOnly?: boolean) {
     const page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot rename a page that does not exist.')
-    if (page.path === '/') throw new Error('Cannot rename the root page') // TODO: Does this check belong in mayMove()? Editors shouldn't move the root page either
     if (!(await this.mayMove(page))) throw new Error('Current user is not permitted to rename this page')
-    try {
-      await renamePage(page, name)
-      this.loaders.clear()
-      const updated = await this.raw.findById(dataId)
-      return new PageResponse({ success: true, page: updated })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error ocurred while trying to rename a page.')
+    const response = new PageResponse({ success: true })
+    if (isNotNull(page.parentInternalId)) {
+      const parent = await this.raw.findByInternalId(page.parentInternalId)
+      const siblings = await this.raw.getPageChildren(parent!, false)
+      if (name !== page.name && siblings.some(p => p.name === name)) {
+        response.addMessage('A page with this name already exists in this location', 'name')
+      }
+    } else {
+      throw new Error('Cannot rename the root page')
     }
+    if (validateOnly || response.hasErrors()) return response
+    await renamePage(page, name)
+    this.loaders.clear()
+    response.page = await this.raw.findById(dataId)
+    return response
   }
 
   async deletePages (dataIds: string[]) {

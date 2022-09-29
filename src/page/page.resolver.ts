@@ -211,8 +211,11 @@ export class PageResolver {
   }
 
   @Mutation(returns => PageResponse)
-  async renamePage (@Ctx() ctx: Context, @Arg('pageId', type => ID) pageId: string, @Arg('name') name: string) {
-    return await ctx.svc(PageService).renamePage(pageId, name)
+  async renamePage (@Ctx() ctx: Context,
+    @Arg('pageId', type => ID) pageId: string,
+    @Arg('name') name: UrlSafeString,
+    @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(PageService).renamePage(pageId, name as string, validateOnly)
   }
 
   @Mutation(returns => PagesResponse)
