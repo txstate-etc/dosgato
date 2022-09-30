@@ -7,15 +7,62 @@ import { fileTypeStream } from 'file-type'
 import { DateTime } from 'luxon'
 import { lookup } from 'mime-types'
 import probe from 'probe-image-size'
-import { PassThrough } from 'stream'
-import { keyby, pLimit } from 'txstate-utils'
+import { PassThrough, Readable } from 'stream'
+import { ReadableStream } from 'stream/web'
+import { keyby, pLimit, randomid } from 'txstate-utils'
 import {
   Asset,
   AssetFolderService, AssetFolderServiceInternal, AssetResize, AssetService, AssetServiceInternal, createAsset, fileHandler,
-  makeSafe, replaceAsset, UserServiceInternal, VersionedService
+  GlobalRuleService, makeSafe, replaceAsset, UserServiceInternal, VersionedService
 } from '../internal.js'
 
 const resizeLimiter = pLimit(2)
+
+export async function placeFile (readStream: Readable, filename: string, mimeGuess: string) {
+  const fileTypePassthru = await fileTypeStream(readStream)
+  const probePassthru = new PassThrough()
+  const metadataPromise = probe(probePassthru, true)
+  const { checksum, size } = await fileHandler.put(fileTypePassthru.pipe(probePassthru))
+  let { mime } = fileTypePassthru.fileType ?? { mime: mimeGuess }
+  if (mime === 'application/x-cfb' || mime.startsWith('plain/text')) mime = mimeGuess // npm file-type library not good at distinguishing old MS Office formats
+
+  let name = filename
+  const extFromFileName = name.match(/\.(\w+)$/)?.[1]
+  if (extFromFileName && lookup(extFromFileName)) name = name.replace(new RegExp('\\.' + extFromFileName + '$'), '')
+  name = makeSafe(name)
+
+  let metadata: probe.ProbeResult
+  let width: number | undefined
+  let height: number | undefined
+  if (mime.startsWith('image/')) {
+    try {
+      metadata = await metadataPromise
+      width = metadata.width
+      height = metadata.height
+      if ((metadata.orientation ?? 1) > 4) {
+        width = height
+        height = metadata.width
+      }
+    } catch (e) {
+      console.warn('Unable to read metadata for image', name, 'of type', mime, e)
+    }
+  }
+  return { name, checksum, mime, size, width, height }
+}
+
+export async function handleURLUpload (url: string, auth?: string) {
+  const resp = await fetch(url, {
+    headers: {
+      Authorization: auth ?? ''
+    }
+  })
+  if ((resp.status ?? 500) >= 400) throw new HttpError(400, `Target URL returned status ${resp.status}`)
+  const filename = url.split('/').slice(-1)[0] ?? randomid()
+  const mimeGuess = resp.headers.get('content-type') ?? (lookup(url) || 'application/octet-stream')
+  const readStream = resp.body
+  if (!readStream) throw new Error('Unable to read from given URL.')
+  return await placeFile(Readable.fromWeb(readStream as ReadableStream), filename, mimeGuess)
+}
 
 export async function handleUpload (req: FastifyRequest, maxFiles = 200) {
   const data: any = {}
@@ -23,35 +70,8 @@ export async function handleUpload (req: FastifyRequest, maxFiles = 200) {
   for await (const part of req.parts()) {
     if ('file' in part) {
       if (files.length >= maxFiles) continue
-      const fileTypePassthru = await fileTypeStream(part.file)
-      const probePassthru = new PassThrough()
-      const metadataPromise = probe(probePassthru, true)
-      const checksum = await fileHandler.put(fileTypePassthru.pipe(probePassthru))
-      const { mime } = fileTypePassthru.fileType ?? { ext: lookup(part.mimetype) || '', mime: part.mimetype }
-
-      let name = part.filename
-      const extFromFileName = name.match(/\.(\w+)$/)?.[1]
-      if (extFromFileName && lookup(extFromFileName)) name = name.replace(new RegExp('\\.' + extFromFileName + '$'), '')
-      name = makeSafe(name)
-
-      let metadata: probe.ProbeResult
-      let width: number | undefined
-      let height: number | undefined
-      if (mime.startsWith('image/')) {
-        try {
-          metadata = await metadataPromise
-          width = metadata.width
-          height = metadata.height
-          if ((metadata.orientation ?? 1) > 4) {
-            width = height
-            height = metadata.width
-          }
-        } catch (e) {
-          console.warn('Unable to read metadata for image', name, 'of type', mime, e)
-        }
-      }
-
-      files.push({ fieldname: part.fieldname, name, checksum, mime, size: part.file.bytesRead, width, height })
+      const file = await placeFile(part.file, part.filename, part.mimetype)
+      files.push({ ...file, fieldname: part.fieldname })
     } else {
       data[part.fieldname] = (part as any).value
     }
@@ -70,45 +90,92 @@ async function getEnabledUser (ctx: Context) {
 export async function createAssetRoutes (app: FastifyInstance) {
   await fileHandler.init()
   await app.register(multipart)
-  app.post<{ Params: { folderId: string } }>('/assets/:folderId', async (req, res) => {
+  app.post<{ Params: { folderId: string }, Body?: { url: string, legacyId?: string, auth?: string, modifiedBy?: string, modifiedAt?: string, createdBy?: string, createdAt?: string } }>('/assets/:folderId', async (req, res) => {
     const ctx = new Context(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
     const folder = await ctx.svc(AssetFolderServiceInternal).findById(req.params.folderId)
     if (!folder) throw new HttpError(404, 'Specified folder does not exist.')
     if (!(await ctx.svc(AssetFolderService).mayCreate(folder))) throw new HttpError(403, `Current user is not permitted to add assets to folder ${String(folder.name)}.`)
+    if (req.body?.legacyId) {
+      const asset = (await ctx.svc(AssetServiceInternal).find({ legacyIds: [req.body.legacyId] }))[0]
+      if (asset) throw new HttpError(403, 'An asset already exists with the given legacy id. Use /assets/replace/:assetid instead.')
+    }
+    if (req.body?.createdAt || req.body?.createdBy || req.body?.modifiedAt || req.body?.modifiedBy) {
+      if (!req.body.legacyId) throw new HttpError(400, 'Only assets being imported from another system may override created/modified attributes.')
+      if (!await ctx.svc(GlobalRuleService).mayOverrideStamps()) throw new HttpError(403, 'You are not allowed to set created/modified stamps on new assets.')
+    }
 
     const assetService = ctx.svc(AssetService)
     const versionedService = ctx.svc(VersionedService)
 
-    const { files, data } = await handleUpload(req)
-    for (const file of files) {
+    if (req.isMultipart()) {
+      const { files, data } = await handleUpload(req)
+      for (const file of files) {
+        const asset = await createAsset(versionedService, user.id, {
+          ...file,
+          legacyId: data[file.fieldname + '_legacyId'],
+          folderId: folder.id,
+          createdBy: data.createdBy,
+          createdAt: data.createdAt,
+          modifiedBy: data.modifiedBy,
+          modifiedAt: data.modifiedAt
+        })
+        resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)
+      }
+    } else if (req.body?.url) {
+      const file = await handleURLUpload(req.body.url, req.body.auth)
       const asset = await createAsset(versionedService, user.id, {
         ...file,
-        legacyId: data[file.fieldname + '_legacyId'],
-        folderId: folder.id
+        legacyId: req.body.legacyId,
+        folderId: folder.id,
+        createdBy: req.body.createdBy,
+        createdAt: req.body.createdAt,
+        modifiedBy: req.body.modifiedBy,
+        modifiedAt: req.body.modifiedAt
       })
       resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)
+    } else {
+      throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }
     return 'Success.'
   })
-  app.post<{ Params: { assetid: string } }>('/assets/replace/:assetid', async (req, res) => {
+  app.post<{ Params: { assetid: string }, Body?: { url: string, auth?: string, modifiedBy?: string, modifiedAt?: string } }>('/assets/replace/:assetid', async (req, res) => {
     const ctx = new Context(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
     const asset = await ctx.svc(AssetServiceInternal).findById(req.params.assetid)
     if (!asset) throw new HttpError(404, 'Specified asset does not exist.')
-    if (!(await ctx.svc(AssetService).mayUpdate(asset))) throw new HttpError(403, `You are not permitted to update asset ${String(asset.name)}.`)
-
     const assetService = ctx.svc(AssetService)
     const versionedService = ctx.svc(VersionedService)
+    if (!(await assetService.mayUpdate(asset))) throw new HttpError(403, `You are not permitted to update asset ${String(asset.name)}.`)
+    if (req.body?.modifiedAt || req.body?.modifiedBy) {
+      const data = await versionedService.get(asset.dataId)
+      if (!data?.data.legacyId) throw new HttpError(400, 'Only assets that were imported from another system may override modified attributes.')
+      if (!await ctx.svc(GlobalRuleService).mayOverrideStamps()) throw new HttpError(403, 'You are not allowed to set modified stamps when updating assets.')
+    }
 
-    const { files } = await handleUpload(req, 1)
-    for (const file of files) {
+    if (req.isMultipart()) {
+      const { files } = await handleUpload(req, 1)
+      for (const file of files) {
+        const newAsset = await replaceAsset(versionedService, user.id, {
+          ...file,
+          assetId: asset.id,
+          modifiedBy: req.body?.modifiedBy,
+          modifiedAt: req.body?.modifiedAt
+        })
+        ctx.loaders.clear()
+        resizeLimiter(async () => await assetService.createResizes(newAsset)).catch(console.error)
+      }
+    } else if (req.body?.url) {
+      const file = await handleURLUpload(req.body.url, req.body.auth)
       const newAsset = await replaceAsset(versionedService, user.id, {
         ...file,
-        assetId: asset.id
+        assetId: asset.id,
+        modifiedBy: req.body.modifiedBy,
+        modifiedAt: req.body.modifiedAt
       })
-      ctx.loaders.clear()
       resizeLimiter(async () => await assetService.createResizes(newAsset)).catch(console.error)
+    } else {
+      throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }
     return 'Success.'
   })

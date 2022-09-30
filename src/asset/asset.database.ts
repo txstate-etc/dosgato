@@ -11,11 +11,15 @@ export interface AssetInput {
   size: number
   width?: number
   height?: number
-  legacyId?: string
+  modifiedBy?: string
+  modifiedAt?: string
 }
 
 export interface CreateAssetInput extends AssetInput {
   folderId: string
+  legacyId?: string
+  createdBy?: string
+  createdAt?: string
 }
 
 export interface ReplaceAssetInput extends AssetInput {
@@ -119,7 +123,12 @@ export async function getLatestDownload (asset: Asset, resizeBinaryIds: number[]
 export async function createAsset (versionedService: VersionedService, userId: string, args: CreateAssetInput) {
   return await db.transaction(async db => {
     const indexes = args.legacyId ? [{ name: 'legacyId', values: [args.legacyId] }] : []
-    const dataId = await versionedService.create('asset', { legacyId: args.legacyId, shasum: args.checksum }, indexes, userId, db)
+    const createdBy = args.legacyId ? (args.createdBy ?? args.modifiedBy ?? userId) : userId
+    const createdAt = args.legacyId ? (args.createdAt ?? args.modifiedAt ?? undefined) : undefined
+    const modifiedBy = args.legacyId ? (args.modifiedBy ?? args.createdBy ?? userId) : userId
+    const modifiedAt = args.legacyId ? (args.modifiedAt ?? args.createdAt ?? undefined) : undefined
+    const dataId = await versionedService.create('asset', { legacyId: args.legacyId, shasum: args.checksum }, indexes, createdBy, db)
+    await versionedService.setStamps(dataId, { createdAt: createdAt ? new Date(createdAt) : undefined, modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
     const folderInternalId = await db.getval<string>('SELECT id FROM assetfolders WHERE guid = ?', [args.folderId])
     await db.insert(`
       INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)
@@ -138,7 +147,10 @@ export async function replaceAsset (versionedService: VersionedService, userId: 
     await db.insert(`
     INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)
     VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify(pick(args, 'width', 'height')), args.size])
-    await versionedService.update(args.assetId, { ...data, shasum: args.checksum }, [], { user: userId }, db)
+    await versionedService.update(args.assetId, { ...data.data, shasum: args.checksum }, [], { user: userId }, db)
+    const modifiedBy = data.data.legacyId ? (args.modifiedBy ?? userId) : userId
+    const modifiedAt = data.data.legacyId ? (args.modifiedAt ?? undefined) : undefined
+    await versionedService.setStamps(args.assetId, { modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
     await db.update('UPDATE assets SET shasum=? WHERE dataId=?', [args.checksum, args.assetId])
     return (await getAssets({ ids: [args.assetId] }, db))[0]
   })

@@ -120,6 +120,7 @@ export class AssetServiceInternal extends BaseService {
     if (filter?.legacyIds?.length) {
       const ids = await this.svc(VersionedService).find([{ indexName: 'legacyId', in: filter.legacyIds }], 'latest')
       filter.ids = intersect({ skipEmpty: true }, filter.ids, ids)
+      if (!filter.ids.length) filter.internalIds = [-1]
     }
 
     if (filter?.paths?.length) {
@@ -127,6 +128,7 @@ export class AssetServiceInternal extends BaseService {
       const folderids = folderidpaths.map(p => +p.split(/\//).slice(-1)[0])
       filter.folderInternalIds = intersect({ skipEmpty: true }, filter.folderInternalIds, folderids)
       filter.names = filter.paths.map(basename)
+      if (!folderidpaths.length) filter.internalIds = [-1]
     }
 
     if (filter?.beneath?.length) {
@@ -134,11 +136,13 @@ export class AssetServiceInternal extends BaseService {
       const folders = await this.svc(AssetFolderServiceInternal).getChildFoldersByIDPaths(folderidpaths)
       const ids = [...folders.map(f => f.internalId), ...folderidpaths.map(basename).map(Number)]
       filter.folderInternalIds = intersect({ skipEmpty: true }, filter.folderInternalIds, ids)
+      if (!folderidpaths.length) filter.internalIds = [-1]
     }
 
     if (filter?.parentPaths?.length) {
       const folderidpaths = await this.svc(AssetFolderServiceInternal).convertPathsToIDPaths(filter.parentPaths)
       filter.folderInternalIds = intersect({ skipEmpty: true }, filter.folderInternalIds, folderidpaths.map(basename).map(Number))
+      if (!folderidpaths.length) filter.internalIds = [-1]
     }
 
     if (filter?.links?.length) {
@@ -310,9 +314,9 @@ export class AssetService extends DosGatoService<Asset> {
           await registerResize(asset, w, checksum, outputmime, outputformat === 'jpg' ? 60 : 0, outputinfo.size)
         }
         if (needwebp) {
-          const webp = resized.webp({ quality: 65, effort: 6, loop: info.loop ?? 0 })
+          const webp = resized.webp({ quality: 75, effort: 6, loop: info.loop ?? 0 })
           const { checksum: webpsum, info: webpinfo } = await fileHandler.sharpWrite(webp)
-          await registerResize(asset, w, webpsum, 'image/webp', 65, webpinfo.size)
+          await registerResize(asset, w, webpsum, 'image/webp', 75, webpinfo.size)
         }
       }
     }

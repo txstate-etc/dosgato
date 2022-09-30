@@ -86,10 +86,14 @@ export class AssetFolderServiceInternal extends BaseService {
       rowsByNameAndIDPath[row.name][row.path].push(row)
     }
     const idpaths: string[] = []
+    // eslint-disable-next-line no-labels
+    loop1:
     for (const pt of paths) {
       let searchpaths = ['/']
       for (const segment of pt) {
-        const pages = searchpaths.flatMap(sp => rowsByNameAndIDPath[segment][sp])
+        const pages = searchpaths.flatMap(sp => rowsByNameAndIDPath[segment]?.[sp])
+        // eslint-disable-next-line no-labels
+        if (pages.some(isNull)) break loop1
         searchpaths = pages.map(pg => `${pg.path}${pg.path === '/' ? '' : '/'}${pg.internalId}`)
         if (!searchpaths.length) break
       }
@@ -128,18 +132,21 @@ export class AssetFolderServiceInternal extends BaseService {
       const idpaths = await this.convertPathsToIDPaths(filter.paths)
       const ids = idpaths.map(p => +p.split(/\//).slice(-1)[0])
       filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, ids)
+      if (!idpaths.length) filter.internalIds = [-1]
     }
 
     // beneath a named path e.g. /site1/about
     if (filter?.beneath?.length) {
       const idpaths = await this.convertPathsToIDPaths(filter.beneath)
       filter.internalIdPathsRecursive = intersect({ skipEmpty: true }, filter.internalIdPaths, idpaths)
+      if (!idpaths.length) filter.internalIds = [-1]
     }
 
     // direct children of a named path e.g. /site1/about
     if (filter?.parentPaths?.length) {
       const idpaths = await this.convertPathsToIDPaths(filter.parentPaths)
       filter.internalIdPaths = intersect({ skipEmpty: true }, filter.internalIdPaths, idpaths)
+      if (!idpaths.length) filter.internalIds = [-1]
     }
 
     if (filter?.links?.length) {

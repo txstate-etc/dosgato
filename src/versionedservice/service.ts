@@ -240,6 +240,36 @@ export class VersionedService extends BaseService {
   }
 
   /**
+   * Update the timestamps of a current record.
+   *
+   * When migrating content from another data source, it may be desirable to retain the created and modified
+   * dates/users from the original system. During the migration process, you may use this method to override the created
+   * and modified times of the current version.
+   *
+   * If you are migrating a version history, you should call this.update() once per version, and call this method
+   * after each update to update the modifiedAt stamp. This way the corrected stamp will make its way into the
+   * version history when you send your next update.
+   */
+  async setStamps (id: string, stamps: { createdAt?: Date, modifiedAt?: Date, modifiedBy?: string }, tdb?: Queryable) {
+    if (!stamps.createdAt && !stamps.modifiedAt && !stamps.modifiedBy) return true
+    const action = async (db: Queryable) => {
+      const row = await db.getrow<{ modified: Date, modifiedBy: string, created: Date }>('SELECT created, modified, modifiedBy FROM storage WHERE id=?', [id])
+      if (!row) throw new Error('Tried to update timestamps on a non-existing object.')
+      const createdAt = stamps.createdAt ?? row.created
+      const modifiedAt = stamps.modifiedAt && stamps.modifiedAt > createdAt
+        ? stamps.modifiedAt
+        : (createdAt > row.modified
+          ? createdAt
+          : row.modified)
+      const modifiedBy = stamps.modifiedBy ?? row.modifiedBy
+      await db.update('UPDATE storage SET created=?, modified=?, modifiedBy=? WHERE id=?', [createdAt, modifiedAt, modifiedBy, id])
+    }
+    if (tdb) await action(tdb)
+    else await db.transaction(action)
+    return true
+  }
+
+  /**
    * Update an object, retaining the version history.
    *
    * You are expected to provide your own index strings; they will be stored and kept for

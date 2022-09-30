@@ -105,4 +105,8 @@ export class GlobalRuleService extends DosGatoService<GlobalRule> {
     const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
     return !!role
   }
+
+  async mayOverrideStamps () {
+    return await this.haveGlobalPerm('createSites')
+  }
 }

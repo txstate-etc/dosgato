@@ -9,7 +9,7 @@ import { pipeline } from 'stream/promises'
 
 interface FileHandler {
   init: () => Promise<void>
-  put: (stream: Readable) => Promise<string> // returns a checksum
+  put: (stream: Readable) => Promise<{ checksum: string, size: number }> // returns a checksum
   get: (checksum: string) => Readable
   sharp: (checksum: string, opts?: sharp.SharpOptions) => sharp.Sharp
   sharpWrite: (img: sharp.Sharp) => Promise<{ checksum: string, info: sharp.OutputInfo }> // returns a checksum
@@ -44,11 +44,12 @@ class FileSystemHandler implements FileHandler {
   async put (stream: Readable) {
     const tmp = this.#getTmpLocation()
     const hash = createHash('sha1')
-    stream.on('data', data => hash.update(data))
+    let size = 0
+    stream.on('data', (data: Buffer) => { hash.update(data); size += data.length })
     await pipeline(stream, createWriteStream(tmp))
     const checksum = hash.digest('hex')
     await this.#moveToPerm(tmp, checksum)
-    return checksum
+    return { checksum, size }
   }
 
   sharp (checksum: string, opts?: sharp.SharpOptions) {
