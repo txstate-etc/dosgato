@@ -2,7 +2,7 @@ import { PageData, PageExtras, PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { nanoid } from 'nanoid'
-import { eachConcurrent, filterAsync, intersect, isNotNull, keyby, someAsync, stringify, unique } from 'txstate-utils'
+import { eachConcurrent, filterAsync, intersect, isNotNull, keyby, mapConcurrent, someAsync, stringify, unique } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
   PageResponse, PagesResponse, createPage, getPages, movePages,
@@ -329,6 +329,9 @@ export class PageService extends DosGatoService<Page> {
     if (!(await this.mayCreate(parent))) {
       throw new Error('Current user is not permitted to copy pages to this location.')
     }
+    // Is this page allowed to be copied here?
+    const pageData = (await mapConcurrent(pages, async page => await this.svc(VersionedService).get(page.id))).filter(isNotNull)
+    await eachConcurrent(pageData, async d => await this.validatePageTemplates(parent, d.data, true))
     const newPage = await copyPages(this.svc(VersionedService), this.login, pages, parent, aboveTarget, includeChildren)
     return new PageResponse({ success: true, page: newPage })
   }
@@ -492,7 +495,7 @@ export class PageService extends DosGatoService<Page> {
       throw new Error('Current user is not permitted to unpublish one or more pages')
     }
     try {
-      await eachConcurrent(dataIds, async (dataId) => await this.svc(VersionedService).removeTag(dataId, 'published'))
+      await eachConcurrent(pages.map(p => p.id), async (dataId) => await this.svc(VersionedService).removeTag(dataId, 'published'))
       this.loaders.clear()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
