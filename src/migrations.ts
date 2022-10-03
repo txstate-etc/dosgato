@@ -21,6 +21,16 @@ const dgMigrations: DBMigration[] = [
       await db.execute('ALTER TABLE `pages` MODIFY path varchar(255)')
       await db.execute('ALTER TABLE `pages` ADD CONSTRAINT nameinpath UNIQUE (`pagetreeId`,`path`, `name`)')
     }
+  },
+  {
+    id: 20221002000000,
+    description: 'expand primary key on resizes table in case two binaries resize to the same output (e.g. they started with different metadata or they are both black squares)',
+    run: async (db) => {
+      await db.execute('ALTER TABLE `resizes` DROP FOREIGN KEY FK_resizes_binaries_id')
+      await db.execute('ALTER TABLE `resizes` DROP PRIMARY KEY')
+      await db.execute('ALTER TABLE `resizes` ADD PRIMARY KEY (binaryId, originalBinaryId)')
+      await db.execute('ALTER TABLE `resizes` ADD CONSTRAINT FK_resizes_binaries_id FOREIGN KEY (`binaryId`) REFERENCES `binaries` (`id`)')
+    }
   }
 ]
 
