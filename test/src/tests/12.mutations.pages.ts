@@ -31,16 +31,16 @@ describe('pages mutations', () => {
   })
   it('should rename a page', async () => {
     const { page: testpage } = await createPage('testpage3', testSite6PageRootId, 'keyp3')
-    const { renamePage: { success, page } } = await query('mutation UpdatePage ($name: String!, $pageId: ID!) {renamePage (name: $name, pageId: $pageId) { success page { id name } } }', { name: 'renamedtestpage3', pageId: testpage.id })
+    const { renamePage: { success, page } } = await query('mutation UpdatePage ($name: UrlSafeString!, $pageId: ID!) {renamePage (name: $name, pageId: $pageId) { success page { id name } } }', { name: 'renamedtestpage3', pageId: testpage.id })
     expect(success).to.be.true
     expect(page.name).to.equal('renamedtestpage3')
   })
   it('should not allow the root page to be renamed', async () => {
-    await expect(query('mutation UpdatePage ($name: String!, $pageId: ID!) {renamePage (name: $name, pageId: $pageId) { success page { id name } } }', { name: 'renamingrootpage', pageId: testSite6PageRootId })).to.be.rejected
+    await expect(query('mutation UpdatePage ($name: UrlSafeString!, $pageId: ID!) {renamePage (name: $name, pageId: $pageId) { success page { id name } } }', { name: 'renamingrootpage', pageId: testSite6PageRootId })).to.be.rejected
   })
   it('should not allow an unauthorized user to rename a page', async () => {
     const { page: testpage } = await createPage('testpage4', testSite6PageRootId, 'keyp3')
-    await expect(queryAs('ed07', 'mutation UpdatePage ($name: String!, $pageId: ID!) {renamePage (name: $name, pageId: $pageId) { success page { id name } } }', { name: 'renamingrootpage', pageId: testpage.id })).to.be.rejected
+    await expect(queryAs('ed07', 'mutation UpdatePage ($name: UrlSafeString!, $pageId: ID!) {renamePage (name: $name, pageId: $pageId) { success page { id name } } }', { name: 'renamingrootpage', pageId: testpage.id })).to.be.rejected
   })
   it('should be able to move a page', async () => {
     const { pages } = await query(`

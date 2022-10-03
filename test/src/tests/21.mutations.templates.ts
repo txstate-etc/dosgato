@@ -2,7 +2,7 @@
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common.js'
-import { DateTime } from 'luxon'
+import db from 'mysql2-async/db'
 
 chai.use(chaiAsPromised)
 
@@ -115,9 +115,11 @@ describe('templates mutations', () => {
     expect(success).to.be.true
     const { sites } = await query(`{ sites (filter: { ids: [${site.id}]}) { templates { key } pagetrees(filter: { ids: [${sandbox1Id},${sandbox2Id}]}) { id name templates { key} } } }`)
     expect(sites[0].templates.map(t => t.key)).to.include('keyp2')
-    for (const pagetree of sites[0].pagetrees) {
-      expect(pagetree.templates.map(t => t.key)).to.not.include('keyp2')
-    }
+    const pagetreeTemplates = await db.getval<number>(`
+      SELECT COUNT(*) FROM pagetrees_templates
+      INNER JOIN templates on pagetrees_templates.templateId = templates.id
+      WHERE pagetrees_templates.pagetreeId IN (?,?) AND templates.key = ?`, [sandbox2Id, sandbox1Id, 'keyp2'])
+    expect(pagetreeTemplates).to.equal(0)
   })
   it('should not accept pagetrees from different sites when authorizing a template for multiple pagetrees', async () => {
     const { sandbox1Id, sandbox2Id } = await createTestSiteAndPagetrees('templatetest8', 'keyp1')

@@ -28,7 +28,11 @@ export class PagetreeResolver {
 
   @FieldResolver(returns => [Template], { description: 'All templates that are approved for use in this pagetree.' })
   async templates (@Ctx() ctx: Context, @Root() pagetree: Pagetree, @Arg('filter', { nullable: true }) filter?: TemplateFilter) {
-    return await ctx.svc(TemplateService).findByPagetreeId(pagetree.id, filter)
+    const [pagetreeTemplates, siteTemplates] = await Promise.all([
+      ctx.svc(TemplateService).findByPagetreeId(pagetree.id, filter),
+      ctx.svc(TemplateService).findBySiteId(pagetree.siteId, filter)
+    ])
+    return unique([...pagetreeTemplates, ...siteTemplates], 'key')
   }
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this pagetree, or any permission if null.' })

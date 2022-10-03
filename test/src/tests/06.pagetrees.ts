@@ -49,8 +49,19 @@ describe('pagetrees', () => {
       }
     }
   })
-  it.skip('should retrieve all templates approved for use in a pagetree', async () => {})
-  it.skip('should retrieve all templates approved for use in a pagetree, with a template filter applied', async () => {})
+  it('should retrieve all templates approved for use in a pagetree', async () => {
+    const { sites } = await query('{ sites { name pagetrees { name templates { key } } } }')
+    const site1 = sites.find((s: any) => s.name === 'site1')
+    const pagetree = site1.pagetrees.find(p => p.name === 'pagetree1')
+    expect(pagetree.templates).to.include.deep.members([{ key: 'keyp1' }, { key: 'keyp2' }, { key: 'keyp3' }])
+  })
+  it('should retrieve all templates approved for use in a pagetree, with a template filter applied', async () => {
+    const { sites } = await query('{ sites { name pagetrees { name templates(filter: { names: ["pagetemplate1"]}) { key } } } }')
+    const site1 = sites.find((s: any) => s.name === 'site1')
+    const pagetree = site1.pagetrees.find(p => p.name === 'pagetree1')
+    expect(pagetree.templates.length).to.equal(1)
+    expect(pagetree.templates).to.include.deep.members([{ key: 'keyp1' }])
+  })
   it('should retrieve roles with any permission on a pagetree', async () => {
     const { sites } = await query('{ sites { name pagetrees { name roles { name } } } }')
     const site5 = sites.find((s: any) => s.name === 'site5')

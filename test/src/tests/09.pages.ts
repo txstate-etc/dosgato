@@ -32,7 +32,12 @@ describe('pages', () => {
     expect(pageNames).to.not.have.members(['events'])
     expect(pageNames).to.include.members(['about', 'site1', 'grad', 'contact'])
   })
-  it.skip('should get only undeleted pages if no deleted filter is provided', async () => {
+  it('should get only undeleted pages if no deleted filter is provided', async () => {
+    const { sites } = await query('{ sites { name pagetrees(filter: { types: [PRIMARY] }) { pages { id deleted } } } }')
+    const site1 = sites.find(s => s.name === 'site1')
+    for (const page of site1.pagetrees[0].pages) {
+      expect(page.deleted).to.be.false
+    }
   })
   it('should get pages, filtered by linkId', async () => {
     const { pages } = await query('{ pages(filter: { deleted: HIDE }) { id name linkId } }')
@@ -120,7 +125,14 @@ describe('pages', () => {
     const rootPage = resp.pages.find((p: any) => p.name === 'site1')
     expect(rootPage.createdBy.id).to.equal('su01')
   })
-  it.skip('should return the data for a page (no arguments)', async () => {})
+  it('should return the data for a page (no arguments)', async () => {
+    const { pages } = await query(' { pages(filter: { deleted: HIDE }) { name data } }')
+    const facultyPage = pages.find(p => p.name === 'faculty')
+    expect(facultyPage.data).to.have.property('templateKey')
+    expect(facultyPage.data).to.have.property('savedAtVersion')
+    expect(facultyPage.data).to.have.property('title')
+    expect(facultyPage.data.title).to.equal('Faculty')
+  })
   it.skip('should return the published version of data for a page', async () => {})
   it.skip('should return the data for a page, specifying schema version', async () => {})
   it.skip('should return the specified version of data for a page', async () => {})
@@ -204,8 +216,17 @@ describe('pages', () => {
     const peoplePage = pages.find((p: any) => p.name === 'people')
     expect(peoplePage.site.name).to.equal('site1')
   })
-  it.skip('should get the templates approved for a page', async () => {})
-  it.skip('should get the templates approved by a page, including those authorized for the current user', async () => {})
+  it('should get the templates approved for a page', async () => {
+    const { pages } = await queryAs('ed02', '{ pages(filter: {deleted: HIDE}) { id name templates { key } } }')
+    const site1RootPage = pages.find((p: any) => p.name === 'site1')
+    expect(site1RootPage.templates).to.deep.include.members([{ key: 'keyp1' }, { key: 'keyp2' }, { key: 'keyp3' }])
+  })
+  it('should get the templates approved by a page, including those authorized for the current user', async () => {
+    const { pages } = await query('{ pages(filter: {deleted: SHOW}) { id name templates { key } } }')
+    const site5RootPage = pages.find((p: any) => p.name === 'site5')
+    // su01 can use all templates on all pages
+    expect(site5RootPage.templates).to.deep.include.members([{ key: 'keyp1' }, { key: 'keyp2' }, { key: 'keyp3' }, { key: 'keyc1' }, { key: 'keyc2' }, { key: 'keyc3' }])
+  })
   it('should return whether or not a page has a published version', async () => {
     const { pages } = await query('{ pages(filter: {deleted: HIDE}) { name published } }')
     expect(pages).to.deep.include({ name: 'site2', published: true })

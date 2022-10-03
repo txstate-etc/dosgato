@@ -15,7 +15,7 @@ describe('asset mutations', () => {
   let testSiteAId: string
   let siteAAssetRootId: string
   before(async () => {
-    const { createSite: { site } } = await query('mutation CreateSite ($name: String!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name assetroot { id } } } }', { name: 'assetTestSiteA', data: { templateKey: 'keyp1', savedAtVersion: '20220801120000', title: 'Test Title' } })
+    const { createSite: { site } } = await query('mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name assetroot { id } } } }', { name: 'assetTestSiteA', data: { templateKey: 'keyp1', savedAtVersion: '20220801120000', title: 'Test Title' } })
     testSiteAId = site.id
     siteAAssetRootId = site.assetroot.id
   })
@@ -29,16 +29,16 @@ describe('asset mutations', () => {
   })
   it('should rename an asset folder', async () => {
     const { assetFolder: folder } = await createAssetFolder('childfolder2', siteAAssetRootId)
-    const { renameAssetFolder: { success, assetFolder } } = await query('mutation RenameAssetFolder ($folderId: ID!, $name: String!) { renameAssetFolder (folderId: $folderId, name: $name) { success assetFolder { id name } } }', { folderId: folder.id, name: 'childfolder2renamed' })
+    const { renameAssetFolder: { success, assetFolder } } = await query('mutation RenameAssetFolder ($folderId: ID!, $name: UrlSafeString!) { renameAssetFolder (folderId: $folderId, name: $name) { success assetFolder { id name } } }', { folderId: folder.id, name: 'childfolder2renamed' })
     expect(success).to.be.true
     expect(assetFolder.name).to.equal('childfolder2renamed')
   })
   it('should not allow the root asset folder to be renamed', async () => {
-    await expect(query('mutation RenameAssetFolder ($folderId: ID!, $name: String!) { renameAssetFolder (folderId: $folderId, name: $name) { success assetFolder { id name } } }', { folderId: siteAAssetRootId, name: 'shouldnotwork' })).to.be.rejected
+    await expect(query('mutation RenameAssetFolder ($folderId: ID!, $name: UrlSafeString!) { renameAssetFolder (folderId: $folderId, name: $name) { success assetFolder { id name } } }', { folderId: siteAAssetRootId, name: 'shouldnotwork' })).to.be.rejected
   })
   it('should not allow an unauthorized user to rename an asset folder', async () => {
     const { assetFolder: folder } = await createAssetFolder('childfolder3', siteAAssetRootId)
-    await expect(queryAs('ed07', 'mutation RenameAssetFolder ($folderId: ID!, $name: String!) { renameAssetFolder (folderId: $folderId, name: $name) { success assetFolder { id name } } }', { folderId: folder.id, name: 'shouldnotwork' })).to.be.rejected
+    await expect(queryAs('ed07', 'mutation RenameAssetFolder ($folderId: ID!, $name: UrlSafeString!) { renameAssetFolder (folderId: $folderId, name: $name) { success assetFolder { id name } } }', { folderId: folder.id, name: 'shouldnotwork' })).to.be.rejected
   })
   it('should delete an asset folder', async () => {
     const { assetFolder: folder } = await createAssetFolder('childfolder4', siteAAssetRootId)
@@ -72,13 +72,13 @@ describe('asset mutations', () => {
   it('should move an asset folder', async () => {
     const { assetFolder: targetFolder } = await createAssetFolder('childfolder8', siteAAssetRootId)
     const { assetFolder: folder } = await createAssetFolder('grandchildfolder1', siteAAssetRootId)
-    expect(folder.folder.name).to.equal('assetTestSiteA')
+    expect(folder.folder.name).to.equal('assettestsitea')
     const { moveAssetFolder: { success, assetFolder } } = await query('mutation MoveAssetFolder ($folderId: ID!, $targetId: ID!) { moveAssetFolder (folderId: $folderId, targetId: $targetId) { success assetFolder { id name folder { id name } } } }', { folderId: folder.id, targetId: targetFolder.id })
     expect(success).to.be.true
     expect(assetFolder.folder.id).to.equal(targetFolder.id)
   })
   it('should not allow the root asset folder to be moved', async () => {
-    const { createSite: { site } } = await query('mutation CreateSite ($name: String!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name assetroot { id } } } }', { name: 'assetTestSiteB', data: { templateKey: 'keyp1', savedAtVersion: '20220801120000', title: 'Test Title' } })
+    const { createSite: { site } } = await query('mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name assetroot { id } } } }', { name: 'assetTestSiteB', data: { templateKey: 'keyp1', savedAtVersion: '20220801120000', title: 'Test Title' } })
     const { assetFolder: targetFolder } = await createAssetFolder('childfolder9', site.assetroot.id)
     await expect(query('mutation MoveAssetFolder ($folderId: ID!, $targetId: ID!) { moveAssetFolder (folderId: $folderId, targetId: $targetId) { success assetFolder { id name folder { id name } } } }', { folderId: siteAAssetRootId, targetId: targetFolder.id })).to.be.rejected
   })
