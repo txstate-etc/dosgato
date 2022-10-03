@@ -2,7 +2,7 @@ import { DateTime } from 'luxon'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
-import { UrlSafeString } from '../internal.js'
+import { UrlSafePath, UrlSafeString } from '../internal.js'
 
 @ObjectType({ description: 'An asset folder is a folder that contains assets and other asset folders. Each site has exactly one root asset folder that is nameless and cannot be deleted.' })
 export class AssetFolder {
@@ -66,13 +66,13 @@ export class AssetFolderFilter {
   childOfFolderInternalIds?: number[]
   names?: string[]
 
-  @Field(type => [String], { nullable: true, description: 'Return folders with the given paths.' })
+  @Field(type => [UrlSafePath], { nullable: true, description: 'Return folders with the given paths.' })
   paths?: string[]
 
-  @Field(type => [String], { nullable: true, description: 'Return folders that descend from any of the given paths.' })
+  @Field(type => [UrlSafePath], { nullable: true, description: 'Return folders that descend from any of the given paths.' })
   beneath?: string[]
 
-  @Field(type => [String], { nullable: true, description: 'Return folders that are direct children of any of the given paths.' })
+  @Field(type => [UrlSafePath], { nullable: true, description: 'Return folders that are direct children of any of the given paths.' })
   parentPaths?: string[]
 
   @Field(type => Boolean, { nullable: true, description: 'Return folders that are the root folder of a site.' })

@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { isNotNull, pick, stringify } from 'txstate-utils'
-import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder } from '../internal.js'
+import { isNotNull, keyby, pick, stringify } from 'txstate-utils'
+import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler } from '../internal.js'
 import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 
@@ -27,7 +27,7 @@ export interface ReplaceAssetInput extends AssetInput {
 }
 
 function processFilters (filter?: AssetFilter) {
-  const binds: string[] = []
+  const binds: (string | number)[] = []
   const where: string[] = []
   const joins = new Map<string, string>()
 
@@ -68,6 +68,11 @@ function processFilters (filter?: AssetFilter) {
     }
     if (filter.checksums?.length) {
       where.push(`binaries.shasum IN (${db.in(binds, filter.checksums)})`)
+    }
+    if (isNotNull(filter.bytes)) {
+      if (filter.bytes < 0) where.push('binaries.bytes < ?')
+      else where.push('binaries.bytes > ?')
+      binds.push(Math.abs(filter.bytes))
     }
   }
   return { binds, where, joins }
@@ -123,9 +128,11 @@ export async function getLatestDownload (asset: Asset, resizeBinaryIds: number[]
 export async function createAsset (versionedService: VersionedService, userId: string, args: CreateAssetInput) {
   return await db.transaction(async db => {
     const indexes = args.legacyId ? [{ name: 'legacyId', values: [args.legacyId] }] : []
-    const createdBy = args.legacyId ? (args.createdBy ?? args.modifiedBy ?? userId) : userId
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    const createdBy = args.legacyId ? (args.createdBy || args.modifiedBy || userId) : userId // || is intended - to catch blanks
     const createdAt = args.legacyId ? (args.createdAt ?? args.modifiedAt ?? undefined) : undefined
-    const modifiedBy = args.legacyId ? (args.modifiedBy ?? args.createdBy ?? userId) : userId
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    const modifiedBy = args.legacyId ? (args.modifiedBy || createdBy || userId) : userId // || is intended - to catch blanks
     const modifiedAt = args.legacyId ? (args.modifiedAt ?? args.createdAt ?? undefined) : undefined
     const dataId = await versionedService.create('asset', { legacyId: args.legacyId, shasum: args.checksum }, indexes, createdBy, db)
     await versionedService.setStamps(dataId, { createdAt: createdAt ? new Date(createdAt) : undefined, modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
@@ -160,7 +167,7 @@ export async function registerResize (asset: Asset, width: number, shasum: strin
   const height = asset.box!.height * width / asset.box!.width
   return await db.transaction(async db => {
     const binaryId = await db.insert(`
-      INSERT IGNORE INTO binaries (shasum, mime, meta, bytes) VALUES (?, ?, ?, ?)
+      INSERT INTO binaries (shasum, mime, meta, bytes) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)
     `, [shasum, mime, stringify({ width, height }), size])
     const origBinaryId = await db.getval<number>('SELECT id FROM binaries WHERE shasum=?', [asset.checksum])
     await db.insert(`
@@ -178,6 +185,15 @@ export async function moveAsset (id: number, targetFolder: AssetFolder) {
     if (folder.path !== targetFolder.path) throw new Error('Target folder has moved since the mutation began.')
     return await db.update('UPDATE assets set folderId = ? WHERE id = ?', [targetFolder.internalId, id])
   })
+}
+
+export async function cleanupBinaries (checksums: string[]) {
+  const binds: string[] = []
+  const binaries = await db.getall<{ shasum: string }>(`SELECT shasum FROM binaries WHERE shasum IN (${db.in(binds, checksums)})`, binds)
+  const hash = keyby(binaries, 'shasum')
+  for (const checksum of checksums) {
+    if (!hash[checksum]) await fileHandler.remove(checksum)
+  }
 }
 
 export async function deleteAsset (id: number, userInternalId: number) {

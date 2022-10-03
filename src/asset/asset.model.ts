@@ -3,7 +3,7 @@ import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { extension } from 'mime-types'
-import { JsonData, UrlSafeString } from '../internal.js'
+import { JsonData, UrlSafePath, UrlSafeString } from '../internal.js'
 
 const resizeMimeToExt: Record<string, string> = {
   'image/jpg': 'jpg',
@@ -117,14 +117,17 @@ export class AssetFilter {
   folderInternalIds?: number[]
   names?: string[]
 
-  @Field(type => [String], { nullable: true, description: 'Return assets with the given paths.' })
+  @Field(type => [UrlSafePath], { nullable: true, description: 'Return assets with the given paths.' })
   paths?: string[]
 
-  @Field(type => [String], { nullable: true, description: 'Return assets that descend from any of the given paths.' })
+  @Field(type => [UrlSafePath], { nullable: true, description: 'Return assets that descend from any of the given paths.' })
   beneath?: string[]
 
-  @Field(type => [String], { nullable: true, description: 'Return assets that are direct children of any of the given paths.' })
+  @Field(type => [UrlSafePath], { nullable: true, description: 'Return assets that are direct children of any of the given paths.' })
   parentPaths?: string[]
+
+  @Field(type => Int, { nullable: true, description: 'Return assets with filesize greater than the given size, in bytes. Use a negative number for less than.' })
+  bytes?: number
 
   @Field({ nullable: true, description: 'true -> return assets referenced by any page, false -> return assets not referenced by any page, null -> return all assets' })
   referenced?: boolean

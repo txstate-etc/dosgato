@@ -56,7 +56,7 @@ export async function handleURLUpload (url: string, auth?: string) {
       Authorization: auth ?? ''
     }
   })
-  if ((resp.status ?? 500) >= 400) throw new HttpError(400, `Target URL returned status ${resp.status}`)
+  if ((resp.status ?? 500) >= 400) throw new HttpError(resp.status ?? 500, `Target URL returned status ${resp.status}`)
   const filename = url.split('/').slice(-1)[0] ?? randomid()
   const mimeGuess = resp.headers.get('content-type') ?? (lookup(url) || 'application/octet-stream')
   const readStream = resp.body

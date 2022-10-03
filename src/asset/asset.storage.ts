@@ -1,6 +1,6 @@
 import { createHash } from 'crypto'
 import { createReadStream, createWriteStream } from 'fs'
-import { mkdir, rename } from 'fs/promises'
+import { mkdir, rename, unlink } from 'fs/promises'
 import { nanoid } from 'nanoid'
 import { dirname } from 'path'
 import sharp from 'sharp'
@@ -13,6 +13,7 @@ interface FileHandler {
   get: (checksum: string) => Readable
   sharp: (checksum: string, opts?: sharp.SharpOptions) => sharp.Sharp
   sharpWrite: (img: sharp.Sharp) => Promise<{ checksum: string, info: sharp.OutputInfo }> // returns a checksum
+  remove: (checksum: string) => Promise<void>
 }
 
 class FileSystemHandler implements FileHandler {
@@ -65,6 +66,16 @@ class FileSystemHandler implements FileHandler {
     const info = await img.toFile(tmp)
     await this.#moveToPerm(tmp, checksum)
     return { checksum, info }
+  }
+
+  async remove (checksum: string) {
+    const filepath = this.#getFileLocation(checksum)
+    try {
+      return await unlink(filepath)
+    } catch (e: any) {
+      if (e.code === 'ENOENT') console.warn('Tried to delete file with checksum', checksum, 'but it did not exist.')
+      else console.warn(e)
+    }
   }
 }
 

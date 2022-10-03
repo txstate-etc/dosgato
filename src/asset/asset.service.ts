@@ -5,7 +5,7 @@ import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
   fileHandler, deleteAsset, undeleteAsset, moveAsset, popPath, basename, registerResize,
-  getResizesById, VersionedService
+  getResizesById, VersionedService, cleanupBinaries
 } from '../internal.js'
 import { lookup } from 'mime-types'
 
@@ -311,7 +311,12 @@ export class AssetService extends DosGatoService<Asset> {
               ? resized.clone().png({ palette: colors <= 256, compressionLevel: 9, progressive: true })
               : resized.clone().gif({ effort: 10, reoptimize: true, loop: info.loop ?? 0 } as any)
           const { checksum, info: outputinfo } = await fileHandler.sharpWrite(formatted)
-          await registerResize(asset, w, checksum, outputmime, outputformat === 'jpg' ? 60 : 0, outputinfo.size)
+          if (outputinfo.size > asset.size && ['image/jpeg', 'image/png', 'image/gif'].includes(asset.mime)) {
+            // we made a resize that's bigger than the original, abort!
+            await cleanupBinaries([checksum])
+          } else {
+            await registerResize(asset, w, checksum, outputmime, outputformat === 'jpg' ? 60 : 0, outputinfo.size)
+          }
         }
         if (needwebp) {
           const webp = resized.webp({ quality: 75, effort: 6, loop: info.loop ?? 0 })
