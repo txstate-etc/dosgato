@@ -1,6 +1,6 @@
 import { DGServer } from '../src/index.js'
 import { fixtures } from './fixtures.js'
-import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData, RichTextComponent } from './fixturetemplates.js'
+import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData, RichTextComponent, HorizontalRule } from './fixturetemplates.js'
 
 async function main () {
   const server = new DGServer()
@@ -14,6 +14,7 @@ async function main () {
       LinkComponent,
       PanelComponent,
       QuoteComponent,
+      HorizontalRule,
       ColorData,
       BuildingData,
       ArticleData,
