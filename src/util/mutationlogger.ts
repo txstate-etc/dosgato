@@ -9,8 +9,8 @@ export async function logMutation (queryTime: number, operationName: string, que
   if (query.includes('mutation')) {
     const userId = await internalIdCache.get(auth.sub)
     if (userId) {
-      await db.insert('INSERT INTO mutationlog (userId, mutation, query, variables) VALUES (?,?,?,?)',
-        [userId, query, operationName, JSON.stringify(variables)])
+      // await db.insert('INSERT INTO mutationlog (userId, mutation, query, variables) VALUES (?,?,?,?)',
+      //   [userId, query, operationName, JSON.stringify(variables)])
     } else {
       // TODO: still log the mutation if the user can't be found? What would the userId be?
       console.error(`logMutation: user ${auth.sub} not found.`)
