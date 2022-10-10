@@ -9,7 +9,7 @@ import {
   deletePages, renamePage, TemplateService,
   TemplateFilter, getPageIndexes, undeletePages,
   validatePage, DeletedFilter, copyPages, TemplateType, migratePage,
-  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal, Site, PageLinkInput, PagetreeType
+  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal, Site, PagetreeType
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -372,7 +372,7 @@ export class PageService extends DosGatoService<Page> {
     return response
   }
 
-  async createPage (name: string, data: PageData, targetId: string, above?: boolean, validate?: boolean) {
+  async createPage (name: string, data: PageData, targetId: string, above?: boolean, validateOnly?: boolean) {
     const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
     if (!(await this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
     // at the time of writing this comment, template usage is approved for an entire pagetree, so
@@ -386,13 +386,15 @@ export class PageService extends DosGatoService<Page> {
     if (pages.some(p => p.name === name)) {
       response.addMessage('A page with this name already exists', 'name')
     }
-    if (validate || !response.success) return response
-    const page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data, linkId)
-    return new PageResponse({ success: true, page })
+    if (!validateOnly && response.success) {
+      response.page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data, linkId)
+      this.loaders.clear()
+    }
+    return response
   }
 
-  async updatePage (dataId: string, dataVersion: number, data: PageData, comment?: string, validate?: boolean) {
-    const page = await this.raw.findById(dataId)
+  async updatePage (dataId: string, dataVersion: number, data: PageData, comment?: string, validateOnly?: boolean) {
+    let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
     await this.validatePageTemplates(page, data, false)
@@ -400,11 +402,13 @@ export class PageService extends DosGatoService<Page> {
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const response = await this.validatePageData(data, site, pagetree, parent, page.name, page.linkId)
-    const indexes = getPageIndexes(data)
-    await this.svc(VersionedService).update(dataId, data, indexes, { user: this.login, comment, version: dataVersion })
-    this.loaders.clear()
-    const updated = await this.raw.findById(dataId)
-    response.page = updated
+    if (!validateOnly && response.success) {
+      const indexes = getPageIndexes(data)
+      await this.svc(VersionedService).update(dataId, data, indexes, { user: this.login, comment, version: dataVersion })
+      this.loaders.clear()
+      page = await this.raw.findById(dataId)
+    }
+    response.page = page
     return response
   }
 
