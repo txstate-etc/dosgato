@@ -5,7 +5,7 @@ import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
   fileHandler, deleteAsset, undeleteAsset, moveAsset, popPath, basename, registerResize,
-  getResizesById, VersionedService, cleanupBinaries
+  getResizesById, VersionedService, cleanupBinaries, getDownloads, DownloadsFilter, getResizeDownloads, AssetResize
 } from '../internal.js'
 import { lookup } from 'mime-types'
 
@@ -35,6 +35,16 @@ const resizesByAssetIdLoader = new ManyJoinedLoader({
 
 const resizeLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => await getResizesById(ids)
+})
+
+const downloadsByAssetIdLoader = new OneToManyLoader({
+  fetch: async (assetIds: string[], filter: DownloadsFilter) => await getDownloads(assetIds, filter),
+  extractKey: dr => dr.relatedId
+})
+
+const downloadsByResizeIdLoader = new OneToManyLoader({
+  fetch: async (resizeIds: string[], filter: DownloadsFilter) => await getResizeDownloads(resizeIds, filter),
+  extractKey: dr => dr.relatedId
 })
 
 const exifToRotation: Record<number, number> = {
@@ -114,6 +124,10 @@ export class AssetServiceInternal extends BaseService {
     const folder = await this.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
     if (!folder) return '/'
     return appendPath(await this.svc(AssetFolderServiceInternal).getPath(folder), asset.name as string)
+  }
+
+  async getData (asset: Asset, version?: number) {
+    return (await this.svc(VersionedService).get(asset.dataId, { version }))!.data
   }
 
   async processAssetFilters (filter?: AssetFilter) {
@@ -213,6 +227,18 @@ export class AssetService extends DosGatoService<Asset> {
   async getLatestDownload (asset: Asset) {
     const resizes = await this.getResizes(asset)
     return await getLatestDownload(asset, resizes.map(r => r.binaryId))
+  }
+
+  async getData (asset: Asset) {
+    return await this.raw.getData(asset) as { legacyId?: string, shasum: string, uploadedFilename: string }
+  }
+
+  async getDownloads (asset: Asset, filter?: DownloadsFilter) {
+    return await this.loaders.get(downloadsByAssetIdLoader, filter).load(asset.dataId)
+  }
+
+  async getResizeDownloads (resize: AssetResize, filter?: DownloadsFilter) {
+    return await this.loaders.get(downloadsByResizeIdLoader, filter).load(resize.id)
   }
 
   async move (dataId: string, folderId: string) {

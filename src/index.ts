@@ -1,5 +1,6 @@
 import { APIAnyTemplate } from '@dosgato/templating'
 import { Context, GQLServer, GQLStartOpts } from '@txstate-mws/graphql-server'
+import { CronJob } from 'cron'
 import { DateTime } from 'luxon'
 import { FastifyInstance } from 'fastify'
 import { FastifyTxStateOptions } from 'fastify-txstate'
@@ -19,7 +20,7 @@ import {
   GlobalRulePermissionsResolver, GlobalRuleResolver, VersionResolver, OrganizationResolver,
   AccessResolver, DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
-  DataRootPermissionsResolver, updateLastLogin, createAssetRoutes, UrlSafePath, UrlSafePathScalar
+  DataRootPermissionsResolver, updateLastLogin, createAssetRoutes, UrlSafePath, UrlSafePathScalar, AssetResizeResolver, compressDownloads
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -68,6 +69,7 @@ export class DGServer {
       AccessResolver,
       AssetResolver,
       AssetPermissionsResolver,
+      AssetResizeResolver,
       AssetRuleResolver,
       AssetRulePermissionsResolver,
       AssetFolderResolver,
@@ -123,6 +125,10 @@ export class DGServer {
         updateLogin(...args)
       ])
     }
+
+    const job = new CronJob('8 9 5 * * 3', compressDownloads) // container should be in a local TZ already
+    job.start()
+
     return await this.gqlServer.start({
       ...opts,
       send401: true,

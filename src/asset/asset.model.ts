@@ -136,6 +136,43 @@ export class AssetFilter {
   deleted?: boolean
 }
 
+export enum DownloadsResolution {
+  DAILY = 'daily',
+  WEEKLY = 'weekly',
+  MONTHLY = 'monthly',
+  YEARLY = 'yearly'
+}
+registerEnumType(DownloadsResolution, {
+  name: 'DownloadsResolution',
+  description: 'When returning download records, summarize the data by day, week, month, or year.'
+})
+
+@InputType()
+export class DownloadsFilter {
+  @Field({ nullable: true, description: 'Return download records from after the given date.' })
+  after?: DateTime
+
+  @Field(type => Int, { nullable: true, description: 'Return download records newer than this many months.' })
+  months?: number
+
+  @Field({ nullable: true, description: '' })
+  resolution?: DownloadsResolution
+}
+
+@ObjectType()
+export class DownloadRecord {
+  @Field()
+  date: DateTime
+
+  @Field(type => Int)
+  count: number
+
+  constructor (public relatedId: string, datestr: string, downloads: number) {
+    this.date = DateTime.fromFormat(datestr, 'yyyyMMdd')
+    this.count = downloads
+  }
+}
+
 @InputType()
 export class UpdateAssetInput {
   @Field()

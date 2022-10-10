@@ -5,7 +5,7 @@ import { isNull } from 'txstate-utils'
 import {
   AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
-  RoleService, AssetResponse, UpdateAssetInput
+  RoleService, AssetResponse, UpdateAssetInput, DownloadsFilter, DownloadRecord
 } from '../internal.js'
 
 @Resolver(of => Asset)
@@ -42,6 +42,17 @@ export class AssetResolver {
   ) {
     const versioned = await ctx.svc(VersionedService).get(asset.dataId, { version })
     return versioned!.data
+  }
+
+  @FieldResolver(returns => String, { description: 'The file name of the file when it was uploaded.' })
+  async uploadedFilename (@Ctx() ctx: Context, @Root() asset: Asset) {
+    const data = await ctx.svc(AssetService).getData(asset)
+    return data.uploadedFilename
+  }
+
+  @FieldResolver(returns => [DownloadRecord], { description: 'Download counts for this asset. Use filter to summarize them by day, week, or month.' })
+  async downloads (@Ctx() ctx: Context, @Root() asset: Asset, @Arg('filter', { nullable: true }) filter: DownloadsFilter) {
+    return await ctx.svc(AssetService).getDownloads(asset, filter)
   }
 
   @FieldResolver(returns => [AssetResize], { description: 'List of available resized versions of this asset.' })
@@ -156,5 +167,13 @@ export class AssetPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may undelete this asset. Returns false when the asset is not deleted.' })
   async undelete (@Ctx() ctx: Context, @Root() asset: Asset) {
     return await ctx.svc(AssetService).mayUndelete(asset)
+  }
+}
+
+@Resolver(of => AssetResize)
+export class AssetResizeResolver {
+  @FieldResolver(returns => [DownloadRecord], { description: 'Download counts for this particular resize. Use filter to summarize them by day, week, or month.' })
+  async downloads (@Ctx() ctx: Context, @Root() resize: AssetResize, @Arg('filter', { nullable: true }) filter: DownloadsFilter) {
+    return await ctx.svc(AssetService).getResizeDownloads(resize, filter)
   }
 }

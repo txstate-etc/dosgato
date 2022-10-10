@@ -1,11 +1,12 @@
 import db from 'mysql2-async/db'
 import { isNotNull, keyby, pick, stringify } from 'txstate-utils'
-import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler } from '../internal.js'
+import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution } from '../internal.js'
 import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 
 export interface AssetInput {
   name: string
+  filename: string
   checksum: string
   mime: string
   size: number
@@ -125,6 +126,149 @@ export async function getLatestDownload (asset: Asset, resizeBinaryIds: number[]
   return DateTime.fromObject({ year: latestDownload.year, month: latestDownload.month, day: latestDownload.day })
 }
 
+export function recordDownload (checksum: string) {
+  const now = DateTime.local()
+  db.insert(`
+    INSERT INTO downloads (binaryId, year, month, day, downloads)
+    SELECT binaries.id, ?, ?, ? FROM binaries WHERE binaries.shasum = ?
+    ON DUPLICATE KEY UPDATE downloads = downloads + 1`, [now.year, now.month, now.day, checksum]).catch(console.error)
+}
+
+interface DownloadRow {
+  relatedId: string
+  year: number
+  month: number
+  day: number
+  downloads: number
+}
+function processDownloadRows (rows: DownloadRow[], res = DownloadsResolution.DAILY) {
+  const sum: Record<string, number> = {}
+  function add (row: { resizeId?: string, dataId?: string, year: number, month: number, day: number, downloads: number }) {
+    const key = `${(row.dataId ?? row.resizeId)!}.${String(row.year).padStart(4)}${String(row.month).padStart(2)}${String(row.day).padStart(2)}`
+    sum[key] ??= 0
+    sum[key] += row.downloads
+  }
+  if (res === DownloadsResolution.DAILY) {
+    for (const row of rows) {
+      if (row.day > 0) add(row)
+      else if (row.month > 0) {
+        const dt = DateTime.local(row.year, row.month, 1)
+        add({ ...row, day: 1, downloads: row.downloads / dt.daysInMonth })
+      } else {
+        const dt = DateTime.local(row.year, 1, 1)
+        add({ ...row, month: 1, day: 1, downloads: row.downloads / dt.daysInYear })
+      }
+    }
+  } else if (res === DownloadsResolution.WEEKLY) {
+    for (const row of rows) {
+      if (row.day > 0) {
+        const dt = DateTime.local(row.year, row.month, row.day).startOf('week')
+        add({ ...row, year: dt.year, month: dt.month, day: dt.day, downloads: row.downloads })
+      } else if (row.month > 0) {
+        const start = DateTime.local(row.year, row.month, 1)
+        const end = start.endOf('month')
+        for (let dt = start; dt < end; dt = dt.plus({ days: 1 })) {
+          const week = dt.startOf('week')
+          add({ ...row, year: week.year, month: week.month, day: week.day, downloads: row.downloads / start.daysInMonth })
+        }
+      } else {
+        const start = DateTime.local(row.year, 1, 1)
+        const end = start.endOf('year')
+        for (let dt = start; dt < end; dt = dt.plus({ days: 1 })) {
+          const week = dt.startOf('week')
+          add({ ...row, year: week.year, month: week.month, day: week.day, downloads: row.downloads / start.daysInMonth })
+        }
+      }
+    }
+  } else if (res === DownloadsResolution.MONTHLY) {
+    for (const row of rows) {
+      if (row.day > 0) {
+        add({ ...row, day: 1 })
+      } else if (row.month > 0) {
+        add({ ...row, day: 1 })
+      } else {
+        add({ ...row, month: 1, day: 1, downloads: row.downloads / 12 })
+      }
+    }
+  } else {
+    for (const row of rows) add({ ...row, month: 1, day: 1 })
+  }
+  return Object.entries(sum).map(([k, v]) => {
+    const [id, datestr] = k.split('.')
+    return new DownloadRecord(id, datestr, v)
+  })
+}
+
+export async function getDownloads (assetIds: string[], filter?: DownloadsFilter) {
+  const binds: string[] = []
+  const rows = await db.getall<DownloadRow>(`
+    SELECT a.dataId as relatedId, d.year, d.month, d.day, SUM(d.downloads) as downloads
+    FROM assets a
+    INNER JOIN binaries b ON b.shasum=a.shasum
+    LEFT JOIN resizes r ON r.originalBinaryId=b.id
+    INNER JOIN downloads d ON d.binaryId=b.id OR d.binaryId=r.binaryId
+    WHERE a.dataId IN (${db.in(binds, assetIds)})
+    GROUP BY a.dataId, d.year, d.month, d.day
+  `, binds)
+  return processDownloadRows(rows, filter?.resolution)
+}
+
+export async function getResizeDownloads (resizeIds: string[], filter?: DownloadsFilter) {
+  const binds: (string | number)[] = []
+  const where = [`r.id IN (${db.in(binds, resizeIds)})`]
+  if (filter?.months) {
+    const ago = DateTime.local().minus({ months: filter.months })
+    filter.after = filter.after && filter.after > ago ? filter.after : ago
+  }
+  if (filter?.after) {
+    where.push('d.year > ? OR (d.year=? AND d.month > ?) OR (d.year=? AND d.month=? AND d.day > ?)')
+    binds.push(filter.after.year, filter.after.year, filter.after.month, filter.after.year, filter.after.month, filter.after.day)
+  }
+  const rows = await db.getall<DownloadRow>(`
+    SELECT r.id as relatedId, d.year, d.month, d.day, d.downloads
+    FROM resizes r
+    INNER JOIN downloads d ON d.binaryId=r.binaryId
+    WHERE (${where.join(') AND (')})
+  `, binds)
+  return processDownloadRows(rows, filter?.resolution)
+}
+
+export async function compressDownloads () {
+  try {
+    const monthly = DateTime.local().minus({ years: 5 })
+    const daily = DateTime.local().minus({ months: 6 })
+    await db.transaction(async db => {
+      await db.insert(`
+        INSERT INTO downloads (binaryId, year, month, day, downloads)
+        SELECT binaryId, year, month, 0, SUM(downloads)
+        FROM downloads
+        WHERE day > 0
+        AND (year < :dailyYear OR (year=:dailyYear AND month < :dailyMonth))
+        GROUP BY binaryId, year, month
+        `, { dailyYear: daily.year, dailyMonth: daily.month })
+      await db.delete(`
+        DELETE FROM downloads
+        WHERE day > 0
+        AND (year < :dailyYear OR (year=:dailyYear AND month < :dailyMonth))
+      `, { dailyYear: daily.year, dailyMonth: daily.month })
+      await db.insert(`
+        INSERT INTO downloads (binaryId, year, month, day, downloads)
+        SELECT binaryId, year, 0, 0, SUM(downloads)
+        FROM downloads
+        WHERE month > 0 AND year < :monthlyYear
+        GROUP BY binaryId, year
+      `, { monthlyYear: monthly.year })
+      await db.delete(`
+        DELETE FROM downloads
+        WHERE month > 0 AND year < :monthlyYear
+      `, { monthlyYear: monthly.year })
+    })
+  } catch (e) {
+    // just don't crash the container
+    console.error(e)
+  }
+}
+
 export async function createAsset (versionedService: VersionedService, userId: string, args: CreateAssetInput) {
   return await db.transaction(async db => {
     const indexes = args.legacyId ? [{ name: 'legacyId', values: [args.legacyId] }] : []
@@ -134,7 +278,7 @@ export async function createAsset (versionedService: VersionedService, userId: s
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const modifiedBy = args.legacyId ? (args.modifiedBy || createdBy || userId) : userId // || is intended - to catch blanks
     const modifiedAt = args.legacyId ? (args.modifiedAt ?? args.createdAt ?? undefined) : undefined
-    const dataId = await versionedService.create('asset', { legacyId: args.legacyId, shasum: args.checksum }, indexes, createdBy, db)
+    const dataId = await versionedService.create('asset', { legacyId: args.legacyId, shasum: args.checksum, uploadedFilename: args.filename }, indexes, createdBy, db)
     await versionedService.setStamps(dataId, { createdAt: createdAt ? new Date(createdAt) : undefined, modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
     const folderInternalId = await db.getval<string>('SELECT id FROM assetfolders WHERE guid = ?', [args.folderId])
     await db.insert(`
@@ -154,7 +298,7 @@ export async function replaceAsset (versionedService: VersionedService, userId: 
     await db.insert(`
     INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)
     VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify(pick(args, 'width', 'height')), args.size])
-    await versionedService.update(args.assetId, { ...data.data, shasum: args.checksum }, [], { user: userId }, db)
+    await versionedService.update(args.assetId, { ...data.data, shasum: args.checksum, uploadedFilename: args.filename }, [], { user: userId }, db)
     const modifiedBy = data.data.legacyId ? (args.modifiedBy ?? userId) : userId
     const modifiedAt = data.data.legacyId ? (args.modifiedAt ?? undefined) : undefined
     await versionedService.setStamps(args.assetId, { modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)

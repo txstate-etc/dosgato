@@ -13,7 +13,7 @@ import { keyby, pLimit, randomid } from 'txstate-utils'
 import {
   Asset,
   AssetFolderService, AssetFolderServiceInternal, AssetResize, AssetService, AssetServiceInternal, createAsset, fileHandler,
-  GlobalRuleService, makeSafe, replaceAsset, UserServiceInternal, VersionedService
+  GlobalRuleService, makeSafe, recordDownload, replaceAsset, UserServiceInternal, VersionedService
 } from '../internal.js'
 
 const resizeLimiter = pLimit(2)
@@ -47,7 +47,7 @@ export async function placeFile (readStream: Readable, filename: string, mimeGue
       console.warn('Unable to read metadata for image', name, 'of type', mime, e)
     }
   }
-  return { name, checksum, mime, size, width, height }
+  return { filename, name, checksum, mime, size, width, height }
 }
 
 export async function handleURLUpload (url: string, auth?: string) {
@@ -179,10 +179,12 @@ export async function createAssetRoutes (app: FastifyInstance) {
     }
     return 'Success.'
   })
-  app.get<{ Params: { resizeid: string, filename: string } }>('/resize/:resizeid/:filename', async (req, res) => {
+  app.get<{ Params: { resizeid: string, filename: string }, Querystring: { admin?: 1 } }>('/resize/:resizeid/:filename', async (req, res) => {
     const ctx = new Context(req)
     const resize = await ctx.svc(AssetService).getResize(req.params.resizeid)
     if (!resize) throw new HttpError(404)
+
+    if (!req.query?.admin) recordDownload(resize.checksum)
 
     const etag = req.headers['if-none-match']
     const resizeEtag = `"${resize.checksum}"`
@@ -196,7 +198,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
 
     return await res.status(200).send(fileHandler.get(resize.checksum))
   })
-  app.get<{ Params: { assetid: string, width: string, filename: string } }>('/assets/:assetid/w/:width/*', async (req, res) => {
+  app.get<{ Params: { assetid: string, width: string, filename: string }, Querystring: { admin?: 1 } }>('/assets/:assetid/w/:width/*', async (req, res) => {
     const ctx = new Context(req)
     const asset = await ctx.svc(AssetServiceInternal).findById(req.params.assetid)
     if (!asset) throw new HttpError(404)
@@ -210,6 +212,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
       if (formats[resize.mime] && (resize.width >= Number(req.params.width) || resize.width === asset.box.width) && resize.size <= chosen.size) chosen = resize
     }
 
+    if (!req.query?.admin) recordDownload(chosen.checksum)
+
     const etag = req.headers['if-none-match']
     const resizeEtag = `"${chosen.checksum}"`
     if (etag && resizeEtag === etag) return await res.status(304).send()
@@ -222,10 +226,12 @@ export async function createAssetRoutes (app: FastifyInstance) {
 
     return await res.status(200).send(fileHandler.get(chosen.checksum))
   })
-  app.get<{ Params: { id: string, filename: string } }>('/assets/:id/:filename', async (req, res) => {
+  app.get<{ Params: { id: string, filename: string }, Querystring: { admin?: 1 } }>('/assets/:id/:filename', async (req, res) => {
     const ctx = new Context(req)
     const asset = await ctx.svc(AssetServiceInternal).findById(req.params.id)
     if (!asset) throw new HttpError(404)
+
+    if (!req.query?.admin) recordDownload(asset.checksum)
 
     const etag = req.headers['if-none-match']
     const assetEtag = `"${asset.checksum}"`
