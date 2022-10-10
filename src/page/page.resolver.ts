@@ -192,7 +192,7 @@ export class PageResolver {
     @Arg('data', type => JsonData, { description: "Page data after the user has saved the page properties dialog. Data should include templateKey and the admin UI's schemaVersion.\n\nNote that the mutation will fail if any content is provided underneath 'areas' - pages must be created empty." }) data: PageData,
     @Arg('targetId', type => ID, { description: "An existing page to be the new page's parent or sibling, depending on the 'above' arg." }) targetId: string,
     @Arg('above', { nullable: true, description: 'When true, the page will be created above the target page instead of inside it.' }) above?: boolean,
-    @Arg('validate', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validate?: boolean
+    @Arg('validateOnly', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validate?: boolean
   ) {
     return await ctx.svc(PageService).createPage(name as string, data, targetId, above, validate)
   }
@@ -205,7 +205,7 @@ export class PageResolver {
     }) dataVersion: number,
     @Arg('data', type => JsonData, { description: 'The full page data which should include the appropriate schemaVersion.' }) data: PageData,
     @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string,
-    @Arg('validate', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validate?: boolean
+    @Arg('validateOnly', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validate?: boolean
   ) {
     return await ctx.svc(PageService).updatePage(pageId, dataVersion, data, comment, validate)
   }
