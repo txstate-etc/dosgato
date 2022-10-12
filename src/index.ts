@@ -4,7 +4,7 @@ import { CronJob } from 'cron'
 import { DateTime } from 'luxon'
 import { FastifyInstance } from 'fastify'
 import { FastifyTxStateOptions } from 'fastify-txstate'
-import { GraphQLScalarType } from 'graphql'
+import { GraphQLError, GraphQLScalarType } from 'graphql'
 import { NonEmptyArray } from 'type-graphql'
 import { migrations, resetdb, seeddb } from './migrations.js'
 import { Cache } from 'txstate-utils'
@@ -27,7 +27,7 @@ const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
   await updateLastLogin(userId, tokenIssuedAt)
 })
 
-async function updateLogin (queryTime: number, operationName: string, query: string, auth: any, variables: any) {
+async function updateLogin (queryTime: number, operationName: string, query: string, auth: any, variables: any, data: any, errors?: GraphQLError[]) {
   await loginCache.get(auth.sub, Number(auth.iat))
 }
 
@@ -118,7 +118,7 @@ export class DGServer {
     ]
     scalarsMap.push(...(opts.scalarsMap ?? []))
 
-    const after = async (...args: [queryTime: number, operationName: string, query: string, auth: any, variables: any]) => {
+    const after = async (...args: [queryTime: number, operationName: string, query: string, auth: any, variables: any, data: any, errors: GraphQLError[] | undefined]) => {
       await Promise.all([
         opts.after?.(...args),
         logMutation(...args),
@@ -126,7 +126,7 @@ export class DGServer {
       ])
     }
 
-    const job = new CronJob('8 9 5 * * 3', compressDownloads) // container should be in a local TZ already
+    const job = new CronJob('8 9 5 * * 3', () => { compressDownloads().catch(console.error) }) // container should be in a local TZ already
     job.start()
 
     return await this.gqlServer.start({
