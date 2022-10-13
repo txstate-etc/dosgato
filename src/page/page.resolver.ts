@@ -1,7 +1,7 @@
 import { PageData } from '@dosgato/templating'
 import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import { isNull } from 'txstate-utils'
+import { get, isNull } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import {
   Pagetree, PagetreeService, Role, JsonData, Site, SiteService, Template, TemplateFilter,
@@ -84,6 +84,17 @@ export class PageResolver {
     @Arg('schemaversion', { nullable: true, description: 'Specify the preferred schema version. The API will perform any necessary migrations on the data prior to return. Default is the latest schemaversion.' }) schemaversion?: DateTime
   ) {
     return await ctx.svc(PageService).getData(page, version, published, schemaversion)
+  }
+
+  @FieldResolver(returns => JsonData, { nullable: true, description: 'Accepts a dot-separated path identifying data you need and returns only the data it points to. Compared to `data`, this can help avoid transferring a lot of unnecessary bytes if you only need a specific page property.' })
+  async dataByPath (@Ctx() ctx: Context, @Root() page: Page,
+    @Arg('path') path: string,
+    @Arg('published', { nullable: true, description: 'Return the published version of the data. When true, version arg is ignored. Throws when there is no published version.' }) published?: boolean,
+    @Arg('version', type => Int, { nullable: true, description: 'Return the specified version of the data. Ignored when published arg is true. Default is latest and may fail if user has improper permissions.' }) version?: number,
+    @Arg('schemaversion', { nullable: true, description: 'Specify the preferred schema version. The API will perform any necessary migrations on the data prior to return. Default is the latest schemaversion.' }) schemaversion?: DateTime
+  ) {
+    const data = await ctx.svc(PageService).getData(page, version, published, schemaversion)
+    return get(data, path)
   }
 
   @FieldResolver(returns => [Template], { description: 'All templates that are approved for use on this page or by the authenticated user.' })
