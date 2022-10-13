@@ -31,6 +31,24 @@ const dgMigrations: DBMigration[] = [
       await db.execute('ALTER TABLE `resizes` ADD PRIMARY KEY (binaryId, originalBinaryId)')
       await db.execute('ALTER TABLE `resizes` ADD CONSTRAINT FK_resizes_binaries_id FOREIGN KEY (`binaryId`) REFERENCES `binaries` (`id`)')
     }
+  },
+  {
+    id: 20221013000000,
+    description: 'create new table for tracking scheduled tasks',
+    run: async (db) => {
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS tasks (
+          name VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL,
+          lastBegin DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          inProgress TINYINT UNSIGNED NOT NULL DEFAULT 0,
+          retries TINYINT UNSIGNED NOT NULL DEFAULT 0,
+          PRIMARY KEY (name)
+        )
+        ENGINE = InnoDB
+        DEFAULT CHARACTER SET = utf8mb4
+        DEFAULT COLLATE = utf8mb4_general_ci
+      `)
+    }
   }
 ]
 

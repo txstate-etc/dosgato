@@ -1,10 +1,9 @@
 import { APIAnyTemplate } from '@dosgato/templating'
 import { Context, GQLServer, GQLStartOpts } from '@txstate-mws/graphql-server'
-import { CronJob } from 'cron'
-import { DateTime } from 'luxon'
 import { FastifyInstance } from 'fastify'
 import { FastifyTxStateOptions } from 'fastify-txstate'
 import { GraphQLError, GraphQLScalarType } from 'graphql'
+import { DateTime } from 'luxon'
 import { NonEmptyArray } from 'type-graphql'
 import { migrations, resetdb, seeddb } from './migrations.js'
 import { Cache } from 'txstate-utils'
@@ -20,7 +19,8 @@ import {
   GlobalRulePermissionsResolver, GlobalRuleResolver, VersionResolver, OrganizationResolver,
   AccessResolver, DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
-  DataRootPermissionsResolver, updateLastLogin, createAssetRoutes, UrlSafePath, UrlSafePathScalar, AssetResizeResolver, compressDownloads
+  DataRootPermissionsResolver, updateLastLogin, createAssetRoutes, UrlSafePath, UrlSafePathScalar,
+  AssetResizeResolver, compressDownloads, scheduler, DayOfWeek
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -126,8 +126,7 @@ export class DGServer {
       ])
     }
 
-    const job = new CronJob('8 9 5 * * 3', () => { compressDownloads().catch(console.error) }) // container should be in a local TZ already
-    job.start()
+    await scheduler.schedule('compressDownloads', compressDownloads, { duringHour: 5, duringDayOfWeek: DayOfWeek.TUESDAY })
 
     return await this.gqlServer.start({
       ...opts,
