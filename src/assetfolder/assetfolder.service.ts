@@ -3,7 +3,7 @@ import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
   AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
   CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
-  moveAssetFolder, deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter, normalizePath, makeSafe
+  moveAssetFolder, deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter, normalizePath
 } from '../internal.js'
 import { isNull, isNotNull, unique, mapConcurrent, intersect, isNotBlank, keyby, isBlank } from 'txstate-utils'
 

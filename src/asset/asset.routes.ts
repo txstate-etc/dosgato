@@ -13,10 +13,14 @@ import { keyby, pLimit, randomid } from 'txstate-utils'
 import {
   Asset,
   AssetFolderService, AssetFolderServiceInternal, AssetResize, AssetService, AssetServiceInternal, createAsset, fileHandler,
-  GlobalRuleService, makeSafe, recordDownload, replaceAsset, UserServiceInternal, VersionedService
+  GlobalRuleService, recordDownload, replaceAsset, UserServiceInternal, VersionedService
 } from '../internal.js'
 
 const resizeLimiter = pLimit(2)
+
+export function makeSafeFilename (str: string) {
+  return str.normalize('NFKD').replace(/[^. _a-z0-9-]/ig, '').replace(/\s+/g, ' ').trim()
+}
 
 export async function placeFile (readStream: Readable, filename: string, mimeGuess: string) {
   const fileTypePassthru = await fileTypeStream(readStream)
@@ -29,7 +33,7 @@ export async function placeFile (readStream: Readable, filename: string, mimeGue
   let name = filename
   const extFromFileName = name.match(/\.(\w+)$/)?.[1]
   if (extFromFileName && lookup(extFromFileName)) name = name.replace(new RegExp('\\.' + extFromFileName + '$'), '')
-  name = makeSafe(name)
+  name = makeSafeFilename(name)
 
   let metadata: probe.ProbeResult
   let width: number | undefined

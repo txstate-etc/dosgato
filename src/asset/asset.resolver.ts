@@ -47,7 +47,7 @@ export class AssetResolver {
   @FieldResolver(returns => String, { description: 'The file name of the file when it was uploaded.' })
   async uploadedFilename (@Ctx() ctx: Context, @Root() asset: Asset) {
     const data = await ctx.svc(AssetService).getData(asset)
-    return data.uploadedFilename
+    return data.uploadedFilename ?? asset.filename
   }
 
   @FieldResolver(returns => [DownloadRecord], { description: 'Download counts for this asset. Use filter to summarize them by day, week, or month.' })
