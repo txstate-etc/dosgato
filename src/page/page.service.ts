@@ -9,7 +9,7 @@ import {
   deletePages, renamePage, TemplateService,
   TemplateFilter, getPageIndexes, undeletePages,
   validatePage, DeletedFilter, copyPages, TemplateType, migratePage,
-  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal, Site, PagetreeType
+  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal, Site, PagetreeType, DeleteState, publishPageDeletions
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -224,7 +224,7 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async findByPagetreeId (id: string, filter?: PageFilter) {
-    return await this.removeUnauthorized(await this.raw.findByPagetreeId(id))
+    return await this.removeUnauthorized(await this.raw.findByPagetreeId(id, filter))
   }
 
   async findByTemplate (key: string, filter?: PageFilter) {
@@ -441,7 +441,7 @@ export class PageService extends DosGatoService<Page> {
     }
     const currentUser = await this.currentUser()
     try {
-      await deletePages(pages, currentUser!.internalId)
+      await deletePages(this.svc(VersionedService), pages, currentUser!.internalId)
       this.loaders.clear()
       const updated = await this.raw.findByIds(dataIds)
       return new PagesResponse({ success: true, pages: updated })
@@ -451,7 +451,20 @@ export class PageService extends DosGatoService<Page> {
     }
   }
 
+  async publishPageDeletions (dataIds: string[]) {
+    const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull).filter(p => p.deleteState !== DeleteState.NOTDELETED)
+    if (await someAsync(pages, async (page: Page) => !(await this.mayDelete(page)))) {
+      throw new Error('Current user is not permitted to delete one or more pages')
+    }
+    const currentUser = await this.currentUser()
+    await publishPageDeletions(pages, currentUser!.internalId)
+    this.loaders.clear()
+    const updated = await this.raw.findByIds(pages.map(p => p.id))
+    return new PagesResponse({ success: true, pages: updated })
+  }
+
   async undeletePages (dataIds: string[], includeChildren?: boolean) {
+    console.log(`includeChildren: ${includeChildren}`)
     let pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (includeChildren) {
       const children = (await Promise.all(pages.map(async page => await this.getPageChildren(page, true)))).flat()

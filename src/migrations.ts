@@ -33,6 +33,13 @@ const dgMigrations: DBMigration[] = [
     }
   },
   {
+    id: 20221011000000,
+    description: 'add deleteState column to pages table',
+    run: async (db) => {
+      await db.execute('ALTER TABLE `pages` ADD COLUMN deleteState TINYINT UNSIGNED NOT NULL DEFAULT 0')
+    }
+  },
+  {
     id: 20221013000000,
     description: 'create new table for tracking scheduled tasks',
     run: async (db) => {

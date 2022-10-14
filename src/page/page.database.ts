@@ -1,9 +1,10 @@
 import db from 'mysql2-async/db'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
-import { isNotBlank, isNotNull, keyby, mapConcurrent, unique, someConcurrent, filterAsync, sortby } from 'txstate-utils'
-import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter, templateRegistry, getPageIndexes } from '../internal.js'
+import { isNotBlank, isNotNull, keyby, mapConcurrent, unique, someConcurrent, filterAsync, sortby, eachConcurrent } from 'txstate-utils'
+import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter, templateRegistry, getPageIndexes, DeleteState } from '../internal.js'
 import { PageData } from '@dosgato/templating'
+import { DateTime } from 'luxon'
 
 async function convertPathsToIDPaths (pathstrings: string[]) {
   const paths = pathstrings.map(normalizePath).map(p => p.split(/\//).filter(isNotBlank))
@@ -33,15 +34,17 @@ async function processFilters (filter: PageFilter) {
   const binds: string[] = []
   const where: string[] = []
   const joins = new Map<string, string>()
-
   if (filter.deleted) {
     if (filter.deleted === DeletedFilter.ONLY) {
-      where.push('pages.deletedAt IS NOT NULL')
+      // Only show deleted pages.
+      where.push(`pages.deleteState = ${DeleteState.DELETED}`)
     } else if (filter.deleted === DeletedFilter.HIDE) {
-      where.push('pages.deletedAt IS NULL')
+      // hide fully deleted pages
+      where.push(`pages.deleteState != ${DeleteState.DELETED}`)
     }
   } else {
-    where.push('pages.deletedAt IS NULL')
+    // deleted filter not specified, return pages that are not fully deleted
+    where.push(`pages.deleteState != ${DeleteState.DELETED}`)
   }
 
   // dataIds
@@ -275,25 +278,38 @@ export async function copyPages (versionedService: VersionedService, userId: str
   })
 }
 
-// TODO: always delete child pages? Or make it an option?
-export async function deletePages (pages: Page[], userInternalId: number) {
+export async function deletePages (versionedService: VersionedService, pages: Page[], userInternalId: number) {
   return await db.transaction(async db => {
-    const binds: (string | number)[] = [userInternalId]
+    const binds: (string | number)[] = [userInternalId, DeleteState.MARKEDFORDELETE]
     const refetchedPages = await refetch(db, ...pages)
     const pageInternalIds = refetchedPages.map(p => p.internalId)
     const children = (await mapConcurrent(refetchedPages, async (page) => await getPages({ deleted: DeletedFilter.SHOW, internalIdPathsRecursive: [`${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`] }, db))).flat()
     const childInternalIds = children.map(c => c.internalId)
-    await db.update(`UPDATE pages SET deletedAt = NOW(), deletedBy = ? WHERE id IN (${db.in(binds, unique([...pageInternalIds, ...childInternalIds]))})`, binds)
+    const pageIds = [...refetchedPages.map(p => p.dataId), ...children.map(p => p.dataId)]
+    await eachConcurrent(pageIds, async (id) => await versionedService.removeTag(id, 'published'))
+    await db.update(`UPDATE pages SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id IN (${db.in(binds, unique([...pageInternalIds, ...childInternalIds]))})`, binds)
+  })
+}
+
+export async function publishPageDeletions (pages: Page[], userInternalId: number) {
+  const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
+  return await db.transaction(async db => {
+    const binds: (string | number)[] = [userInternalId, DeleteState.DELETED]
+    const refetchedPages = await refetch(db, ...pages)
+    const pageInternalIds = refetchedPages.map(p => p.internalId)
+    const children = (await mapConcurrent(refetchedPages, async (page) => await getPages({ deleted: DeletedFilter.SHOW, internalIdPathsRecursive: [`${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`] }, db))).flat()
+    const childInternalIds = children.map(c => c.internalId)
+    await db.update(`UPDATE pages SET deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, unique([...pageInternalIds, ...childInternalIds]))})`, binds)
   })
 }
 
 export async function undeletePages (pages: Page[]) {
   return await db.transaction(async db => {
-    const binds: string[] = []
+    const binds: (string | number)[] = [DeleteState.NOTDELETED]
     const refetchedPages = await refetch(db, ...pages)
     return await db.update(`
       UPDATE pages
-      SET deletedAt = NULL, deletedBy = NULL
+      SET deletedAt = NULL, deletedBy = NULL, deleteState = ?
       WHERE id IN (${db.in(binds, refetchedPages.map(p => p.internalId))})`, binds)
   })
 }

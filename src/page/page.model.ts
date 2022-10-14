@@ -4,6 +4,22 @@ import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString, PagetreeType } from '../internal.js'
 
+export enum DeleteState {
+  NOTDELETED = 0,
+  MARKEDFORDELETE = 1,
+  DELETED = 2
+}
+
+registerEnumType(DeleteState, {
+  name: 'DeleteState',
+  description: 'Determine whether a page is deleted, marked for deletion, or not deleted.',
+  valuesConfig: {
+    NOTDELETED: { description: 'Has not been deleted' },
+    MARKEDFORDELETE: { description: 'Has been deleted, but the deletion has not been published. Will still be visible on live site.' },
+    DELETED: { description: 'Has been deleted and the deletion has been published' }
+  }
+})
+
 @ObjectType({ description: 'Sites contain pages. Each page can have subpages. Each pagetree has one root page.' })
 export class Page {
   internalId: number // auto_increment id for internal use only
@@ -33,6 +49,9 @@ export class Page {
   @Field({ nullable: true, description: 'Date this page was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
+  @Field({ description: 'Indicates whether this page is undeleted, marked for deletion, or deleted.' })
+  deleteState: DeleteState
+
   deletedBy?: number
   pagetreeId: string
   path: string
@@ -59,6 +78,7 @@ export class Page {
     this.deleted = isNotNull(row.deletedAt)
     this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
+    this.deleteState = row.deleteState === 0 ? DeleteState.NOTDELETED : ((row.deleteState === 1 ? DeleteState.MARKEDFORDELETE : DeleteState.DELETED))
   }
 }
 
