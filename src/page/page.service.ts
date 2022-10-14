@@ -281,32 +281,44 @@ export class PageService extends DosGatoService<Page> {
     return (await this.currentPageRules()).some(r => r.grants.viewForEdit)
   }
 
+  async isInArchive (page: Page) {
+    const pagetree = await this.svc(PagetreeServiceInternal).findById(page.pagetreeId)
+    return pagetree!.type === PagetreeType.ARCHIVE
+  }
+
   // authenticated user may create pages underneath given page
   async mayCreate (page: Page) {
+    if (await this.isInArchive(page)) return false
     return await this.havePagePerm(page, 'create')
   }
 
   async mayUpdate (page: Page) {
+    if (await this.isInArchive(page)) return false
     return await this.havePagePerm(page, 'update')
   }
 
   async mayPublish (page: Page) {
+    if (await this.isInArchive(page)) return false
     return await this.havePagePerm(page, 'publish')
   }
 
   async mayUnpublish (page: Page) {
+    if (await this.isInArchive(page)) return false
     return await this.havePagePerm(page, 'unpublish')
   }
 
   async mayMove (page: Page) {
+    if (await this.isInArchive(page)) return false
     return await this.havePagePerm(page, 'move')
   }
 
   async mayDelete (page: Page) {
+    if (await this.isInArchive(page)) return false
     return await this.havePagePerm(page, 'delete')
   }
 
   async mayUndelete (page: Page) {
+    if (await this.isInArchive(page)) return false
     return await this.havePagePerm(page, 'undelete')
   }
 
