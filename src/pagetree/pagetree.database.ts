@@ -35,7 +35,7 @@ export async function getPagetreesBySite (siteIds: string[], filter?: PagetreeFi
   const { binds, where } = processFilters(filter)
   where.push(`pagetrees.siteID IN (${db.in(binds, siteIds)})`)
   const pagetrees = await db.getall(`SELECT * from pagetrees
-                     WHERE (${where.join(') AND (')})`, binds)
+                     WHERE (${where.join(') AND (')}) ORDER BY type`, binds)
   return pagetrees.map(p => new Pagetree(p))
 }
 

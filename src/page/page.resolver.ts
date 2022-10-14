@@ -128,8 +128,7 @@ export class PageResolver {
 
   @FieldResolver(returns => Boolean, { description: 'True if the page has a version marked as published. Note that the page could be published but not in the currently active pagetree.' })
   async published (@Ctx() ctx: Context, @Root() page: Page) {
-    const tag = await ctx.svc(VersionedService).getTag(page.dataId, 'published')
-    return !!tag
+    return await ctx.svc(PageService).isPublished(page)
   }
 
   @FieldResolver(returns => Boolean, { description: 'True if the page is published, part of the active pagetree, and on a site that is currently launched.' })

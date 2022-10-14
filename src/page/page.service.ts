@@ -286,6 +286,11 @@ export class PageService extends DosGatoService<Page> {
     return pagetree!.type === PagetreeType.ARCHIVE
   }
 
+  async isPublished (page: Page) {
+    const tag = await this.svc(VersionedService).getTag(page.dataId, 'published')
+    return !!tag
+  }
+
   // authenticated user may create pages underneath given page
   async mayCreate (page: Page) {
     if (await this.isInArchive(page)) return false
@@ -297,22 +302,30 @@ export class PageService extends DosGatoService<Page> {
     return await this.havePagePerm(page, 'update')
   }
 
-  async mayPublish (page: Page) {
+  async mayPublish (page: Page, parentBeingPublished?: boolean) {
     if (await this.isInArchive(page)) return false
+    if (page.parentInternalId && !parentBeingPublished) {
+      const parent = await this.raw.findByInternalId(page.parentInternalId)
+      if (!await this.isPublished(parent!)) return false
+    }
     return await this.havePagePerm(page, 'publish')
   }
 
   async mayUnpublish (page: Page) {
+    if (!page.parentInternalId) return false // root page of a site/pagetree cannot be unpublished - the site launch should be disabled instead
     if (await this.isInArchive(page)) return false
+    if (!await this.isPublished(page)) return false
     return await this.havePagePerm(page, 'unpublish')
   }
 
   async mayMove (page: Page) {
+    if (!page.parentInternalId) return false // root page of a site/pagetree cannot be moved
     if (await this.isInArchive(page)) return false
     return await this.havePagePerm(page, 'move')
   }
 
   async mayDelete (page: Page) {
+    if (!page.parentInternalId) return false // root page of a site/pagetree cannot be deleted
     if (await this.isInArchive(page)) return false
     return await this.havePagePerm(page, 'delete')
   }
@@ -501,7 +514,7 @@ export class PageService extends DosGatoService<Page> {
       const children = (await Promise.all(pages.map(async (page) => await this.getPageChildren(page, true)))).flat()
       pages = [...pages, ...children]
     }
-    if (await someAsync(pages, async (page: Page) => !(await this.mayPublish(page)))) {
+    if (await someAsync(pages, async (page: Page) => !(await this.mayPublish(page, true)))) {
       throw new Error('Current user is not permitted to publish one or more pages')
     }
     pages = pages.filter(p => !p.deleted)
