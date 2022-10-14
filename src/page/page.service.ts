@@ -476,7 +476,6 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async undeletePages (dataIds: string[], includeChildren?: boolean) {
-    console.log(`includeChildren: ${includeChildren}`)
     let pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (includeChildren) {
       const children = (await Promise.all(pages.map(async page => await this.getPageChildren(page, true)))).flat()
