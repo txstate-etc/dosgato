@@ -396,6 +396,7 @@ export async function fixtures () {
   const facultyLinkId = nanoid(10)
   const staffLinkId = nanoid(10)
   const eventsLinkId = nanoid(10)
+  const recipesLinkId = nanoid(10)
 
   // root page
   let indexes = [
@@ -557,7 +558,17 @@ export async function fixtures () {
     }
   ]
   const site1pagetree1Events = await createPage('events', eventsLinkId, pagetree1, site1pagetree1About, 3, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Special Events', areas: { links: [], main: [] } }, indexes)
-  await db.update('UPDATE pages SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [su01, site1pagetree1Events])
+  await db.update('UPDATE pages SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [su01, 2, site1pagetree1Events])
+
+  // recipes page
+  indexes = [
+    {
+      name: 'templateKey',
+      values: ['keyp1', 'keyc1']
+    }
+  ]
+  const site1pagetree1Recipes = await createPage('recipes', recipesLinkId, pagetree1, site1pagetree1About, 4, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Favorite Recipes', areas: { links: [], main: [] } }, indexes)
+  await db.update('UPDATE pages SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [su01, 1, site1pagetree1Recipes])
 
   /* Site 2, Pagetree 2 Pages */
   const site2RootLinkId = nanoid(10)
@@ -704,7 +715,7 @@ export async function fixtures () {
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data2Id])
 
   const data3Id = await createData('Orange Content', 3, 'keyd1', { title: 'Orange Text', color: 'orange', align: 'right' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
-  await db.update('UPDATE data SET siteId = ?, folderId = ?, deletedAt = NOW(), deletedBy = ? WHERE id = ?', [site2, datafolder1, su01, data3Id])
+  await db.update('UPDATE data SET siteId = ?, folderId = ?, deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [site2, datafolder1, su01, 2, data3Id])
 
   const data4Id = await createData('Green Content', 4, 'keyd1', { title: 'Green Text', color: 'green', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data4Id])
@@ -744,7 +755,10 @@ export async function fixtures () {
 
   // deleted data
   const deletedDataId = await createData('Purple Content', 5, 'keyd1', { title: 'Purple Text', color: 'purple', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su02')
-  await db.update('UPDATE data SET folderId = ?, deletedAt = NOW(), deletedBy = ?, displayOrder = ? WHERE id = ?', [datafolder3, su02, 1, deletedDataId])
+  await db.update('UPDATE data SET folderId = ?, deletedAt = NOW(), deletedBy = ?, deleteState = ?, displayOrder = ? WHERE id = ?', [datafolder3, su02, 2, 1, deletedDataId])
+
+  const partiallyDeletedDataId = await createData('Mauve Content', 4, 'keyd1', { title: 'Mauve Text', color: 'mauve', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  await db.update('UPDATE data SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [su01, 1, partiallyDeletedDataId])
 
   async function createAsset (name: string, folder: number, checksum: string, mime: string, size: number, indexes: Index[], creator: string) {
     const ctx = new Context()

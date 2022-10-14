@@ -164,6 +164,11 @@ export class DataResolver {
   }
 
   @Mutation(returns => DataMultResponse)
+  async publishDataEntryDeletions (@Ctx() ctx: Context, @Arg('dataIds', type => [ID]) dataIds: string[]) {
+    return await ctx.svc(DataService).publishDataEntryDeletions(dataIds)
+  }
+
+  @Mutation(returns => DataMultResponse)
   async undeleteDataEntries (@Ctx() ctx: Context, @Arg('dataIds', type => [ID]) dataIds: string[]) {
     return await ctx.svc(DataService).undelete(dataIds)
   }

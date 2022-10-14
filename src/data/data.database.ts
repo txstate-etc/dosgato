@@ -1,7 +1,8 @@
 import db from 'mysql2-async/db'
-import { isNotNull, unique, sortby } from 'txstate-utils'
+import { isNotNull, unique, sortby, eachConcurrent } from 'txstate-utils'
 import { Queryable } from 'mysql2-async'
-import { formatSavedAtVersion, Data, DataFilter, VersionedService, CreateDataInput, DataServiceInternal, getDataIndexes, DataFolder, Site, MoveDataTarget } from '../internal.js'
+import { formatSavedAtVersion, Data, DataFilter, VersionedService, CreateDataInput, DataServiceInternal, getDataIndexes, DataFolder, Site, MoveDataTarget, DeleteState } from '../internal.js'
+import { DateTime } from 'luxon'
 
 function processFilters (filter?: DataFilter) {
   const where: string[] = []
@@ -252,12 +253,23 @@ export async function moveDataEntries (versionedService: VersionedService, dataI
   })
 }
 
-export async function deleteDataEntries (dataIds: string[], userInternalId: number) {
-  const binds: (string | number)[] = [userInternalId]
-  return await db.update(`UPDATE data SET deletedAt = NOW(), deletedBy = ? WHERE dataId IN (${db.in(binds, dataIds)})`, binds)
+export async function deleteDataEntries (versionedService: VersionedService, data: Data[], userInternalId: number) {
+  const binds: (string | number)[] = [userInternalId, DeleteState.MARKEDFORDELETE]
+  const dataIds = data.map(d => d.dataId)
+  return await db.transaction(async db => {
+    await eachConcurrent(dataIds, async (id) => await versionedService.removeTag(id, 'published'))
+    return await db.update(`UPDATE data SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE dataId IN (${db.in(binds, dataIds)})`, binds)
+  })
 }
 
-export async function undeleteDataEntries (dataIds: string[]) {
-  const binds: string[] = []
-  return await db.update(`UPDATE data SET deletedAt = NULL, deletedBy = NULL where dataId IN (${db.in(binds, dataIds)})`, binds)
+export async function publishDataEntryDeletions (data: Data[], userInternalId: number) {
+  const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
+  const binds: (string | number)[] = [userInternalId, DeleteState.DELETED]
+  return await db.update(`UPDATE data SET deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE dataId IN (${db.in(binds, data.map(d => d.dataId))})`, binds)
+}
+
+export async function undeleteDataEntries (data: Data[]) {
+  const binds: (string | number)[] = [DeleteState.NOTDELETED]
+  const dataIds = data.map(d => d.dataId)
+  return await db.update(`UPDATE data SET deletedAt = NULL, deletedBy = NULL, deleteState = ? where dataId IN (${db.in(binds, dataIds)})`, binds)
 }

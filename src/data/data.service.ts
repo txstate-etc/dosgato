@@ -7,7 +7,7 @@ import {
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, MoveDataTarget, moveDataEntries,
-  DataFolder, Site, TemplateService, DataRoot, migrateData, DataRootService
+  DataFolder, Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions
 } from '../internal.js'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
@@ -342,7 +342,7 @@ export class DataService extends DosGatoService<Data> {
     }
     const currentUser = await this.currentUser()
     try {
-      await deleteDataEntries(data.map(d => d.dataId), currentUser!.internalId)
+      await deleteDataEntries(this.svc(VersionedService), data, currentUser!.internalId)
       this.loaders.clear()
       const updated = await this.raw.findByIds(data.map(d => d.dataId))
       return new DataMultResponse({ success: true, data: updated })
@@ -352,13 +352,25 @@ export class DataService extends DosGatoService<Data> {
     }
   }
 
+  async publishDataEntryDeletions (dataIds: string[]) {
+    const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(data, async (d: Data) => !(await this.mayDelete(d)))) {
+      throw new Error('Current user is not permitted to delete one or more data entries')
+    }
+    const currentUser = await this.currentUser()
+    await publishDataEntryDeletions(data, currentUser!.internalId)
+    this.loaders.clear()
+    const updated = await this.raw.findByIds(data.map(d => d.dataId))
+    return new DataMultResponse({ success: true, data: updated })
+  }
+
   async undelete (dataIds: string[]) {
     const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (await someAsync(data, async (d: Data) => !(await this.mayUndelete(d)))) {
       throw new Error('Current user is not permitted to restore one or more data entries')
     }
     try {
-      await undeleteDataEntries(data.map(d => d.dataId))
+      await undeleteDataEntries(data)
       this.loaders.clear()
       const restored = await this.raw.findByIds(data.map(d => d.dataId))
       return new DataMultResponse({ success: true, data: restored })

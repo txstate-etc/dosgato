@@ -56,6 +56,13 @@ const dgMigrations: DBMigration[] = [
         DEFAULT COLLATE = utf8mb4_general_ci
       `)
     }
+  },
+  {
+    id: 20221014000000,
+    description: 'add deleteState column to data table',
+    run: async (db) => {
+      await db.execute('ALTER TABLE `data` ADD COLUMN deleteState TINYINT UNSIGNED NOT NULL DEFAULT 0')
+    }
   }
 ]
 

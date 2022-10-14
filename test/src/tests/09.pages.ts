@@ -32,11 +32,11 @@ describe('pages', () => {
     expect(pageNames).to.not.have.members(['events'])
     expect(pageNames).to.include.members(['about', 'site1', 'grad', 'contact'])
   })
-  it('should get only undeleted pages if no deleted filter is provided', async () => {
+  it('should get only undeleted pages and pages marked for deletion if no deleted filter is provided', async () => {
     const { sites } = await query('{ sites { name pagetrees(filter: { types: [PRIMARY] }) { pages { id deleted } } } }')
     const site1 = sites.find(s => s.name === 'site1')
     for (const page of site1.pagetrees[0].pages) {
-      expect(page.deleted).to.be.false
+      expect(page.deleteState).to.not.equal(2)
     }
   })
   it('should get pages, filtered by linkId', async () => {
