@@ -20,7 +20,7 @@ import {
   AccessResolver, DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
   DataRootPermissionsResolver, updateLastLogin, createAssetRoutes, UrlSafePath, UrlSafePathScalar,
-  AssetResizeResolver, compressDownloads, scheduler, DayOfWeek
+  AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -64,6 +64,7 @@ export class DGServer {
     }
 
     await createAssetRoutes(this.app)
+    await createPageRoutes(this.app)
 
     const resolvers: NonEmptyArray<Function> = [
       AccessResolver,

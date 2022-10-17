@@ -1,5 +1,5 @@
 import multipart from '@fastify/multipart'
-import { AuthError, Context } from '@txstate-mws/graphql-server'
+import { Context } from '@txstate-mws/graphql-server'
 import type { FastifyInstance } from 'fastify'
 import { FastifyRequest } from 'fastify'
 import { HttpError } from 'fastify-txstate'
@@ -13,7 +13,7 @@ import { keyby, pLimit, randomid } from 'txstate-utils'
 import {
   Asset,
   AssetFolderService, AssetFolderServiceInternal, AssetResize, AssetService, AssetServiceInternal, createAsset, fileHandler,
-  GlobalRuleService, recordDownload, replaceAsset, UserServiceInternal, VersionedService
+  getEnabledUser, GlobalRuleService, recordDownload, replaceAsset, VersionedService
 } from '../internal.js'
 
 const resizeLimiter = pLimit(2)
@@ -81,14 +81,6 @@ export async function handleUpload (req: FastifyRequest, maxFiles = 200) {
     }
   }
   return { files, data }
-}
-
-async function getEnabledUser (ctx: Context) {
-  await ctx.waitForAuth()
-  if (!ctx.auth?.sub) throw new AuthError()
-  const user = await ctx.svc(UserServiceInternal).findById(ctx.auth.sub)
-  if (!user || user.disabled) throw new AuthError()
-  return user
 }
 
 export async function createAssetRoutes (app: FastifyInstance) {

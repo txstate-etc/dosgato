@@ -44,7 +44,7 @@ const dataByTemplateLoader = new OneToManyLoader({
     const idToTemplateKey = new Map<string, string>()
     await Promise.all(templateKeys.map(async key => {
       const searchRule = { indexName: 'templateKey', equal: key }
-      const dataIds = await ctx.svc(VersionedService).find([searchRule], 'latest')
+      const dataIds = await ctx.svc(VersionedService).find([searchRule], 'data')
       for (const dataId of dataIds) idToTemplateKey.set(dataId, key)
     }))
     const data = await getData({ ...filter, ids: intersect({ skipEmpty: true }, filter?.ids, Array.from(idToTemplateKey.keys())) })
@@ -107,7 +107,7 @@ export class DataServiceInternal extends BaseService {
   async processFilters (filter?: DataFilter) {
     if (filter?.templateKeys?.length) {
       const searchRule = { indexName: 'templateKey', in: filter.templateKeys }
-      const dataIds = await this.svc(VersionedService).find([searchRule], 'latest')
+      const dataIds = await this.svc(VersionedService).find([searchRule], 'data')
       filter.ids = intersect({ skipEmpty: true }, dataIds, filter.ids)
     }
     return filter ?? {} as DataFilter

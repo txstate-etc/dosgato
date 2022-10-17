@@ -138,6 +138,8 @@ export class PageFilter {
 
   @Field(type => DeletedFilter, { nullable: true })
   deleted?: DeletedFilter
+
+  legacyIds?: string[]
 }
 
 @ObjectType()

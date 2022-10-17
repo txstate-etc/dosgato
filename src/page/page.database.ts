@@ -1,10 +1,33 @@
+/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 import db from 'mysql2-async/db'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, mapConcurrent, unique, someConcurrent, filterAsync, sortby, eachConcurrent } from 'txstate-utils'
-import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter, templateRegistry, getPageIndexes, DeleteState } from '../internal.js'
+import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter, templateRegistry, getPageIndexes, DeleteState, numerate } from '../internal.js'
 import { PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
+
+export interface CreatePageInput extends UpdatePageInput {
+  abovePage?: string
+}
+
+export interface UpdatePageInput {
+  publishedBy?: string
+  publishedAt?: string
+  migrate?: boolean
+}
+
+export interface CreatePageExtras extends CreatePageInput {
+  createdBy?: string
+  createdAt?: string
+  modifiedBy?: string
+  modifiedAt?: string
+}
+
+export interface UpdatePageExtras extends UpdatePageInput {
+  modifiedBy?: string
+  modifiedAt?: string
+}
 
 async function convertPathsToIDPaths (pathstrings: string[]) {
   const paths = pathstrings.map(normalizePath).map(p => p.split(/\//).filter(isNotBlank))
@@ -157,7 +180,8 @@ async function updateSourceDisplayOrder (db: Queryable, page: Page, parent: Page
   await db.update('UPDATE pages SET displayOrder = displayOrder - 1 WHERE path = ? AND displayOrder > ?', [page.path, page.displayOrder])
 }
 
-export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page | undefined, name: string, data: PageData, linkId: string) {
+export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page | undefined, name: string, data: PageData & { legacyId?: string }, linkId?: string, extra?: CreatePageExtras) {
+  linkId ??= nanoid(10)
   return await db.transaction(async db => {
     [parent, aboveTarget] = await refetch(db, parent, aboveTarget)
     if (aboveTarget && parent.internalId !== aboveTarget.parentInternalId) {
@@ -165,13 +189,30 @@ export async function createPage (versionedService: VersionedService, userId: st
     }
     const displayOrder = await handleDisplayOrder(db, parent, aboveTarget)
     const indexes = getPageIndexes(data)
-    const dataId = await versionedService.create('page', data, indexes, userId, db)
-    const newInternalId = await db.insert(`
-      INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
-      VALUES (?,?,?,?,?,?)
-    `, [name, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder, parent.pagetreeId, dataId, linkId])
-    // return the newly created page
-    return new Page(await db.getrow('SELECT * FROM pages WHERE id=?', [newInternalId]))
+    if (data.legacyId) indexes.push({ name: 'legacyId', values: [data.legacyId] })
+    const createdBy = data.legacyId ? (extra?.createdBy || extra?.modifiedBy || userId) : userId // || is intended - to catch blanks
+    const createdAt = data.legacyId ? (extra?.createdAt ?? extra?.modifiedAt ?? undefined) : undefined
+    const modifiedBy = data.legacyId ? (extra?.modifiedBy || createdBy || userId) : userId // || is intended - to catch blanks
+    const modifiedAt = data.legacyId ? (extra?.modifiedAt ?? extra?.createdAt ?? undefined) : undefined
+    const dataId = await versionedService.create('page', data, indexes, createdBy, db)
+    await versionedService.setStamps(dataId, { createdAt: createdAt ? new Date(createdAt) : undefined, modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
+    if (data.legacyId && extra?.publishedAt) await versionedService.tag(dataId, 'published', undefined, extra?.publishedBy || extra?.modifiedBy || extra?.createdBy || userId, new Date(extra.publishedAt), db)
+    async function insert () {
+      const newInternalId = await db.insert(`
+        INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
+        VALUES (?,?,?,?,?,?)
+      `, [name, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder, parent.pagetreeId, dataId, linkId!])
+      // return the newly created page
+      return new Page(await db.getrow('SELECT * FROM pages WHERE id=?', [newInternalId]))
+    }
+    try {
+      return await insert()
+    } catch (e: any) {
+      if (e.code !== 1062) throw e
+      // if we got a duplicate key error, try again with a new linkId
+      linkId = nanoid(10)
+      return await insert()
+    }
   })
 }
 
@@ -235,18 +276,16 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
   const pageData = await versionedService.get(page.dataId)
   const pageIndexes = await versionedService.getIndexes(page.dataId, pageData!.version)
   const newDataId = await versionedService.create('page', pageData!.data, pageIndexes, userId, db)
-  let newPageName: string = String(page.name)
+  let newPageName = page.name
   const pagesWithName = new Set(await db.getvals<string>('SELECT name FROM pages WHERE name LIKE ? AND path = ?', [`${String(page.name)}%`, `/${[...parent.pathSplit, parent.internalId].join('/')}`]))
-  if (pagesWithName.size > 0) {
-    let idx = 0
-    newPageName = `${String(page.name)}${idx}`
-    while (pagesWithName.has(newPageName)) {
-      newPageName = `${String(page.name)}${++idx}`
-    }
-  }
+  while (pagesWithName.has(newPageName)) newPageName = numerate(newPageName)
+
+  // only generate a new linkId when copying within a pagetree or when the target pagetree has
+  // the linkId already, otherwise re-use it so copying pages into a sandbox will maintain links
+  const newLinkId = page.pagetreeId === parent.pagetreeId || await db.getval('SELECT linkId FROM pages WHERE pagetreeId=?', [parent.pagetreeId]) ? nanoid(10) : page.linkId
   const newInternalId = await db.insert(`
     INSERT INTO pages (name, pagetreeId, dataId, linkId, path, displayOrder)
-    VALUES (?, ?, ?, ?, ?, ?)`, [newPageName, parent.pagetreeId, newDataId, nanoid(10), `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder])
+    VALUES (?, ?, ?, ?, ?, ?)`, [newPageName, parent.pagetreeId, newDataId, newLinkId, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder])
   if (includeChildren) {
     const children = (await db.getall('SELECT * FROM pages WHERE path = ?', [`/${[...page.pathSplit, page.internalId].join('/')}`])).map(r => new Page(r))
     const newParent = new Page(await db.getrow('SELECT * FROM pages WHERE id = ?', [newInternalId]))

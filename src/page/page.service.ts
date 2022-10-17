@@ -1,8 +1,9 @@
 import { PageData, PageExtras, PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { eachConcurrent, filterAsync, intersect, isNotNull, keyby, mapConcurrent, someAsync, stringify, unique } from 'txstate-utils'
+import { eachConcurrent, filterAsync, intersect, isNotNull, keyby, someAsync, stringify, unique } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
   PageResponse, PagesResponse, createPage, getPages, movePages,
@@ -75,8 +76,8 @@ export class PageServiceInternal extends BaseService {
     if (filter.linkIdsReferenced?.length) {
       const searchRule = { indexName: 'link_page', in: filter.linkIdsReferenced.map(linkId => (stringify({ linkId }))) }
       const [dataIdsLatest, dataIdsPublished] = await Promise.all([
-        this.svc(VersionedService).find([searchRule], 'latest'),
-        this.svc(VersionedService).find([searchRule], 'published')])
+        this.svc(VersionedService).find([searchRule], 'page'),
+        this.svc(VersionedService).find([searchRule], 'page', 'published')])
       const dataIds = unique([...dataIdsLatest, ...dataIdsPublished])
       if (filter.ids?.length) filter.ids.push(...dataIds)
       else filter.ids = dataIds
@@ -109,8 +110,8 @@ export class PageServiceInternal extends BaseService {
   async findByTemplate (key: string, filter?: PageFilter) {
     const searchRule = { indexName: 'template', equal: key }
     const [dataIdsLatest, dataIdsPublished] = await Promise.all([
-      this.svc(VersionedService).find([searchRule], 'latest'),
-      this.svc(VersionedService).find([searchRule], 'published')])
+      this.svc(VersionedService).find([searchRule], 'page'),
+      this.svc(VersionedService).find([searchRule], 'page', 'published')])
     let dataIds = unique([...dataIdsLatest, ...dataIdsPublished])
     if (!dataIds.length) return []
     if (filter?.ids?.length) {
@@ -160,6 +161,10 @@ export class PageServiceInternal extends BaseService {
   }
 
   async processFilters (filter: PageFilter) {
+    if (filter.legacyIds?.length) {
+      const pages = await this.svc(VersionedService).find([{ indexName: 'legacyId', in: filter.legacyIds }], 'page', filter.published ? 'published' : 'latest')
+      filter.ids = intersect({ skipEmpty: true }, filter.ids, pages)
+    }
     if (filter.referencedByPageIds?.length) {
       // TODO: refactor this to use VersionedService indexes instead of rescanning the data
       const verService = this.svc(VersionedService)
@@ -355,8 +360,8 @@ export class PageService extends DosGatoService<Page> {
       throw new Error('Current user is not permitted to copy pages to this location.')
     }
     // Is this page allowed to be copied here?
-    const pageData = (await mapConcurrent(pages, async page => await this.svc(VersionedService).get(page.id))).filter(isNotNull)
-    await eachConcurrent(pageData, async d => await this.validatePageTemplates(parent, d.data, true))
+    const pageData = (await Promise.all(pages.map(async page => await this.svc(VersionedService).get(page.id)))).filter(isNotNull)
+    await Promise.all(pageData.map(async d => await this.validatePageTemplates(parent, d.data, true)))
     const newPage = await copyPages(this.svc(VersionedService), this.login, pages, parent, aboveTarget, includeChildren)
     return new PageResponse({ success: true, page: newPage })
   }
@@ -377,7 +382,7 @@ export class PageService extends DosGatoService<Page> {
     if (invalid) throw new Error('Template is not approved for use in this site or pagetree.')
   }
 
-  async validatePageData (data: PageData, site: Site | undefined, pagetree: Pagetree | undefined, parent: Page | undefined, name: string, linkId: string, pageId?: string) {
+  async validatePageData (data: PageData, site: Site | undefined, pagetree: Pagetree | undefined, parent: Page | undefined, name: string, linkId?: string, pageId?: string) {
     const response = new PageResponse({ success: true })
     const extras: PageExtras = {
       query: this.ctx.query,
@@ -405,14 +410,13 @@ export class PageService extends DosGatoService<Page> {
     await this.validatePageTemplates(parent, data, true)
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const linkId = nanoid(10)
-    const response = await this.validatePageData(data, site, pagetree, parent, name, linkId)
+    const response = await this.validatePageData(data, site, pagetree, parent, name)
     const pages = await this.raw.getPageChildren(parent, false)
     if (pages.some(p => p.name === name)) {
       response.addMessage('A page with this name already exists', 'name')
     }
     if (!validateOnly && response.success) {
-      response.page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data, linkId)
+      response.page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data)
       this.loaders.clear()
     }
     return response
@@ -519,7 +523,9 @@ export class PageService extends DosGatoService<Page> {
     }
     pages = pages.filter(p => !p.deleted)
     try {
-      await eachConcurrent(pages.map(p => p.dataId), async (dataId) => await this.svc(VersionedService).tag(dataId, 'published', undefined, this.login))
+      await db.transaction(async db => {
+        for (const p of pages) await this.svc(VersionedService).tag(p.dataId, 'published', undefined, this.login)
+      })
       this.loaders.clear()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
@@ -536,7 +542,9 @@ export class PageService extends DosGatoService<Page> {
       throw new Error('Current user is not permitted to unpublish one or more pages')
     }
     try {
-      await eachConcurrent(pages.map(p => p.id), async (dataId) => await this.svc(VersionedService).removeTag(dataId, 'published'))
+      await db.transaction(async db => {
+        for (const p of pages) await this.svc(VersionedService).removeTag(p.dataId, 'published')
+      })
       this.loaders.clear()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {

@@ -5,7 +5,7 @@ import jsonPatch from 'fast-json-patch'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { clone } from 'txstate-utils'
+import { clone, intersect } from 'txstate-utils'
 import { Index, IndexJoinedStorage, IndexStorage, IndexStringified, NotFoundError, SearchRule, Tag, UpdateConflictError, Version, Versioned, VersionedStorage, VersionStorage } from '../internal.js'
 const { applyPatch, compare } = jsonPatch
 
@@ -100,29 +100,29 @@ export class VersionedService extends BaseService {
   }
 
   /**
-   * Indexed search for objects. Tag required, use 'latest' for current version.
+   * Indexed search for objects.
    */
-  async find (rules: SearchRule[], tag: string, type?: string) {
-    // TODO: This is not working the way it should. It needs to take into account the indexName
-    // for the rules. There's also a problem on line 143. Search will be too strict?
-    const binds: string[] = []
-    const where: string[] = []
+  async find (rules: SearchRule[], type?: string, tag = 'latest') {
+    const permbinds: string[] = []
+    const permwhere: string[] = []
     const join: string[] = []
     if (tag === 'latest') {
-      where.push('s.version = i.version')
+      permwhere.push('s.version = i.version')
     } else {
       join.push('INNER JOIN tags t ON t.id=i.id AND t.version=i.version')
-      where.push('t.tag = ?')
-      binds.push(tag)
+      permwhere.push('t.tag = ?')
+      permbinds.push(tag)
     }
 
     if (type?.length) {
-      where.push('s.type = ?')
-      binds.push(type)
+      permwhere.push('s.type = ?')
+      permbinds.push(type)
     }
 
-    for (let i = 0; i < rules.length; i++) {
-      const rule = rules[i]
+    const idsets = await Promise.all(rules.map(async rule => {
+      const where = [...permwhere, 'i.name=?']
+      const binds = [...permbinds, rule.indexName]
+
       if ('in' in rule) where.push(`v.value IN (${db.in(binds, rule.in.map(zerofill))})`)
       else if ('notIn' in rule) where.push(`v.value NOT IN (${db.in(binds, rule.notIn.map(zerofill))})`)
       else if ('greaterThan' in rule) {
@@ -141,15 +141,18 @@ export class VersionedService extends BaseService {
         where.push('v.value LIKE ?')
         binds.push(zerofill(rule.startsWith) + '%')
       }
-    }
 
-    return await db.getvals<string>(`
-      SELECT DISTINCT s.id
-      FROM storage s
-      INNER JOIN indexes i ON i.id=s.id
-      INNER JOIN indexvalues v ON i.value_id=v.id
-      ${join.join('\n')}
-      WHERE (${where.join(') AND (')})`, binds)
+      return await db.getvals<string>(`
+        SELECT DISTINCT s.id
+        FROM storage s
+        INNER JOIN indexes i ON i.id=s.id
+        INNER JOIN indexvalues v ON i.value_id=v.id
+        ${join.join('\n')}
+        WHERE (${where.join(') AND (')})
+      `, binds)
+    }))
+
+    return intersect(...idsets)
   }
 
   /**
@@ -280,7 +283,7 @@ export class VersionedService extends BaseService {
    * You may also optionally provide the version that you had when you started the update for
    * an optimistic concurrency check.
    */
-  async update (id: string, data: any, indexes: Index[], { user, comment, version }: { user?: string, comment?: string, version?: number } = {}, tdb?: Queryable) {
+  async update (id: string, data: any, indexes: Index[], { user, comment, version, date }: { user?: string, comment?: string, version?: number, date?: Date } = {}, tdb?: Queryable) {
     const action = async (db: Queryable) => {
       const current = await db.getrow<VersionedStorage>('SELECT * FROM storage WHERE id=?', [id])
       if (!current) throw new NotFoundError('Unable to find node with id: ' + id)
@@ -289,8 +292,8 @@ export class VersionedService extends BaseService {
       const newversion = current.version + 1
       const undo = compare(data, currentdata)
       await db.update(`
-        UPDATE storage SET modified=NOW(), version=?, data=?, modifiedBy=?, comment=? WHERE id=?
-      `, [newversion, JSON.stringify(data), user ?? '', comment ?? '', current.id])
+        UPDATE storage SET modified=?, version=?, data=?, modifiedBy=?, comment=? WHERE id=?
+      `, [date ?? new Date(), newversion, JSON.stringify(data), user ?? '', comment ?? '', current.id])
       await db.insert(`
         INSERT INTO versions (id, version, date, user, comment, \`undo\`)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -342,11 +345,11 @@ export class VersionedService extends BaseService {
    * @param version If undefined, tags latest version.
    * @param user Person responsible for applying the tag.
    */
-  async tag (id: string, tag: string, version?: number, user?: string) {
-    version ??= await db.getval('SELECT version FROM storage WHERE id=?', [id])
+  async tag (id: string, tag: string, version?: number, user?: string, date?: Date, tdb: Queryable = db) {
+    version ??= await tdb.getval('SELECT version FROM storage WHERE id=?', [id])
     if (typeof version === 'undefined') throw new NotFoundError('Unable to tag non-existing object with id ' + id)
     if (tag === 'latest') throw new Error('Object versions may not be manually tagged as latest. That tag is managed automatically.')
-    await db.insert('INSERT INTO tags (id, tag, version, date, user) VALUES (?, ?, ?, NOW(), ?) ON DUPLICATE KEY UPDATE version=VALUES(version), user=VALUES(user), date=VALUES(date)', [id, tag, version, user ?? ''])
+    await tdb.insert('INSERT INTO tags (id, tag, version, date, user) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE version=VALUES(version), user=VALUES(user), date=VALUES(date)', [id, tag, version, date ?? new Date(), user ?? ''])
     this.loaders.get(tagLoader).clear({ id, tag })
   }
 
@@ -373,8 +376,8 @@ export class VersionedService extends BaseService {
   /**
    * Remove a tag from an object, no matter which version it might be pointing at. Cannot be undone.
    */
-  async removeTag (id: string, tag: string) {
-    await db.execute('DELETE FROM tags WHERE id=? AND tag=?', [id, tag])
+  async removeTag (id: string, tag: string, tdb: Queryable = db) {
+    await tdb.execute('DELETE FROM tags WHERE id=? AND tag=?', [id, tag])
     this.loaders.get(tagLoader).clear({ id, tag })
   }
 

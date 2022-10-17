@@ -132,7 +132,7 @@ export class AssetServiceInternal extends BaseService {
 
   async processAssetFilters (filter?: AssetFilter) {
     if (filter?.legacyIds?.length) {
-      const ids = await this.svc(VersionedService).find([{ indexName: 'legacyId', in: filter.legacyIds }], 'latest')
+      const ids = await this.svc(VersionedService).find([{ indexName: 'legacyId', in: filter.legacyIds }], 'asset')
       filter.ids = intersect({ skipEmpty: true }, filter.ids, ids)
       if (!filter.ids.length) filter.internalIds = [-1]
     }
