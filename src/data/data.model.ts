@@ -2,7 +2,7 @@ import { DateTime } from 'luxon'
 import { isNotNull, optionalString } from 'txstate-utils'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { UrlSafeString, JsonData, DeleteState } from '../internal.js'
+import { UrlSafeString, JsonData, DeletedFilter, DeleteState } from '../internal.js'
 import { DataData } from '@dosgato/templating'
 
 @ObjectType({ description: 'Data are pieces of shareable versioned content with a template and a dialog but not rendering code. The data will be consumed by component templates, each of which will do its own rendering of the data. For example, an Article data type could be displayed by an Article List component or an Article Detail component. In addition, outside services could access the article data directly from GraphQL.' })
@@ -73,8 +73,8 @@ export class DataFilter {
   @Field(type => [ID], { nullable: true, description: 'Return data using one of the specified templates.' })
   templateKeys?: string[]
 
-  @Field(type => Boolean, { nullable: true, description: 'true -> return only deleted data, false -> return only nondeleted data, undefined -> return all data' })
-  deleted?: boolean
+  @Field(type => DeletedFilter, { nullable: true })
+  deleted?: DeletedFilter
 }
 
 @InputType()

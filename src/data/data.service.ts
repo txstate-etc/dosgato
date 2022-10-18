@@ -7,16 +7,16 @@ import {
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, MoveDataTarget, moveDataEntries,
-  DataFolder, Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions
+  DataFolder, Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions, DeletedFilter
 } from '../internal.js'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
-  fetch: async (internalIds: number[]) => await getData({ internalIds }),
+  fetch: async (internalIds: number[]) => await getData({ internalIds, deleted: DeletedFilter.SHOW }),
   extractId: item => item.internalId
 })
 
 const dataByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => await getData({ ids }),
+  fetch: async (ids: string[]) => await getData({ ids, deleted: DeletedFilter.SHOW }),
   idLoader: dataByInternalIdLoader
 })
 dataByInternalIdLoader.addIdLoader(dataByIdLoader)
@@ -160,7 +160,7 @@ export class DataService extends DosGatoService<Data> {
       }
       site = folder.siteId ? await this.svc(SiteServiceInternal).findById(folder.siteId) : undefined
       dataroot = new DataRoot(site, template)
-      const otherData = await this.raw.findByFolderInternalId(folder.internalId)
+      const otherData = await this.raw.findByFolderInternalId(folder.internalId, { deleted: DeletedFilter.SHOW })
       if (otherData.some(d => d.name === args.name)) {
         response.addMessage('A data entry with this name already exists', 'args.name')
       }
@@ -169,7 +169,7 @@ export class DataService extends DosGatoService<Data> {
       if (!site) throw new Error('Data cannot be created in a site that does not exist.')
       dataroot = new DataRoot(site, template)
       if (!await this.svc(DataRootService).mayCreate(dataroot)) throw new Error(`Current user is not permitted to create data in site ${String(site.name)}.`)
-      const dataEntries = await (await this.raw.findByDataRoot(dataroot)).filter(d => isNull(d.folderInternalId))
+      const dataEntries = await (await this.raw.findByDataRoot(dataroot, { deleted: DeletedFilter.SHOW })).filter(d => isNull(d.folderInternalId))
       if (dataEntries.some(d => d.name === args.name)) {
         response.addMessage('A data entry with this name already exists', 'args.name')
       }
@@ -177,7 +177,7 @@ export class DataService extends DosGatoService<Data> {
       // global data
       if (!(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to create global data entries.')
       dataroot = new DataRoot(undefined, template)
-      const dataEntries = await (await this.raw.findByDataRoot(dataroot)).filter(d => isNull(d.folderInternalId) && isNull(d.siteId))
+      const dataEntries = await (await this.raw.findByDataRoot(dataroot, { deleted: DeletedFilter.SHOW })).filter(d => isNull(d.folderInternalId) && isNull(d.siteId))
       if (dataEntries.some(d => d.name === args.name)) {
         response.addMessage('A data entry with this name already exists', 'args.name')
       }
@@ -228,12 +228,12 @@ export class DataService extends DosGatoService<Data> {
     const response = new DataResponse({ success: true })
     if (name !== data.name) {
       if (data.folderInternalId) {
-        const sameNameEntryInFolder = (await this.raw.findByFolderInternalId(data.folderInternalId)).find(d => d.name === name)
+        const sameNameEntryInFolder = (await this.raw.findByFolderInternalId(data.folderInternalId, { deleted: DeletedFilter.SHOW })).find(d => d.name === name)
         if (isNotNull(sameNameEntryInFolder)) {
           response.addMessage('A data entry with this name already exists', 'name')
         }
       } else if (data.siteId) {
-        const sameNameEntryInSite = (await this.raw.findBySiteId(data.siteId)).filter(d => isNull(d.folderInternalId) && d.name === name)
+        const sameNameEntryInSite = (await this.raw.findBySiteId(data.siteId, { deleted: DeletedFilter.SHOW })).filter(d => isNull(d.folderInternalId) && d.name === name)
         if (sameNameEntryInSite.length) {
           response.addMessage('A data entry with this name already exists', 'name')
         }
@@ -380,6 +380,11 @@ export class DataService extends DosGatoService<Data> {
     }
   }
 
+  async isPublished (data: Data) {
+    const tag = await this.svc(VersionedService).getTag(data.dataId, 'published')
+    return !!tag
+  }
+
   async mayView (data: Data) {
     return await this.haveDataPerm(data, 'view')
   }
@@ -405,6 +410,7 @@ export class DataService extends DosGatoService<Data> {
   }
 
   async mayUnpublish (data: Data) {
+    if (!await this.isPublished(data)) return false
     return await this.haveDataPerm(data, 'unpublish')
   }
 

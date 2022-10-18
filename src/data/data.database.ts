@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { isNotNull, unique, sortby, eachConcurrent } from 'txstate-utils'
 import { Queryable } from 'mysql2-async'
-import { formatSavedAtVersion, Data, DataFilter, VersionedService, CreateDataInput, DataServiceInternal, getDataIndexes, DataFolder, Site, MoveDataTarget, DeleteState } from '../internal.js'
+import { formatSavedAtVersion, Data, DataFilter, VersionedService, CreateDataInput, DataServiceInternal, getDataIndexes, DataFolder, Site, MoveDataTarget, DeleteState, DeletedFilter } from '../internal.js'
 import { DateTime } from 'luxon'
 
 function processFilters (filter?: DataFilter) {
@@ -43,12 +43,17 @@ function processFilters (filter?: DataFilter) {
   if (filter?.siteIds?.length) {
     where.push(`data.siteId IN (${db.in(binds, filter.siteIds)})`)
   }
-  if (isNotNull(filter?.deleted)) {
-    if (filter?.deleted) {
-      where.push('data.deletedAt IS NOT NULL')
-    } else {
-      where.push('data.deletedAt IS NULL')
+  if (filter?.deleted) {
+    if (filter.deleted === DeletedFilter.ONLY) {
+      // Only show deleted data.
+      where.push(`data.deleteState = ${DeleteState.DELETED}`)
+    } else if (filter.deleted === DeletedFilter.HIDE) {
+      // hide fully deleted data
+      where.push(`data.deleteState != ${DeleteState.DELETED}`)
     }
+  } else {
+    // deleted filter not specified, return data that are not fully deleted
+    where.push(`data.deleteState != ${DeleteState.DELETED}`)
   }
   return { where, binds, joins }
 }
