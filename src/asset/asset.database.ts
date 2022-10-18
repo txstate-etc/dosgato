@@ -130,7 +130,7 @@ export function recordDownload (checksum: string) {
   const now = DateTime.local()
   db.insert(`
     INSERT INTO downloads (binaryId, year, month, day, downloads)
-    SELECT binaries.id, ?, ?, ? FROM binaries WHERE binaries.shasum = ?
+    SELECT binaries.id, ?, ?, ?, 1 FROM binaries WHERE binaries.shasum = ?
     ON DUPLICATE KEY UPDATE downloads = downloads + 1`, [now.year, now.month, now.day, checksum]).catch(console.error)
 }
 
