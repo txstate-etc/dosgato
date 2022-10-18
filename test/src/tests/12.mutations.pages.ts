@@ -232,7 +232,7 @@ describe('pages mutations', () => {
     const { copyPages: { success } } = await query('mutation copyPages ($pageIds: [ID!]!, $parentId: ID!) { copyPages (pageIds: $pageIds, targetId: $parentId) { success page { id name children { name } } } }', { pageIds: [pagetocopy.id], parentId: copytarget.id })
     expect(success).to.be.true
     const { pages } = await query(`{ pages(filter: { ids: ["${copytarget.id}"]}) { children { id name } } }`)
-    expect(pages[0].children.map((p: any) => p.name)).to.include.members(['pagename', 'pagename0'])
+    expect(pages[0].children.map((p: any) => p.name)).to.include.members(['pagename', 'pagename-1'])
   })
   it('should delete a page', async () => {
     const { page: testpage } = await createPage('testpage5', testSite6PageRootId, 'keyp3')

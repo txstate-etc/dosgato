@@ -108,7 +108,7 @@ export class PageServiceInternal extends BaseService {
   }
 
   async findByTemplate (key: string, filter?: PageFilter) {
-    const searchRule = { indexName: 'template', equal: key }
+    const searchRule = { indexName: 'templateKey', equal: key }
     const [dataIdsLatest, dataIdsPublished] = await Promise.all([
       this.svc(VersionedService).find([searchRule], 'page'),
       this.svc(VersionedService).find([searchRule], 'page', 'published')])
