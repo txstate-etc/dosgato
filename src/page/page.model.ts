@@ -1,7 +1,7 @@
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { isNotBlank, isNotNull } from 'txstate-utils'
-import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
+import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString, PagetreeType } from '../internal.js'
 
 export enum DeleteState {
@@ -138,6 +138,9 @@ export class PageFilter {
 
   @Field(type => DeletedFilter, { nullable: true })
   deleted?: DeletedFilter
+
+  @Field(type => Int, { nullable: true, description: 'Only return pages at a depth less than or equal to maxDepth. Root page is 0 depth.' })
+  maxDepth?: number
 
   legacyIds?: string[]
 }

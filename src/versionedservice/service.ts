@@ -102,7 +102,12 @@ export class VersionedService extends BaseService {
   /**
    * Indexed search for objects.
    */
-  async find (rules: SearchRule[], type?: string, tag = 'latest') {
+  async find (rules: SearchRule[], type?: string, tag = 'latest',
+    /**
+     * limit search to the given ids to reduce the search space when possible
+     */
+    ids?: string[]
+  ) {
     const permbinds: string[] = []
     const permwhere: string[] = []
     const join: string[] = []
@@ -117,6 +122,10 @@ export class VersionedService extends BaseService {
     if (type?.length) {
       permwhere.push('s.type = ?')
       permbinds.push(type)
+    }
+
+    if (ids?.length) {
+      permwhere.push(`s.id IN (${db.in(permbinds, ids)})`)
     }
 
     const idsets = await Promise.all(rules.map(async rule => {

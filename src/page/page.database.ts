@@ -54,7 +54,7 @@ async function convertPathsToIDPaths (pathstrings: string[]) {
 }
 
 async function processFilters (filter: PageFilter) {
-  const binds: string[] = []
+  const binds: (string | number)[] = []
   const where: string[] = []
   const joins = new Map<string, string>()
   if (filter.deleted) {
@@ -137,6 +137,13 @@ async function processFilters (filter: PageFilter) {
   if (filter.parentPaths?.length) {
     const idpaths = await convertPathsToIDPaths(filter.parentPaths)
     where.push(`pages.path IN (${db.in(binds, idpaths)})`)
+  }
+
+  if (filter.maxDepth === 0) {
+    where.push('pages.path = "/"')
+  } else if (filter.maxDepth != null) {
+    where.push('LENGTH(pages.path) - LENGTH(REPLACE(pages.path, "/", "")) <= ?')
+    binds.push(filter.maxDepth)
   }
 
   // published TODO
