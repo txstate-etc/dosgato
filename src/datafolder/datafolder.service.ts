@@ -7,7 +7,8 @@ import {
   renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
   SiteService, DataFoldersResponse, moveDataFolders, DeletedFilter, DataRoot, DataRootService,
   folderNameUniqueInDataRoot,
-  TemplateServiceInternal
+  TemplateServiceInternal,
+  VersionedService
 } from '../internal.js'
 
 const dataFoldersByIdLoader = new PrimaryKeyLoader({
@@ -185,7 +186,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
     }
     const currentUser = await this.currentUser()
     try {
-      await deleteDataFolder(dataFolders.map(f => f.id), currentUser!.internalId)
+      await deleteDataFolder(this.svc(VersionedService), dataFolders.map(f => f.id), currentUser!.internalId)
       this.loaders.clear()
       const deletedFolders = await this.raw.findByIds(dataFolders.map(f => f.id))
       return new DataFoldersResponse({ dataFolders: deletedFolders, success: true })

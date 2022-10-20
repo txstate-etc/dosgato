@@ -115,6 +115,7 @@ describe('data mutations', () => {
   })
   it('should delete a data folder', async () => {
     const { dataFolder: folder } = await createDataFolder('datafolderD', 'keyd1')
+    const { data: dataEntry } = await createDataEntry('datatodelete', { templateKey: 'keyd1', title: 'Delete Me', color: 'orangish', align: 'center' }, undefined, folder.id)
     const { deleteDataFolders: { success, dataFolders } } = await query(`
       mutation DeleteDataFolders ($folderIds: [ID!]!) {
         deleteDataFolders (folderIds: $folderIds) {
@@ -132,6 +133,9 @@ describe('data mutations', () => {
     expect(dataFolders[0].deleted).to.be.true
     expect(dataFolders[0].deletedBy.id).to.equal('su01')
     expect(dataFolders[0].deletedAt).to.not.be.null
+    const { data } = await query(`{ data (filter: { folderIds: ["${folder.id}"], deleted: SHOW}){ name deleted }}`)
+    expect(data[0].name).to.equal('datatodelete')
+    expect(data[0].deleted).to.be.true
   })
   it('should not allow an unauthorized user to delete a data folder', async () => {
     const { dataFolder: folder } = await createDataFolder('datafolderE', 'keyd1')
