@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { Cache, keyby, eachConcurrent, isNotNull } from 'txstate-utils'
+import { Cache, keyby, eachConcurrent, isNotNull, sortby } from 'txstate-utils'
 import { TemplateFilter, Template, templateRegistry, Pagetree } from '../internal.js'
 
 const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted', 'templates.universal']
@@ -42,7 +42,7 @@ export async function getTemplates (filter?: TemplateFilter) {
     query += ` WHERE (${where.join(') AND (')})`
   }
   const templates = await db.getall(query, binds)
-  return templates.map(t => new Template(t))
+  return sortby(templates.map(t => new Template(t)), 'name')
 }
 
 export async function getTemplatesBySite (siteIds: string[], filter?: TemplateFilter) {
@@ -51,7 +51,7 @@ export async function getTemplatesBySite (siteIds: string[], filter?: TemplateFi
   const templates = await db.getall(`SELECT ${columns.join(', ')}, sites_templates.siteId as siteId FROM templates
                            INNER JOIN sites_templates ON templates.id = sites_templates.templateId
                            WHERE (${where.join(') AND (')})`, binds)
-  return templates.map(row => ({ key: String(row.siteId), value: new Template(row) }))
+  return sortby(templates.map(row => ({ key: String(row.siteId), value: new Template(row) })), 'value.name')
 }
 
 export async function getTemplatesByPagetree (pagetreeIds: string[], filter?: TemplateFilter) {
@@ -60,7 +60,7 @@ export async function getTemplatesByPagetree (pagetreeIds: string[], filter?: Te
   const rows = await db.getall(`SELECT ${columns.join(', ')}, pagetrees_templates.pagetreeId as pagetreeId FROM templates
                                 INNER JOIN pagetrees_templates ON templates.id = pagetrees_templates.templateId
                                 WHERE (${where.join(') AND (')})`, binds)
-  return rows.map(row => ({ key: String(row.pagetreeId), value: new Template(row) }))
+  return sortby(rows.map(row => ({ key: String(row.pagetreeId), value: new Template(row) })), 'value.name')
 }
 
 export async function getTemplatePagePairs (pairs: { pageId: string, templateKey: string }[]) {
