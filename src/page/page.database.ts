@@ -22,6 +22,7 @@ export interface CreatePageExtras extends CreatePageInput {
   createdAt?: string
   modifiedBy?: string
   modifiedAt?: string
+  linkId?: string
 }
 
 export interface UpdatePageExtras extends UpdatePageInput {
@@ -189,8 +190,8 @@ async function updateSourceDisplayOrder (db: Queryable, page: Page, parent: Page
   await db.update('UPDATE pages SET displayOrder = displayOrder - 1 WHERE path = ? AND displayOrder > ?', [page.path, page.displayOrder])
 }
 
-export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page | undefined, name: string, data: PageData & { legacyId?: string }, linkId?: string, extra?: CreatePageExtras) {
-  linkId ??= nanoid(10)
+export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page | undefined, name: string, data: PageData & { legacyId?: string }, extra?: CreatePageExtras) {
+  let linkId = extra?.linkId ?? nanoid(10)
   return await db.transaction(async db => {
     [parent, aboveTarget] = await refetch(db, parent, aboveTarget)
     if (aboveTarget && parent.internalId !== aboveTarget.parentInternalId) {
@@ -210,7 +211,7 @@ export async function createPage (versionedService: VersionedService, userId: st
       const newInternalId = await db.insert(`
         INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
         VALUES (?,?,?,?,?,?)
-      `, [name, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder, parent.pagetreeId, dataId, linkId!])
+      `, [name, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder, parent.pagetreeId, dataId, linkId])
       // return the newly created page
       return new Page(await db.getrow('SELECT * FROM pages WHERE id=?', [newInternalId]))
     }

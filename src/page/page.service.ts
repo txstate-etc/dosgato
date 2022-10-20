@@ -10,7 +10,7 @@ import {
   deletePages, renamePage, TemplateService,
   TemplateFilter, getPageIndexes, undeletePages,
   validatePage, DeletedFilter, copyPages, TemplateType, migratePage,
-  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal, Site, PagetreeType, DeleteState, publishPageDeletions
+  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal, Site, PagetreeType, DeleteState, publishPageDeletions, CreatePageExtras
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -415,7 +415,7 @@ export class PageService extends DosGatoService<Page> {
     return response
   }
 
-  async createPage (name: string, data: PageData, targetId: string, above?: boolean, validateOnly?: boolean) {
+  async createPage (name: string, data: PageData, targetId: string, above?: boolean, validateOnly?: boolean, extra?: CreatePageExtras) {
     const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
     if (!(await this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
     // at the time of writing this comment, template usage is approved for an entire pagetree, so
@@ -429,7 +429,7 @@ export class PageService extends DosGatoService<Page> {
       response.addMessage('A page with this name already exists', 'name')
     }
     if (!validateOnly && response.success) {
-      response.page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data)
+      response.page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data, extra)
       this.loaders.clear()
     }
     return response

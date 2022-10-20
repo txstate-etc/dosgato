@@ -1,6 +1,6 @@
 {
   "name": "@dosgato/api",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "description": "A CMS designed for large institutions with thousands of editors and hundreds of subsites.",
   "type": "module",
   "exports": {
@@ -11,7 +11,7 @@
     "@dosgato/templating": ">=0.0.75",
     "@fastify/multipart": "^7.2.0",
     "@types/sharp": "^0.30.5",
-    "@txstate-mws/graphql-server": "^2.0.5",
+    "@txstate-mws/graphql-server": "^2.1.1",
     "dataloader-factory": "^4.4.3",
     "fast-json-patch": "^3.1.0",
     "file-type": "^18.0.0",

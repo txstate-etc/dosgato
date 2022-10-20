@@ -7,7 +7,7 @@ import {
   Site, SiteFilter, getSites, getSitesByTemplate, undeleteSite,
   PagetreeService, DosGatoService, createSite, VersionedService, SiteResponse,
   deleteSite, PageService, getSitesByManagerInternalId, siteNameIsUnique,
-  renameSite, setLaunchURL, UpdateSiteManagementInput, updateSiteManagement, DeletedFilter
+  renameSite, setLaunchURL, UpdateSiteManagementInput, updateSiteManagement, DeletedFilter, CreatePageExtras
 } from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({
@@ -131,14 +131,14 @@ export class SiteService extends DosGatoService<Site> {
     return await this.removeUnauthorized(await this.raw.findByManagerInternalId(managerInternalId, filter))
   }
 
-  async create (name: string, data: PageData, validateOnly?: boolean) {
+  async create (name: string, data: PageData, validateOnly?: boolean, extra?: CreatePageExtras) {
     if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create sites.')
     const response = new SiteResponse({ success: true })
     if (!(await siteNameIsUnique(name))) {
       response.addMessage(`Site ${name} already exists.`, 'name')
     }
     // validate root page data
-    const linkId = nanoid(10)
+    const linkId = extra?.linkId ?? nanoid(10)
     const pageValidationResponse = await this.svc(PageService).validatePageData(data, undefined, undefined, undefined, name, linkId)
     if (pageValidationResponse.hasErrors()) {
       // take these errors and add them to the site response

@@ -103,3 +103,5 @@ export * from './version/version.resolver.js'
 export * from './asset/asset.storage.js'
 export * from './asset/asset.routes.js'
 export * from './page/page.routes.js'
+
+export * from './page/page.bootstrap.js'

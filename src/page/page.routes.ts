@@ -7,7 +7,7 @@ import { isNotBlank, pick } from 'txstate-utils'
 import {
   createPage, CreatePageInput, getEnabledUser, getPageIndexes, GlobalRuleService,
   numerate, PageService, PageServiceInternal, PagetreeServiceInternal,
-  replaceAsset, SiteServiceInternal, UpdatePageInput, VersionedService
+  SiteServiceInternal, UpdatePageInput, VersionedService
 } from '../internal.js'
 
 export interface PageExport {
@@ -82,9 +82,9 @@ export async function createPageRoutes (app: FastifyInstance) {
     const response = await svcPage.validatePageData(pageRecord.data, site, pagetree, parent, pageRecord.name)
     if (!response.success) throw new HttpError(422, 'Exported page data does not validate.')
 
-    const page = await createPage(ctx.svc(VersionedService), user.id, parent, above, pageRecord.name, pageRecord.data, pageRecord.linkId, {
+    const page = await createPage(ctx.svc(VersionedService), user.id, parent, above, pageRecord.name, pageRecord.data, {
       ...req.body,
-      ...pick(pageRecord, 'createdBy', 'createdAt', 'modifiedBy', 'modifiedAt')
+      ...pick(pageRecord, 'createdBy', 'createdAt', 'modifiedBy', 'modifiedAt', 'linkId')
     })
     return { id: page.id, linkId: page.linkId }
   })
