@@ -296,19 +296,31 @@ export class PageService extends DosGatoService<Page> {
     return !!tag
   }
 
+  async isDeleted (page: Page) {
+    if (page.deleteState !== DeleteState.NOTDELETED) return true
+    const pagetree = await this.svc(PagetreeServiceInternal).findById(page.pagetreeId)
+    if (pagetree!.deleted) return true
+    const site = await this.svc(SiteServiceInternal).findByPagetreeId(pagetree!.id)
+    if (site!.deleted) return true
+    return false
+  }
+
   // authenticated user may create pages underneath given page
   async mayCreate (page: Page) {
     if (await this.isInArchive(page)) return false
+    if (await this.isDeleted(page)) return false
     return await this.havePagePerm(page, 'create')
   }
 
   async mayUpdate (page: Page) {
     if (await this.isInArchive(page)) return false
+    if (await this.isDeleted(page)) return false
     return await this.havePagePerm(page, 'update')
   }
 
   async mayPublish (page: Page, parentBeingPublished?: boolean) {
     if (await this.isInArchive(page)) return false
+    if (await this.isDeleted(page)) return false
     if (page.parentInternalId && !parentBeingPublished) {
       const parent = await this.raw.findByInternalId(page.parentInternalId)
       if (!await this.isPublished(parent!)) return false
@@ -320,6 +332,7 @@ export class PageService extends DosGatoService<Page> {
     if (!page.parentInternalId) return false // root page of a site/pagetree cannot be unpublished - the site launch should be disabled instead
     if (await this.isInArchive(page)) return false
     if (!await this.isPublished(page)) return false
+    if (await this.isDeleted(page)) return false
     return await this.havePagePerm(page, 'unpublish')
   }
 

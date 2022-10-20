@@ -57,17 +57,25 @@ async function processFilters (filter: PageFilter) {
   const binds: (string | number)[] = []
   const where: string[] = []
   const joins = new Map<string, string>()
+
+  joins.set('pagetrees', 'INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id')
+  joins.set('sites', 'INNER JOIN sites ON pagetrees.siteId = sites.id')
+
   if (filter.deleted) {
     if (filter.deleted === DeletedFilter.ONLY) {
       // Only show deleted pages.
-      where.push(`pages.deleteState = ${DeleteState.DELETED}`)
+      where.push(`(pages.deleteState = ${DeleteState.DELETED} OR pagetrees.deletedAt IS NOT NULL OR sites.deletedAt IS NOT NULL)`)
     } else if (filter.deleted === DeletedFilter.HIDE) {
       // hide fully deleted pages
       where.push(`pages.deleteState != ${DeleteState.DELETED}`)
+      where.push('pagetrees.deletedAt IS NULL')
+      where.push('sites.deletedAt IS NULL')
     }
   } else {
     // deleted filter not specified, return pages that are not fully deleted
     where.push(`pages.deleteState != ${DeleteState.DELETED}`)
+    where.push('pagetrees.deletedAt IS NULL')
+    where.push('sites.deletedAt IS NULL')
   }
 
   // dataIds
@@ -105,17 +113,11 @@ async function processFilters (filter: PageFilter) {
   // pagetreeTypes
   if (filter.pagetreeTypes?.length) {
     where.push(`pagetrees.type IN (${db.in(binds, filter.pagetreeTypes)})`)
-    if (!joins.has('pagetrees')) {
-      joins.set('pagetrees', 'INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id')
-    }
   }
 
   // siteIds
   if (filter.siteIds?.length) {
     where.push(`pagetrees.siteId IN (${db.in(binds, filter.siteIds)})`)
-    if (!joins.has('pagetrees')) {
-      joins.set('pagetrees', 'INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id')
-    }
   }
 
   // named paths e.g. /site1/about
