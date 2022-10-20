@@ -74,6 +74,7 @@ export class Asset {
   dataId: string
 
   constructor (row: any) {
+    if (typeof row.meta === 'string') row.meta = JSON.parse(row.meta)
     this.internalId = row.id
     this.id = row.dataId
     this.name = row.name
