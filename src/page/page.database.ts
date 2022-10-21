@@ -234,7 +234,7 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
       throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
     }
 
-    if (await someConcurrent(pages, async (page) => parent.path.startsWith(page.path + '/'))) {
+    if (pages.some(page => parent.path.startsWith(page.path + '/'))) {
       throw new Error('Cannot move a page into its own subtree.')
     }
 
@@ -244,15 +244,13 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
     // a new pagetree and give it a new linkId in the process, but that move was a mistake, lots
     // of links will break and there's no way to restore them. Also, moving a page always moves
     // all of its subpages, so the problem would be multiplied by the number of descendants.
-    if (await someConcurrent(pages, async (page) => parent.pagetreeId !== page.pagetreeId)) {
+    if (pages.some(page => parent.pagetreeId !== page.pagetreeId)) {
       throw new Error('Moving between sites or pagetrees is not allowed. Copy instead.')
     }
 
     // If page selected to be moved is a descendent of one of the other pages being moved,
     // we don't need to move it because it will be moved with its ancestor
-    let filteredPages = await filterAsync(pages, async (page) => {
-      return !(await someConcurrent(pages, async (p) => (p.internalId !== page.internalId) && page.path.startsWith(p.path + '/')))
-    })
+    let filteredPages = pages.filter(page => !pages.some(p => p.internalId !== page.internalId && page.path.startsWith(p.path + '/')))
     filteredPages = sortby(filteredPages, 'displayOrder')
 
     // deal with displayOrder
