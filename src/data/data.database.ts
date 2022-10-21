@@ -1,14 +1,49 @@
 import db from 'mysql2-async/db'
-import { isNotNull, unique, sortby, eachConcurrent } from 'txstate-utils'
+import { isNotNull, unique, sortby, eachConcurrent, isNull } from 'txstate-utils'
 import { Queryable } from 'mysql2-async'
 import { formatSavedAtVersion, Data, DataFilter, VersionedService, CreateDataInput, DataServiceInternal, getDataIndexes, DataFolder, Site, MoveDataTarget, DeleteState, DeletedFilter } from '../internal.js'
 import { DateTime } from 'luxon'
 
-function processFilters (filter?: DataFilter) {
+async function getDeleted () {
+  return await db.getvals<number>(`
+    SELECT data.* FROM data
+    LEFT OUTER JOIN sites ON data.siteId = sites.id
+    WHERE data.deleteState = ${DeleteState.DELETED}
+    OR sites.deletedAt IS NOT NULL
+    OR data.folderId IN
+      (SELECT datafolders.id
+      FROM datafolders
+      INNER JOIN sites ON datafolders.siteId = sites.id
+      WHERE sites.deletedAt IS NOT NULL)
+    `)
+}
+
+async function processFilters (filter?: DataFilter) {
   const where: string[] = []
   const binds: string[] = []
   const joins: string[] = []
   const joined = new Map<string, boolean>()
+
+  if (isNull(filter?.deleted)) {
+    filter = { ...filter, deleted: DeletedFilter.HIDE }
+  }
+
+  if (filter?.deleted) {
+    if (filter.deleted === DeletedFilter.ONLY) {
+      // Only show deleted data. It could, itself, be deleted. Or, it might be in a deleted site or a folder in a deleted site.
+      const deletedDataIds = await getDeleted()
+      if (filter?.internalIds?.length) {
+        filter.internalIds = unique([...filter.internalIds, ...deletedDataIds])
+      } else {
+        filter.internalIds = deletedDataIds
+      }
+    } else if (filter.deleted === DeletedFilter.HIDE) {
+      // hide fully deleted data
+      const deletedDataIds = await getDeleted()
+      where.push(`data.id NOT IN (${db.in(binds, deletedDataIds)})`)
+    }
+    // If deleted is SHOW, we don't need to filter out anything
+  }
 
   if (filter?.internalIds?.length) {
     where.push(`data.id IN (${db.in(binds, filter.internalIds)})`)
@@ -43,23 +78,11 @@ function processFilters (filter?: DataFilter) {
   if (filter?.siteIds?.length) {
     where.push(`data.siteId IN (${db.in(binds, filter.siteIds)})`)
   }
-  if (filter?.deleted) {
-    if (filter.deleted === DeletedFilter.ONLY) {
-      // Only show deleted data.
-      where.push(`data.deleteState = ${DeleteState.DELETED}`)
-    } else if (filter.deleted === DeletedFilter.HIDE) {
-      // hide fully deleted data
-      where.push(`data.deleteState != ${DeleteState.DELETED}`)
-    }
-  } else {
-    // deleted filter not specified, return data that are not fully deleted
-    where.push(`data.deleteState != ${DeleteState.DELETED}`)
-  }
   return { where, binds, joins }
 }
 
 export async function getData (filter?: DataFilter) {
-  const { where, binds, joins } = processFilters(filter)
+  const { where, binds, joins } = await processFilters(filter)
   let query = 'SELECT data.* FROM data'
   if (joins.length) {
     query += ` ${joins.join('\n')}`

@@ -197,9 +197,9 @@ describe('data', () => {
     }
   })
   it('should return only deleted data entries when the deleted=ONLY filter is used', async () => {
-    const { data } = await query('{ data(filter: { deleted: ONLY }) {id deleted } }')
+    const { data } = await query('{ data(filter: { deleted: ONLY }) {id name deleted site { deleted } folder { deleted } } }')
     for (const entry of data) {
-      expect(entry.deleted).to.be.true
+      expect(entry.deleted || entry.site?.deleted || entry.folder?.deleted).to.be.true
     }
   })
   it('should return only undeleted data entries when the deleted=HIDE filter is used', async () => {
@@ -209,15 +209,15 @@ describe('data', () => {
     }
   })
   it('should return the user who deleted a data entry', async () => {
-    const { data } = await query('{ data(filter: { deleted: ONLY }) {id deletedBy { id } } }')
+    const { data } = await query('{ data(filter: { deleted: ONLY }) {id deleteState deletedBy { id } } }')
     for (const entry of data) {
-      expect(entry.deletedBy).to.not.be.null
+      if (entry.deleteState === 2) expect(entry.deletedBy).to.not.be.null
     }
   })
   it('should return null for the user who deleted a data entry if the data entry is not deleted', async () => {
     const { data } = await query('{ data(filter: { deleted: HIDE }) {id deleteState deletedBy { id } } }')
     for (const entry of data) {
-      if (entry.deleteState === 0) expect(entry.deletedBy).to.be.null
+      if (entry.deleteState === 0)expect(entry.deletedBy).to.be.null
     }
   })
   it('should return the JSON data for a data entry (no parameters)', async () => {

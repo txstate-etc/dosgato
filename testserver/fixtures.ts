@@ -678,14 +678,15 @@ export async function fixtures () {
   await createPage('deletedsite', nanoid(10), deletedSitePrimary, null, 1, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Page in Deleted Site', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp3'] }])
 
   /* Data */
-  const [datafolder1, datafolder2, datafolder3, datafolder4, datafolder5, datafolder6, globalcolordata] = await Promise.all([
+  const [datafolder1, datafolder2, datafolder3, datafolder4, datafolder5, datafolder6, globalcolordata, deletedsitedatafolder] = await Promise.all([
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site2datafolder', nanoid(10), site2, datatemplate1!]),
     db.insert('INSERT INTO datafolders (name, guid, templateId) VALUES (?,?,?)', ['globaldatafolder', nanoid(10), articleTemplate!]),
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deletedAt, deletedBy) VALUES (?,?,?,?,NOW(),?)', ['deletedfolder', nanoid(10), site2, datatemplate1!, su03]),
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site5datafolder1', nanoid(10), site5, datatemplate1!]),
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site5datafolder2', nanoid(10), site5, datatemplate2!]),
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deletedAt, deletedBy) VALUES (?,?,?,?,NOW(),?)', ['site5datafolder3', nanoid(10), site5, datatemplate1!, su01]),
-    db.insert('INSERT INTO datafolders (name, guid, templateId) VALUES (?,?,?)', ['globalcolordata', nanoid(10), datatemplate1!])
+    db.insert('INSERT INTO datafolders (name, guid, templateId) VALUES (?,?,?)', ['globalcolordata', nanoid(10), datatemplate1!]),
+    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['deletedsitedata', nanoid(10), deletedsite, datatemplate1!])
   ])
 
   async function createData (name: string, displayOrder: number, templateKey: string, content: any, indexes: Index[], creator: string) {
@@ -766,6 +767,12 @@ export async function fixtures () {
 
   const partiallyDeletedDataId = await createData('Mauve Content', 4, 'keyd1', { title: 'Mauve Text', color: 'mauve', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
   await db.update('UPDATE data SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [su01, 1, partiallyDeletedDataId])
+
+  const deletedSiteDataId = await createData('contentInDeletedSite', 1, 'keyd1', { title: 'The Data Title', color: 'dust', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su02')
+  await db.update('UPDATE data SET siteId = ? WHERE id = ?', [deletedsite, deletedSiteDataId])
+
+  const deletedSiteDataInFolderId = await createData('contentInDeletedSiteFolder', 1, 'keyd1', { title: 'More Data', color: 'ivory', align: 'right' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su02')
+  await db.update('UPDATE data SET folderId = ?, siteId = ? WHERE id = ?', [deletedsitedatafolder, deletedsite, deletedSiteDataInFolderId])
 
   async function createAsset (name: string, folder: number, checksum: string, mime: string, size: number, indexes: Index[], creator: string) {
     const ctx = new Context()
