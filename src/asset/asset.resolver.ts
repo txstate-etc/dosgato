@@ -124,11 +124,12 @@ export class AssetResolver {
   }
 
   @Mutation(returns => AssetResponse)
-  async moveAsset (@Ctx() ctx: Context,
-    @Arg('assetId', type => ID) assetId: string,
-    @Arg('targetFolderId', type => ID) targetFolderId: string
+  async moveAssetsAndFolders (@Ctx() ctx: Context,
+  @Arg('targetFolderId', type => ID) targetFolderId: string,
+  @Arg('assetIds', type => [ID], { nullable: true }) assetIds?: string[],
+  @Arg('folderIds', type => [ID], { nullable: true }) folderIds?: string[]
   ) {
-    return await ctx.svc(AssetService).move(assetId, targetFolderId)
+    return await ctx.svc(AssetService).move(targetFolderId, assetIds, folderIds)
   }
 
   @Mutation(returns => AssetResponse)

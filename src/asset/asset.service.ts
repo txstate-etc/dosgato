@@ -4,8 +4,8 @@ import { intersect, isNotNull, keyby, roundTo, sortby } from 'txstate-utils'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
-  fileHandler, deleteAsset, undeleteAsset, moveAsset, popPath, basename, registerResize,
-  getResizesById, VersionedService, cleanupBinaries, getDownloads, DownloadsFilter, getResizeDownloads, AssetResize
+  fileHandler, deleteAsset, undeleteAsset, popPath, basename, registerResize,
+  getResizesById, VersionedService, cleanupBinaries, getDownloads, DownloadsFilter, getResizeDownloads, AssetResize, AssetFolderResponse, moveAssets
 } from '../internal.js'
 import { lookup } from 'mime-types'
 
@@ -241,24 +241,29 @@ export class AssetService extends DosGatoService<Asset> {
     return await this.loaders.get(downloadsByResizeIdLoader, filter).load(resize.id)
   }
 
-  async move (dataId: string, folderId: string) {
-    const [asset, folder] = await Promise.all([
-      this.loaders.get(assetsByIdLoader).load(dataId),
+  async move (folderId: string, assetIds?: string[], folderIds?: string[]) {
+    const [assets, folders, targetFolder] = await Promise.all([
+      this.raw.findByIds(assetIds ?? []),
+      this.svc(AssetFolderServiceInternal).findByIds(folderIds ?? []),
       this.svc(AssetFolderServiceInternal).findById(folderId)
     ])
-    if (!asset) throw new Error('Asset to be moved does not exist')
-    if (!folder) throw new Error('Target asset folder does not exist')
-    if (!(await this.haveAssetPerm(asset, 'move'))) throw new Error(`Current user is not permitted to move asset ${String(asset.name)}.${asset.extension}.`)
-    if (!(await this.haveAssetFolderPerm(folder, 'create'))) throw new Error(`Current user is not permitted to move files to folder ${String(folder.name)}`)
-    try {
-      await moveAsset(asset.internalId, folder)
-      this.loaders.clear()
-      const movedAsset = await this.loaders.get(assetsByIdLoader).load(dataId)
-      return new AssetResponse({ asset: movedAsset, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Could not move asset')
-    }
+    if (!targetFolder) throw new Error('Target asset folder does not exist.')
+    if (folders.some(f => f.parentInternalId == null)) throw new Error('Root asset folders cannot be moved.')
+    const assetSvc = this.svc(AssetService)
+    const folderSvc = this.svc(AssetFolderService)
+    const [haveCreatePerm] = await Promise.all([
+      folderSvc.mayCreate(targetFolder),
+      ...assets.map(async a => {
+        if (!await assetSvc.mayMove(a)) throw new Error(`You are not permitted to move asset ${a.filename}.`)
+      }),
+      ...folders.map(async f => {
+        if (!await folderSvc.mayMove(f)) throw new Error(`You are not permitted to move asset folder ${f.name}.`)
+      })
+    ])
+    if (!haveCreatePerm) throw new Error(`You are not permitted to move files into folder ${targetFolder.name}`)
+    await moveAssets(targetFolder, assets, folders)
+    this.loaders.clear()
+    return new AssetFolderResponse({ assetFolder: targetFolder, success: true })
   }
 
   async delete (dataId: string) {

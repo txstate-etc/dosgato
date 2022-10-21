@@ -2,6 +2,16 @@ import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { AssetFolder, AssetFolderFilter, CreateAssetFolderInput } from '../internal.js'
 
+export interface AssetFolderRow {
+  id: number
+  siteId: number
+  path: string
+  name: string
+  guid: string
+  deletedAt?: Date
+  deletedBy?: string
+}
+
 async function processFilters (filter?: AssetFolderFilter) {
   const where: any[] = []
   const binds: any[] = []
@@ -76,14 +86,6 @@ export async function createAssetFolder (args: CreateAssetFolderInput) {
 
 export async function renameAssetFolder (folderId: string, name: string) {
   return await db.update('UPDATE assetfolders SET name = ? WHERE guid = ?', [name, folderId])
-}
-
-export async function moveAssetFolder (id: number, targetFolder: AssetFolder) {
-  return await db.transaction(async db => {
-    const folder = new AssetFolder(await db.getrow('SELECT * FROM assetfolders WHERE id = ?', [targetFolder.internalId]))
-    if (folder.path !== targetFolder.path) throw new Error('Target folder has moved since the mutation began.')
-    return await db.update('UPDATE assetfolders SET path = ? WHERE id = ?', [`/${[...targetFolder.pathSplit, targetFolder.internalId].join('/')}`, id])
-  })
 }
 
 export async function deleteAssetFolder (id: number, userInternalId: number) {

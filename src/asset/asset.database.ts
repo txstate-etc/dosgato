@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { isNotNull, keyby, pick, stringify } from 'txstate-utils'
-import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution } from '../internal.js'
+import { isNotNull, keyby, pick, sortby, stringify } from 'txstate-utils'
+import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution, AssetFolderRow } from '../internal.js'
 import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 
@@ -25,6 +25,15 @@ export interface CreateAssetInput extends AssetInput {
 
 export interface ReplaceAssetInput extends AssetInput {
   assetId: string
+}
+
+export interface AssetRow {
+  id: number
+  name: string
+  folderId: number
+  dataId: string
+  shasum: string
+  deletedAt?: Date
 }
 
 function processFilters (filter?: AssetFilter) {
@@ -321,13 +330,51 @@ export async function registerResize (asset: Asset, width: number, shasum: strin
   })
 }
 
-export async function moveAsset (id: number, targetFolder: AssetFolder) {
+export async function moveAssets (targetFolder: AssetFolder, assets: Asset[], folders: AssetFolder[]) {
   return await db.transaction(async db => {
-    const folder = new AssetFolder(await db.getrow('SELECT * FROM assetfolders WHERE id = ?', [targetFolder.internalId]))
+    // re-pull everything inside the transaction
+    const targetrow = await db.getrow<AssetFolderRow>('SELECT * FROM assetfolders WHERE id=?', [targetFolder.internalId])
+    if (!targetrow) throw new Error('Target folder disappeared since the mutation began.')
     // Ensure the target folder has not moved.
     // Someone else may have moved it somewhere the current user does not have permission to create assets
-    if (folder.path !== targetFolder.path) throw new Error('Target folder has moved since the mutation began.')
-    return await db.update('UPDATE assets set folderId = ? WHERE id = ?', [targetFolder.internalId, id])
+    if (targetrow.path !== targetFolder.path) throw new Error('Target folder has moved since the mutation began.')
+
+    let binds: number[] = []
+    const folderrows = folders.length
+      ? await db.getall<AssetFolderRow>(`SELECT * FROM assetfolders WHERE id IN (${db.in(binds, folders.map(f => f.internalId))})`, binds)
+      : []
+
+    // If folder selected to be moved is a descendent of one of the other folders being moved,
+    // we don't need to move it because it will be moved with its ancestor
+    const filteredFolderRows = folderrows.filter(folder => !folderrows.some(f => f.id !== folder.id && folder.path.startsWith(f.path + '/')))
+
+    binds = []
+    const assetrows = assets.length
+      ? await db.getall<AssetRow>(`SELECT * FROM assets WHERE id IN (${db.in(binds, assets.map(a => a.internalId))})`, binds)
+      : []
+
+    // If a selected asset is already in one of the folders selected, we'll skip moving it since its folder
+    // is also moving. Users will potentially shift-select a big block of items including both folders and assets
+    // and will not expect it all to get de-structured.
+    const filteredAssetRows = assetrows.filter(asset => !folderrows.some(f => f.id === asset.folderId))
+
+    if (filteredFolderRows.some(f => targetrow.path.startsWith(f.path + '/'))) throw new Error('Cannot move a folder into its own sub-folder.')
+
+    // assets are easy to move
+    if (filteredAssetRows.length) {
+      binds = [targetrow.id]
+      await db.update(`UPDATE assets set folderId=? WHERE id IN (${db.in(binds, filteredAssetRows.map(a => a.id))})`, binds)
+    }
+
+    // correct the path column for folders and all their descendants
+    for (const f of filteredFolderRows.map(f => new AssetFolder(f))) {
+      const descendants = (await db.getall<AssetFolderRow>('SELECT * FROM assetfolders WHERE id=? OR path LIKE ?', [f.internalId, `/${[...f.pathSplit, f.internalId].join('/')}%`])).map(r => new AssetFolder(r))
+      const pathsize = f.pathSplit.length
+      for (const d of descendants) {
+        const newPath = `/${[...targetFolder.pathSplit, targetFolder.internalId, ...d.pathSplit.slice(pathsize)].join('/')}`
+        await db.update('UPDATE assetfolders SET path=? WHERE id=?', [newPath, d.internalId])
+      }
+    }
   })
 }
 
