@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { unique, keyby } from 'txstate-utils'
+import { unique, keyby, eachConcurrent } from 'txstate-utils'
 import { Site, SiteFilter, PagetreeType, VersionedService, createSiteComment, UpdateSiteManagementInput, getPageIndexes, DeletedFilter } from '../internal.js'
 import { nanoid } from 'nanoid'
 import { PageData } from '@dosgato/templating'
@@ -120,9 +120,10 @@ export async function siteNameIsUnique (name: string) {
 export async function createSite (versionedService: VersionedService, userId: string, name: string, data: PageData, linkId: string) {
   return await db.transaction(async db => {
     // create the site, get the internal id for the page template
-    const [siteId, templateInternalId] = await Promise.all([
+    const [siteId, templateInternalId, currentUserInternalId] = await Promise.all([
       db.insert('INSERT INTO sites (name) VALUES (?)', [name]),
-      db.getval('SELECT id FROM templates WHERE `key`=?', [data.templateKey])
+      db.getval('SELECT id FROM templates WHERE `key`=?', [data.templateKey]),
+      db.getval<number>('SELECT id FROM users WHERE login = ?', [userId])
     ])
     // create the assetfolder
     // create the primary pagetree
@@ -139,6 +140,7 @@ export async function createSite (versionedService: VersionedService, userId: st
     await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
       VALUES (?,?,?,?,?,?)`, [name, '/', 1, pagetreeId, dataId, linkId])
+    await createSiteComment(String(siteId), `Site created: ${name}`, currentUserInternalId!, db)
     return new Site(await db.getrow('SELECT * FROM sites WHERE id=?', [siteId]))
   })
 }
@@ -216,6 +218,9 @@ export async function updateSiteManagement (site: Site, args: UpdateSiteManageme
       auditComments.push(...managersRemoved.map(m => `Removed manager ${managers[m].login}.`))
       auditComments.push(...managersAdded.map(m => `Added manager ${managers[m].login}.`))
     }
+    await eachConcurrent(auditComments, async (comment) => {
+      await createSiteComment(site.id, comment, currentUserInternalId, db)
+    })
   })
 }
 
