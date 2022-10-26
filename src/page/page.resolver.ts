@@ -94,7 +94,7 @@ export class PageResolver {
     @Arg('schemaversion', { nullable: true, description: 'Specify the preferred schema version. The API will perform any necessary migrations on the data prior to return. Default is the latest schemaversion.' }) schemaversion?: DateTime
   ) {
     const data = await ctx.svc(PageService).getData(page, version, published, schemaversion)
-    return paths.reduce((ret, path) => ({ ...ret, [path]: get(data, path) }), {})
+    return paths.reduce<Record<string, any>>((ret, path) => { ret[path] = get(data, path); return ret }, {})
   }
 
   @FieldResolver(returns => [Template], { description: 'All templates that are approved for use on this page or by the authenticated user.' })
