@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { unique, keyby, eachConcurrent } from 'txstate-utils'
+import { unique, keyby, eachConcurrent, isNotNull } from 'txstate-utils'
 import { Site, SiteFilter, PagetreeType, VersionedService, createSiteComment, UpdateSiteManagementInput, getPageIndexes, DeletedFilter } from '../internal.js'
 import { nanoid } from 'nanoid'
 import { PageData } from '@dosgato/templating'
@@ -161,8 +161,20 @@ export async function renameSite (site: Site, name: string, currentUserInternalI
 
 export async function setLaunchURL (site: Site, host: string | undefined, path: string | undefined, enabled: boolean, currentUserInternalId: number) {
   return await db.transaction(async db => {
+    const fetchedSite = new Site(await db.getrow('SELECT * FROM sites WHERE id = ?', [site.id]))
     await db.update('UPDATE sites SET launchHost = ?, launchPath = ?, launchEnabled = ? WHERE id = ?', [host ?? null, path ?? null, enabled && !!host, site.id])
-    await createSiteComment(site.id, `Public URL updated to ${host ? `https://${host}${path ?? ''}` : 'an empty host.'}`, currentUserInternalId, db)
+    if (isNotNull(fetchedSite.url)) {
+      if (fetchedSite.url.host !== host || fetchedSite.url.path !== path) {
+        await createSiteComment(site.id, `Public URL ${host ? `updated to https://${host}${path ?? ''}` : 'removed'}`, currentUserInternalId, db)
+      }
+    } else {
+      if (isNotNull(host)) {
+        await createSiteComment(site.id, `Public URL updated to https://${host}${path ?? ''}`, currentUserInternalId, db)
+      }
+    }
+    if (!!fetchedSite.url?.enabled !== enabled) {
+      await createSiteComment(site.id, `${site.name} is ${enabled ? '' : ' no longer '} live`, currentUserInternalId, db)
+    }
   })
 }
 

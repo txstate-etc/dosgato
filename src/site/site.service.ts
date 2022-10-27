@@ -2,7 +2,7 @@ import { PageData } from '@dosgato/templating'
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import { nanoid } from 'nanoid'
-import { isNotNull } from 'txstate-utils'
+import { isBlank, isNotBlank, isNotNull, isNull } from 'txstate-utils'
 import {
   Site, SiteFilter, getSites, getSitesByTemplate, undeleteSite,
   PagetreeService, DosGatoService, createSite, VersionedService, SiteResponse,
@@ -182,18 +182,20 @@ export class SiteService extends DosGatoService<Site> {
     if (!(await this.mayLaunch(site))) throw new Error('Current user is not authorized to update the public URL for this site')
     const response = new SiteResponse({ success: true })
     // TODO: What other validation is needed? Host and path are not required. What if they enter a path but no host?
-    if (isNotNull(host)) {
+    if (isBlank(host) && enabled) {
+      response.addMessage('A site with no host cannot be live.', 'enabled')
+    }
+    if (isNotBlank(host)) {
       host = host.replace(/^https?:\/\//i, '')
     }
-    if (isNotNull(path)) {
+    if (isNotBlank(path)) {
       path = (path.startsWith('/') ? '' : '/') + path + (path.endsWith('/') ? '' : '/')
     }
-    if (!validateOnly) {
-      const currentUser = await this.currentUser()
-      await setLaunchURL(site, host, path, enabled, currentUser!.internalId)
-      this.loaders.clear()
-      response.site = await this.raw.findById(siteId)
-    }
+    if (validateOnly || response.hasErrors()) return response
+    const currentUser = await this.currentUser()
+    await setLaunchURL(site, host, path, enabled, currentUser!.internalId)
+    this.loaders.clear()
+    response.site = await this.raw.findById(siteId)
     return response
   }
 
