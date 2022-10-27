@@ -130,7 +130,8 @@ export class TemplateService extends DosGatoService<Template> {
     if (response.hasErrors()) {
       return response
     }
-    await authorizeForPagetrees(template.id, pagetrees.map(p => p.id))
+    const currentUser = await this.currentUser()
+    await authorizeForPagetrees(template, pagetrees, currentUser!.internalId)
     this.loaders.clear()
     return response
   }
@@ -143,7 +144,8 @@ export class TemplateService extends DosGatoService<Template> {
     if (!template) throw new Error('Template to be authorized does not exist')
     if (!site) throw new Error('Cannot authorize template for a site that does not exist')
     if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to authorize this template for this site')
-    await authorizeForSite(template.id, site.id)
+    const currentUser = await this.currentUser()
+    await authorizeForSite(template, site, currentUser!.internalId)
     this.loaders.clear()
     return new ValidatedResponse({ success: true })
   }
@@ -156,7 +158,8 @@ export class TemplateService extends DosGatoService<Template> {
     if (!template) throw new Error('Template to be authorized does not exist')
     if (!site) throw new Error('Cannot authorize template for a site that does not exist')
     if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to deauthorize this template for this site')
-    await deauthorizeTemplate(template.id, site.id)
+    const currentUser = await this.currentUser()
+    await deauthorizeTemplate(template, site, currentUser!.internalId)
     this.loaders.clear()
     return new ValidatedResponse({ success: true })
   }

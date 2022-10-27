@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { Cache, keyby, eachConcurrent, isNotNull, sortby } from 'txstate-utils'
-import { TemplateFilter, Template, templateRegistry, Pagetree } from '../internal.js'
+import { TemplateFilter, Template, templateRegistry, Pagetree, createSiteComment, Site } from '../internal.js'
 
 const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted', 'templates.universal']
 
@@ -82,41 +82,44 @@ export async function getTemplatePagePairs (pairs: { pageId: string, templateKey
   `, binds)
 }
 
-export async function authorizeForSite (templateId: number, siteId: string) {
+export async function authorizeForSite (template: Template, site: Site, userInternalId: number) {
   await db.transaction(async db => {
-    const sitePagetreeIds = await db.getvals<number>('SELECT id FROM pagetrees WHERE siteId = ?', [siteId])
+    const sitePagetreeIds = await db.getvals<number>('SELECT id FROM pagetrees WHERE siteId = ?', [site.id])
     // If we are authorizing this template for a whole site, we don't need to authorize it for individual pagetrees within that site.
-    const binds: (string | number)[] = [templateId]
+    const binds: (string | number)[] = [template.id]
     await db.delete(`DELETE FROM pagetrees_templates
                      WHERE templateId = ? AND pagetreeId IN (${db.in(binds, sitePagetreeIds)})`, binds)
-    return await db.insert('INSERT INTO sites_templates (templateId, siteId) VALUES(?,?)', [templateId, siteId])
+    await db.insert('INSERT INTO sites_templates (templateId, siteId) VALUES(?,?)', [template.id, site.id])
+    await createSiteComment(site.id, `Authorized ${template.name} for all pagetrees`, userInternalId, db)
   })
 }
 
-export async function authorizeForPagetrees (templateId: number, pagetreeIds: string[]) {
+export async function authorizeForPagetrees (template: Template, pagetrees: Pagetree[], userInternalId: number) {
   await db.transaction(async db => {
-    const pagetrees = (await db.getall(`SELECT * FROM pagetrees WHERE id IN (${db.in([], pagetreeIds)})`, pagetreeIds)).map((row) => new Pagetree(row))
     const sitePagetreeIds = await db.getvals<number>('SELECT id FROM pagetrees WHERE siteId = ?', [pagetrees[0].siteId])
     // If we are authorizing a template to specific pagetrees, we don't need to authorize it for the whole site
-    await db.delete('DELETE FROM sites_templates WHERE templateId = ? AND siteId = ?', [templateId, pagetrees[0].siteId])
-    let binds: (string | number)[] = [templateId]
+    await db.delete('DELETE FROM sites_templates WHERE templateId = ? AND siteId = ?', [template.id, pagetrees[0].siteId])
+    let binds: (string | number)[] = [template.id]
     await db.delete(`DELETE FROM pagetrees_templates WHERE templateId = ? AND pagetreeId IN (${db.in(binds, sitePagetreeIds)})`, binds)
 
     binds = []
     for (const id of pagetrees.map(p => p.id)) {
-      binds.push(templateId, id)
+      binds.push(template.id, id)
     }
-    return await db.insert(`INSERT INTO pagetrees_templates (templateId, pagetreeId) VALUES ${pagetrees.map(p => '(?,?)').join(', ')}`, binds)
+    await db.insert(`INSERT INTO pagetrees_templates (templateId, pagetreeId) VALUES ${pagetrees.map(p => '(?,?)').join(', ')}`, binds)
+    const auditMessage = `Authorized ${template.name} for pagetrees ${pagetrees.map(p => p.name).join(', ')}`
+    await createSiteComment(pagetrees[0].siteId, auditMessage, userInternalId)
   })
 }
 
-export async function deauthorizeTemplate (templateId: number, siteId: string) {
+export async function deauthorizeTemplate (template: Template, site: Site, userInternalId: number) {
   await db.transaction(async d => {
-    const pagetreeIds = await db.getvals<number>('SELECT id FROM pagetrees WHERE siteId = ?', [siteId])
-    await db.delete('DELETE FROM sites_templates WHERE templateId = ? AND siteId = ?', [templateId, siteId])
+    const pagetreeIds = await db.getvals<number>('SELECT id FROM pagetrees WHERE siteId = ?', [site.id])
+    await db.delete('DELETE FROM sites_templates WHERE templateId = ? AND siteId = ?', [template.id, site.id])
     if (pagetreeIds.length) {
-      await db.delete(`DELETE FROM pagetrees_templates WHERE templateId = ? AND pagetreeId IN (${db.in([], pagetreeIds)})`, [templateId, ...pagetreeIds])
+      await db.delete(`DELETE FROM pagetrees_templates WHERE templateId = ? AND pagetreeId IN (${db.in([], pagetreeIds)})`, [template.id, ...pagetreeIds])
     }
+    await createSiteComment(site.id, `Deauthorized ${template.name} for all pagetrees`, userInternalId)
   })
 }
 
