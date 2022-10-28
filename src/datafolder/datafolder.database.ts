@@ -73,7 +73,12 @@ export async function moveDataFolders (folderIds: string[], siteId?: string) {
     const site = siteId ? new Site(await db.getrow('SELECT * FROM sites WHERE id = ?', [siteId])) : undefined
     const moveBinds: (string | null)[] = []
     moveBinds.push(site ? site.id : null)
-    return await db.update(`UPDATE datafolders SET siteId = ? WHERE guid IN (${db.in(moveBinds, dataFolders.map(f => f.id))})`, moveBinds)
+    await db.update(`UPDATE datafolders SET siteId = ? WHERE guid IN (${db.in(moveBinds, dataFolders.map(f => f.id))})`, moveBinds)
+    const folderInternalIds = dataFolders.map(f => f.internalId)
+    const dataInFolders = await db.getvals<number>(`SELECT id FROM data WHERE folderId IN (${db.in([], folderInternalIds)})`, folderInternalIds)
+    if (dataInFolders.length) {
+      await db.update(`UPDATE data SET siteId = ? WHERE id IN (${db.in([], dataInFolders)})`, [(site ? site.id : null), ...dataInFolders])
+    }
   })
 }
 
