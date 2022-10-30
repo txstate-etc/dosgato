@@ -29,6 +29,6 @@ export function basename (p: string) {
 }
 
 export function numerate (name: string) {
-  if (/-\d*$/.test(name)) return name.replace(/-(\d*)$/, (_, num) => `-${String(Number(num) + 1).padStart(num.length, '0')}`)
-  return name + '-1'
+  if (/\d+$/.test(name)) return name.replace(/(\d+)$/, num => String(Number(num) + 1).padStart(num.length, '0'))
+  return name.replace(/[._\s-]+$/, '') + '-1'
 }

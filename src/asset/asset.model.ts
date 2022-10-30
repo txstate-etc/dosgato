@@ -80,7 +80,8 @@ export class Asset {
     this.name = row.name
     this.size = row.filesize
     this.mime = row.mime // should be detected upon upload
-    this.extension = extension(this.mime) || '' // TODO: extension can return false if mime is blank, not a string, or unrecognized. What should the extension be in that case?
+    this.extension = extension(this.mime) || ''
+    if (this.extension === 'jpeg') this.extension = 'jpg'
     this.filename = [this.name as string, this.extension].filter(isNotBlank).join('.')
     this.box = BoxAttributes.hasBox(row) ? new BoxAttributes(row) : undefined
     this.folderInternalId = row.folderId

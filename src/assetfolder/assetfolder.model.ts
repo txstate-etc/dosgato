@@ -25,6 +25,7 @@ export class AssetFolder {
   path: string
   pathSplit: number[]
   parentInternalId?: number
+  pathAsParent: string
 
   constructor (row: any) {
     this.internalId = row.id
@@ -34,6 +35,7 @@ export class AssetFolder {
     this.path = row.path
     this.pathSplit = row.path.split(/\//).filter(isNotBlank).map(Number)
     this.parentInternalId = this.pathSplit[this.pathSplit.length - 1]
+    this.pathAsParent = '/' + [...this.pathSplit, this.internalId].join('/')
     this.deleted = isNotNull(row.deletedAt)
     this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy

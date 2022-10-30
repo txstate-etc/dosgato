@@ -234,7 +234,7 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
       throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
     }
 
-    if (pages.some(page => parent.path.startsWith(page.path + '/'))) {
+    if (pages.some(page => parent.id === page.id || parent.path.startsWith(page.pathAsParent + '/'))) {
       throw new Error('Cannot move a page into its own subtree.')
     }
 
@@ -250,8 +250,19 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
 
     // If page selected to be moved is a descendent of one of the other pages being moved,
     // we don't need to move it because it will be moved with its ancestor
-    let filteredPages = pages.filter(page => !pages.some(p => p.internalId !== page.internalId && page.path.startsWith(p.path + '/')))
+    let filteredPages = pages.filter(page => !pages.some(p => page.path === p.pathAsParent || page.path.startsWith(p.pathAsParent + '/')))
     filteredPages = sortby(filteredPages, 'displayOrder')
+
+    // numerate page names as required
+    let binds: (string | number)[] = [parent.path + '/' + String(parent.internalId)]
+    const usednames = new Set<string>(await db.getvals(`SELECT name FROM pages WHERE path=? AND id NOT IN (${db.in(binds, filteredPages.map(p => p.internalId))})`, binds))
+    const newnames = new Map<string, string>()
+    for (const p of filteredPages) {
+      let newname = p.name
+      while (usednames.has(newname)) newname = numerate(newname)
+      newnames.set(p.id, newname)
+      usednames.add(newname)
+    }
 
     // deal with displayOrder
     const displayOrder = await handleDisplayOrder(db, parent, aboveTarget, filteredPages.length)
@@ -265,16 +276,16 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
 
     // correct the path column for pages and all their descendants
     for (const p of filteredPages) {
-      const descendants = (await db.getall('SELECT * FROM pages WHERE id=? OR path LIKE ?', [p.internalId, `/${[...p.pathSplit, p.internalId].join('/')}%`])).map(r => new Page(r))
+      const descendants = (await db.getall('SELECT * FROM pages WHERE id=? OR path LIKE ?', [p.internalId, p.pathAsParent + '%'])).map(r => new Page(r))
       const pathsize = p.pathSplit.length
       for (const d of descendants) {
         const newPath = `/${[...parent.pathSplit, parent.internalId, ...d.pathSplit.slice(pathsize)].join('/')}`
-        await db.update('UPDATE pages SET path=? WHERE id=?', [newPath, d.internalId])
+        await db.update('UPDATE pages SET name=?, path=? WHERE id=?', [newnames.get(d.id) ?? d.name, newPath, d.internalId])
       }
     }
 
     // return the newly updated pages
-    const binds: number[] = []
+    binds = []
     const updatedPages = await db.getall(`SELECT * FROM pages WHERE id IN (${db.in(binds, filteredPages.map(p => p.internalId))})`, binds)
     return updatedPages.map(p => new Page(p))
   })
@@ -285,7 +296,7 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
   const pageIndexes = await versionedService.getIndexes(page.dataId, pageData!.version)
   const newDataId = await versionedService.create('page', pageData!.data, pageIndexes, userId, db)
   let newPageName = page.name
-  const pagesWithName = new Set(await db.getvals<string>('SELECT name FROM pages WHERE name LIKE ? AND path = ?', [`${String(page.name)}%`, `/${[...parent.pathSplit, parent.internalId].join('/')}`]))
+  const pagesWithName = new Set(await db.getvals<string>('SELECT name FROM pages WHERE name LIKE ? AND path = ?', [`${String(page.name)}%`, parent.pathAsParent]))
   while (pagesWithName.has(newPageName)) newPageName = numerate(newPageName)
 
   // only generate a new linkId when copying within a pagetree or when the target pagetree has
@@ -293,9 +304,9 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
   const newLinkId = page.pagetreeId === parent.pagetreeId || await db.getval('SELECT linkId FROM pages WHERE pagetreeId=?', [parent.pagetreeId]) ? nanoid(10) : page.linkId
   const newInternalId = await db.insert(`
     INSERT INTO pages (name, pagetreeId, dataId, linkId, path, displayOrder)
-    VALUES (?, ?, ?, ?, ?, ?)`, [newPageName, parent.pagetreeId, newDataId, newLinkId, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder])
+    VALUES (?, ?, ?, ?, ?, ?)`, [newPageName, parent.pagetreeId, newDataId, newLinkId, parent.pathAsParent, displayOrder])
   if (includeChildren) {
-    const children = (await db.getall('SELECT * FROM pages WHERE path = ?', [`/${[...page.pathSplit, page.internalId].join('/')}`])).map(r => new Page(r))
+    const children = (await db.getall('SELECT * FROM pages WHERE path = ?', [page.pathAsParent])).map(r => new Page(r))
     const newParent = new Page(await db.getrow('SELECT * FROM pages WHERE id = ?', [newInternalId]))
     for (const child of children) {
       await handleCopy(db, versionedService, userId, child, newParent, child.displayOrder, true)

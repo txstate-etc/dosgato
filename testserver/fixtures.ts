@@ -1,3 +1,4 @@
+import { DataData } from '@dosgato/templating'
 import { Context } from '@txstate-mws/graphql-server'
 import { existsSync } from 'fs'
 import { DateTime } from 'luxon'
@@ -689,10 +690,11 @@ export async function fixtures () {
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['deletedsitedata', nanoid(10), deletedsite, datatemplate1!])
   ])
 
-  async function createData (name: string, displayOrder: number, templateKey: string, content: any, indexes: Index[], creator: string) {
+  async function createData (name: string, displayOrder: number, content: Omit<DataData, 'savedAtVersion'>, creator: string) {
     const ctx = new Context()
     const versionedService = new VersionedService(ctx)
-    const entryContent = Object.assign({}, content, { templateKey, savedAtVersion: getSavedAtVersion() })
+    const entryContent = { ...content, savedAtVersion: getSavedAtVersion() }
+    const indexes = [{ name: 'templateKey', values: [content.templateKey] }]
     const id = await db.transaction(async db => {
       const dataId = await versionedService.create('data', entryContent, indexes, creator, db)
       return await db.insert('INSERT INTO data (dataId, name, displayOrder) VALUES (?, ?, ?)', [dataId, name, displayOrder])
@@ -706,72 +708,73 @@ export async function fixtures () {
     await versionedService.tag(id, tag, version, user)
   }
 
-  async function updateData (id: string, content: any, indexes: Index[], user?: string, comment?: string) {
+  async function updateData (id: string, content: Omit<DataData, 'savedAtVersion'>, user?: string, comment?: string) {
     const ctx = new Context()
-    const versionedService = new VersionedService(ctx)
-    await versionedService.update(id, content, indexes, { user, comment })
+    const entryContent = { ...content, savedAtVersion: getSavedAtVersion() }
+    const indexes = [{ name: 'templateKey', values: [content.templateKey] }]
+    await ctx.svc(VersionedService).update(id, entryContent, indexes, { user, comment })
   }
 
   // TODO: Add more indexes?
-  const data1Id = await createData('Red Content', 1, 'keyd1', { title: 'Red Text', color: 'red', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data1Id = await createData('Red Content', 1, { templateKey: 'keyd1', title: 'Red Text', color: 'red', align: 'center' }, 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data1Id])
   const dataIdData1 = await db.getval<string>('SELECT dataId FROM data WHERE id = ?', [data1Id])
-  await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su03', 'updating alignment')
-  await updateData(dataIdData1!, { title: 'Red Text', color: 'red', align: 'right' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01', 'updating alignment again')
+  await updateData(dataIdData1!, { templateKey: 'keyd1', title: 'Red Text', color: 'red', align: 'left' }, 'su03', 'updating alignment')
+  await updateData(dataIdData1!, { templateKey: 'keyd1', title: 'Red Text', color: 'red', align: 'right' }, 'su01', 'updating alignment again')
 
-  const data2Id = await createData('Blue Content', 2, 'keyd1', { title: 'Blue Text', color: 'blue', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data2Id = await createData('Blue Content', 2, { templateKey: 'keyd1', title: 'Blue Text', color: 'blue', align: 'left' }, 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data2Id])
 
-  const data3Id = await createData('Orange Content', 3, 'keyd1', { title: 'Orange Text', color: 'orange', align: 'right' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data3Id = await createData('Orange Content', 3, { templateKey: 'keyd1', title: 'Orange Text', color: 'orange', align: 'right' }, 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ?, deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [site2, datafolder1, su01, 2, data3Id])
 
-  const data4Id = await createData('Green Content', 4, 'keyd1', { title: 'Green Text', color: 'green', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data4Id = await createData('Green Content', 4, { templateKey: 'keyd1', title: 'Green Text', color: 'green', align: 'center' }, 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data4Id])
 
-  await createData('Yellow Content', 1, 'keyd1', { title: 'Yellow Text', color: 'yellow', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
-  await createData('Yellow-Orange Content', 2, 'keyd1', { title: 'Yellow Orange Text', color: 'yellow-orange', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
-  await createData('Fuchsia Content', 3, 'keyd1', { title: 'Fuchsia Text', color: 'fuchsia', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  await createData('Yellow Content', 1, { templateKey: 'keyd1', title: 'Yellow Text', color: 'yellow', align: 'center' }, 'su01')
+  await createData('Yellow-Orange Content', 2, { templateKey: 'keyd1', title: 'Yellow Orange Text', color: 'yellow-orange', align: 'center' }, 'su01')
+  await createData('Fuchsia Content', 3, { templateKey: 'keyd1', title: 'Fuchsia Text', color: 'fuchsia', align: 'center' }, 'su01')
 
-  const data5Id = await createData('Ebony Content', 3, 'keyd1', { title: 'Ebony Text', color: 'ebony', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data5Id = await createData('Ebony Content', 3, { templateKey: 'keyd1', title: 'Ebony Text', color: 'ebony', align: 'center' }, 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [globalcolordata, data5Id])
-  const data6Id = await createData('Sandstone Content', 3, 'keyd1', { title: 'Sandstone Text', color: 'sandstone', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data6Id = await createData('Sandstone Content', 3, { templateKey: 'keyd1', title: 'Sandstone Text', color: 'sandstone', align: 'center' }, 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [globalcolordata, data6Id])
 
-  const data7Id = await createData('Maroon Content', 3, 'keyd1', { title: 'Maroon Text', color: 'maroon', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data7Id = await createData('Maroon Content', 3, { templateKey: 'keyd1', title: 'Maroon Text', color: 'maroon', align: 'center' }, 'su01')
   await db.update('UPDATE data SET siteId = ? WHERE id = ?', [site2, data7Id])
-  const data8Id = await createData('Gold Content', 3, 'keyd1', { title: 'Gold Text', color: 'gold', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const data8Id = await createData('Gold Content', 3, { templateKey: 'keyd1', title: 'Gold Text', color: 'gold', align: 'center' }, 'su01')
   await db.update('UPDATE data SET siteId = ? WHERE id = ?', [site2, data8Id])
 
   // some global data that does not belong to a site
-  const article1Id = await createData('Car Cleaning', 1, 'articledatakey', { title: '5 Steps to a Cleaner Car', author: 'Jane Doe' }, [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
+  const article1Id = await createData('Car Cleaning', 1, { templateKey: 'articledatakey', title: '5 Steps to a Cleaner Car', author: 'Jane Doe' }, 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article1Id])
   const dataIdArticle1 = await db.getval<string>('SELECT dataId FROM data WHERE id = ?', [article1Id])
   await tagData(dataIdArticle1!, 'published', 1, 'su02')
 
-  const article2Id = await createData('Trees', 2, 'articledatakey', { title: 'Trees of Central Texas', author: 'John Smith' }, [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
+  const article2Id = await createData('Trees', 2, { templateKey: 'articledatakey', title: 'Trees of Central Texas', author: 'John Smith' }, 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article2Id])
 
-  const article3Id = await createData('Ladybugs', 3, 'articledatakey', { title: 'The Secret Lives of Ladybugs', author: 'Jack Frost' }, [{ name: 'templateKey', values: ['articledatakey'] }], 'su01')
+  const article3Id = await createData('Ladybugs', 3, { templateKey: 'articledatakey', title: 'The Secret Lives of Ladybugs', author: 'Jack Frost' }, 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article3Id])
 
   // data not in a folder
   await Promise.all([
-    createData('Cottonwood Hall', 1, 'keyd2', { name: 'Cottonwood Hall', floors: 3 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01'),
-    createData('Student Center', 2, 'keyd2', { name: 'Student Center', floors: 4 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01'),
-    createData('Aquatics Center', 3, 'keyd2', { name: 'Aquatics Center', floors: 2 }, [{ name: 'templateKey', values: ['keyd2'] }], 'su01')
+    createData('Cottonwood Hall', 1, { templateKey: 'keyd2', name: 'Cottonwood Hall', floors: 3 }, 'su01'),
+    createData('Student Center', 2, { templateKey: 'keyd2', name: 'Student Center', floors: 4 }, 'su01'),
+    createData('Aquatics Center', 3, { templateKey: 'keyd2', name: 'Aquatics Center', floors: 2 }, 'su01')
   ])
 
   // deleted data
-  const deletedDataId = await createData('Purple Content', 5, 'keyd1', { title: 'Purple Text', color: 'purple', align: 'left' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su02')
+  const deletedDataId = await createData('Purple Content', 5, { templateKey: 'keyd1', title: 'Purple Text', color: 'purple', align: 'left' }, 'su02')
   await db.update('UPDATE data SET folderId = ?, deletedAt = NOW(), deletedBy = ?, deleteState = ?, displayOrder = ? WHERE id = ?', [datafolder3, su02, 2, 1, deletedDataId])
 
-  const partiallyDeletedDataId = await createData('Mauve Content', 4, 'keyd1', { title: 'Mauve Text', color: 'mauve', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su01')
+  const partiallyDeletedDataId = await createData('Mauve Content', 4, { templateKey: 'keyd1', title: 'Mauve Text', color: 'mauve', align: 'center' }, 'su01')
   await db.update('UPDATE data SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [su01, 1, partiallyDeletedDataId])
 
-  const deletedSiteDataId = await createData('contentInDeletedSite', 1, 'keyd1', { title: 'The Data Title', color: 'dust', align: 'center' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su02')
+  const deletedSiteDataId = await createData('contentInDeletedSite', 1, { templateKey: 'keyd1', title: 'The Data Title', color: 'dust', align: 'center' }, 'su02')
   await db.update('UPDATE data SET siteId = ? WHERE id = ?', [deletedsite, deletedSiteDataId])
 
-  const deletedSiteDataInFolderId = await createData('contentInDeletedSiteFolder', 1, 'keyd1', { title: 'More Data', color: 'ivory', align: 'right' }, [{ name: 'templateKey', values: ['keyd1'] }], 'su02')
+  const deletedSiteDataInFolderId = await createData('contentInDeletedSiteFolder', 1, { templateKey: 'keyd1', title: 'More Data', color: 'ivory', align: 'right' }, 'su02')
   await db.update('UPDATE data SET folderId = ?, siteId = ? WHERE id = ?', [deletedsitedatafolder, deletedsite, deletedSiteDataInFolderId])
 
   async function createAsset (name: string, folder: number, checksum: string, mime: string, size: number, indexes: Index[], creator: string) {

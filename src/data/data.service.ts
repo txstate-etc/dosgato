@@ -104,6 +104,16 @@ export class DataServiceInternal extends BaseService {
     return appendPath(folderPath, data.name as string)
   }
 
+  async getData (data: Data, opts?: { version?: number, tag?: string }) {
+    const versioned = await this.svc(VersionedService).get(data.dataId, opts)
+    return versioned?.data
+  }
+
+  async getTemplateKey (data: Data) {
+    const content = await this.getData(data)
+    return content.templateKey
+  }
+
   async processFilters (filter?: DataFilter) {
     if (filter?.templateKeys?.length) {
       const searchRule = { indexName: 'templateKey', in: filter.templateKeys }
@@ -255,23 +265,18 @@ export class DataService extends DosGatoService<Data> {
   async move (dataIds: string[], target: MoveDataTarget) {
     const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (await someAsync(data, async (d: Data) => !(await this.mayMove(d)))) {
-      throw new Error('Current user is not permitted to move one or more data entries')
+      throw new Error('You are not permitted to move one or more data entries.')
     }
-    const templateKeys = await mapConcurrent((data.map(d => d.dataId)), async (dataId) => {
-      const versioned = await this.svc(VersionedService).get(dataId)
-      const indexes = await this.svc(VersionedService).getIndexes(dataId, versioned!.version)
-      const templateKeyIndex = indexes.find(i => i.name === 'templateKey')
-      return templateKeyIndex!.values[0]
-    })
+    const templateKeys = await Promise.all(data.map(async d => await this.raw.getTemplateKey(d)))
     if (unique(templateKeys).length > 1) {
-      throw new Error('Data entries being moved must all have the same template')
+      throw new Error('Data entries being moved must all have the same template.')
     }
     const template = await this.svc(TemplateService).findByKey(templateKeys[0])
     let folder: DataFolder | undefined
     if (target.folderId) {
       folder = await this.svc(DataFolderServiceInternal).findById(target.folderId)
       if (!folder) throw new Error('Data cannot be moved to a data folder that does not exist.')
-      if (!(await this.svc(DataFolderService).mayCreate(folder))) throw new Error(`Current user is not permitted to move data to folder ${String(folder.name)}`)
+      if (!(await this.svc(DataFolderService).mayCreate(folder))) throw new Error(`You are not permitted to move data to folder ${String(folder.name)}.`)
       if (folder.templateId !== template!.id) throw new Error('Data can only be moved to a folder using the same template.')
     }
     let site: Site | undefined
@@ -279,29 +284,23 @@ export class DataService extends DosGatoService<Data> {
       site = await this.svc(SiteServiceInternal).findById(target.siteId)
       if (!site) throw new Error('Data cannot be moved to a site that does not exist.')
       const dataroot = new DataRoot(site, template!)
-      if (!(await this.haveDataRootPerm(dataroot, 'create'))) {
+      if (!(await this.svc(DataRootService).mayCreate(dataroot))) {
         throw new Error(`Current user is not permitted to move data to this site ${String(site.name)}.`)
       }
-      const tempdata = new Data({ id: 0, siteId: target.siteId })
-      if (!(await this.haveDataPerm(tempdata, 'move'))) throw new Error(`Current user is not permitted to move data to site ${String(site.name)}.`)
     }
     let aboveTarget: Data | undefined
     if (target.aboveTarget) {
       aboveTarget = await this.raw.findById(target.aboveTarget)
-      if (!aboveTarget) throw new Error('Data entry cannont be moved above a data entry that does not exist')
+      if (!aboveTarget) throw new Error('Data entry cannot be moved above a data entry that does not exist.')
     }
     // if none of these are provided, they are moving the data to global data
     if (!target.folderId && !target.siteId && !target.aboveTarget && !(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to update global data entries.')
-    try {
-      const versionedService = this.svc(VersionedService)
-      await moveDataEntries(versionedService, data.map(d => d.dataId), templateKeys[0], target)
-      this.loaders.clear()
-      const updated = await this.raw.findByIds(data.map(d => d.dataId))
-      return new DataMultResponse({ success: true, data: updated })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to move one or more data entries')
-    }
+
+    const versionedService = this.svc(VersionedService)
+    await moveDataEntries(versionedService, data.map(d => d.dataId), templateKeys[0], target)
+    this.loaders.clear()
+    const updated = await this.raw.findByIds(data.map(d => d.dataId))
+    return new DataMultResponse({ success: true, data: updated })
   }
 
   async publish (dataIds: string[]) {

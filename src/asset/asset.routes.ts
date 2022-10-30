@@ -86,7 +86,8 @@ export async function handleUpload (req: FastifyRequest, maxFiles = 200) {
 export async function createAssetRoutes (app: FastifyInstance) {
   await fileHandler.init()
   await app.register(multipart)
-  app.post<{ Params: { folderId: string }, Body?: { url: string, legacyId?: string, auth?: string, modifiedBy?: string, modifiedAt?: string, createdBy?: string, createdAt?: string } }>('/assets/:folderId', async (req, res) => {
+  app.post<{ Params: { folderId: string }, Body?: { url: string, legacyId?: string, auth?: string, modifiedBy?: string, modifiedAt?: string, createdBy?: string, createdAt?: string } }>(
+    '/assets/:folderId', async (req, res) => {
     const ctx = new Context(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
     const folder = await ctx.svc(AssetFolderServiceInternal).findById(req.params.folderId)
@@ -104,6 +105,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const assetService = ctx.svc(AssetService)
     const versionedService = ctx.svc(VersionedService)
 
+    const ids: string[] = []
     if (req.isMultipart()) {
       const { files, data } = await handleUpload(req)
       for (const file of files) {
@@ -116,6 +118,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
           modifiedBy: data.modifiedBy,
           modifiedAt: data.modifiedAt
         })
+        ids.push(asset.id)
         resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)
       }
     } else if (req.body?.url) {
@@ -129,13 +132,15 @@ export async function createAssetRoutes (app: FastifyInstance) {
         modifiedBy: req.body.modifiedBy,
         modifiedAt: req.body.modifiedAt
       })
+      ids.push(asset.id)
       resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }
-    return 'Success.'
+    return { success: true, ids }
   })
-  app.post<{ Params: { assetid: string }, Body?: { url: string, auth?: string, modifiedBy?: string, modifiedAt?: string } }>('/assets/replace/:assetid', async (req, res) => {
+  app.post<{ Params: { assetid: string }, Body?: { url: string, auth?: string, modifiedBy?: string, modifiedAt?: string } }>(
+    '/assets/replace/:assetid', async (req, res) => {
     const ctx = new Context(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
     const asset = await ctx.svc(AssetServiceInternal).findById(req.params.assetid)
@@ -173,9 +178,10 @@ export async function createAssetRoutes (app: FastifyInstance) {
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }
-    return 'Success.'
+    return { success: true }
   })
-  app.get<{ Params: { resizeid: string, filename: string }, Querystring: { admin?: 1 } }>('/resize/:resizeid/:filename', async (req, res) => {
+  app.get<{ Params: { resizeid: string, filename: string }, Querystring: { admin?: 1 } }>(
+    '/resize/:resizeid/:filename', async (req, res) => {
     const ctx = new Context(req)
     const resize = await ctx.svc(AssetService).getResize(req.params.resizeid)
     if (!resize) throw new HttpError(404)
@@ -194,7 +200,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
 
     return await res.status(200).send(fileHandler.get(resize.checksum))
   })
-  app.get<{ Params: { assetid: string, width: string, filename: string }, Querystring: { admin?: 1 } }>('/assets/:assetid/w/:width/*', async (req, res) => {
+  app.get<{ Params: { assetid: string, width: string, filename: string }, Querystring: { admin?: 1 } }>(
+    '/assets/:assetid/w/:width/*', async (req, res) => {
     const ctx = new Context(req)
     const asset = await ctx.svc(AssetServiceInternal).findById(req.params.assetid)
     if (!asset) throw new HttpError(404)
@@ -222,7 +229,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
 
     return await res.status(200).send(fileHandler.get(chosen.checksum))
   })
-  app.get<{ Params: { id: string, filename: string }, Querystring: { admin?: 1 } }>('/assets/:id/:filename', async (req, res) => {
+  app.get<{ Params: { id: string, filename: string }, Querystring: { admin?: 1 } }>(
+    '/assets/:id/:filename', async (req, res) => {
     const ctx = new Context(req)
     const asset = await ctx.svc(AssetServiceInternal).findById(req.params.id)
     if (!asset) throw new HttpError(404)

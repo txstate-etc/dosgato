@@ -73,9 +73,9 @@ describe('asset mutations', () => {
     const { assetFolder: targetFolder } = await createAssetFolder('childfolder8', siteAAssetRootId)
     const { assetFolder: folder } = await createAssetFolder('grandchildfolder1', siteAAssetRootId)
     expect(folder.folder.name).to.equal('assettestsitea')
-    const { moveAssetFolder: { success, assetFolder } } = await query('mutation MoveAssetFolder ($folderId: ID!, $targetId: ID!) { moveAssetFolder (folderId: $folderId, targetId: $targetId) { success assetFolder { id name folder { id name } } } }', { folderId: folder.id, targetId: targetFolder.id })
+    const { moveAssetsAndFolders: { success, assetFolder } } = await query('mutation MoveAssetFolder ($folderId: ID!, $targetId: ID!) { moveAssetsAndFolders (folderIds: [$folderId], targetFolderId: $targetId) { success assetFolder { id name folder { id name } } } }', { folderId: folder.id, targetId: targetFolder.id })
     expect(success).to.be.true
-    expect(assetFolder.folder.id).to.equal(targetFolder.id)
+    expect(assetFolder.id).to.equal(targetFolder.id)
   })
   it('should not allow the root asset folder to be moved', async () => {
     const { createSite: { site } } = await query('mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name assetroot { id } } } }', { name: 'assetTestSiteB', data: { templateKey: 'keyp1', savedAtVersion: '20220801120000', title: 'Test Title' } })
@@ -94,25 +94,12 @@ describe('asset mutations', () => {
   })
 
   it('should create an asset', async () => {
-    const uploadResult = await postMultipart('/files', {}, '/usr/app/files/blank.jpg', 'su01')
-    const upload = uploadResult[0]
+    const { ids, success } = await postMultipart(`/assets/${siteAAssetRootId}`, {}, '/usr/app/files/blank.jpg', 'su01')
+    expect(success).to.be.true
+    const { assets } = await query('query getAsset ($ids: [ID!]!) { assets (filter: { ids: $ids }) { filename, mime, size } }', { ids })
+    const upload = assets[0]
     expect(upload.filename).to.equal('blank.jpg')
     expect(upload.mime).to.equal('image/jpeg')
     expect(upload.size).to.equal(75533)
-    const { createAsset: { success, asset } } = await query(`
-      mutation CreateAsset ($args: CreateAssetInput!) {
-        createAsset (args: $args) {
-          success
-          asset {
-            id
-            name
-            folder {
-              id name
-            }
-            data
-          }
-        }
-      }`, { args: { checksum: upload.shasum, name: upload.filename, folderId: siteAAssetRootId, size: upload.size, mime: upload.mime } })
-    expect(success).to.be.true
   })
 })

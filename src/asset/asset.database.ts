@@ -1,8 +1,9 @@
 import db from 'mysql2-async/db'
-import { isNotNull, keyby, pick, sortby, stringify } from 'txstate-utils'
+import { isNotNull, keyby, pick, stringify } from 'txstate-utils'
 import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution, AssetFolderRow } from '../internal.js'
 import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
+import { nanoid } from 'nanoid'
 
 export interface AssetInput {
   name: string
@@ -346,7 +347,7 @@ export async function moveAssets (targetFolder: AssetFolder, assets: Asset[], fo
 
     // If folder selected to be moved is a descendent of one of the other folders being moved,
     // we don't need to move it because it will be moved with its ancestor
-    const filteredFolderRows = folderrows.filter(folder => !folderrows.some(f => f.id !== folder.id && folder.path.startsWith(f.path + '/')))
+    const filteredFolderRows = folderrows.filter(folder => !folderrows.some(f => folder.path === makeParentPath(f) || folder.path.startsWith(makeParentPath(f) + '/')))
 
     binds = []
     const assetrows = assets.length
@@ -358,7 +359,7 @@ export async function moveAssets (targetFolder: AssetFolder, assets: Asset[], fo
     // and will not expect it all to get de-structured.
     const filteredAssetRows = assetrows.filter(asset => !folderrows.some(f => f.id === asset.folderId))
 
-    if (filteredFolderRows.some(f => targetrow.path.startsWith(f.path + '/'))) throw new Error('Cannot move a folder into its own sub-folder.')
+    if (filteredFolderRows.some(f => targetrow.id === f.id || targetrow.path.startsWith(makeParentPath(f) + '/'))) throw new Error('Cannot move a folder into its own sub-folder.')
 
     // assets are easy to move
     if (filteredAssetRows.length) {
@@ -374,6 +375,77 @@ export async function moveAssets (targetFolder: AssetFolder, assets: Asset[], fo
         const newPath = `/${[...targetFolder.pathSplit, targetFolder.internalId, ...d.pathSplit.slice(pathsize)].join('/')}`
         await db.update('UPDATE assetfolders SET path=? WHERE id=?', [newPath, d.internalId])
       }
+    }
+  })
+}
+
+function makeParentPath (f: AssetFolderRow) {
+  return (f.path === '/' ? '/' : f.path + '/') + String(f.id)
+}
+
+async function copyAsset (a: AssetRow, targetrow: AssetFolderRow, user: string, versionedService: VersionedService, db: Queryable) {
+  const data = await versionedService.get(a.dataId)
+  if (!data) throw new Error(`Asset being copied "${a.name}" was corrupt.`)
+  const dataId = await versionedService.create('asset', data.data, [], user, db)
+  await db.insert('INSERT INTO assets (name, folderId, dataId, shasum) VALUES (?, ?, ?, ?)', [a.name, targetrow.id, dataId, a.shasum])
+}
+
+async function copyFolder (f: AssetFolderRow, targetrow: AssetFolderRow, user: string, versionedService: VersionedService, db: Queryable) {
+  const newFolderId = await db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?, ?, ?, ?)', [targetrow.siteId, makeParentPath(targetrow), f.name, nanoid(10)])
+  const newFolderRow = await db.getrow('SELECT * FROM assetfolders WHERE id = ?', [newFolderId])
+  const assets = await db.getall<AssetRow>('SELECT * FROM assets WHERE folderId = ?', [f.id])
+  for (const a of assets) await copyAsset(a, newFolderRow, user, versionedService, db)
+  const folders = await db.getall<AssetFolderRow>('SELECT * FROM assetfolders WHERE path = ?', [makeParentPath(f)])
+  for (const cf of folders) await copyFolder(cf, newFolderRow, user, versionedService, db)
+}
+
+export async function copyAssets (targetFolder: AssetFolder, assets: Asset[], folders: AssetFolder[], user: string, versionedService: VersionedService) {
+  return await db.transaction(async db => {
+    // re-pull everything inside the transaction
+    const [targetrow, targetassetchildren, targetfolderchildren] = await Promise.all([
+      db.getrow<AssetFolderRow>('SELECT * FROM assetfolders WHERE id=?', [targetFolder.internalId]),
+      db.getall<AssetRow>('SELECT * FROM assets WHERE folderId = ?', [targetFolder.internalId]),
+      db.getall<AssetFolderRow>('SELECT * FROM assetfolders WHERE path = ?', [targetFolder.pathAsParent])
+    ])
+
+    if (!targetrow) throw new Error('Target folder disappeared since the mutation began.')
+    // Ensure the target folder has not moved.
+    // Someone else may have moved it somewhere the current user does not have permission to create assets
+    if (targetrow.path !== targetFolder.path) throw new Error('Target folder has moved since the mutation began.')
+
+    const usedNames = new Set([...targetassetchildren, ...targetfolderchildren].map(c => c.name))
+
+    let binds: number[] = []
+    const folderrows = folders.length
+      ? await db.getall<AssetFolderRow>(`SELECT * FROM assetfolders WHERE id IN (${db.in(binds, folders.map(f => f.internalId))})`, binds)
+      : []
+
+    // If folder selected to be copied is a descendent of one of the other folders being copied,
+    // we don't need to copy it because it will be copied with its ancestor
+    const filteredFolderRows = folderrows.filter(folder => !folderrows.some(f => folder.path === makeParentPath(f) || folder.path.startsWith(makeParentPath(f) + '/')))
+
+    binds = []
+    const assetrows = assets.length
+      ? await db.getall<AssetRow>(`SELECT * FROM assets WHERE id IN (${db.in(binds, assets.map(a => a.internalId))})`, binds)
+      : []
+
+    // If a selected asset is already in one of the folders selected, we'll skip copying it since its folder
+    // is also being copied. Users will potentially shift-select a big block of items including both folders and assets
+    // and will not expect it all to get de-structured.
+    const filteredAssetRows = assetrows.filter(asset => !folderrows.some(f => f.id === asset.folderId))
+
+    if (filteredFolderRows.some(f => targetrow.id === f.id || targetrow.path.startsWith(makeParentPath(f) + '/'))) throw new Error('Cannot copy a folder into its own sub-folder.')
+
+    // copy assets
+    for (const a of filteredAssetRows) {
+      if (usedNames.has(a.name)) throw new Error(`Asset "${a.name}" already exists in the target folder.`)
+      await copyAsset(a, targetrow, user, versionedService, db)
+    }
+
+    // copy folders
+    for (const f of filteredFolderRows) {
+      if (usedNames.has(f.name)) throw new Error(`Folder "${f.name}" already exists in the target folder.`)
+      await copyFolder(f, targetrow, user, versionedService, db)
     }
   })
 }

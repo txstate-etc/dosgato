@@ -59,6 +59,7 @@ export class Page {
   displayOrder: number
   parentInternalId?: number
   dataId: string
+  pathAsParent: string
 
   // this is a helper property for determining whether templates can be kept on a page
   // see TemplateService.mayKeepOnPage()
@@ -72,6 +73,7 @@ export class Page {
     this.path = row.path
     this.pathSplit = row.path.split(/\//).filter(isNotBlank).map(Number)
     this.parentInternalId = this.pathSplit[this.pathSplit.length - 1]
+    this.pathAsParent = '/' + [...this.pathSplit, this.internalId].join('/')
     this.displayOrder = row.displayOrder
     this.dataId = row.dataId
     this.linkId = row.linkId

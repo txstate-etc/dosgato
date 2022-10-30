@@ -5,7 +5,7 @@ import { isNull } from 'txstate-utils'
 import {
   AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
-  RoleService, AssetResponse, UpdateAssetInput, DownloadsFilter, DownloadRecord
+  RoleService, AssetResponse, UpdateAssetInput, DownloadsFilter, DownloadRecord, AssetFolderResponse
 } from '../internal.js'
 
 @Resolver(of => Asset)
@@ -123,13 +123,22 @@ export class AssetResolver {
     throw new UnimplementedError()
   }
 
-  @Mutation(returns => AssetResponse)
+  @Mutation(returns => AssetFolderResponse)
   async moveAssetsAndFolders (@Ctx() ctx: Context,
   @Arg('targetFolderId', type => ID) targetFolderId: string,
   @Arg('assetIds', type => [ID], { nullable: true }) assetIds?: string[],
   @Arg('folderIds', type => [ID], { nullable: true }) folderIds?: string[]
   ) {
     return await ctx.svc(AssetService).move(targetFolderId, assetIds, folderIds)
+  }
+
+  @Mutation(returns => AssetFolderResponse)
+  async copyAssetsAndFolders (@Ctx() ctx: Context,
+  @Arg('targetFolderId', type => ID) targetFolderId: string,
+  @Arg('assetIds', type => [ID], { nullable: true }) assetIds?: string[],
+  @Arg('folderIds', type => [ID], { nullable: true }) folderIds?: string[]
+  ) {
+    return await ctx.svc(AssetService).copy(targetFolderId, assetIds, folderIds)
   }
 
   @Mutation(returns => AssetResponse)

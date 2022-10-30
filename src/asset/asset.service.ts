@@ -5,7 +5,8 @@ import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
   fileHandler, deleteAsset, undeleteAsset, popPath, basename, registerResize,
-  getResizesById, VersionedService, cleanupBinaries, getDownloads, DownloadsFilter, getResizeDownloads, AssetResize, AssetFolderResponse, moveAssets
+  getResizesById, VersionedService, cleanupBinaries, getDownloads, DownloadsFilter, getResizeDownloads,
+  AssetResize, AssetFolderResponse, moveAssets, copyAssets
 } from '../internal.js'
 import { lookup } from 'mime-types'
 
@@ -262,6 +263,20 @@ export class AssetService extends DosGatoService<Asset> {
     ])
     if (!haveCreatePerm) throw new Error(`You are not permitted to move files into folder ${targetFolder.name}`)
     await moveAssets(targetFolder, assets, folders)
+    this.loaders.clear()
+    return new AssetFolderResponse({ assetFolder: targetFolder, success: true })
+  }
+
+  async copy (folderId: string, assetIds?: string[], folderIds?: string[]) {
+    const [assets, folders, targetFolder] = await Promise.all([
+      this.raw.findByIds(assetIds ?? []),
+      this.svc(AssetFolderServiceInternal).findByIds(folderIds ?? []),
+      this.svc(AssetFolderServiceInternal).findById(folderId)
+    ])
+    if (!targetFolder) throw new Error('Target asset folder does not exist.')
+    if (folders.some(f => f.parentInternalId == null)) throw new Error('Root asset folders cannot be copied.')
+    if (!await this.svc(AssetFolderService).mayCreate(targetFolder)) throw new Error(`You are not permitted to copy files into folder ${targetFolder.name}`)
+    await copyAssets(targetFolder, assets, folders, this.login, this.svc(VersionedService))
     this.loaders.clear()
     return new AssetFolderResponse({ assetFolder: targetFolder, success: true })
   }

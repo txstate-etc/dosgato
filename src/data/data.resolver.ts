@@ -1,3 +1,4 @@
+import { DataData } from '@dosgato/templating'
 import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
@@ -33,11 +34,8 @@ export class DataResolver {
 
   @FieldResolver(returns => Template, { description: 'Data are created with a template that defines the schema and provides an editing dialog. The template never changes (except as part of an upgrade task).' })
   async template (@Ctx() ctx: Context, @Root() data: Data) {
-    // TODO: Is there another way to get this?
-    const versioned = await ctx.svc(VersionedService).get(data.dataId)
-    const indexes = await ctx.svc(VersionedService).getIndexes(data.dataId, versioned!.version)
-    const templateKeyIndex = indexes.find(i => i.name === 'templateKey')
-    const templateKey = templateKeyIndex!.values[0]
+    const versioned = await ctx.svc(VersionedService).get<DataData>(data.dataId)
+    const templateKey = versioned!.data.templateKey
     return await ctx.svc(TemplateService).findByKey(templateKey)
   }
 
