@@ -21,7 +21,7 @@ services:
     depends_on:
       - mysql
   mysql:
-    image: percona:5
+    image: mariadb
     ports:
       - 3306:3306
     environment:

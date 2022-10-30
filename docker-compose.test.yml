@@ -23,7 +23,7 @@ services:
       JWT_SECRET: secret
       RESET_DB_ON_STARTUP: 'true'
   mysql:
-    image: percona:5
+    image: mariadb
     logging:
       driver: none
     environment:
