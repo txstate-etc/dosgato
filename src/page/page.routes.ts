@@ -73,7 +73,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     // at the time of writing this comment, template usage is approved for an entire pagetree, so
     // it should be safe to simply check if the targeted parent/sibling is allowed to use this template
     try {
-      await svcPage.validatePageTemplates(parent, pageRecord.data, true)
+      await svcPage.validatePageTemplates(pageRecord.data, { parent })
     } catch (e: any) {
       throw new HttpError(403, e.message)
     }
@@ -111,7 +111,7 @@ export async function createPageRoutes (app: FastifyInstance) {
       if (!pageRecord.data.legacyId) throw new HttpError(400, 'Only pages being imported from another system may override published stamps.')
     }
     try {
-      await svcPage.validatePageTemplates(page, pageRecord.data, true)
+      await svcPage.validatePageTemplates(pageRecord.data, { page })
     } catch (e: any) {
       throw new HttpError(403, e.message)
     }

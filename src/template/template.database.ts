@@ -63,22 +63,20 @@ export async function getTemplatesByPagetree (pagetreeIds: string[], filter?: Te
   return sortby(rows.map(row => ({ key: String(row.pagetreeId), value: new Template(row) })), 'value.name')
 }
 
-export async function getTemplatePagePairs (pairs: { pageId: string, templateKey: string }[]) {
+export async function getTemplatePagetreePairs (pairs: { pagetreeId: string, templateKey: string }[]) {
   const binds: string[] = []
-  return await db.getall<{ pageId: string, templateKey: string }>(`
-    SELECT p.dataId as pageId, t.key as templateKey
-    FROM pages p
-    INNER JOIN pagetrees pt ON pt.id=p.pagetreeId
+  return await db.getall<{ pagetreeId: number, templateKey: string }>(`
+    SELECT pt.id as pagetreeId, t.key as templateKey
+    FROM pagetrees pt
     INNER JOIN sites s ON s.id=pt.siteId
     INNER JOIN sites_templates st ON s.id=st.siteId
     INNER JOIN templates t ON st.templateId=t.id
-    WHERE (p.dataId, t.key) IN (${db.in(binds, pairs.map(p => [p.pageId, p.templateKey]))})
+    WHERE (pt.id, t.key) IN (${db.in(binds, pairs.map(p => [p.pagetreeId, p.templateKey]))})
     UNION
-    SELECT p.dataId as pageId, t.key as templateKey
-    FROM pages p
-    INNER JOIN pagetrees_templates ptt ON ptt.pagetreeId=p.pagetreeId
+    SELECT ptt.pagetreeId, t.key as templateKey
+    FROM pagetrees_templates ptt
     INNER JOIN templates t ON ptt.templateId=t.id
-    WHERE (p.dataId, t.key) IN (${db.in(binds, pairs.map(p => [p.pageId, p.templateKey]))})
+    WHERE (ptt.pagetreeId, t.key) IN (${db.in(binds, pairs.map(p => [p.pagetreeId, p.templateKey]))})
   `, binds)
 }
 

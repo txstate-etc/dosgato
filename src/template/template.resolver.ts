@@ -94,7 +94,9 @@ export class TemplatePermissionsResolver {
 
   @FieldResolver(returns => Boolean, { description: 'Authenticated user has permission to use this template on the given page.' })
   async useOnPage (@Ctx() ctx: Context, @Root() template: Template, @Arg('pageId', type => ID) pageId: string) {
-    return await ctx.svc(TemplateService).mayUseOnPage(template, pageId)
+    const page = await ctx.svc(PageService).findById(pageId)
+    if (!page) return false
+    return await ctx.svc(TemplateService).mayKeepOnPage(template.key, page, template)
   }
 }
 

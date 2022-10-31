@@ -2,10 +2,9 @@ import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   Template, TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
-  DosGatoService, authorizeForPagetrees,
-  authorizeForSite, setUniversal, PagetreeServiceInternal,
-  SiteServiceInternal, getTemplatePagePairs, Page, collectTemplates, PageServiceInternal,
-  universalTemplateCache, deauthorizeTemplate
+  DosGatoService, authorizeForPagetrees, authorizeForSite, setUniversal, PagetreeServiceInternal,
+  SiteServiceInternal, Page, collectTemplates, PageServiceInternal, universalTemplateCache,
+  deauthorizeTemplate, getTemplatePagetreePairs
 } from '../internal.js'
 import { isNotNull, isNull, stringify, unique, mapConcurrent } from 'txstate-utils'
 
@@ -37,11 +36,11 @@ const templatesByPagetreeIdLoader = new ManyJoinedLoader({
   idLoader: [templatesByIdLoader, templatesByKeyLoader]
 })
 
-const mayUseTemplateOnPageLoader = new PrimaryKeyLoader({
-  fetch: async (pairs: { pageId: string, templateKey: string }[]) => {
-    return await getTemplatePagePairs(pairs)
+const mayUseTemplateInPagetreeLoader = new PrimaryKeyLoader({
+  fetch: async (pairs: { pagetreeId: string, templateKey: string }[]) => {
+    return await getTemplatePagetreePairs(pairs)
   },
-  extractId: row => ({ pageId: row.pageId, templateKey: row.templateKey })
+  extractId: row => ({ pagetreeId: String(row.pagetreeId), templateKey: row.templateKey })
 })
 
 export class TemplateServiceInternal extends BaseService {
@@ -206,9 +205,9 @@ export class TemplateService extends DosGatoService<Template> {
    *
    * To take previously used templates into account, use mayKeepOnPage.
    */
-  async mayUseOnPage (template: Template, pageId: string) {
+  async mayUseOnPage (template: Template, page: Page) {
     if (await this.haveTemplatePerm(template, 'use')) return true
-    return !!(await this.loaders.get(mayUseTemplateOnPageLoader).load({ pageId, templateKey: template.key }))
+    return !!(await this.loaders.get(mayUseTemplateInPagetreeLoader).load({ pagetreeId: page.pagetreeId, templateKey: template.key }))
   }
 
   /**
@@ -224,6 +223,6 @@ export class TemplateService extends DosGatoService<Template> {
     // templateKey in them.
     if (page.existingTemplateKeys.has(templateKey)) return true
     if (!template) return false
-    return await this.svc(TemplateService).mayUseOnPage(template, page.id)
+    return await this.svc(TemplateService).mayUseOnPage(template, page)
   }
 }

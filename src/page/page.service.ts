@@ -2,8 +2,7 @@ import { PageData, PageExtras, PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import db from 'mysql2-async/db'
-import { nanoid } from 'nanoid'
-import { eachConcurrent, filterAsync, intersect, isNotNull, keyby, someAsync, stringify, unique } from 'txstate-utils'
+import { filterAsync, intersect, isNotNull, keyby, someAsync, stringify, unique } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
   PageResponse, PagesResponse, createPage, getPages, movePages,
@@ -248,7 +247,7 @@ export class PageService extends DosGatoService<Page> {
 
   async getApprovedTemplates (page: Page, filter?: TemplateFilter) {
     const templates = await this.svc(TemplateService).find(filter)
-    return await filterAsync(templates, async template => await this.svc(TemplateService).mayUseOnPage(template, page.id))
+    return await filterAsync(templates, async template => await this.svc(TemplateService).mayUseOnPage(template, page))
   }
 
   async getRootPage (page: Page) {
@@ -360,8 +359,16 @@ export class PageService extends DosGatoService<Page> {
     const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
     if (!(await this.mayCreate(parent)) || (await someAsync(pages, async (page: Page) => !(await this.mayMove(page))))) {
-      throw new Error('Current user is not permitted to perform this move.')
+      throw new Error('You are not permitted to perform this move.')
     }
+
+    if (pages.some(p => p.pagetreeId !== parent.pagetreeId)) throw new Error('Moving pages between sites or pagetrees is not allowed.')
+
+    // movement between sites or pagetrees and already not allowed (see above)
+    // and we would not want to disable movement just because an authorized person used a template
+    // the current person can't use
+    // therefore, skipping template validity check
+
     const newPages = await movePages(pages, parent, aboveTarget)
     return new PagesResponse({ success: true, pages: newPages })
   }
@@ -370,28 +377,28 @@ export class PageService extends DosGatoService<Page> {
     const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
     if (!(await this.mayCreate(parent))) {
-      throw new Error('Current user is not permitted to copy pages to this location.')
+      throw new Error('You are not permitted to copy pages to this location.')
     }
     // Is this page allowed to be copied here?
-    const pageData = (await Promise.all(pages.map(async page => await this.svc(VersionedService).get(page.id)))).filter(isNotNull)
-    await Promise.all(pageData.map(async d => await this.validatePageTemplates(parent, d.data, true)))
+    const pageData = await Promise.all(pages.map(async page => await this.raw.getData(page)))
+    await Promise.all(pageData.map(async d => await this.validatePageTemplates(d, { parent })))
     const newPage = await copyPages(this.svc(VersionedService), this.login, pages, parent, aboveTarget, includeChildren)
     return new PageResponse({ success: true, page: newPage })
   }
 
-  async validatePageTemplates (page: Page, data: PageData, create: boolean) {
+  async validatePageTemplates (data: PageData, placement: { page?: Page, parent?: Page }) {
     const templateKeys = Array.from(collectTemplates(data))
     const templates = await Promise.all(templateKeys.map(async k => await this.svc(TemplateServiceInternal).findByKey(k)))
     const templateByKey = keyby(templates.filter(isNotNull), 'key')
-    const oldData = await this.raw.getData(page)
-    if (oldData.templateKey !== data.templateKey) {
+    const oldData = placement.page ? await this.raw.getData(placement.page) : undefined
+    if (oldData?.templateKey !== data.templateKey) {
       if (!templateByKey[data.templateKey]) throw new Error('Tried to set page template to a non-existing template.')
       if (templateByKey[data.templateKey].type !== TemplateType.PAGE) throw new Error('Tried to set page template to a non-page template.')
     }
 
-    const invalid = create
-      ? await someAsync(templateKeys, async templateKey => !await this.svc(TemplateService).mayUseOnPage(templateByKey[templateKey], page.id))
-      : await someAsync(templateKeys, async templateKey => !await this.svc(TemplateService).mayKeepOnPage(templateKey, page, templateByKey[templateKey]))
+    const invalid = placement.page
+      ? await someAsync(templateKeys, async templateKey => !await this.svc(TemplateService).mayKeepOnPage(templateKey, placement.page!, templateByKey[templateKey]))
+      : await someAsync(templateKeys, async templateKey => !await this.svc(TemplateService).mayUseOnPage(templateByKey[templateKey], placement.parent!))
     if (invalid) throw new Error('Template is not approved for use in this site or pagetree.')
   }
 
@@ -420,7 +427,7 @@ export class PageService extends DosGatoService<Page> {
     if (!(await this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
     // at the time of writing this comment, template usage is approved for an entire pagetree, so
     // it should be safe to simply check if the targeted parent/sibling is allowed to use this template
-    await this.validatePageTemplates(parent, data, true)
+    await this.validatePageTemplates(data, { parent })
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const response = await this.validatePageData(data, site, pagetree, parent, name)
@@ -439,7 +446,7 @@ export class PageService extends DosGatoService<Page> {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
-    await this.validatePageTemplates(page, data, false)
+    await this.validatePageTemplates(data, { page })
     const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
