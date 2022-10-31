@@ -2,10 +2,11 @@ import { DataData } from '@dosgato/templating'
 import { Context } from '@txstate-mws/graphql-server'
 import { existsSync } from 'fs'
 import { DateTime } from 'luxon'
+import { extension } from 'mime-types'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { stringify } from 'txstate-utils'
-import { VersionedService, Index } from '../src/internal.js'
+import { VersionedService, Index, AssetService } from '../src/internal.js'
 
 export async function fixtures () {
   console.info('running fixtures()')
@@ -777,12 +778,12 @@ export async function fixtures () {
   const deletedSiteDataInFolderId = await createData('contentInDeletedSiteFolder', 1, { templateKey: 'keyd1', title: 'More Data', color: 'ivory', align: 'right' }, 'su02')
   await db.update('UPDATE data SET folderId = ?, siteId = ? WHERE id = ?', [deletedsitedatafolder, deletedsite, deletedSiteDataInFolderId])
 
-  async function createAsset (name: string, folder: number, checksum: string, mime: string, size: number, indexes: Index[], creator: string) {
+  async function createAsset (name: string, folder: number, checksum: string, mime: string, size: number, indexes: Index[], creator: string, width?: number, height?: number) {
     const ctx = new Context()
     const versionedService = new VersionedService(ctx)
     const id = await db.transaction(async db => {
-      const dataId = await versionedService.create('testdata_asset', { shasum: checksum }, indexes, creator, db)
-      await db.insert('INSERT IGNORE INTO binaries (shasum, mime, meta, bytes) VALUES (?,?,?,?)', [checksum, mime, stringify({}), size])
+      const dataId = await versionedService.create('asset', { shasum: checksum, uploadedFilename: name + '.' + (extension(mime) || '') }, indexes, creator, db)
+      await db.insert('INSERT IGNORE INTO binaries (shasum, mime, meta, bytes) VALUES (?,?,?,?)', [checksum, mime, stringify(width && height ? { width, height } : {}), size])
       await db.insert('INSERT INTO assets (name, folderId, dataId, shasum) VALUES (?,?,?,?)', [name, folder, dataId, checksum])
     })
     return id
@@ -790,7 +791,7 @@ export async function fixtures () {
 
   if (existsSync('/files/storage')) {
     await createAsset('blankpdf', site1AssetRoot, 'd731d520ca21a90b2ca28b5068cfdd678dbd3ace', 'application/pdf', 1264, [{ name: 'type', values: ['application/pdf'] }], 'su01')
-    await createAsset('bobcat', site1AssetRoot, '6ce119a866c6821764edcdd5b30395d0997c8aff', 'image/jpeg', 3793056, [{ name: 'type', values: ['image/jpeg'] }], 'su01')
+    await createAsset('bobcat', site1AssetRoot, '6ce119a866c6821764edcdd5b30395d0997c8aff', 'image/jpeg', 3793056, [{ name: 'type', values: ['image/jpeg'] }], 'su01', 6016, 4016)
     await createAsset('blankpdf', site8AssetRoot, 'd731d520ca21a90b2ca28b5068cfdd678dbd3ace', 'application/pdf', 1264, [{ name: 'type', values: ['application/pdf'] }], 'su01')
   }
 
