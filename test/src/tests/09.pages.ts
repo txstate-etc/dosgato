@@ -86,6 +86,10 @@ describe('pages', () => {
     const resp = await query('{ pages(filter: { paths: ["site3/about"] }) { id name } }')
     expect(resp.pages).to.have.lengthOf(2)
   })
+  it('should get a page by path when the page name only exists in one pagetree in a site with multiple pagetrees', async () => {
+    const { pages } = await query('{ pages(filter: { paths: ["site3/sitemap"] }) { id name } }')
+    expect(pages.length).to.be.greaterThan(0)
+  })
   it.skip('should get pages using specific templates', async () => {})
   it.skip('should get pages, filtered by launched URL', async () => {})
   it('should get the ancestors for a page', async () => {

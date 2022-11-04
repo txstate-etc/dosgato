@@ -45,7 +45,7 @@ async function convertPathsToIDPaths (pathstrings: string[]) {
   for (const pt of paths) {
     let searchpaths = ['/']
     for (const segment of pt) {
-      const pages = searchpaths.flatMap(sp => rowsByNameAndIDPath[segment][sp])
+      const pages = searchpaths.flatMap(sp => rowsByNameAndIDPath[segment][sp]).filter(isNotNull)
       searchpaths = pages.map(pg => `${pg.path}${pg.path === '/' ? '' : '/'}${pg.id}`)
       if (!searchpaths.length) break
     }
