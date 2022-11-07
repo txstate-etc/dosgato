@@ -81,10 +81,12 @@ export async function createSiteRule (args: CreateSiteRuleInput) {
 
 export async function updateSiteRule (args: UpdateSiteRuleInput) {
   const updates: string[] = []
-  const binds: (string | boolean)[] = []
+  const binds: (string | boolean | null)[] = []
+  updates.push('siteId = ?')
   if (typeof args.siteId !== 'undefined') {
-    updates.push('siteId = ?')
     binds.push(args.siteId)
+  } else {
+    binds.push(null)
   }
   if (args.grants) {
     if (isNotNull(args.grants.launch)) {

@@ -100,7 +100,7 @@ export class SiteRuleService extends DosGatoService<SiteRule> {
     const newRule = new SiteRule({
       id: '0',
       roleId: rule.roleId,
-      siteId: args.siteId ?? rule.siteId,
+      siteId: args.siteId,
       ...updatedGrants
     })
     const response = new SiteRuleResponse({ success: true })
