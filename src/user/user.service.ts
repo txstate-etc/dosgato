@@ -120,7 +120,7 @@ export class UserService extends DosGatoService<User, RedactedUser | User> {
   raw = this.svc(UserServiceInternal)
 
   async find (filter: UserFilter) {
-    if (!(await this.haveGlobalPerm('manageAccess'))) filter.ids = ['self']
+    if (!(await this.mayList())) filter.ids = ['self']
     if (filter.ids?.length) {
       filter.ids = filter.ids.map(id => id === 'self' ? this.login : id).filter(isNotBlank)
     }
@@ -237,9 +237,15 @@ export class UserService extends DosGatoService<User, RedactedUser | User> {
     return currentUser != null
   }
 
+  async mayList () {
+    if (await this.haveGlobalPerm('manageAccess')) return true
+    const siteRules = await this.currentSiteRules()
+    return siteRules.some(rule => rule.grants.governance)
+  }
+
   protected async removeProperties (user: User) {
     const currentUser = await this.currentUser()
-    if (user.id === currentUser!.id || await this.haveGlobalPerm('manageAccess')) return user
+    if (user.id === currentUser!.id || await this.mayList()) return user
     return {
       id: user.id,
       internalId: user.internalId,
