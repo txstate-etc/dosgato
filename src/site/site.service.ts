@@ -246,12 +246,14 @@ export class SiteService extends DosGatoService<Site> {
   }
 
   async mayView (site: Site) {
+    if (await this.mayViewSiteList()) return true
     // if site is launched then any authenticated user may view it, along with anonymous renders
     if (site.url != null) return this.isRenderServer() || await this.svc(PageService).mayViewManagerUI() || await this.haveSitePerm(site, 'viewForEdit')
     return await this.haveSitePerm(site, 'viewForEdit')
   }
 
   async mayViewManagerUI () {
+    if ((await this.currentGlobalRules()).some(r => r.grants.viewSiteList || r.grants.createSites)) return true
     return (await this.currentSiteRules()).some(r => r.grants.viewForEdit)
   }
 
