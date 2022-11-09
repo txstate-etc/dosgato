@@ -139,9 +139,9 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
     const newRule = new AssetRule({
       id: '0',
       roleId: rule.roleId,
-      siteId: args.siteId ?? rule.siteId,
-      path: args.path ?? rule.path,
-      mode: args.mode ?? rule.mode,
+      siteId: args.siteId,
+      path: args.path ?? '/',
+      mode: args.mode ?? RulePathMode.SELFANDSUB,
       ...updatedGrants
     })
     const response = new AssetRuleResponse({ success: true })

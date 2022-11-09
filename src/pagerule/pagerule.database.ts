@@ -157,9 +157,11 @@ export async function updatePageRule (args: UpdatePageRuleInput) {
   } else {
     binds.push(null)
   }
+  updates.push('`path` = ?')
   if (typeof args.path !== 'undefined') {
-    updates.push('`path` = ?')
     binds.push(args.path)
+  } else {
+    binds.push('/')
   }
   updates.push('`mode` = ?')
   if (typeof args.mode !== 'undefined') {

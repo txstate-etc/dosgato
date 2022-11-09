@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
-import { AssetRule, AssetRuleFilter, CreateAssetRuleInput, UpdateAssetRuleInput } from '../internal.js'
+import { AssetRule, AssetRuleFilter, CreateAssetRuleInput, RulePathMode, UpdateAssetRuleInput } from '../internal.js'
 
 function processFilters (filter: AssetRuleFilter) {
   const where: string[] = []
@@ -112,18 +112,24 @@ export async function createAssetRule (args: CreateAssetRuleInput) {
 
 export async function updateAssetRule (args: UpdateAssetRuleInput) {
   const updates: string[] = []
-  const binds: (string | boolean)[] = []
+  const binds: (string | boolean | null)[] = []
+  updates.push('siteId = ?')
   if (typeof args.siteId !== 'undefined') {
-    updates.push('siteId = ?')
     binds.push(args.siteId)
+  } else {
+    binds.push(null)
   }
+  updates.push('path = ?')
   if (args.path) {
-    updates.push('path = ?')
     binds.push(args.path)
+  } else {
+    binds.push('/')
   }
+  updates.push('mode = ?')
   if (args.mode) {
-    updates.push('mode = ?')
     binds.push(args.mode)
+  } else {
+    binds.push(RulePathMode.SELFANDSUB)
   }
   if (args.grants) {
     if (isNotNull(args.grants.create)) {

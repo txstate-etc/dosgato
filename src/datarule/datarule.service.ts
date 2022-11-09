@@ -138,9 +138,9 @@ export class DataRuleService extends DosGatoService<DataRule> {
     const newRule = new DataRule({
       id: '0',
       roleId: rule.roleId,
-      siteId: args.siteId ?? rule.siteId,
-      templateId: args.templateId ?? rule.templateId,
-      path: args.path ?? rule.path,
+      siteId: args.siteId,
+      templateId: args.templateId,
+      path: args.path ?? '/',
       ...updatedGrants
     })
     const response = new DataRuleResponse({ success: true })
