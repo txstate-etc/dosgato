@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { PageRule, PageRuleFilter, CreatePageRuleInput, UpdatePageRuleInput } from '../internal.js'
+import { PageRule, PageRuleFilter, CreatePageRuleInput, UpdatePageRuleInput, RulePathMode } from '../internal.js'
 import { isNotNull } from 'txstate-utils'
 
 function processFilters (filter: PageRuleFilter) {
@@ -144,22 +144,28 @@ export async function createPageRule (args: CreatePageRuleInput) {
 
 export async function updatePageRule (args: UpdatePageRuleInput) {
   const updates: string[] = []
-  const binds: (string | boolean)[] = []
+  const binds: (string | boolean | null)[] = []
+  updates.push('`siteId` = ?')
   if (typeof args.siteId !== 'undefined') {
-    updates.push('`siteId` = ?')
     binds.push(args.siteId)
+  } else {
+    binds.push(null)
   }
+  updates.push('`pagetreeType` = ?')
   if (typeof args.pagetreeType !== 'undefined') {
-    updates.push('`pagetreeType` = ?')
     binds.push(args.pagetreeType)
+  } else {
+    binds.push(null)
   }
   if (typeof args.path !== 'undefined') {
     updates.push('`path` = ?')
     binds.push(args.path)
   }
+  updates.push('`mode` = ?')
   if (typeof args.mode !== 'undefined') {
-    updates.push('`mode` = ?')
     binds.push(args.mode)
+  } else {
+    binds.push(RulePathMode.SELFANDSUB)
   }
   if (args.grants) {
     if (isNotNull(args.grants.create)) {

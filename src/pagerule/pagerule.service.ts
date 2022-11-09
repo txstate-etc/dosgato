@@ -119,10 +119,10 @@ export class PageRuleService extends DosGatoService<PageRule> {
     const newRule = new PageRule({
       id: '0',
       roleId: rule.roleId,
-      siteId: args.siteId ?? rule.siteId,
-      pagetreeType: args.pagetreeType ?? rule.pagetreeType,
-      path: args.path ?? rule.path,
-      mode: args.mode ?? rule.mode,
+      siteId: args.siteId,
+      pagetreeType: args.pagetreeType,
+      path: args.path ?? '/',
+      mode: args.mode ?? RulePathMode.SELFANDSUB,
       ...updatedGrants
     })
     const response = new PageRuleResponse({ success: true })
