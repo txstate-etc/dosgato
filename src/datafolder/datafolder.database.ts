@@ -2,6 +2,7 @@ import db from 'mysql2-async/db'
 import { eachConcurrent, isNotNull } from 'txstate-utils'
 import { nanoid } from 'nanoid'
 import { DataFolder, DataFolderFilter, Site, DeletedFilter, DeleteState, VersionedService } from '../internal.js'
+import { DateTime } from 'luxon'
 
 export async function getDataFolders (filter?: DataFolderFilter) {
   const where: string[] = []
@@ -84,13 +85,14 @@ export async function moveDataFolders (folderIds: string[], siteId?: string) {
 
 export async function deleteDataFolder (versionedService: VersionedService, folderIds: string[], userInternalId: number) {
   return await db.transaction(async db => {
+    const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
     const dataEntryIds = await db.getvals<string>(`SELECT dataId from data INNER JOIN datafolders ON data.folderId = datafolders.id WHERE datafolders.guid IN (${db.in([], folderIds)})`, folderIds)
     if (dataEntryIds.length) {
       await eachConcurrent(dataEntryIds, async (id) => await versionedService.removeTag(id, 'published'))
-      await db.update(`UPDATE data SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE dataId IN (${db.in([], dataEntryIds)})`, [userInternalId, DeleteState.DELETED, ...dataEntryIds])
+      await db.update(`UPDATE data SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE dataId IN (${db.in([], dataEntryIds)})`, [userInternalId, DeleteState.DELETED, ...dataEntryIds])
     }
     const binds: (string | number)[] = [userInternalId]
-    return await db.update(`UPDATE datafolders SET deletedBy = ?, deletedAt = NOW() WHERE guid IN (${db.in(binds, folderIds)})`, binds)
+    return await db.update(`UPDATE datafolders SET deletedBy = ?, deletedAt = NOW(), name = CONCAT(name, '-${deleteTime}') WHERE guid IN (${db.in(binds, folderIds)})`, binds)
   })
 }
 
