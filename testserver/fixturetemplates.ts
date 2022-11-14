@@ -104,7 +104,8 @@ export const PanelComponent: APIComponentTemplate = {
   areas: {
     content: [
       'keyc3',
-      'richtext'
+      'richtext',
+      'keyc1'
     ]
   },
   migrations: [],

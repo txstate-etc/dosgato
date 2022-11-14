@@ -123,6 +123,9 @@ export class AssetFolderLinkInput {
   @Field(type => ID)
   id!: string
 
+  @Field(type => ID)
+  siteId!: string
+
   @Field()
   path!: string
 }

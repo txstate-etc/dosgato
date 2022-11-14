@@ -5,7 +5,7 @@ import { isNull } from 'txstate-utils'
 import {
   AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
-  RoleService, AssetResponse, UpdateAssetInput, DownloadsFilter, DownloadRecord, AssetFolderResponse
+  RoleService, AssetResponse, UpdateAssetInput, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site, SiteService
 } from '../internal.js'
 
 @Resolver(of => Asset)
@@ -29,6 +29,12 @@ export class AssetResolver {
   @FieldResolver(returns => [AssetFolder], { description: 'Starts with the parent folder and proceeds upward. Last element will be the site\'s root folder.' })
   async ancestors (@Ctx() ctx: Context, @Root() asset: Asset) {
     return await ctx.svc(AssetService).getAncestors(asset)
+  }
+
+  @FieldResolver(returns => Site)
+  async site (@Ctx() ctx: Context, @Root() asset: Asset) {
+    const folder = await ctx.svc(AssetFolderService).findByInternalId(asset.folderInternalId)
+    return await ctx.svc(SiteService).findById(folder!.siteId)
   }
 
   @FieldResolver(returns => String)

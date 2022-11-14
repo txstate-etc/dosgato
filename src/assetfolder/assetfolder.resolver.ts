@@ -3,7 +3,7 @@ import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'ty
 import {
   Asset, AssetFilter, Role, RoleService, User, AssetFolder, AssetFolderFilter,
   AssetFolderPermission, AssetFolderPermissions, AssetFolderService, AssetRuleService,
-  UserService, AssetFolderResponse, CreateAssetFolderInput, UrlSafeString
+  UserService, AssetFolderResponse, CreateAssetFolderInput, UrlSafeString, Site, SiteService
 } from '../internal.js'
 import { isNull } from 'txstate-utils'
 
@@ -28,6 +28,11 @@ export class AssetFolderResolver {
   @FieldResolver(returns => [AssetFolder])
   async ancestors (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
     return await ctx.svc(AssetFolderService).getAncestors(folder)
+  }
+
+  @FieldResolver(returns => Site)
+  async site (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
+    return await ctx.svc(SiteService).findById(folder.siteId)
   }
 
   @FieldResolver(returns => String)
