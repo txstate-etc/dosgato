@@ -1,14 +1,16 @@
-import { APITemplateType, APIAnyTemplate, APIPageTemplate, APIComponentTemplate, APIDataTemplate } from '@dosgato/templating'
+import { APITemplateType, APIAnyTemplate, APIPageTemplate, APIComponentTemplate, APIDataTemplate, ComponentData, LinkDefinition, LinkGatheringFn } from '@dosgato/templating'
 import { DateTime } from 'luxon'
+import { isNotEmpty } from 'txstate-utils'
 import { TemplateArea } from '../internal.js'
 
 interface HasHydratedAreas {
+  getLinks: (data: any) => LinkDefinition[]
   hydratedAreas: Record<string, TemplateArea>
 }
 
-type PageTemplate = APIPageTemplate & HasHydratedAreas
-type ComponentTemplate = APIComponentTemplate & HasHydratedAreas
-type DataTemplate = APIDataTemplate & HasHydratedAreas
+type PageTemplate = Omit<APIPageTemplate, 'getLinks'> & HasHydratedAreas
+type ComponentTemplate = Omit<APIComponentTemplate, 'getLinks'> & HasHydratedAreas
+type DataTemplate = Omit<APIDataTemplate, 'getLinks'> & HasHydratedAreas
 type AnyTemplate = PageTemplate | ComponentTemplate | DataTemplate
 
 class TemplateRegistry {
@@ -18,12 +20,14 @@ class TemplateRegistry {
 
   register (template: APIAnyTemplate) {
     this.currentSchemaVersion = DateTime.fromMillis(Math.max(this.currentSchemaVersion?.toMillis() ?? 0, ...(template.migrations ?? []).map(m => m.createdAt.getTime())))
-    const hydrated: AnyTemplate = { ...template, hydratedAreas: {} }
+    const hydrated: AnyTemplate = { ...template, hydratedAreas: {} } as AnyTemplate
     if ('areas' in template && template.areas != null) {
       for (const key of Object.keys(template.areas)) {
         hydrated.hydratedAreas[key] = new TemplateArea(key, template.areas[key])
       }
     }
+    const originalGetLinks = template.getLinks ?? (() => [])
+    hydrated.getLinks = (data: ComponentData) => originalGetLinks(data).filter(isNotEmpty).map(l => typeof l === 'string' ? JSON.parse(l) as LinkDefinition : l)
     this.byType[template.type].push(hydrated as any)
     this.byKey[template.templateKey] = hydrated
   }

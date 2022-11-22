@@ -1,4 +1,4 @@
-import { PageData, PageExtras, PageLink } from '@dosgato/templating'
+import { LinkDefinition, PageData, PageExtras, PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import db from 'mysql2-async/db'
@@ -169,7 +169,7 @@ export class PageServiceInternal extends BaseService {
       const verService = this.svc(VersionedService)
       const pages = (await Promise.all(filter.referencedByPageIds.map(async id => await this.findById(id)))).filter(isNotNull)
       const pagedata = (await Promise.all(pages.map(async page => await verService.get<PageData>(page.dataId, { tag: filter.published ? 'published' : undefined })))).filter(isNotNull)
-      const links = pagedata.flatMap(d => templateRegistry.get(d.data.templateKey).getLinks?.(d.data) ?? []).filter(l => l.type === 'page') as PageLink[]
+      const links = pagedata.flatMap(d => templateRegistry.get(d.data.templateKey)?.getLinks(d.data)).filter(l => l.type === 'page') as PageLink[]
       filter.links = intersect({ skipEmpty: true, by: lnk => stringify({ ...lnk, type: 'page' }) }, links, filter.links?.map(l => ({ ...l, type: 'page' })) as PageLink[])
     }
     if (filter.links?.length) {
