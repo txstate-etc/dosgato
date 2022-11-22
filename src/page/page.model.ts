@@ -2,7 +2,7 @@ import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-s
 import { DateTime } from 'luxon'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
-import { UrlSafeString, PagetreeType } from '../internal.js'
+import { UrlSafeString, PagetreeType, UrlSafePath } from '../internal.js'
 
 export enum DeleteState {
   NOTDELETED = 0,
@@ -120,13 +120,13 @@ export class PageFilter {
   @Field(type => [PagetreeType], { nullable: true, description: 'Only return pages in the pagetrees of their site with the types specified' })
   pagetreeTypes?: PagetreeType[]
 
-  @Field(type => [String], { nullable: true, description: 'Return pages with the given paths, regardless of which pagetree. For instance, "/site1/about" could return the about page for the primary pagetree in addition to the sandbox. Combine with pagetree filters for best results.' })
+  @Field(type => [UrlSafePath], { nullable: true, description: 'Return pages with the given paths, regardless of which pagetree. For instance, "/site1/about" could return the about page for the primary pagetree in addition to the sandbox. Combine with pagetree filters for best results.' })
   paths?: string[]
 
-  @Field(type => [String], { nullable: true, description: 'Return pages that descend from any of the given paths. The path behavior is identical to the `paths` filter, so combine with pagetree filters for best results.' })
+  @Field(type => [UrlSafePath], { nullable: true, description: 'Return pages that descend from any of the given paths. The path behavior is identical to the `paths` filter, so combine with pagetree filters for best results.' })
   beneath?: string[]
 
-  @Field(type => [String], { nullable: true, description: 'Return pages that are direct children of any of the given paths. The path behavior is identical to the `paths` filter, so combine with pagetree filters for best results.' })
+  @Field(type => [UrlSafePath], { nullable: true, description: 'Return pages that are direct children of any of the given paths. The path behavior is identical to the `paths` filter, so combine with pagetree filters for best results.' })
   parentPaths?: string[]
 
   @Field(type => [String], { nullable: true, description: 'Return pages referenced by the given launched URLs (e.g. "http://history.example.edu/about" points to "/about" inside the history site). Only returns pages from the primary pagetree. Protocol (http/https) may or may not be present but will be ignored if present.' })
