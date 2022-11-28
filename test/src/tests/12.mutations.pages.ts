@@ -44,7 +44,7 @@ describe('pages mutations', () => {
   })
   it('should be able to move a page', async () => {
     const { pages } = await query(`
-      query getPagesToMove ($page: String!, $parent: String!) {
+      query getPagesToMove ($page: UrlSafePath!, $parent: UrlSafePath!) {
         pages (filter: { paths: [$page, $parent], pagetreeTypes: [PRIMARY] }) {
           id
           name
