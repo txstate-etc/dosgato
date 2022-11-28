@@ -6,16 +6,16 @@ import { DateTime } from 'luxon'
 
 chai.use(chaiAsPromised)
 
-async function createPagetree (name: string, siteId: string, templateKey: string, username?: string, validateOnly?: boolean) {
+async function createPagetree (siteId: string, templateKey: string, username?: string, validateOnly?: boolean) {
   const data = { savedAtVersion: '20220801120000', templateKey, title: 'Test Title' }
   const { createPagetree: { success, messages, pagetree } } = await queryAs((username ?? 'su01'), `
-    mutation CreatePagetree ($siteId: ID!, $name: UrlSafeString!, $data: JsonData!, $validateOnly: Boolean) {
-      createPagetree (siteId: $siteId, name: $name, data: $data, validateOnly: $validateOnly) {
+    mutation CreatePagetree ($siteId: ID!, $data: JsonData!, $validateOnly: Boolean) {
+      createPagetree (siteId: $siteId, data: $data, validateOnly: $validateOnly) {
         success
         messages { message }
         pagetree { id name type deleted }
       }
-    }`, { siteId, name, data, validateOnly })
+    }`, { siteId, data, validateOnly })
   return { success, messages, pagetree }
 }
 
@@ -26,34 +26,18 @@ describe('pagetree mutations', () => {
     testSiteId = site.id
   })
   it('should create a pagetree', async () => {
-    const { success, pagetree } = await createPagetree('sandboxa', testSiteId, 'keyp1')
+    const { success, pagetree } = await createPagetree(testSiteId, 'keyp1')
     expect(success).to.be.true
-    expect(pagetree.name).to.equal('sandboxa')
+    expect(pagetree.name).to.equal('pagetreetestsite-sandbox')
     expect(pagetree.type).to.equal('SANDBOX')
     const { pages } = await query(`{ pages(filter: { pagetreeIds: [${pagetree.id}] }) { id name } }`)
     expect(pages[0].name).to.equal('pagetreetestsite')
   })
-  it('should not allow a duplicate pagetree name', async () => {
-    await createPagetree('sandboxB', testSiteId, 'keyp2')
-    const { success, messages } = await createPagetree('sandboxB', testSiteId, 'keyp2')
-    expect(success).to.be.false
-    expect(messages).to.have.length.greaterThan(0)
-  })
   it('should not allow an unauthorized user to create a pagetree', async () => {
-    await expect(createPagetree('sandboxC', testSiteId, 'ed07')).to.be.rejected
-  })
-  it('should update a pagetree name', async () => {
-    const { pagetree: newPagetree } = await createPagetree('sandboxD', testSiteId, 'keyp1')
-    const { updatePagetree: { success, pagetree } } = await query('mutation UpdatePagetree ($pagetreeId: ID!, $name: UrlSafeString!) { updatePagetree (pagetreeId: $pagetreeId, name: $name) { success pagetree { id name } } }', { pagetreeId: newPagetree.id, name: 'sandboxd-renamed' })
-    expect(success).to.be.true
-    expect(pagetree.name).to.equal('sandboxd-renamed')
-  })
-  it('should not allow an unauthorized user to update a pagetree name', async () => {
-    const { pagetree: newPagetree } = await createPagetree('sandboxE', testSiteId, 'keyp1')
-    await expect(queryAs('ed07', 'mutation UpdatePagetree ($pagetreeId: ID!, $name: UrlSafeString!) { updatePagetree (pagetreeId: $pagetreeId, name: $name) { success pagetree { id name } } }', { pagetreeId: newPagetree.id, name: 'sandboxE_renamed' })).to.be.rejected
+    await expect(createPagetree(testSiteId, 'ed07')).to.be.rejected
   })
   it('should soft-delete a pagetree', async () => {
-    const { pagetree: newPagetree } = await createPagetree('sandboxF', testSiteId, 'keyp3')
+    const { pagetree: newPagetree } = await createPagetree(testSiteId, 'keyp3')
     expect(newPagetree.deleted).to.be.false
     const { deletePagetree: { success, pagetree } } = await query('mutation DeletePagetree ($id: ID!) { deletePagetree (pagetreeId: $id) { success pagetree { id name deleted } } }', { id: newPagetree.id })
     expect(success).to.be.true
@@ -65,25 +49,25 @@ describe('pagetree mutations', () => {
     await expect(query('mutation DeletePagetree ($id: ID!) { deletePagetree (pagetreeId: $id) { success messages { message } } }', { id: primaryPagetree.id })).to.be.rejected
   })
   it('should not allow an unauthorized user to delete a pagetree', async () => {
-    const { pagetree: newPagetree } = await createPagetree('sandboxG', testSiteId, 'keyp2')
+    const { pagetree: newPagetree } = await createPagetree(testSiteId, 'keyp2')
     await expect(queryAs('ed07', 'mutation DeletePagetree ($id: ID!) { deletePagetree (pagetreeId: $id) { success pagetree { id name } } }', { id: newPagetree.id })).to.be.rejected
   })
   it('should undelete a pagetree', async () => {
-    const { pagetree: newPagetree } = await createPagetree('sandboxH', testSiteId, 'keyp3')
+    const { pagetree: newPagetree } = await createPagetree(testSiteId, 'keyp3')
     const { deletePagetree: { pagetree: pagetreeDeleted } } = await query('mutation DeletePagetree ($id: ID!) { deletePagetree (pagetreeId: $id) { success pagetree { id name deleted } } }', { id: newPagetree.id })
     const { undeletePagetree: { success, pagetree } } = await query('mutation UndeletePagetree ($id: ID!) { undeletePagetree (pagetreeId: $id) { success pagetree { id name deleted } } }', { id: pagetreeDeleted.id })
     expect(success).to.be.true
     expect(pagetree.deleted).to.be.false
   })
   it('should not allow an unauthorized user to undelete a pagetree', async () => {
-    const { pagetree: newPagetree } = await createPagetree('sandboxI', testSiteId, 'keyp1')
+    const { pagetree: newPagetree } = await createPagetree(testSiteId, 'keyp1')
     const { deletePagetree: { pagetree: pagetreeDeleted } } = await query('mutation DeletePagetree ($id: ID!) { deletePagetree (pagetreeId: $id) { success pagetree { id name deleted } } }', { id: newPagetree.id })
     await expect(queryAs('ed07', 'mutation UndeletePagetree ($id: ID!) { undeletePagetree (pagetreeId: $id) { success pagetree { id name deleted } } }', { id: pagetreeDeleted.id })).to.be.rejected
   })
   it('should promote a pagetree from sandbox to primary', async () => {
     const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { name pagetrees { id type } } }`)
     const initialPagetree = sites[0].pagetrees.find((p: any) => p.type === 'PRIMARY')
-    const { pagetree: newPagetree } = await createPagetree('sandboxJ', testSiteId, 'keyp2')
+    const { pagetree: newPagetree } = await createPagetree(testSiteId, 'keyp2')
     const { promotePagetree: { pagetree, success } } = await query('mutation PromotePagetree ($id: ID!) { promotePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })
     expect(success).to.be.true
     expect(pagetree.type).to.equal('PRIMARY')
@@ -91,22 +75,22 @@ describe('pagetree mutations', () => {
     expect(updatedSites[0].pagetrees[0].type).to.equal('ARCHIVE')
   })
   it('should not allow an unauthorized user to promote a pagetree', async () => {
-    const { pagetree: newPagetree } = await createPagetree('sandboxK', testSiteId, 'keyp1')
+    const { pagetree: newPagetree } = await createPagetree(testSiteId, 'keyp1')
     await expect(queryAs('ed07', 'mutation PromotePagetree ($id: ID!) { promotePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })).to.be.rejected
   })
   it('should archive a pagetree', async () => {
-    const { pagetree: newPagetree } = await createPagetree('sandboxL', testSiteId, 'keyp1')
+    const { pagetree: newPagetree } = await createPagetree(testSiteId, 'keyp1')
     const { archivePagetree: { pagetree, success } } = await query('mutation ArchivePagetree ($id: ID!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })
     expect(success).to.be.true
     expect(pagetree.type).to.equal('ARCHIVE')
   })
   it('should not allow the primary pagetree to be archived', async () => {
-    const { pagetree: newPagetree } = await createPagetree('sandboxM', testSiteId, 'keyp1')
+    const { pagetree: newPagetree } = await createPagetree(testSiteId, 'keyp1')
     await query('mutation PromotePagetree ($id: ID!) { promotePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })
     await expect(query('mutation ArchivePagetree ($id: ID!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })).to.be.rejected
   })
   it('should not allow an unauthorized user to archive a pagetree', async () => {
-    const { pagetree: newPagetree } = await createPagetree('sandboxN', testSiteId, 'keyp1')
+    const { pagetree: newPagetree } = await createPagetree(testSiteId, 'keyp1')
     await expect(queryAs('ed07', 'mutation ArchivePagetree ($id: ID!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })).to.be.rejected
   })
 })

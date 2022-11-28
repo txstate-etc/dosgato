@@ -58,14 +58,14 @@ describe('sites', () => {
   })
   it('should get pagetrees for sites', async () => {
     const pagetreeNames = sitehash.site3.pagetrees.map((p: any) => p.name)
-    expect(pagetreeNames).to.have.members(['pagetree3', 'pagetree3sandbox'])
+    expect(pagetreeNames).to.have.members(['site3', 'site3-sandbox'])
   })
   it('should get filtered pagetrees for sites', async () => {
     const resp = await query('{ sites { id name pagetrees(filter: {types: [PRIMARY]}) { id name type } } }')
     const site3 = resp.sites.find((s: any) => s.name === 'site3')
     const pagetreeNames = site3.pagetrees.map((p: any) => p.name)
-    expect(pagetreeNames).to.have.members(['pagetree3'])
-    expect(pagetreeNames).to.not.have.members(['pagetree3sandbox'])
+    expect(pagetreeNames).to.have.members(['site3'])
+    expect(pagetreeNames).to.not.have.members(['site3-sandbox'])
   })
   it('should get templates for sites', async () => {
     const templateNames = sitehash.site2.templates.map((t: any) => t.key)

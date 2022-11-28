@@ -6,16 +6,16 @@ import db from 'mysql2-async/db'
 
 chai.use(chaiAsPromised)
 
-async function createPagetree (name: string, siteId: string, templateKey: string, validateOnly?: boolean) {
+async function createPagetree (siteId: string, templateKey: string, validateOnly?: boolean) {
   const data = { savedAtVersion: '20220801120000', templateKey, title: 'Test Title' }
   const { createPagetree: { success, messages, pagetree } } = await query(`
-    mutation CreatePagetree ($siteId: ID!, $name: UrlSafeString!, $data: JsonData!, $validateOnly: Boolean) {
-      createPagetree (siteId: $siteId, name: $name, data: $data, validateOnly: $validateOnly) {
+    mutation CreatePagetree ($siteId: ID!, $data: JsonData!, $validateOnly: Boolean) {
+      createPagetree (siteId: $siteId, data: $data, validateOnly: $validateOnly) {
         success
         messages { message }
         pagetree { id name type deleted }
       }
-    }`, { siteId, name, data, validateOnly })
+    }`, { siteId, data, validateOnly })
   return { success, messages, pagetree }
 }
 
@@ -28,8 +28,8 @@ async function createTestSiteAndPagetrees (name: string, templateKey: string) {
         site { id name pagetrees(filter: { types: [PRIMARY] }) { id name } }
       }
     }`, { name, data })
-  const { pagetree: sandbox1 } = await createPagetree('sandbox1', site.id, templateKey)
-  const { pagetree: sandbox2 } = await createPagetree('sandbox2', site.id, templateKey)
+  const { pagetree: sandbox1 } = await createPagetree(site.id, templateKey)
+  const { pagetree: sandbox2 } = await createPagetree(site.id, templateKey)
   return { site, primaryPagetreeId: site.pagetrees[0].id, sandbox1Id: sandbox1.id, sandbox2Id: sandbox2.id }
 }
 

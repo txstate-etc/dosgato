@@ -88,8 +88,8 @@ describe('pages mutations', () => {
   it('should not move a page to a different pagetree', async () => {
     const { sites } = await query('{ sites { id name pagetrees {id name rootPage { id } } } }')
     const site3 = sites.find((s: any) => s.name === 'site3')
-    const site3primary = site3.pagetrees.find((p: any) => p.name === 'pagetree3')
-    const site3sandbox = site3.pagetrees.find((p: any) => p.name === 'pagetree3sandbox')
+    const site3primary = site3.pagetrees.find((p: any) => p.name === 'site3')
+    const site3sandbox = site3.pagetrees.find((p: any) => p.name === 'site3-sandbox')
     const { page: movingPage } = await createPage('movingpageE', site3primary.rootPage.id, 'keyp1')
     await expect(query('mutation movePages ($pageIds: [ID!]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { pages { name, parent { name } } } }', { pageIds: [movingPage.id], parentId: site3sandbox.rootPage.id })).to.be.rejected
   })

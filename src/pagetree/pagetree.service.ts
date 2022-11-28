@@ -58,7 +58,7 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     return await this.removeUnauthorized(await this.raw.findByTemplateId(templateId, direct))
   }
 
-  async create (siteId: string, name: string, data: PageData, validateOnly?: boolean) {
+  async create (siteId: string, data: PageData, validateOnly?: boolean) {
     const site = await this.svc(SiteServiceInternal).findById(siteId)
     if (!site) throw new Error('Pagetree site does not exist.')
     if (!(await this.svc(SiteService).mayManageState(site))) {
@@ -66,9 +66,6 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     }
     const currentPagetrees = await this.raw.findBySiteId(siteId)
     const response = new PagetreeResponse({ success: true })
-    if (currentPagetrees.some(p => p.name === name)) {
-      response.addMessage(`Site ${site.name} already has a pagetree with name ${name}.`, 'name')
-    }
     const linkId = nanoid(10)
     // validate root page data if a template has been chosen
     if (data.templateKey) {
@@ -83,7 +80,7 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (validateOnly || response.hasErrors()) return response
     const versionedService = this.svc(VersionedService)
     const currentUser = await this.currentUser()
-    const pagetree = await createPagetree(versionedService, currentUser!, site, name, data, linkId)
+    const pagetree = await createPagetree(versionedService, currentUser!, site, data, linkId)
     this.loaders.clear()
     response.pagetree = pagetree
     return response
@@ -149,7 +146,7 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     const currentPrimaryPagetree = await this.raw.findById(site.primaryPagetreeId)
     try {
       const currentUser = await this.currentUser()
-      await promotePagetree(currentPrimaryPagetree!.id, pagetreeId, currentUser!)
+      await promotePagetree(currentPrimaryPagetree!.id, pagetreeId, site, currentUser!)
       this.loaders.clear()
       const updated = await this.raw.findById(pagetreeId)
       return new PagetreeResponse({ success: true, pagetree: updated })

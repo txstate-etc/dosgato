@@ -54,10 +54,9 @@ export class PagetreeResolver {
   @Mutation(returns => PagetreeResponse, { description: 'Create a pagetree in an existing site' })
   async createPagetree (@Ctx() ctx: Context,
     @Arg('siteId', type => ID) siteId: string,
-    @Arg('name', type => UrlSafeString) name: string,
     @Arg('data', type => JsonData, { description: "Page data after the user has saved the page properties dialog. Data should include templateKey and the admin UI's schemaVersion." }) data: PageData,
     @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
-    return await ctx.svc(PagetreeService).create(siteId, name, data, validateOnly)
+    return await ctx.svc(PagetreeService).create(siteId, data, validateOnly)
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Update the name of a pagetree' })

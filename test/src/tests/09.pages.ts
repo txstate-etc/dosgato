@@ -59,9 +59,9 @@ describe('pages', () => {
   it('should get pages, filtered by pagetreeId', async () => {
     const resp = await query('{ sites { name pagetrees { id name } } }')
     const site1 = resp.sites.find((s: any) => s.name === 'site1')
-    const pagetree1 = site1.pagetrees.find((p: any) => p.name === 'pagetree1')
+    const pagetree1 = site1.pagetrees.find((p: any) => p.name === 'site1')
     const site3 = resp.sites.find((s: any) => s.name === 'site3')
-    const pagetree3 = site3.pagetrees.find((p: any) => p.name === 'pagetree3')
+    const pagetree3 = site3.pagetrees.find((p: any) => p.name === 'site3')
     const { pages } = await query(`{ pages(filter: { pagetreeIds: [${pagetree1.id},${pagetree3.id}]}) { id name pagetree { id name } } }`)
     for (const page of pages) {
       expect([pagetree1.id, pagetree3.id]).to.include(page.pagetree.id)
@@ -212,7 +212,7 @@ describe('pages', () => {
   it('should get a page\'s pagetree', async () => {
     const { pages } = await query('{ pages(filter: {deleted: HIDE}) { id name pagetree { id name } } }')
     const peoplePage = pages.find((p: any) => p.name === 'people')
-    expect(peoplePage.pagetree.name).to.equal('pagetree1')
+    expect(peoplePage.pagetree.name).to.equal('site1')
   })
   it('should get a page\'s site', async () => {
     const { pages } = await query('{ pages(filter: {deleted: HIDE}) { id name site { id name } } }')

@@ -130,7 +130,7 @@ export async function createSite (versionedService: VersionedService, userId: st
     // add root page template key to list of templates approved for the site
     const [folderId, pagetreeId] = await Promise.all([
       db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?,?,?,?)', [siteId, '/', name, nanoid(10)]),
-      db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt) VALUES (?,?,?, NOW())', [siteId, PagetreeType.PRIMARY, name]),
+      db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt, promotedAt) VALUES (?,?,?, NOW(), NOW())', [siteId, PagetreeType.PRIMARY, name]),
       db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [siteId, templateInternalId!])
     ])
     await db.update('UPDATE sites SET primaryPagetreeId = ?, rootAssetFolderId = ? WHERE id = ?', [pagetreeId, folderId, siteId])
@@ -155,6 +155,8 @@ export async function renameSite (site: Site, name: string, currentUserInternalI
                      INNER JOIN sites ON pagetrees.siteId = sites.id
                      SET pages.name = ?
                      WHERE sites.id = ? AND pages.path = '/'`, [name, site.id])
+    // update the pagetree names
+    await db.update(`UPDATE pagetrees SET name = REPLACE(name, '${site.name}', ?) WHERE siteId = ?`, [name, site.id])
     await createSiteComment(site.id, `Site renamed. Former name: ${site.name} New name: ${name}`, currentUserInternalId, db)
   })
 }

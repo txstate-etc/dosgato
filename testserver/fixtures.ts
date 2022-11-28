@@ -148,18 +148,18 @@ export async function fixtures () {
   ])
 
   const [pagetree1, pagetree2, pagetree3sandbox, pagetree3, pagetree4, pagetree4archive, pagetree4deleted, pagetree5, pagetree6, pagetree7, pagetree8, deletedSitePrimary] = await Promise.all([
-    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree1', site1, 'primary']),
-    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree2', site2, 'primary']),
-    db.insert('INSERT INTO pagetrees (name, siteId) VALUES (?,?)', ['pagetree3sandbox', site3]),
-    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES(?,?,?)', ['pagetree3', site3, 'primary']),
-    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree4', site4, 'primary']),
-    db.insert('INSERT INTO pagetrees (name, siteId, type, createdAt, archivedAt) VALUES(?, ?, ?, NOW(), NOW())', ['pagetree4archive', site4, 'archive']),
-    db.insert('INSERT INTO pagetrees (name, siteId, type, createdAt, archivedAt, deletedAt, deletedBy) VALUES(?, ?, ?, NOW(), NOW(), NOW(), ?)', ['pagetree4deleted', site4, 'archive', su01]),
-    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree5', site5, 'primary']),
-    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree6', site6, 'primary']),
-    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree7', site7, 'primary']),
-    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree8', site8, 'primary']),
-    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['pagetree', deletedsite, 'primary'])
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['site1', site1, 'primary']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['site2', site2, 'primary']),
+    db.insert('INSERT INTO pagetrees (name, siteId) VALUES (?,?)', ['site3-sandbox', site3]),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES(?,?,?)', ['site3', site3, 'primary']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['site4', site4, 'primary']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type, createdAt, archivedAt) VALUES(?, ?, ?, NOW(), NOW())', ['site4-archive', site4, 'archive']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type, createdAt, archivedAt, deletedAt, deletedBy) VALUES(?, ?, ?, NOW(), NOW(), NOW(), ?)', ['site4-archive-1', site4, 'archive', su01]),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['site5', site5, 'primary']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['site6', site6, 'primary']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['site7', site7, 'primary']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['site8', site8, 'primary']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['deletedsite', deletedsite, 'primary'])
   ])
 
   const [pagetemplate1, pagetemplate2, pagetemplate3, datatemplate1, datatemplate2, articleTemplate, linkTemplate] = await Promise.all([

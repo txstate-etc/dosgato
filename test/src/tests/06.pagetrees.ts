@@ -16,14 +16,14 @@ describe('pagetrees', () => {
       expect(ptree).to.have.property('created')
       expect(ptree).to.have.property('type')
       expect(ptree.created).to.not.be.null
-      if (ptree.name === 'pagetree3sandbox') expect(ptree.type).to.equal('SANDBOX')
-      if (ptree.name === 'pagetree3') expect(ptree.type).to.equal('PRIMARY')
+      if (ptree.name === 'site3-sandbox') expect(ptree.type).to.equal('SANDBOX')
+      if (ptree.name === 'site3') expect(ptree.type).to.equal('PRIMARY')
     }
   })
   it('should retrieve the pages in a pagetree', async () => {
     const resp = await query('{ sites { name pagetrees { name pages { id name } } } }')
     const site1 = resp.sites.find((s: any) => s.name === 'site1')
-    const pagetree1 = site1.pagetrees.find((p: any) => p.name === 'pagetree1')
+    const pagetree1 = site1.pagetrees.find((p: any) => p.name === 'site1')
     expect(pagetree1.pages).to.have.length.greaterThan(0)
   })
   it('should retrieve the root page of a pagetree', async () => {
@@ -52,13 +52,13 @@ describe('pagetrees', () => {
   it('should retrieve all templates approved for use in a pagetree', async () => {
     const { sites } = await query('{ sites { name pagetrees { name templates { key } } } }')
     const site1 = sites.find((s: any) => s.name === 'site1')
-    const pagetree = site1.pagetrees.find(p => p.name === 'pagetree1')
+    const pagetree = site1.pagetrees.find(p => p.name === 'site1')
     expect(pagetree.templates).to.include.deep.members([{ key: 'keyp1' }, { key: 'keyp2' }, { key: 'keyp3' }])
   })
   it('should retrieve all templates approved for use in a pagetree, with a template filter applied', async () => {
     const { sites } = await query('{ sites { name pagetrees { name templates(filter: { names: ["pagetemplate1"]}) { key } } } }')
     const site1 = sites.find((s: any) => s.name === 'site1')
-    const pagetree = site1.pagetrees.find(p => p.name === 'pagetree1')
+    const pagetree = site1.pagetrees.find(p => p.name === 'site1')
     expect(pagetree.templates.length).to.equal(1)
     expect(pagetree.templates).to.include.deep.members([{ key: 'keyp1' }])
   })

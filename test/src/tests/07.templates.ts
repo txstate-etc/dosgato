@@ -29,17 +29,17 @@ describe('templates', () => {
   it('should retrieve pagetrees authorized directly for a template', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name pagetrees(direct: true) { id name } } }')
     const pagetreeNames = resp.templates[0].pagetrees.map((p: any) => p.name)
-    expect(pagetreeNames).to.have.members(['pagetree3sandbox'])
+    expect(pagetreeNames).to.have.members(['site3-sandbox'])
   })
   it('should retrieve pagetrees authorized for a template through a site', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name pagetrees(direct: false) { id name } } }')
     const pagetreeNames = resp.templates[0].pagetrees.map((p: any) => p.name)
-    expect(pagetreeNames).to.have.members(['pagetree1', 'pagetree2'])
+    expect(pagetreeNames).to.have.members(['site1', 'site2'])
   })
   it('should retrieve pagetrees authorized for a template directly or through a site', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name pagetrees { id name } } }')
     const pagetreeNames = resp.templates[0].pagetrees.map((p: any) => p.name)
-    expect(pagetreeNames).to.have.members(['pagetree3sandbox', 'pagetree1', 'pagetree2'])
+    expect(pagetreeNames).to.have.members(['site3-sandbox', 'site1', 'site2'])
   })
   it('should retrieve sites where the whole site is able to use this template', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name sites { name } } }')

@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { unique } from 'txstate-utils'
 import { PageData } from '@dosgato/templating'
-import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, Site, getPageIndexes, createSiteComment, User, DeletedFilter } from '../internal.js'
+import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, Site, getPageIndexes, createSiteComment, User, DeletedFilter, numerate } from '../internal.js'
 
 function processFilters (filter?: PagetreeFilter) {
   const binds: string[] = []
@@ -63,17 +63,21 @@ export async function getPagetreesByTemplate (templateIds: number[], direct?: bo
   }
 }
 
-export async function createPagetree (versionedService: VersionedService, user: User, site: Site, name: string, data: PageData, linkId: string) {
+export async function createPagetree (versionedService: VersionedService, user: User, site: Site, data: PageData, linkId: string) {
   return await db.transaction(async db => {
+    // numerage pagetree names
+    const usedNames = new Set(await db.getvals<string>('SELECT name FROM pagetrees WHERE siteId = ? AND type = ?', [site.id, PagetreeType.SANDBOX]))
+    let pagetreeName = `${site.name}-sandbox`
+    while (usedNames.has(pagetreeName)) pagetreeName = numerate(pagetreeName)
     // create the pagetree
-    const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt) VALUES (?, ?, ?, NOW())', [site.id, PagetreeType.SANDBOX, name])
+    const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt) VALUES (?, ?, ?, NOW())', [site.id, PagetreeType.SANDBOX, pagetreeName])
     // create the root page for the pagetree
     const indexes = getPageIndexes(data)
     const dataId = await versionedService.create('page', data, indexes, user.id, db)
     await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
       VALUES (?,?,?,?,?,?)`, [site.name, '/', 1, pagetreeId, dataId, linkId])
-    await createSiteComment(site.id, `Added sandbox ${name}.`, user.internalId, db)
+    await createSiteComment(site.id, `Added sandbox ${pagetreeName}.`, user.internalId, db)
     return new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE id=?', [pagetreeId]))
   })
 }
@@ -86,7 +90,7 @@ export async function renamePagetree (pagetreeId: string, name: string, user: Us
   })
 }
 
-export async function promotePagetree (oldPrimaryId: string, newPrimaryId: string, user: User) {
+export async function promotePagetree (oldPrimaryId: string, newPrimaryId: string, site: Site, user: User) {
   return await db.transaction(async db => {
     const [oldPrimaryPagetreeRow, newPrimaryPagetreeRow] = await Promise.all([
       db.getrow('SELECT * FROM pagetrees WHERE ID=?', [oldPrimaryId]),
@@ -94,18 +98,31 @@ export async function promotePagetree (oldPrimaryId: string, newPrimaryId: strin
     ])
     const oldPrimaryPagetree = new Pagetree(oldPrimaryPagetreeRow)
     const newPrimaryPagetree = new Pagetree(newPrimaryPagetreeRow)
-    await db.update('UPDATE pagetrees SET type = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, oldPrimaryId])
-    await db.update('UPDATE pagetrees SET type = ?, promotedAt = NOW() WHERE id = ?', [PagetreeType.PRIMARY, newPrimaryId])
+
+    // former primary pagetree will be archived, numerate its name
+    const usedNames = new Set(await db.getvals<string>('SELECT name FROM pagetrees WHERE siteId = ? AND type = ?', [oldPrimaryPagetree.siteId, PagetreeType.ARCHIVE]))
+    let pagetreeName = `${site.name}-archive`
+    while (usedNames.has(pagetreeName)) pagetreeName = numerate(pagetreeName)
+
+    await db.update('UPDATE pagetrees SET type = ?, name = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, pagetreeName, oldPrimaryId])
+    await db.update('UPDATE pagetrees SET type = ?, name = ?, promotedAt = NOW() WHERE id = ?', [PagetreeType.PRIMARY, site.name, newPrimaryId])
     await db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [newPrimaryPagetree.id, newPrimaryPagetree.siteId])
-    await createSiteComment(oldPrimaryPagetree.siteId, `Promoted pagetree ${newPrimaryPagetree.name} to primary. Pagetree ${oldPrimaryPagetree.name} archived.`, user.internalId, db)
+    await createSiteComment(site.id, `Promoted pagetree ${newPrimaryPagetree.name} to primary.`, user.internalId, db)
+    await createSiteComment(site.id, `Created new archive ${pagetreeName}.`, user.internalId, db)
   })
 }
 
 export async function archivePagetree (pagetreeId: string, user: User) {
   return await db.transaction(async db => {
     const pagetree = new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE ID=?', [pagetreeId]))
-    await db.update('UPDATE pagetrees SET type = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, pagetreeId])
-    await createSiteComment(pagetree.siteId, `Archived pagetree ${pagetree.name}.`, user.internalId, db)
+    const siteName = await db.getval<string>('SELECT name FROM sites WHERE id = ?', [pagetree.siteId])
+
+    const archiveNames = new Set(await db.getvals<string>('SELECT name FROM pagetrees WHERE siteId = ? AND type = ?', [pagetree.siteId, PagetreeType.ARCHIVE]))
+    let pagetreeName = `${siteName!}-archive`
+    while (archiveNames.has(pagetreeName)) pagetreeName = numerate(pagetreeName)
+
+    await db.update('UPDATE pagetrees SET type = ?, name = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, pagetreeName, pagetreeId])
+    await createSiteComment(pagetree.siteId, `Created archive ${pagetreeName}`, user.internalId, db)
   })
 }
 
