@@ -274,6 +274,15 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async mayViewForEdit (page: Page) {
+    // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
+    const children = await this.raw.getPageChildren(page, true)
+    for (const c of children) {
+      if (await this.havePagePerm(c, 'viewForEdit')) return true
+    }
+    // if we have some sort of permission on a single page, we should be able to see its children
+    // since it might be important
+    const parent = page.parentInternalId ? await this.raw.findByInternalId(page.parentInternalId) : undefined
+    if (parent && await this.havePagePerm(parent, 'viewForEdit')) return true
     return await this.havePagePerm(page, 'viewForEdit')
   }
 
