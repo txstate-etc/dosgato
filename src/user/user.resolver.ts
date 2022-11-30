@@ -40,8 +40,8 @@ export class UserResolver {
   @Mutation(returns => UserResponse)
   async createUser (@Ctx() ctx: Context,
     @Arg('userId', type => ID) userId: string,
-    @Arg('firstname', type=> String, { nullable: true }) firstname: string | undefined,
-    @Arg('lastname',) lastname: string,
+    @Arg('firstname', type => String, { nullable: true }) firstname: string | undefined,
+    @Arg('lastname') lastname: string,
     @Arg('email') email: string,
     @Arg('trained', type => Boolean, { nullable: true }) trained: boolean | undefined,
     @Arg('system', type => Boolean, { nullable: true }) system: boolean | undefined,

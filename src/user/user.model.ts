@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
+import { isNotBlank } from 'txstate-utils'
 
 @ObjectType()
 export class User {
@@ -12,6 +13,16 @@ export class User {
 
   @Field()
   lastname: string
+
+  @Field()
+  get name () {
+    return [this.firstname, this.lastname].filter(isNotBlank).join(' ')
+  }
+
+  @Field()
+  get sortableName () {
+    return [this.lastname, this.firstname].filter(isNotBlank).join(', ')
+  }
 
   @Field()
   email: string
