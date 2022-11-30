@@ -14,12 +14,12 @@ export class User {
   @Field()
   lastname: string
 
-  @Field()
+  @Field(type => String)
   get name () {
     return [this.firstname, this.lastname].filter(isNotBlank).join(' ')
   }
 
-  @Field()
+  @Field(type => String)
   get sortableName () {
     return [this.lastname, this.firstname].filter(isNotBlank).join(', ')
   }
