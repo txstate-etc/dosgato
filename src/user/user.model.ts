@@ -8,7 +8,10 @@ export class User {
   id: string
 
   @Field()
-  name: string
+  firstname: string
+
+  @Field()
+  lastname: string
 
   @Field()
   email: string
@@ -34,7 +37,8 @@ export class User {
   constructor (row: any) {
     this.internalId = row.id
     this.id = row.login
-    this.name = row.name
+    this.firstname = row.firstname
+    this.lastname = row.lastname
     this.email = row.email
     this.disabledAt = row.disabledAt ? DateTime.fromJSDate(row.disabledAt) : undefined
     this.disabled = this.disabledAt != null
@@ -48,7 +52,8 @@ export class User {
 export interface RedactedUser {
   id: string
   internalId: number
-  name: string
+  firstname: string
+  lastname: string
 }
 
 @InputType()
@@ -74,7 +79,10 @@ export class UserFilter {
 @InputType()
 export class UpdateUserInput {
   @Field({ nullable: true })
-  name!: string
+  firstname!: string
+
+  @Field({ nullable: true })
+  lastname!: string
 
   @Field({ nullable: true })
   email!: string

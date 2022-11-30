@@ -40,13 +40,14 @@ export class UserResolver {
   @Mutation(returns => UserResponse)
   async createUser (@Ctx() ctx: Context,
     @Arg('userId', type => ID) userId: string,
-    @Arg('name') name: string,
+    @Arg('firstname', type=> String, { nullable: true }) firstname: string | undefined,
+    @Arg('lastname',) lastname: string,
     @Arg('email') email: string,
     @Arg('trained', type => Boolean, { nullable: true }) trained: boolean | undefined,
     @Arg('system', type => Boolean, { nullable: true }) system: boolean | undefined,
     @Arg('validateOnly', { nullable: true }) validateOnly?: boolean
   ) {
-    return await ctx.svc(UserService).createUser(userId, name, email, trained, system, validateOnly)
+    return await ctx.svc(UserService).createUser(userId, lastname, email, firstname, trained, system, validateOnly)
   }
 
   @Mutation(returns => UserResponse)

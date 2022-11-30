@@ -12,8 +12,8 @@ describe('sites', () => {
       sites {
         id
         name
-        owner { id name }
-        managers { id name }
+        owner { id firstname lastname }
+        managers { id firstname lastname }
         pagetrees { id name type }
         templates { key name }
         pageroot { id name }
@@ -50,11 +50,12 @@ describe('sites', () => {
     }
   })
   it('should retrieve site owners', async () => {
-    expect(sitehash.site2.owner.name).to.equal('Michael Scott')
+    expect(sitehash.site2.owner.firstname).to.equal('Michael')
+    expect(sitehash.site2.owner.lastname).to.equal('Scott')
   })
   it('should retrieve site managers', async () => {
-    const managerNames = sitehash.site3.managers.map((m: any) => m.name)
-    expect(managerNames).to.have.members(['Draco Malfoy', 'Luke Skywalker'])
+    const managerNames = sitehash.site3.managers.map((m: any) => m.lastname)
+    expect(managerNames).to.have.members(['Malfoy', 'Skywalker'])
   })
   it('should get pagetrees for sites', async () => {
     const pagetreeNames = sitehash.site3.pagetrees.map((p: any) => p.name)

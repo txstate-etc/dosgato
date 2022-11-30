@@ -236,7 +236,7 @@ describe('pages mutations', () => {
   })
   it('should delete a page', async () => {
     const { page: testpage } = await createPage('testpage5', testSite6PageRootId, 'keyp3')
-    const { deletePages: { success, pages } } = await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpage.id] })
+    const { deletePages: { success, pages } } = await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpage.id] })
     expect(success).to.be.true
     expect(pages[0].deleted).to.be.true
     expect(pages[0].deletedAt).to.not.be.null
@@ -246,7 +246,7 @@ describe('pages mutations', () => {
     const { page: testpageA } = await createPage('testpage5a', testSite6PageRootId, 'keyp3')
     const { page: testpageB } = await createPage('testpage5b', testSite6PageRootId, 'keyp3')
     const { page: testpageC } = await createPage('testpage5c', testSite6PageRootId, 'keyp3')
-    const { deletePages: { success } } = await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpageA.id, testpageB.id, testpageC.id] })
+    const { deletePages: { success } } = await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpageA.id, testpageB.id, testpageC.id] })
     expect(success).to.be.true
     const { pages } = await query(`{ pages(filter: {ids: ["${testpageA.id}", "${testpageB.id}", "${testpageC.id}"]}) { id deleted } }`)
     for (const p of pages) {
@@ -257,7 +257,7 @@ describe('pages mutations', () => {
     const { page: testpageD } = await createPage('testpage5d', testSite6PageRootId, 'keyp3')
     const { page: testpageE } = await createPage('testpage5e', testpageD.id, 'keyp3')
     const { page: testpageF } = await createPage('testpage5f', testpageD.id, 'keyp3')
-    const { deletePages: { success } } = await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpageD.id] })
+    const { deletePages: { success } } = await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpageD.id] })
     expect(success).to.be.true
     const { pages } = await query(`{ pages(filter: {ids: ["${testpageD.id}", "${testpageE.id}", "${testpageF.id}"]}) { id deleted } }`)
     for (const p of pages) {
@@ -271,7 +271,7 @@ describe('pages mutations', () => {
     const { page: testpageJ } = await createPage('testpage5j', testSite6PageRootId, 'keyp3')
     const { page: testpageK } = await createPage('testpage5k', testpageJ.id, 'keyp3')
     const { page: testpageL } = await createPage('testpage5l', testpageJ.id, 'keyp3')
-    const { deletePages: { success } } = await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpageG.id, testpageJ.id] })
+    const { deletePages: { success } } = await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpageG.id, testpageJ.id] })
     expect(success).to.be.true
     const { pages } = await query(`{ pages(filter: {ids: ["${testpageG.id}", "${testpageH.id}", "${testpageI.id}", "${testpageJ.id}", "${testpageK.id}", "${testpageL.id}"]}) { id deleted } }`)
     for (const p of pages) {
@@ -284,8 +284,8 @@ describe('pages mutations', () => {
   })
   it('should undelete a page', async () => {
     const { page: testpage } = await createPage('testpage7', testSite6PageRootId, 'keyp3')
-    await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpage.id] })
-    const { undeletePages: { success, pages } } = await query('mutation UndeletePages ($pageIds: [ID!]!) {undeletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpage.id] })
+    await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpage.id] })
+    const { undeletePages: { success, pages } } = await query('mutation UndeletePages ($pageIds: [ID!]!) {undeletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpage.id] })
     expect(success).to.be.true
     expect(pages[0].deleted).to.be.false
     expect(pages[0].deletedAt).to.be.null
@@ -294,8 +294,8 @@ describe('pages mutations', () => {
   it('should undelete multiple pages', async () => {
     const { page: testpageA } = await createPage('testpage7a', testSite6PageRootId, 'keyp3')
     const { page: testpageB } = await createPage('testpage7b', testSite6PageRootId, 'keyp3')
-    await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpageA.id, testpageB.id] })
-    const { undeletePages: { success } } = await query('mutation UndeletePages ($pageIds: [ID!]!) {undeletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpageA.id, testpageB.id] })
+    await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpageA.id, testpageB.id] })
+    const { undeletePages: { success } } = await query('mutation UndeletePages ($pageIds: [ID!]!) {undeletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpageA.id, testpageB.id] })
     expect(success).to.be.true
     const { pages } = await query(`{ pages(filter: {ids: ["${testpageA.id}", "${testpageB.id}"]}) { id deleted } }`)
     for (const p of pages) {
@@ -306,8 +306,8 @@ describe('pages mutations', () => {
     const { page: testpageC } = await createPage('testpage7c', testSite6PageRootId, 'keyp3')
     const { page: testpageD } = await createPage('testpage7d', testpageC.id, 'keyp3')
     const { page: testpageE } = await createPage('testpage7e', testpageC.id, 'keyp3')
-    await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpageC.id, testpageD.id, testpageE.id] })
-    const { undeletePages: { success } } = await query('mutation UndeletePages ($pageIds: [ID!]!, $includeChildren: Boolean) {undeletePages (pageIds: $pageIds, includeChildren: $includeChildren) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpageC.id], includeChildren: true })
+    await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpageC.id, testpageD.id, testpageE.id] })
+    const { undeletePages: { success } } = await query('mutation UndeletePages ($pageIds: [ID!]!, $includeChildren: Boolean) {undeletePages (pageIds: $pageIds, includeChildren: $includeChildren) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpageC.id], includeChildren: true })
     expect(success).to.be.true
     const { pages } = await query(`{ pages(filter: {ids: ["${testpageC.id}", "${testpageD.id}", "${testpageE.id}"]}) { id deleted } }`)
     for (const p of pages) {
@@ -318,8 +318,8 @@ describe('pages mutations', () => {
     const { page: testpageF } = await createPage('testpage7f', testSite6PageRootId, 'keyp3')
     const { page: testpageG } = await createPage('testpage7g', testpageF.id, 'keyp3')
     const { page: testpageH } = await createPage('testpage7h', testpageF.id, 'keyp3')
-    await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpageF.id, testpageG.id, testpageH.id] })
-    const { undeletePages: { success } } = await query('mutation UndeletePages ($pageIds: [ID!]!, $includeChildren: Boolean) {undeletePages (pageIds: $pageIds, includeChildren: $includeChildren) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpageF.id] })
+    await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpageF.id, testpageG.id, testpageH.id] })
+    const { undeletePages: { success } } = await query('mutation UndeletePages ($pageIds: [ID!]!, $includeChildren: Boolean) {undeletePages (pageIds: $pageIds, includeChildren: $includeChildren) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpageF.id] })
     expect(success).to.be.true
     const { pages } = await query(`{ pages(filter: {ids: ["${testpageF.id}", "${testpageG.id}", "${testpageH.id}"]}) { id deleted } }`)
     for (const p of pages) {
@@ -329,8 +329,8 @@ describe('pages mutations', () => {
   })
   it('should not allow an unauthorized user to undelete a page', async () => {
     const { page: testpage } = await createPage('testpage8', testSite6PageRootId, 'keyp3')
-    await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpage.id] })
-    await expect(queryAs('ed07', 'mutation UndeletePages ($pageIds: [ID!]!) {undeletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id name } } } }', { pageIds: [testpage.id] })).to.be.rejected
+    await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpage.id] })
+    await expect(queryAs('ed07', 'mutation UndeletePages ($pageIds: [ID!]!) {undeletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpage.id] })).to.be.rejected
   })
   it('should publish a page', async () => {
     const { page: testpage } = await createPage('testpage9', testSite6PageRootId, 'keyp3')

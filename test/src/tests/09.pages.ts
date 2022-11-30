@@ -124,7 +124,7 @@ describe('pages', () => {
     expect(rootPage.createdAt).to.not.be.null
   })
   it('should return the user who created a page', async () => {
-    const resp = await query('{ pages(filter: {deleted: HIDE}) { name createdBy { id name } } }')
+    const resp = await query('{ pages(filter: {deleted: HIDE}) { name createdBy { id firstname lastname } } }')
     const rootPage = resp.pages.find((p: any) => p.name === 'site1')
     expect(rootPage.createdBy.id).to.equal('su01')
   })
@@ -158,12 +158,12 @@ describe('pages', () => {
     expect(staffPage.deletedAt).to.be.null
   })
   it('should return the user who deleted a deleted page', async () => {
-    const resp = await query('{ pages(filter: {deleted: ONLY}) { name deletedBy { id name } } }')
+    const resp = await query('{ pages(filter: {deleted: ONLY}) { name deletedBy { id firstname lastname } } }')
     const eventsPage = resp.pages.find((p: any) => p.name === 'events')
     expect(eventsPage.deletedBy.id).to.equal('su01')
   })
   it('should return null for deletedBy if the page is not deleted', async () => {
-    const resp = await query('{ pages(filter: {deleted: HIDE}) { name deletedBy { id name } } }')
+    const resp = await query('{ pages(filter: {deleted: HIDE}) { name deletedBy { id firstname lastname } } }')
     const staffPage = resp.pages.find((p: any) => p.name === 'staff')
     expect(staffPage.deletedBy).to.be.null
   })

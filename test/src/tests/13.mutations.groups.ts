@@ -58,14 +58,14 @@ describe('groups mutations', () => {
     const { group: groupD } = await createGroup('groupD')
     const { addUserToGroups: { success } } = await query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: ID!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupD.id], userId: 'su03' })
     expect(success).to.be.true
-    const { groups } = await query('{ groups { id name users { id name } } }')
+    const { groups } = await query('{ groups { id name users { id firstname lastname } } }')
     const group = groups.find((g: any) => g.id === groupD.id)
     expect(group.users.map((g: any) => g.id)).to.include('su03')
   })
   it('should not add a non-existent user to a group', async () => {
     const { group: groupE } = await createGroup('groupE')
     await expect(query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: ID!) { addUserToGroups (groupIds: [$groupId], userId: $userId) { success } }', { groupIds: [groupE.id], userId: 'fake' })).to.be.rejected
-    const { groups } = await query('{ groups { id name users { id name } } }')
+    const { groups } = await query('{ groups { id name users { id firstname lastname } } }')
     const group = groups.find((g: any) => g.id === groupE.id)
     expect(group.users).to.have.lengthOf(0)
   })
@@ -79,7 +79,7 @@ describe('groups mutations', () => {
     expect(addSuccess).to.be.true
     const { removeUserFromGroups: { success } } = await query('mutation RemoveUserFromGroups ($groupIds: [ID!]!, $userId: ID!) { removeUserFromGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupF.id], userId: 'ed01' })
     expect(success).to.be.true
-    const { groups } = await query('{ groups { id name users { id name } } }')
+    const { groups } = await query('{ groups { id name users { id firstname lastname } } }')
     const group = groups.find((g: any) => g.id === groupF.id)
     expect(group.users).to.have.lengthOf(0)
   })

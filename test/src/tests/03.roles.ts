@@ -19,25 +19,25 @@ describe('roles', () => {
     expect(roles.includes('superuser')).to.be.true
   })
   it('should retrieve a list of users related to a role, both directly and indirectly through a group membership', async () => {
-    const resp = await query('{ roles(filter: { users: ["ed01"] }) { id name users { id name } } }')
+    const resp = await query('{ roles(filter: { users: ["ed01"] }) { id name users { id firstname lastname } } }')
     const editorRole = resp.roles.find((r: any) => r.name === 'editor')
     const users = editorRole.users.map((u: any) => u.id)
     expect(users).to.include.members(['ed01', 'su01'])
   })
   it('should retrieve a list of users related to a role directly', async () => {
-    const resp = await query('{ roles(filter: { users: ["ed01"] }) { id name users(direct: true) { id name } } }')
+    const resp = await query('{ roles(filter: { users: ["ed01"] }) { id name users(direct: true) { id firstname lastname } } }')
     const editorRole = resp.roles.find((r: any) => r.name === 'editor')
     const users = editorRole.users.map((u: any) => u.id)
     expect(users).to.have.members(['ed01', 'su03'])
   })
   it('should retrieve a list of users related to a role indirectly through a group', async () => {
-    const resp = await query('{ roles(filter: { users: ["ed01"] }) { id name users(direct: false) { id name } } }')
+    const resp = await query('{ roles(filter: { users: ["ed01"] }) { id name users(direct: false) { id firstname lastname } } }')
     const editorRole = resp.roles.find((r: any) => r.name === 'editor')
     const users = editorRole.users.map((u: any) => u.id)
     expect(users).to.have.members(['su01', 'ed02'])
   })
   it('should retrieve a list of users related to a role, filtered by a user filter', async () => {
-    const resp = await query('{ roles(filter: { users: ["ed01"] }) { id name users(filter: { enabled: true }) { id name } } }')
+    const resp = await query('{ roles(filter: { users: ["ed01"] }) { id name users(filter: { enabled: true }) { id firstname lastname } } }')
     const editorRole = resp.roles.find((r: any) => r.name === 'editor')
     const users = editorRole.users.map((u: any) => u.id)
     expect(users).to.include.members(['ed01'])

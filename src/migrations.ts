@@ -63,6 +63,15 @@ const dgMigrations: DBMigration[] = [
     run: async (db) => {
       await db.execute('ALTER TABLE `data` ADD COLUMN deleteState TINYINT UNSIGNED NOT NULL DEFAULT 0')
     }
+  },
+  {
+    id: 20221128000000,
+    description: 'split users.name into firstname and lastname fields',
+    run: async (db) => {
+      await db.execute('ALTER TABLE `users` ADD COLUMN firstname VARCHAR(255) NOT NULL DEFAULT \'\', ADD COLUMN lastname VARCHAR(255) NOT NULL')
+      await db.update('UPDATE users SET firstname = substring_index(name, \' \', 1), lastname = substring_index(name, \' \', -1)')
+      await db.execute('ALTER table `users` DROP COLUMN `name`')
+    }
   }
 ]
 

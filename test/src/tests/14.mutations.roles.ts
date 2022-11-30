@@ -53,14 +53,14 @@ describe('roles mutations', () => {
     const { role: roleE } = await createRole('roleE')
     const { addRolesToUser: { success } } = await query('mutation AssignRolesToUser ($roleIds: [ID!]!, $userId: ID!) { addRolesToUser (roleIds: $roleIds, userId: $userId) { success } }', { roleIds: [roleE.id], userId: 'ed01' })
     expect(success).to.be.true
-    const { roles } = await query(`{ roles(filter: {ids: [${roleE.id}]}) { id name users { id name } } }`)
+    const { roles } = await query(`{ roles(filter: {ids: [${roleE.id}]}) { id name users { id firstname lastname } } }`)
     const role = roles.find((r: any) => r.id === roleE.id)
     expect(role.users.map((u: any) => u.id)).to.include('ed01')
   })
   it('should not assign a role to a non-existent user', async () => {
     const { role: roleF } = await createRole('roleF')
     await expect(query('mutation AssignRoleToUser ($roleIds: [ID!]!, $userId: ID!) { addRolesToUser (roleIds: $roleIds, userId: $userId) { success } }', { roleIds: [roleF.id], userId: 'fakeuser' })).to.be.rejected
-    const { roles } = await query(`{ roles(filter: {ids: [${roleF.id}]}) { id name users { id name } } }`)
+    const { roles } = await query(`{ roles(filter: {ids: [${roleF.id}]}) { id name users { id firstname lastname } } }`)
     expect(roles[0].users).to.have.lengthOf(0)
   })
   it('should not allow an unauthorized user to assign a role to a user', async () => {
@@ -73,7 +73,7 @@ describe('roles mutations', () => {
     expect(addSuccess).to.be.true
     const { removeRoleFromUser: { success } } = await query('mutation RemoveRoleFromUser ($roleId: ID!, $userId: ID!) { removeRoleFromUser (roleId: $roleId, userId: $userId) { success } }', { roleId: roleG.id, userId: 'ed02' })
     expect(success).to.be.true
-    const { roles } = await query(`{ roles(filter: {ids: [${roleG.id}]}) { id name users { id name } } }`)
+    const { roles } = await query(`{ roles(filter: {ids: [${roleG.id}]}) { id name users { id firstname lastname } } }`)
     expect(roles[0].users).to.have.lengthOf(0)
   })
   it('should not remove a role from a user if the user does not have that role', async () => {

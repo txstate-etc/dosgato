@@ -109,16 +109,20 @@ export async function getUsersManagingGroups (groupIds: string[], direct?: boole
     .map(row => ({ key: String(row.groupId), value: new User(row) }))
 }
 
-export async function createUser (id: string, name: string, email: string, trained: boolean, system: boolean) {
-  return await db.insert('INSERT INTO users (login, name, email, trained, system) VALUES (?, ?, ?, ?, ?)', [id, name, email, trained, system])
+export async function createUser (id: string, firstname: string, lastname: string, email: string, trained: boolean, system: boolean) {
+  return await db.insert('INSERT INTO users (login, firstname, lastname, email, trained, system) VALUES (?, ?, ?, ?, ?, ?)', [id, firstname, lastname, email, trained, system])
 }
 
-export async function updateUser (id: string, name: string | undefined, email: string | undefined, trained: boolean | undefined) {
+export async function updateUser (id: string, firstname: string | undefined, lastname: string | undefined, email: string | undefined, trained: boolean | undefined) {
   const updates: string[] = []
   const binds: (string | boolean)[] = []
-  if (name) {
-    updates.push('name = ?')
-    binds.push(name)
+  if (firstname) {
+    updates.push('firstname = ?')
+    binds.push(firstname)
+  }
+  if (lastname) {
+    updates.push('lastname = ?')
+    binds.push(lastname)
   }
   if (email) {
     updates.push('email = ?')

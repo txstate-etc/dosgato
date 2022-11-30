@@ -8,19 +8,19 @@ describe('groups', () => {
     expect(resp.groups).to.have.lengthOf(7)
   })
   it('should retrieve direct members of all groups', async () => {
-    const resp = await query('{ groups { id name users(direct: true) { id name } } }')
+    const resp = await query('{ groups { id name users(direct: true) { id firstname lastname } } }')
     const group1 = resp.groups.find((g: any) => g.name === 'group1')
     expect(group1.users).to.have.lengthOf(3)
   })
   it('should retrieve indirect members of all groups', async () => {
-    const resp = await query('{ groups { id name users(direct: false) { id name } } }')
+    const resp = await query('{ groups { id name users(direct: false) { id firstname lastname } } }')
     const group1 = resp.groups.find((g: any) => g.name === 'group1')
     expect(group1.users).to.have.lengthOf(4)
     const group3 = resp.groups.find((g: any) => g.name === 'group3')
     expect(group3.users).to.have.lengthOf(0)
   })
   it('should retrieve group and subgroup users for all groups', async () => {
-    const resp = await query('{ groups { id name users { id name } } }')
+    const resp = await query('{ groups { id name users { id firstname lastname } } }')
     const group1 = resp.groups.find((g: any) => g.name === 'group1')
     expect(group1.users).to.have.lengthOf(5)
   })

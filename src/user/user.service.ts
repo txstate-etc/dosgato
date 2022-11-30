@@ -151,18 +151,18 @@ export class UserService extends DosGatoService<User, RedactedUser | User> {
     return await this.removeUnauthorized(await this.raw.findById(id))
   }
 
-  async createUser (id: string, name: string, email: string, trained: boolean | undefined, system: boolean | undefined, validateOnly?: boolean) {
+  async createUser (id: string, lastname: string, email: string, firstname: string | undefined, trained: boolean | undefined, system: boolean | undefined, validateOnly?: boolean) {
     if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create users.')
     const response = new UserResponse({ success: true })
     const existing = await this.raw.findById(id)
     if (existing) response.addMessage('Login is already present, update the user instead.', 'userId', MutationMessageType.error)
-    if (isBlank(name)) response.addMessage('Name is required.', 'name')
+    if (isBlank(lastname)) response.addMessage(`${system ? 'Name is required' : 'Last name is required'}`, 'lastname')
     if (isBlank(email)) response.addMessage('E-mail address is required.', 'email')
     if (!/^\s*[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}\s*$/i.test(email)) {
       response.addMessage('Please enter a valid email address.', 'email')
     }
     if (validateOnly || response.hasErrors()) return response
-    await createUser(id, name, email, !!trained, !!system)
+    await createUser(id, firstname ?? '', lastname, email, !!trained, !!system)
     this.loaders.clear()
     response.user = await this.raw.findById(id)
     return response
@@ -173,8 +173,8 @@ export class UserService extends DosGatoService<User, RedactedUser | User> {
     if (!user) throw new Error('User to be updated does not exist.')
     if (!(await this.mayUpdate(user))) throw new Error('Current user is not permitted to update this user.')
     const response = new UserResponse({ success: true })
-    if (isNotNull(args.name) && isBlank(args.name)) {
-      response.addMessage('This field is required', 'args.name')
+    if (isNotNull(args.lastname) && isBlank(args.lastname)) {
+      response.addMessage('This field is required', 'args.lastname')
     }
     if (isNotNull(args.email)) {
       if (isBlank(args.email)) {
@@ -186,7 +186,7 @@ export class UserService extends DosGatoService<User, RedactedUser | User> {
     }
     if (response.hasErrors()) return response
     if (!validateOnly) {
-      await updateUser(id, args.name, args.email, args.trained)
+      await updateUser(id, args.firstname, args.lastname, args.email, args.trained)
       this.loaders.clear()
       response.success = true
       response.user = await this.raw.findById(id)
@@ -249,7 +249,8 @@ export class UserService extends DosGatoService<User, RedactedUser | User> {
     return {
       id: user.id,
       internalId: user.internalId,
-      name: user.name
+      firstname: user.firstname,
+      lastname: user.lastname
     } as RedactedUser
   }
 }
