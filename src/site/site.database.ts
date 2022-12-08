@@ -150,13 +150,9 @@ export async function renameSite (site: Site, name: string, currentUserInternalI
     await db.update('UPDATE sites SET name = ? WHERE id = ?', [name, site.id])
     // if the site is renamed, the root assetfolder and root page for all the pagetrees in the site need to be renamed too
     await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [name, site.rootAssetFolderInternalId])
-    await db.update(`UPDATE pages
-                     INNER JOIN pagetrees on pages.pagetreeId = pagetrees.id
-                     INNER JOIN sites ON pagetrees.siteId = sites.id
-                     SET pages.name = ?
-                     WHERE sites.id = ? AND pages.path = '/'`, [name, site.id])
     // update the pagetree names
     await db.update(`UPDATE pagetrees SET name = REPLACE(name, '${site.name}', ?) WHERE siteId = ?`, [name, site.id])
+    await db.update('UPDATE pages p INNER JOIN pagetrees pt ON pt.id=p.pagetreeId SET p.name = pt.name WHERE pt.siteId = ? AND p.path="/"', [site.id])
     await createSiteComment(site.id, `Site renamed. Former name: ${site.name} New name: ${name}`, currentUserInternalId, db)
   })
 }

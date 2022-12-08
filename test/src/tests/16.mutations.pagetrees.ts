@@ -31,7 +31,7 @@ describe('pagetree mutations', () => {
     expect(pagetree.name).to.equal('pagetreetestsite-sandbox')
     expect(pagetree.type).to.equal('SANDBOX')
     const { pages } = await query(`{ pages(filter: { pagetreeIds: [${pagetree.id}] }) { id name } }`)
-    expect(pages[0].name).to.equal('pagetreetestsite')
+    expect(pages[0].name).to.equal('pagetreetestsite-sandbox')
   })
   it('should not allow an unauthorized user to create a pagetree', async () => {
     await expect(createPagetree(testSiteId, 'ed07')).to.be.rejected

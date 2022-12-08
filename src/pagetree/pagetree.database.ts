@@ -76,7 +76,7 @@ export async function createPagetree (versionedService: VersionedService, user: 
     const dataId = await versionedService.create('page', data, indexes, user.id, db)
     await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
-      VALUES (?,?,?,?,?,?)`, [site.name, '/', 1, pagetreeId, dataId, linkId])
+      VALUES (?,?,?,?,?,?)`, [pagetreeName, '/', 1, pagetreeId, dataId, linkId])
     await createSiteComment(site.id, `Added sandbox ${pagetreeName}.`, user.internalId, db)
     return new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE id=?', [pagetreeId]))
   })
@@ -86,6 +86,7 @@ export async function renamePagetree (pagetreeId: string, name: string, user: Us
   return await db.transaction(async db => {
     const pagetree = new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE ID=?', [pagetreeId]))
     await db.update('UPDATE pagetrees SET name = ? WHERE id = ?', [name, pagetreeId])
+    await db.update('UPDATE pages SET name = ? WHERE pagetreeId = ? AND path = "/"', [name, pagetreeId])
     await createSiteComment(pagetree.siteId, `Renamed pagetree. ${pagetree.name} is now ${name}.`, user.internalId, db)
   })
 }
@@ -105,7 +106,9 @@ export async function promotePagetree (oldPrimaryId: string, newPrimaryId: strin
     while (usedNames.has(pagetreeName)) pagetreeName = numerate(pagetreeName)
 
     await db.update('UPDATE pagetrees SET type = ?, name = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, pagetreeName, oldPrimaryId])
+    await db.update('UPDATE pages SET name = ? WHERE pagetreeId = ? AND path = "/"', [pagetreeName, oldPrimaryId])
     await db.update('UPDATE pagetrees SET type = ?, name = ?, promotedAt = NOW() WHERE id = ?', [PagetreeType.PRIMARY, site.name, newPrimaryId])
+    await db.update('UPDATE pages SET name = ? WHERE pagetreeId = ? AND path = "/"', [site.name, newPrimaryId])
     await db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [newPrimaryPagetree.id, newPrimaryPagetree.siteId])
     await createSiteComment(site.id, `Promoted pagetree ${newPrimaryPagetree.name} to primary.`, user.internalId, db)
     await createSiteComment(site.id, `Created new archive ${pagetreeName}.`, user.internalId, db)
@@ -122,6 +125,7 @@ export async function archivePagetree (pagetreeId: string, user: User) {
     while (archiveNames.has(pagetreeName)) pagetreeName = numerate(pagetreeName)
 
     await db.update('UPDATE pagetrees SET type = ?, name = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, pagetreeName, pagetreeId])
+    await db.update('UPDATE pages SET name = ? WHERE pagetreeId = ? AND path ="/"', [pagetreeName, pagetreeId])
     await createSiteComment(pagetree.siteId, `Created archive ${pagetreeName}`, user.internalId, db)
   })
 }

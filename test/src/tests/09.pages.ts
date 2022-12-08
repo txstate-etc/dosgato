@@ -84,7 +84,37 @@ describe('pages', () => {
   })
   it('should get pages, filtered by path: page with same name and path in different pagetrees', async () => {
     const resp = await query('{ pages(filter: { paths: ["site3/about"] }) { id name } }')
-    expect(resp.pages).to.have.lengthOf(2)
+    expect(resp.pages).to.have.lengthOf(1)
+    const resp2 = await query('{ pages(filter: { paths: ["site3-sandbox/about"] }) { id name } }')
+    expect(resp2.pages).to.have.lengthOf(1)
+  })
+  it('should get pages by link when the linkId is valid', async () => {
+    const { pages } = await query('{ pages(filter: { paths: ["site3/about"] }) { id path linkId site { id }, pagetree { id } } }')
+    const page = pages[0]
+    const resp = await query(`{ pages(filter: { links: { linkId: "${page.linkId}", siteId: "${page.site.id}", path: "${page.path}", context: { pagetreeId: "${page.pagetree.id}" } } }) { id } }`)
+    expect(resp.pages).to.have.lengthOf(1)
+    expect(resp.pages[0].id).to.equal(page.id)
+  })
+  it('should get sandbox page by link when the linkId is valid', async () => {
+    const { pages } = await query('{ pages(filter: { paths: ["site3-sandbox/about"] }) { id path linkId site { id }, pagetree { id } } }')
+    const page = pages[0]
+    const resp = await query(`{ pages(filter: { links: { linkId: "${page.linkId}", siteId: "${page.site.id}", path: "/site3/about", context: { pagetreeId: "${page.pagetree.id}" } } }) { id } }`)
+    expect(resp.pages).to.have.lengthOf(1)
+    expect(resp.pages[0].id).to.equal(page.id)
+  })
+  it('should get pages by link when the linkId is invalid', async () => {
+    const { pages } = await query('{ pages(filter: { paths: ["site3/about"] }) { id path linkId site { id }, pagetree { id } } }')
+    const page = pages[0]
+    const resp = await query(`{ pages(filter: { links: { linkId: "NONSENSE", siteId: "${page.site.id}", path: "${page.path}", context: { pagetreeId: "${page.pagetree.id}" } } }) { id } }`)
+    expect(resp.pages).to.have.lengthOf(1)
+    expect(resp.pages[0].id).to.equal(page.id)
+  })
+  it('should get sandbox page by link when the linkId is invalid', async () => {
+    const { pages } = await query('{ pages(filter: { paths: ["site3-sandbox/about"] }) { id path linkId site { id }, pagetree { id } } }')
+    const page = pages[0]
+    const resp = await query(`{ pages(filter: { links: { linkId: "NONSENSE", siteId: "${page.site.id}", path: "/site3/about", context: { pagetreeId: "${page.pagetree.id}" } } }) { id } }`)
+    expect(resp.pages).to.have.lengthOf(1)
+    expect(resp.pages[0].id).to.equal(page.id)
   })
   it('should get a page by path when the page name only exists in one pagetree in a site with multiple pagetrees', async () => {
     const { pages } = await query('{ pages(filter: { paths: ["site3/sitemap"] }) { id name } }')

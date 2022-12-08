@@ -1,6 +1,6 @@
-import { LinkDefinition, PageData, PageExtras, PageLink } from '@dosgato/templating'
+import { PageData, PageExtras, PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
-import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import db from 'mysql2-async/db'
 import { filterAsync, intersect, isNotNull, keyby, someAsync, stringify, unique } from 'txstate-utils'
 import {
@@ -9,7 +9,9 @@ import {
   deletePages, renamePage, TemplateService,
   TemplateFilter, getPageIndexes, undeletePages,
   validatePage, DeletedFilter, copyPages, TemplateType, migratePage,
-  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal, Site, PagetreeType, DeleteState, publishPageDeletions, CreatePageExtras
+  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal,
+  SiteServiceInternal, Site, PagetreeType, DeleteState, publishPageDeletions, CreatePageExtras,
+  getPagesByPath
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -60,11 +62,10 @@ const pagesByLinkIdLoader = new OneToManyLoader({
   extractKey: p => p.linkId
 })
 
-const pagesByPathLoader = new OneToManyLoader({
+const pagesByPathLoader = new ManyJoinedLoader({
   fetch: async (paths: string[], filters: PageFilter) => {
-    return await getPages({ ...filters, paths })
-  },
-  extractKey: p => p.path
+    return await getPagesByPath(paths, filters)
+  }
 })
 
 export class PageServiceInternal extends BaseService {
@@ -184,7 +185,7 @@ export class PageServiceInternal extends BaseService {
           // we WANT the user to see a broken link in their sandbox because it will break when they go live
           lookups.push(
             this.loaders.get(pagesByLinkIdLoader, { pagetreeIds: [contextPagetree.id] }).load(l.linkId),
-            this.loaders.get(pagesByPathLoader, { pagetreeIds: [contextPagetree.id] }).load(l.path)
+            this.loaders.get(pagesByPathLoader, { pagetreeIds: [contextPagetree.id] }).load(l.path.replace(/^\/[^/]+/, `/${contextPagetree.name}`))
           )
         } else {
           // the link is cross-site, so we only look in the primary tree in the site the link was targeting
@@ -200,9 +201,11 @@ export class PageServiceInternal extends BaseService {
           )
         }
         const pages = await Promise.all(lookups)
-        return pages.find(p => p.length > 1)?.[0]
+        return pages.find(p => p.length > 0)?.[0]
       }))
-      filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, pages.filter(isNotNull).map(p => p.internalId))
+      const found = pages.filter(isNotNull)
+      if (!found.length) filter.internalIds = [-1]
+      else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, found.map(p => p.internalId))
     }
     return filter
   }

@@ -166,6 +166,14 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db) {
   return pages.map(p => new Page(p))
 }
 
+export async function getPagesByPath (paths: string[], filter: PageFilter) {
+  const pages = await getPages({ ...filter, paths })
+  const parents = await getPages({ internalIds: pages.flatMap(p => p.pathSplit) })
+  const parentLookup = keyby(parents, 'internalId')
+  const ret = pages.map(p => ({ key: '/' + p.pathSplit.map(id => parentLookup[id].name).join('/') + '/' + p.name, value: p }))
+  return ret
+}
+
 async function refetch (db: Queryable, ...pages: (Page | undefined)[]) {
   const refetched = keyby(await getPages({ internalIds: pages.filter(isNotNull).map(p => p.internalId), deleted: DeletedFilter.SHOW }, db), 'internalId')
   return pages.map(p => refetched[p?.internalId ?? 0])
