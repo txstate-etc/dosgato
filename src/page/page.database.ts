@@ -168,9 +168,9 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db) {
 
 export async function getPagesByPath (paths: string[], filter: PageFilter) {
   const pages = await getPages({ ...filter, paths })
-  const parents = await getPages({ internalIds: pages.flatMap(p => p.pathSplit) })
+  const parents = await getPages({ internalIds: [-1, ...pages.flatMap(p => p.pathSplit)] })
   const parentLookup = keyby(parents, 'internalId')
-  const ret = pages.map(p => ({ key: '/' + p.pathSplit.map(id => parentLookup[id].name).join('/') + '/' + p.name, value: p }))
+  const ret = pages.map(p => ({ key: '/' + [...p.pathSplit.map(id => parentLookup[id].name), p.name].join('/'), value: p }))
   return ret
 }
 
