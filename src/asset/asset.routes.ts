@@ -16,7 +16,7 @@ import {
   getEnabledUser, GlobalRuleService, recordDownload, replaceAsset, VersionedService
 } from '../internal.js'
 
-const resizeLimiter = pLimit(2)
+export const resizeLimiter = pLimit(2)
 
 export function makeSafeFilename (str: string) {
   return str.normalize('NFKD').replace(/[^. _a-z0-9-]/ig, '').replace(/\s+/g, ' ').trim()
