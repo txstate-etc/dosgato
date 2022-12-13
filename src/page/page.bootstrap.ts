@@ -35,7 +35,7 @@ export async function bootstrap () {
           const resp = await ctx.svc(PageService).createPage(name, pageRecord.data, parent.id, undefined, undefined, { linkId: pageRecord.linkId })
           if (!resp.success) throw new Error(resp.messages[0]?.message)
         }
-      } else {
+      } else if (!file.name.startsWith('.')) {
         const path = file.name.split('.').slice(0, -1)
 
         if (path.length === 1) throw new Error('Cannot create files in the asset root.')
