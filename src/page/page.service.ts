@@ -2,7 +2,7 @@ import { PageData, PageExtras, PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import db from 'mysql2-async/db'
-import { filterAsync, intersect, isNotNull, keyby, someAsync, stringify, unique } from 'txstate-utils'
+import { filterAsync, intersect, isNotBlank, isNotNull, keyby, someAsync, stringify, unique } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
   PageResponse, PagesResponse, createPage, getPages, movePages,
@@ -11,7 +11,9 @@ import {
   validatePage, DeletedFilter, copyPages, TemplateType, migratePage,
   Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal,
   SiteServiceInternal, Site, PagetreeType, DeleteState, publishPageDeletions, CreatePageExtras,
-  getPagesByPath
+  getPagesByPath,
+  parsePath,
+  normalizePath
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -206,6 +208,18 @@ export class PageServiceInternal extends BaseService {
       const found = pages.filter(isNotNull)
       if (!found.length) filter.internalIds = [-1]
       else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, found.map(p => p.internalId))
+    }
+    if (filter.launchedUrls?.length) {
+      const siteSvc = this.svc(SiteServiceInternal)
+      const paths = (await Promise.all(filter.launchedUrls.map(async launchUrl => {
+        const site = await siteSvc.findByLaunchUrl(launchUrl)
+        if (!site) return undefined
+        const parsed = new URL(launchUrl)
+        const path = parsePath(parsed.pathname).path.substring(site.url!.path.length)
+        return normalizePath('/' + [site.name, path].filter(isNotBlank).join('/'))
+      }))).filter(isNotNull)
+      if (!paths.length) filter.internalIds = [-1]
+      filter.paths = intersect({ skipEmpty: true }, filter.paths, paths)
     }
     return filter
   }

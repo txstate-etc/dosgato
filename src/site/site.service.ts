@@ -7,7 +7,7 @@ import {
   Site, SiteFilter, getSites, getSitesByTemplate, undeleteSite,
   PagetreeService, DosGatoService, createSite, VersionedService, SiteResponse,
   deleteSite, PageService, getSitesByManagerInternalId, siteNameIsUnique,
-  renameSite, setLaunchURL, UpdateSiteManagementInput, updateSiteManagement, DeletedFilter, CreatePageExtras
+  renameSite, setLaunchURL, UpdateSiteManagementInput, updateSiteManagement, DeletedFilter, CreatePageExtras, getSiteIdByLaunchUrl
 } from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({
@@ -93,6 +93,11 @@ export class SiteServiceInternal extends BaseService {
 
   async findByManagerInternalId (managerInternalId: number, filter?: SiteFilter) {
     return await this.loaders.get(sitesByManagerInternalIdLoader, filter).load(managerInternalId)
+  }
+
+  async findByLaunchUrl (launchUrl: string) {
+    const id = await getSiteIdByLaunchUrl(launchUrl)
+    return id ? await this.findById(id) : undefined
   }
 }
 

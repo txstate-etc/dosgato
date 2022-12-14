@@ -1,14 +1,40 @@
 import db from 'mysql2-async/db'
-import { unique, keyby, eachConcurrent, isNotNull } from 'txstate-utils'
-import { Site, SiteFilter, PagetreeType, VersionedService, createSiteComment, UpdateSiteManagementInput, getPageIndexes, DeletedFilter } from '../internal.js'
+import { unique, keyby, eachConcurrent, isNotNull, Cache, isNotBlank, intersect } from 'txstate-utils'
+import { Site, SiteFilter, PagetreeType, VersionedService, createSiteComment, UpdateSiteManagementInput, getPageIndexes, DeletedFilter, normalizeHost, normalizePath, parsePath } from '../internal.js'
 import { nanoid } from 'nanoid'
 import { PageData } from '@dosgato/templating'
 
 const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.launchEnabled', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
 
-function processFilters (filter?: SiteFilter) {
+interface SiteNode {
+  stopHere?: string
+  keepGoing: Record<string, SiteNode>
+}
+
+const sitesByUrlCache = new Cache(async () => {
+  const sites = await db.getall<{ id: number, launchHost: string, launchPath: string }>('SELECT * from sites WHERE deletedAt IS NULL AND launchEnabled = 1')
+  const sitesByUrl: SiteNode = { keepGoing: {} }
+  for (const site of sites) {
+    const searchhost = normalizeHost(site.launchHost)
+    const searchpaths = site.launchPath.split('/').filter(isNotBlank)
+    const search = [searchhost, ...searchpaths]
+    let current = sitesByUrl
+    for (let i = 0; i < search.length; i++) {
+      current.keepGoing[search[i]] ??= { keepGoing: {} }
+      current = current.keepGoing[search[i]]
+      if (i === search.length - 1) current.stopHere = String(site.id)
+    }
+  }
+  return sitesByUrl
+})
+
+async function processFilters (filter?: SiteFilter) {
   const binds: string[] = []
   const where: string[] = []
+  if (filter?.launchUrls?.length) {
+    const internalIds = (await Promise.all(filter.launchUrls.map(getSiteIdByLaunchUrl))).filter(isNotNull)
+    filter.ids = intersect({ skipEmpty: true }, filter.ids, ['-1', ...internalIds])
+  }
   if (filter?.ids?.length) {
     where.push(`sites.id IN (${db.in(binds, filter.ids)})`)
   }
@@ -21,14 +47,6 @@ function processFilters (filter?: SiteFilter) {
     } else {
       where.push('sites.launchEnabled = 0')
     }
-  }
-  if (filter?.launchUrls?.length) {
-    const ors = []
-    for (const launchUrl of filter.launchUrls) {
-      ors.push('(sites.launchHost = ? AND sites.launchPath like ?)')
-      db.in(binds, [launchUrl.host, `${launchUrl.path}%`])
-    }
-    where.push(ors.join(' OR '))
   }
   if (filter?.deleted) {
     if (filter.deleted === DeletedFilter.ONLY) {
@@ -52,7 +70,7 @@ function processFilters (filter?: SiteFilter) {
 }
 
 export async function getSites (filter?: SiteFilter) {
-  const { binds, where } = processFilters(filter)
+  const { binds, where } = await processFilters(filter)
   let query = `SELECT ${columns.join(', ')} FROM sites`
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`
@@ -101,7 +119,7 @@ export async function getSitesByOwnerInternalId (ownerInternalIds: number[]) {
 }
 
 export async function getSitesByManagerInternalId (managerInternalIds: number[], filter?: SiteFilter) {
-  const { binds, where } = processFilters(filter)
+  const { binds, where } = await processFilters(filter)
 
   where.push(`sites_managers.userId IN (${db.in(binds, managerInternalIds)})`)
 
@@ -110,6 +128,19 @@ export async function getSitesByManagerInternalId (managerInternalIds: number[],
                                 INNER JOIN sites_managers ON sites.id = sites_managers.siteId
                                 WHERE (${where.join(') AND (')})`, binds)
   return rows.map(row => ({ key: row.userId, value: new Site(row) }))
+}
+
+export async function getSiteIdByLaunchUrl (launchUrl: string) {
+  const sitesByUrlTree = await sitesByUrlCache.get()
+  const parsed = new URL(launchUrl)
+  const { path } = parsePath(parsed.pathname)
+  const searchsegments = [normalizeHost(parsed.hostname), ...path.split('/').slice(1)]
+  let current = sitesByUrlTree
+  for (const seg of searchsegments) {
+    if (!current.keepGoing[seg]) return current.stopHere
+    current = current.keepGoing[seg]
+  }
+  return current.stopHere
 }
 
 export async function siteNameIsUnique (name: string) {

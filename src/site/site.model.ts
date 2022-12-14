@@ -65,15 +65,6 @@ export class Site {
 }
 
 @InputType()
-export class LaunchURLInput {
-  @Field()
-  host!: string
-
-  @Field()
-  path!: string
-}
-
-@InputType()
 export class SiteFilter {
   @Field(type => [ID], { nullable: true })
   ids?: string[]
@@ -81,8 +72,8 @@ export class SiteFilter {
   @Field(type => [UrlSafeString], { nullable: true })
   names?: string[]
 
-  @Field(type => [LaunchURLInput], { nullable: true, description: 'Return sites that match at least one of the given host/path combinations. The path may be longer than what is recorded as the site\'s launched path and it will still match.' })
-  launchUrls?: LaunchURLInput[]
+  @Field(type => [String], { nullable: true, description: 'Return sites that match at least one of the given URLs. The URLs may be longer than what is recorded as the site\'s launched path and it will still match.' })
+  launchUrls?: string[]
 
   @Field({ nullable: true, description: 'Return sites that are currently launched (i.e. they are publicly available at a specified URL other than the editing host).' })
   launched?: boolean

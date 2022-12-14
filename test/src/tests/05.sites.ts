@@ -37,7 +37,7 @@ describe('sites', () => {
     expect(resp2.sites).to.have.lengthOf(ids.length)
   })
   it('should retrieve sites by launchUrl', async () => {
-    const { sites } = await query('{ sites(filter: {launchUrls: [{host: "www.example.com", path: "/site3/"}]}) { id name url { host path } } }')
+    const { sites } = await query('{ sites(filter: {launchUrls: ["http://www.example.com/site3/"]}) { id name url { host path } } }')
     for (const site of sites) {
       expect(site.url.host).to.equal('www.example.com')
       expect(site.url.path.indexOf('/site3/')).to.be.greaterThan(-1)

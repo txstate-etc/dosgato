@@ -12,8 +12,21 @@ export * from './dates.js'
 export * from './login.js'
 
 export function normalizePath (path: string) {
-  return (path.startsWith('/') ? '' : '/') + (path.endsWith('/') ? path.substr(0, -1) : path)
+  path = path.trim().toLocaleLowerCase()
+  return (path.startsWith('/') ? '' : '/') + (path.endsWith('/') ? path.substring(0, path.length - 1) : path)
     .replace(/[^/]*\/\.\./, '').replace(/\/+/, '/')
+}
+
+export function parsePath (path: string) {
+  path = normalizePath(path)
+  return {
+    path: path.replace(/\.\w{1,12}$/i, ''),
+    extension: path.includes('.') ? path.replace(/^.*?\.(\w{1,12})$/i, '$1') || undefined : undefined
+  }
+}
+
+export function normalizeHost (host: string) {
+  return host
 }
 
 export function appendPath (a: string, b: string) {

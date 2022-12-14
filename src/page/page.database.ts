@@ -45,7 +45,7 @@ async function convertPathsToIDPaths (pathstrings: string[]) {
   for (const pt of paths) {
     let searchpaths = ['/']
     for (const segment of pt) {
-      const pages = searchpaths.flatMap(sp => rowsByNameAndIDPath[segment][sp]).filter(isNotNull)
+      const pages = searchpaths.flatMap(sp => rowsByNameAndIDPath[segment]?.[sp]).filter(isNotNull)
       searchpaths = pages.map(pg => `${pg.path}${pg.path === '/' ? '' : '/'}${pg.id}`)
       if (!searchpaths.length) break
     }
@@ -124,7 +124,7 @@ async function processFilters (filter: PageFilter) {
   // named paths e.g. /site1/about
   if (filter.paths?.length) {
     const idpaths = await convertPathsToIDPaths(filter.paths)
-    const ids = idpaths.map(p => p.split(/\//).slice(-1)[0])
+    const ids = ['-1', ...idpaths.map(p => p.split(/\//).slice(-1)[0])]
     where.push(`pages.id IN (${db.in(binds, ids)})`)
   }
 
