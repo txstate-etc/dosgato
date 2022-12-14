@@ -2,7 +2,7 @@ import { MockContext } from '@txstate-mws/graphql-server'
 import { readdir, readFile } from 'fs/promises'
 import { createReadStream } from 'fs'
 import { rescue, sortby } from 'txstate-utils'
-import { SiteService, PageExport, PageService, PageServiceInternal, createAsset, placeFile, resizeLimiter, AssetService, VersionedService, AssetFolderServiceInternal } from '../internal.js'
+import { SiteService, PageExport, PageService, PageServiceInternal, createAsset, placeFile, resizeLimiter, AssetService, VersionedService, AssetFolderServiceInternal, fileHandler } from '../internal.js'
 import { lookup } from 'mime-types'
 
 async function gatherFiles (path: string) {
@@ -17,6 +17,7 @@ async function gatherFiles (path: string) {
 }
 
 export async function bootstrap () {
+  await fileHandler.init()
   const files = await gatherFiles('/bootstrap')
   for (const file of sortby(files, ({ name }) => name.split('.').slice(0, -1).join('.'))) {
     try {
