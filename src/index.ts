@@ -1,7 +1,7 @@
 import { APIAnyTemplate } from '@dosgato/templating'
 import { Context, GQLServer, GQLStartOpts } from '@txstate-mws/graphql-server'
 import { FastifyInstance } from 'fastify'
-import { FastifyTxStateOptions } from 'fastify-txstate'
+import { FastifyTxStateOptions, devLogger } from 'fastify-txstate'
 import { GraphQLError, GraphQLScalarType } from 'graphql'
 import { DateTime } from 'luxon'
 import { NonEmptyArray } from 'type-graphql'
@@ -43,7 +43,7 @@ export class DGServer {
   public app: FastifyInstance
 
   constructor (config?: FastifyTxStateOptions) {
-    this.gqlServer = new GQLServer(config)
+    this.gqlServer = new GQLServer({ ...config, logger: { ...devLogger, trace: () => {} } })
     this.app = this.gqlServer.app
   }
 

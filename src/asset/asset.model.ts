@@ -245,6 +245,14 @@ export class AssetResize {
 
   binaryId: number
   originalBinaryId: number
+  meta: string
+  get lossless (): boolean | undefined {
+    try {
+      return JSON.parse(this.meta).lossless
+    } catch {
+      return undefined
+    }
+  }
 
   constructor (row: any) {
     this.id = row.shasum
@@ -259,6 +267,7 @@ export class AssetResize {
     this.lastDownload = DateTime.fromJSDate(row.lastdownload)
     this.binaryId = row.binaryId
     this.originalBinaryId = row.originalBinaryId
+    this.meta = row.meta
   }
 }
 

@@ -207,7 +207,12 @@ export async function createAssetRoutes (app: FastifyInstance) {
     if (!asset.box) throw new HttpError(400, 'Asset is not an image - width parameter is not supported.')
     const resizes = await ctx.svc(AssetService).getResizes(asset)
 
-    const formats = keyby((req.headers.accept?.split(',') ?? []).map(t => t.split(';')[0]))
+    const formats: Record<string, boolean> = {
+      ...keyby((req.headers.accept?.split(',') ?? []).map(t => t.split(';')[0])),
+      'image/jpeg': true,
+      'image/png': true,
+      'image/gif': true
+    }
 
     let chosen: Asset | AssetResize = asset
     for (const resize of resizes) {

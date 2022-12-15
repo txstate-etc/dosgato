@@ -1,5 +1,7 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { lookup } from 'mime-types'
+import sharp from 'sharp'
 import { intersect, isNotNull, keyby, roundTo, sortby } from 'txstate-utils'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
@@ -8,7 +10,6 @@ import {
   getResizesById, VersionedService, cleanupBinaries, getDownloads, DownloadsFilter, getResizeDownloads,
   AssetResize, AssetFolderResponse, moveAssets, copyAssets
 } from '../internal.js'
-import { lookup } from 'mime-types'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
 
@@ -315,59 +316,73 @@ export class AssetService extends DosGatoService<Asset> {
   async createResizes (asset: Asset) {
     if (!asset.box || asset.mime === 'image/svg+xml') return
     const resizes = await this.getResizes(asset)
+    let missingresize = false
+    for (let w = asset.box.width; w >= 100; w = roundTo(w / 2)) {
+      if (!resizes.find(r => r.mime === 'image/webp' && r.width === w)) missingresize = true
+    }
+    if (!missingresize) return
+
     const info = await fileHandler.sharp(asset.checksum).metadata()
     const orientation = info.orientation ?? 1
-    const colors = await new Promise<number>((resolve, reject) => {
-      const colorSet = new Set<string>()
-      fileHandler.sharp(asset.checksum)
-        .raw()
-        .on('data', (b: Buffer) => {
-          for (let offset = 0; offset < b.length && colorSet.size < 10000; offset += info.channels!) {
-            const colorString = Array.from({ length: info.channels! }, (_, i) => b[offset + i]).join(',')
-            colorSet.add(colorString)
-          }
-        })
-        .on('error', () => reject(new Error('there was a problem counting colors in image ' + asset.filename)))
-        .on('end', () => resolve(colorSet.size))
-    })
-    const outputformat: 'jpg' | 'png' | 'gif' = colors >= 10000
-      ? 'jpg'
-      : (info.pages ?? 0) > 0 && info.format !== 'heif'
-        ? 'gif'
-        : 'png'
-    const outputmime = lookup(outputformat) as string
+    const animated = (info.pages ?? 0) > 0 && info.format !== 'heif'
+    const img = fileHandler.sharp(asset.checksum, { animated })
 
-    const img = fileHandler.sharp(asset.checksum, { animated: outputformat === 'gif' })
+    // make the lossless vs lossy decision only once, at the biggest size
+    const biggestwebpresize = resizes.find(r => r.mime === 'image/webp' && r.width === asset.box!.width)
+    let uselossless: boolean | undefined = biggestwebpresize?.lossless
+
     for (let w = asset.box.width; w >= 100; w = roundTo(w / 2)) {
-      const needregular = !resizes.some(r => r.mime === outputmime && r.width === w)
-      const needwebp = !resizes.some(r => r.mime === 'image/webp' && r.width === w)
-      if (needregular || needwebp) {
+      const webpresize = resizes.find(r => r.mime === 'image/webp' && r.width === w)
+      if (!webpresize) {
         const resized = img.clone().resize(w, null, { kernel: 'mitchell' })
-          // theoretically one call to .rotate() is supposed to fix orientation, but
-          // there seems to be a bug in sharpjs where the rotation doesn't take
-          // if there is a later resize to a sufficiently small size
-          // this is a workaround to make sure the exif rotation is applied in all cases
-          .flip(exifToFlip[orientation])
-          .flop(exifToFlop[orientation])
-          .rotate(exifToRotation[orientation])
-        if (needregular) {
-          const formatted = outputformat === 'jpg'
-            ? resized.clone().jpeg({ quality: 65 })
-            : outputformat === 'png'
-              ? resized.clone().png({ palette: colors <= 256, compressionLevel: 9, progressive: true })
-              : resized.clone().gif({ effort: 10, reoptimize: true, loop: info.loop ?? 0 } as any)
-          const { checksum, info: outputinfo } = await fileHandler.sharpWrite(formatted)
-          if (outputinfo.size > asset.size && ['image/jpeg', 'image/png', 'image/gif'].includes(asset.mime)) {
-            // we made a resize that's bigger than the original, abort!
-            await cleanupBinaries([checksum])
+        // theoretically one call to .rotate() is supposed to fix orientation, but
+        // there seems to be a bug in sharpjs where the rotation doesn't take
+        // if there is a later resize to a sufficiently small size
+        // this is a workaround to make sure the exif rotation is applied in all cases
+        .flip(exifToFlip[orientation])
+        .flop(exifToFlop[orientation])
+        .rotate(exifToRotation[orientation])
+        let webp: sharp.Sharp | undefined, webpsum: string | undefined, webpinfo: sharp.OutputInfo | undefined
+
+        if (uselossless !== true) {
+          webp = resized.clone().webp({ quality: 75, effort: 6, loop: info.loop ?? 0 })
+          ;({ checksum: webpsum, info: webpinfo } = await fileHandler.sharpWrite(webp))
+        }
+
+        if (uselossless !== false) {
+          // try making a near-lossless version and see whether it's acceptably small
+          const lossless = resized.clone().webp({ quality: 75, effort: 6, loop: info.loop ?? 0, nearLossless: true })
+          const { checksum: losslesssum, info: losslessinfo } = await fileHandler.sharpWrite(lossless)
+          if (uselossless === true || losslessinfo.size < webpinfo!.size * 1.2) {
+            if (webpsum) await cleanupBinaries([webpsum])
+            webp = lossless
+            webpsum = losslesssum
+            webpinfo = losslessinfo
+            uselossless = true
           } else {
-            await registerResize(asset, w, checksum, outputmime, outputformat === 'jpg' ? 60 : 0, outputinfo.size)
+            uselossless = false
+            await cleanupBinaries([losslesssum])
           }
         }
-        if (needwebp) {
-          const webp = resized.webp({ quality: 75, effort: 6, loop: info.loop ?? 0 })
-          const { checksum: webpsum, info: webpinfo } = await fileHandler.sharpWrite(webp)
-          await registerResize(asset, w, webpsum, 'image/webp', 75, webpinfo.size)
+
+        await registerResize(asset, w, webpsum!, 'image/webp', 75, webpinfo!.size, uselossless)
+
+        const outputformat = uselossless
+          ? (animated ? 'gif' : 'png')
+          : 'jpg'
+        const outputmime = lookup(outputformat) as string
+
+        const formatted = outputformat === 'jpg'
+          ? resized.clone().jpeg({ quality: 65 })
+          : outputformat === 'png'
+            ? resized.clone().png({ compressionLevel: 9, progressive: true })
+            : resized.clone().gif({ effort: 10, reoptimize: true, loop: info.loop ?? 0 } as any)
+        const { checksum, info: outputinfo } = await fileHandler.sharpWrite(formatted)
+        if (outputinfo.size > asset.size && ['image/jpeg', 'image/png', 'image/gif'].includes(asset.mime)) {
+          // we made a resize that's bigger than the original and no more compatible, abort!
+          await cleanupBinaries([checksum])
+        } else {
+          await registerResize(asset, w, checksum, outputmime, outputformat === 'jpg' ? 65 : 0, outputinfo.size, outputformat === 'gif' || outputformat === 'jpg')
         }
       }
     }

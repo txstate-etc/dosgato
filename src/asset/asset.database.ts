@@ -103,7 +103,7 @@ export async function getResizes (assetInternalIds: number[]) {
   const binds: string[] = []
   const where: string[] = []
   where.push(`a.id IN (${db.in(binds, assetInternalIds)})`)
-  const resizes = await db.getall(`SELECT a.id as assetId, r.*, rb.shasum, rb.bytes, rb.mime
+  const resizes = await db.getall(`SELECT a.id as assetId, r.*, rb.shasum, rb.bytes, rb.mime, rb.meta
   FROM resizes r
   INNER JOIN binaries b ON r.originalBinaryId = b.id
   INNER JOIN binaries rb ON r.binaryId = rb.id
@@ -114,7 +114,7 @@ export async function getResizes (assetInternalIds: number[]) {
 }
 
 export async function getResizesById (resizeIds: string[]) {
-  const rows = await db.getall(`SELECT r.*, rb.shasum, rb.bytes, rb.mime
+  const rows = await db.getall(`SELECT r.*, rb.shasum, rb.bytes, rb.mime, rb.meta
   FROM resizes r
   INNER JOIN binaries rb ON r.binaryId = rb.id
   WHERE rb.shasum IN (${db.in([], resizeIds)})`, [resizeIds])
@@ -317,12 +317,12 @@ export async function replaceAsset (versionedService: VersionedService, userId: 
   })
 }
 
-export async function registerResize (asset: Asset, width: number, shasum: string, mime: string, quality: number, size: number) {
+export async function registerResize (asset: Asset, width: number, shasum: string, mime: string, quality: number, size: number, lossless: boolean) {
   const height = asset.box!.height * width / asset.box!.width
   return await db.transaction(async db => {
     const binaryId = await db.insert(`
       INSERT INTO binaries (shasum, mime, meta, bytes) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)
-    `, [shasum, mime, stringify({ width, height }), size])
+    `, [shasum, mime, stringify({ width, height, lossless }), size])
     const origBinaryId = await db.getval<number>('SELECT id FROM binaries WHERE shasum=?', [asset.checksum])
     await db.insert(`
       INSERT INTO resizes (binaryId, originalBinaryId, width, height, quality, othersettings) VALUES (?, ?, ?, ?, ?, ?)
