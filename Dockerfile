@@ -10,7 +10,7 @@ RUN npm run buildrun
 
 FROM node:18-alpine
 RUN apk add build-base
-RUN apk add vips-heif libheif-dev vips-dev --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
+RUN apk add vips-heif libheif-dev vips-dev --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main
 WORKDIR /usr/app
 COPY package.json ./
 RUN npm install --production --no-optional
