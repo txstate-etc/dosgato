@@ -8,17 +8,17 @@ import {
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
   fileHandler, deleteAsset, undeleteAsset, popPath, basename, registerResize,
   getResizesById, VersionedService, cleanupBinaries, getDownloads, DownloadsFilter, getResizeDownloads,
-  AssetResize, AssetFolderResponse, moveAssets, copyAssets
+  AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion, DeletedFilter
 } from '../internal.js'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
 
 const assetsByIdLoader = new PrimaryKeyLoader({
-  fetch: async (dataIds: string[]) => await getAssets({ ids: dataIds })
+  fetch: async (dataIds: string[]) => await getAssets({ ids: dataIds, deleted: DeletedFilter.SHOW })
 })
 
 const assetsByInternalIdLoader = new PrimaryKeyLoader({
-  fetch: async (internalIds: number[]) => await getAssets({ internalIds }),
+  fetch: async (internalIds: number[]) => await getAssets({ internalIds, deleted: DeletedFilter.SHOW }),
   extractId: asset => asset.internalId,
   idLoader: assetsByIdLoader
 })
@@ -296,6 +296,17 @@ export class AssetService extends DosGatoService<Asset> {
       console.error(err)
       throw new Error('Could not delete asset')
     }
+  }
+
+  async finalizeDeletion (dataId: string) {
+    const asset = await this.loaders.get(assetsByIdLoader).load(dataId)
+    if (!asset) throw new Error('Asset to be deleted does not exist')
+    if (!(await this.haveAssetPerm(asset, 'delete'))) throw new Error(`Current user is not permitted to delete asset ${String(asset.name)}.${asset.extension}.`)
+    const currentUser = await this.currentUser()
+    await finalizeAssetDeletion(asset.internalId, currentUser!.internalId)
+    this.loaders.clear()
+    const deletedAsset = await this.loaders.get(assetsByIdLoader).load(dataId)
+    return new AssetResponse({ asset: deletedAsset, success: true })
   }
 
   async undelete (dataId: string) {

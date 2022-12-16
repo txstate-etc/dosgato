@@ -3,24 +3,24 @@ import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
   AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
   CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
-  deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter, normalizePath
+  deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter, normalizePath, finalizeAssetFolderDeletion, DeletedFilter
 } from '../internal.js'
 import { isNull, isNotNull, unique, mapConcurrent, intersect, isNotBlank, keyby, isBlank } from 'txstate-utils'
 
 const assetFolderByInternalIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids }),
+  fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids, deleted: DeletedFilter.SHOW }),
   extractId: af => af.internalId
 })
 
 const assetFolderByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => await getAssetFolders({ ids }),
+  fetch: async (ids: string[]) => await getAssetFolders({ ids, deleted: DeletedFilter.SHOW }),
   idLoader: assetFolderByInternalIdLoader
 })
 
 assetFolderByInternalIdLoader.addIdLoader(assetFolderByIdLoader)
 
 const foldersByNameLoader = new OneToManyLoader({
-  fetch: async (names: string[]) => await getAssetFolders({ names }),
+  fetch: async (names: string[]) => await getAssetFolders({ names, deleted: DeletedFilter.SHOW }),
   extractKey: folder => folder.name,
   idLoader: [assetFolderByIdLoader, assetFolderByInternalIdLoader]
 })
@@ -280,6 +280,17 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
       console.error(err)
       throw new Error('Could not delete asset folder')
     }
+  }
+
+  async finalizeDeletion (folderId: string) {
+    const folder = await this.raw.findById(folderId)
+    if (!folder) throw new Error('Folder to be deleted does not exist')
+    if (!(await this.haveAssetFolderPerm(folder, 'delete'))) throw new Error(`Current user is not permitted to delete folder ${String(folder.name)}.`)
+    const currentUser = await this.currentUser()
+    await finalizeAssetFolderDeletion(folder.internalId, currentUser!.internalId)
+    const deletedfolder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
+    this.loaders.clear()
+    return new AssetFolderResponse({ assetFolder: deletedfolder, success: true })
   }
 
   async undelete (folderId: string) {

@@ -2,7 +2,7 @@ import { DateTime } from 'luxon'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
-import { UrlSafePath, UrlSafeString } from '../internal.js'
+import { DeletedFilter, DeleteState, UrlSafePath, UrlSafeString } from '../internal.js'
 
 @ObjectType({ description: 'An asset folder is a folder that contains assets and other asset folders. Each site has exactly one root asset folder that is nameless and cannot be deleted.' })
 export class AssetFolder {
@@ -16,6 +16,9 @@ export class AssetFolder {
 
   @Field({ description: 'Folder has been soft-deleted but is still recoverable.' })
   deleted: boolean
+
+  @Field({ description: 'Indicates whether this asset folder is undeleted, marked for deletion, or deleted.' })
+  deleteState: DeleteState
 
   @Field({ nullable: true, description: 'Date this folder was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
@@ -39,6 +42,7 @@ export class AssetFolder {
     this.deleted = isNotNull(row.deletedAt)
     this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
+    this.deleteState = this.deleteState = row.deleteState === 0 ? DeleteState.NOTDELETED : ((row.deleteState === 1 ? DeleteState.MARKEDFORDELETE : DeleteState.DELETED))
   }
 }
 
@@ -80,8 +84,8 @@ export class AssetFolderFilter {
   @Field(type => Boolean, { nullable: true, description: 'Return folders that are the root folder of a site.' })
   root?: boolean
 
-  @Field(type => Boolean, { nullable: true, description: 'true -> return only deleted folders, false -> return only nondeleted folders, undefined -> return all folders' })
-  deleted?: boolean
+  @Field(type => DeletedFilter, { nullable: true })
+  deleted?: DeletedFilter
 }
 
 @InputType()

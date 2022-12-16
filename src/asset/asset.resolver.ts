@@ -153,6 +153,11 @@ export class AssetResolver {
   }
 
   @Mutation(returns => AssetResponse)
+  async finalizeAssetDeletion (@Ctx() ctx: Context, @Arg('assetId', type => ID) assetId: string) {
+    return await ctx.svc(AssetService).finalizeDeletion(assetId)
+  }
+
+  @Mutation(returns => AssetResponse)
   async undeleteAsset (@Ctx() ctx: Context, @Arg('assetId', type => ID) assetId: string) {
     return await ctx.svc(AssetService).undelete(assetId)
   }

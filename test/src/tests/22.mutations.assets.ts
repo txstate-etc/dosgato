@@ -14,10 +14,13 @@ async function createAssetFolder (name: string, parentId: string, username?: str
 describe('asset mutations', () => {
   let testSiteAId: string
   let siteAAssetRootId: string
+  let siteATestFolderId: string
   before(async () => {
     const { createSite: { site } } = await query('mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name assetroot { id } } } }', { name: 'assetTestSiteA', data: { templateKey: 'keyp1', savedAtVersion: '20220801120000', title: 'Test Title' } })
     testSiteAId = site.id
     siteAAssetRootId = site.assetroot.id
+    const { assetFolder } = await createAssetFolder('assettestfolder', siteAAssetRootId, 'su01')
+    siteATestFolderId = assetFolder.id
   })
   it('should create an asset folder', async () => {
     const { success, assetFolder } = await createAssetFolder('childfolder1', siteAAssetRootId)
@@ -102,4 +105,9 @@ describe('asset mutations', () => {
     expect(upload.mime).to.equal('image/jpeg')
     expect(upload.size).to.equal(75533)
   })
+  it.skip('should move an asset', async () => {})
+  it.skip('should copy an asset', async () => {})
+  it.skip('should delete an asset', async () => {})
+  it.skip('should finalize deletion of an asset', async () => {})
+  it.skip('should an asset to the undeleted state', async () => {})
 })

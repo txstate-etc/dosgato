@@ -72,6 +72,16 @@ const dgMigrations: DBMigration[] = [
       await db.update('UPDATE users SET firstname = substring_index(name, \' \', 1), lastname = substring_index(name, \' \', -1)')
       await db.execute('ALTER table `users` DROP COLUMN `name`')
     }
+  },
+  {
+    id: 20221215000000,
+    description: 'add deleteState column to assets and assetfolder tables',
+    run: async (db) => {
+      await db.execute('ALTER TABLE `assets` ADD COLUMN deleteState TINYINT UNSIGNED NOT NULL DEFAULT 0')
+      await db.execute('UPDATE assets SET deleteState = 2 WHERE deletedAt IS NOT NULL')
+      await db.execute('ALTER TABLE `assetfolders` ADD COLUMN deleteState TINYINT UNSIGNED NOT NULL DEFAULT 0')
+      await db.execute('UPDATE assetfolders SET deleteState = 2 WHERE deletedAt IS NOT NULL')
+    }
   }
 ]
 

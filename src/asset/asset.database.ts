@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { isNotNull, keyby, pick, stringify } from 'txstate-utils'
-import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution, AssetFolderRow } from '../internal.js'
+import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution, AssetFolderRow, DeleteState, DeletedFilter } from '../internal.js'
 import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
@@ -43,6 +43,7 @@ function processFilters (filter?: AssetFilter) {
   const joins = new Map<string, string>()
 
   if (typeof filter !== 'undefined') {
+    joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
     if (filter.internalIds?.length) {
       where.push(`assets.id IN (${db.in(binds, filter.internalIds)})`)
     }
@@ -51,18 +52,12 @@ function processFilters (filter?: AssetFilter) {
     }
     if (filter.folderIds?.length) {
       where.push(`assetfolders.guid IN (${db.in(binds, filter.folderIds)})`)
-      if (!joins.has('assetfolders')) {
-        joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
-      }
     }
     if (filter.folderInternalIds?.length) {
       where.push(`assets.folderId IN (${db.in(binds, filter.folderInternalIds)})`)
     }
     if (filter.siteIds?.length) {
       where.push(`assetfolders.siteId IN (${db.in(binds, filter.siteIds)})`)
-      if (!joins.has('assetfolders')) {
-        joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
-      }
     }
     if (filter.names?.length) {
       where.push(`assets.name IN (${db.in(binds, filter.names)})`)
@@ -70,12 +65,18 @@ function processFilters (filter?: AssetFilter) {
     if (isNotNull(filter.referenced)) {
       // TODO
     }
-    if (isNotNull(filter.deleted)) {
-      if (filter.deleted) {
-        where.push('assets.deletedAt IS NOT NULL')
-      } else {
-        where.push('assets.deletedAt IS NULL')
+    if (filter.deleted) {
+      if (filter.deleted === DeletedFilter.ONLY) {
+        // Only show deleted assets
+        where.push(`(assets.deleteState = ${DeleteState.DELETED} OR assetfolders.deletedAt IS NOT NULL)`)
+      } else if (filter.deleted === DeletedFilter.HIDE) {
+        // hide fully deleted assets
+        where.push(`assets.deleteState != ${DeleteState.DELETED}`)
+        where.push(`assetfolders.deleteState != ${DeleteState.DELETED}`)
       }
+    } else {
+      // deleted filter not specified, return assets that are not fully deleted
+      where.push(`assets.deleteState != ${DeleteState.DELETED}`)
     }
     if (filter.checksums?.length) {
       where.push(`binaries.shasum IN (${db.in(binds, filter.checksums)})`)
@@ -92,7 +93,7 @@ function processFilters (filter?: AssetFilter) {
 export async function getAssets (filter?: AssetFilter, tdb: Queryable = db) {
   const { binds, where, joins } = processFilters(filter)
   const assets = await tdb.getall(`
-    SELECT assets.id, assets.dataId, assets.name, assets.folderId, assets.deletedAt, assets.deletedBy, binaries.bytes AS filesize, binaries.mime, binaries.shasum, binaries.meta FROM assets
+    SELECT assets.id, assets.dataId, assets.name, assets.folderId, assets.deletedAt, assets.deletedBy, assets.deleteState, binaries.bytes AS filesize, binaries.mime, binaries.shasum, binaries.meta FROM assets
     INNER JOIN binaries on assets.shasum = binaries.shasum
     ${joins.size ? Array.from(joins.values()).join('\n') : ''}
     WHERE (${where.join(') AND (')})`, binds)
@@ -460,9 +461,13 @@ export async function cleanupBinaries (checksums: string[]) {
 }
 
 export async function deleteAsset (id: number, userInternalId: number) {
-  return await db.update('UPDATE assets SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [userInternalId, id])
+  return await db.update('UPDATE assets SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [userInternalId, DeleteState.MARKEDFORDELETE, id])
+}
+
+export async function finalizeAssetDeletion (id: number, userInternalId: number) {
+  return await db.update('UPDATE assets SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [userInternalId, DeleteState.DELETED, id])
 }
 
 export async function undeleteAsset (id: number) {
-  return await db.update('UPDATE assets SET deletedBy = null, deletedAt = null WHERE id = ?', [id])
+  return await db.update('UPDATE assets SET deletedBy = null, deletedAt = null, deleteState = ? WHERE id = ?', [DeleteState.NOTDELETED, id])
 }

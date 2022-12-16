@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { AssetFolder, AssetFolderFilter, CreateAssetFolderInput } from '../internal.js'
+import { AssetFolder, AssetFolderFilter, CreateAssetFolderInput, DeletedFilter, DeleteState } from '../internal.js'
 
 export interface AssetFolderRow {
   id: number
@@ -9,6 +9,7 @@ export interface AssetFolderRow {
   name: string
   guid: string
   deletedAt?: Date
+  deleteState: DeleteState
   deletedBy?: string
 }
 
@@ -54,12 +55,17 @@ async function processFilters (filter?: AssetFolderFilter) {
     where.push('assetfolders.path = \'/\'')
   }
 
-  if (filter?.deleted != null) {
-    if (filter.deleted) {
-      where.push('assetfolders.deletedAt IS NOT NULL')
-    } else {
-      where.push('assetfolders.deletedAt IS NULL')
+  if (filter?.deleted) {
+    if (filter.deleted === DeletedFilter.ONLY) {
+      // Only show deleted asset folders
+      where.push(`assetfolders.deleteState = ${DeleteState.DELETED}`)
+    } else if (filter.deleted === DeletedFilter.HIDE) {
+      // hide fully deleted asset folders
+      where.push(`assetfolders.deleteState != ${DeleteState.DELETED}`)
     }
+  } else {
+    // deleted filter not specified, return asset folders that are not fully deleted
+    where.push(`assetfolders.deleteState != ${DeleteState.DELETED}`)
   }
 
   return { where, binds }
@@ -89,9 +95,28 @@ export async function renameAssetFolder (folderId: string, name: string) {
 }
 
 export async function deleteAssetFolder (id: number, userInternalId: number) {
-  return await db.update('UPDATE assetfolders SET deletedBy = ?, deletedAt = NOW() WHERE id = ?', [userInternalId, id])
+  return await db.transaction(async db => {
+    const folderIds = await db.getvals<number>('SELECT id FROM assetfolders WHERE id = ? OR path like ?', [id, `%/${id}%`])
+    const binds: number[] = [userInternalId, DeleteState.MARKEDFORDELETE]
+    await db.update(`UPDATE assetfolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE id IN (${db.in(binds, folderIds)})`, binds)
+    await db.update(`UPDATE assets SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE folderId IN (${db.in(binds, folderIds)})`, binds)
+  })
+}
+
+export async function finalizeAssetFolderDeletion (id: number, userInternalId: number) {
+  return await db.transaction(async db => {
+    const folderIds = await db.getvals<number>('SELECT id FROM assetfolders WHERE id = ? OR path like ?', [id, `%/${id}%`])
+    const binds: number[] = [userInternalId, DeleteState.DELETED]
+    await db.update(`UPDATE assetfolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE id IN (${db.in(binds, folderIds)})`, binds)
+    await db.update(`UPDATE assets SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE folderId IN (${db.in(binds, folderIds)})`, binds)
+  })
 }
 
 export async function undeleteAssetFolder (id: number) {
-  return await db.update('UPDATE assetfolders SET deletedBy = null, deletedAt = null WHERE id = ?', [id])
+  return await db.transaction(async db => {
+    const folderIds = await db.getvals<number>('SELECT id FROM assetfolders WHERE id = ? OR path like ?', [id, `%/${id}%`])
+    const binds: number[] = [DeleteState.NOTDELETED]
+    await db.update(`UPDATE assetfolders SET deletedBy = null, deletedAt = null, deleteState = ? WHERE id IN (${db.in(binds, folderIds)})`, binds)
+    await db.update(`UPDATE assets SET deletedBy = null, deletedAt = null, deleteState = ? WHERE folderId IN (${db.in(binds, folderIds)})`, binds)
+  })
 }

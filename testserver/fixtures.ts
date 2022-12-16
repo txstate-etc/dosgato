@@ -187,12 +187,12 @@ export async function fixtures () {
     db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?, ?, ?, ?)', [site8, '/', 'site8', nanoid(10)]),
     db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?, ?, ?, ?)', [deletedsite, '/', 'deletedsite', nanoid(10)])
   ])
-  await db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?, ?, ?, ?)', [site1, `/${site1AssetRoot}`, 'images', nanoid(10)])
+  const site1Images = await db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?, ?, ?, ?)', [site1, `/${site1AssetRoot}`, 'images', nanoid(10)])
   const [assetFolderA, assetFolderB, assetFolderC, assetFolderD, assetFolderE] = await Promise.all([
     db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES(?, ?, ?, ?)', [site8, `/${site8AssetRoot}`, 'folderA', nanoid(10)]),
     db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES(?, ?, ?, ?)', [site8, `/${site8AssetRoot}`, 'folderB', nanoid(10)]),
     db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES(?, ?, ?, ?)', [site8, `/${site8AssetRoot}`, 'folderC', nanoid(10)]),
-    db.insert('INSERT INTO assetfolders (siteId, path, name, guid, deletedAt, deletedBy) VALUES(?, ?, ?, ?, NOW(), ?)', [site8, `/${site8AssetRoot}`, 'folderD', nanoid(10), su03]),
+    db.insert('INSERT INTO assetfolders (siteId, path, name, guid, deletedAt, deletedBy, deleteState) VALUES(?, ?, ?, ?, NOW(), ?, ?)', [site8, `/${site8AssetRoot}`, 'folderD', nanoid(10), su03, 2]),
     db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES(?, ?, ?, ?)', [site8, `/${site8AssetRoot}`, 'folderE', nanoid(10)])
   ])
   const [assetFolderF, assetFolderG, assetFolderH, assetFolderI, assetFolderJ] = await Promise.all([
@@ -793,7 +793,10 @@ export async function fixtures () {
     await createAsset('blankpdf', site1AssetRoot, 'd731d520ca21a90b2ca28b5068cfdd678dbd3ace', 'application/pdf', 1264, [{ name: 'type', values: ['application/pdf'] }], 'su01')
     await createAsset('bobcat', site1AssetRoot, '6ce119a866c6821764edcdd5b30395d0997c8aff', 'image/jpeg', 3793056, [{ name: 'type', values: ['image/jpeg'] }], 'su01', 6016, 4016)
     await createAsset('blankpdf', site8AssetRoot, 'd731d520ca21a90b2ca28b5068cfdd678dbd3ace', 'application/pdf', 1264, [{ name: 'type', values: ['application/pdf'] }], 'su01')
+    await createAsset('anotherbobcat', site1Images, '6ce119a866c6821764edcdd5b30395d0997c8aff', 'image/jpeg', 3793056, [{ name: 'type', values: ['image/jpeg'] }], 'su01', 6016, 4016)
   }
+  const deletedAssetId = await db.getval<number>('SELECT id FROM assets WHERE name = ?', ['anotherbobcat'])
+  await db.update('UPDATE assets SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [su01, 2, deletedAssetId!])
 
   console.info('finished fixtures()')
 }

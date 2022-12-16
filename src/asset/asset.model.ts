@@ -3,7 +3,7 @@ import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { extension } from 'mime-types'
-import { JsonData, UrlSafePath, UrlSafeString } from '../internal.js'
+import { DeletedFilter, DeleteState, JsonData, UrlSafePath, UrlSafeString } from '../internal.js'
 
 const resizeMimeToExt: Record<string, string> = {
   'image/jpg': 'jpg',
@@ -66,6 +66,9 @@ export class Asset {
   @Field({ nullable: true, description: 'Date this asset was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
+  @Field({ description: 'Indicates whether this asset is undeleted, marked for deletion, or deleted.' })
+  deleteState: DeleteState
+
   // does not include downloads of resized versions, but the fieldresolver will
   lastRawDownload?: DateTime
 
@@ -91,6 +94,7 @@ export class Asset {
     this.deleted = isNotNull(row.deletedAt)
     this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
+    this.deleteState = row.deleteState === 0 ? DeleteState.NOTDELETED : ((row.deleteState === 1 ? DeleteState.MARKEDFORDELETE : DeleteState.DELETED))
   }
 }
 
@@ -134,8 +138,8 @@ export class AssetFilter {
   @Field({ nullable: true, description: 'true -> return assets referenced by any page, false -> return assets not referenced by any page, null -> return all assets' })
   referenced?: boolean
 
-  @Field(type => Boolean, { nullable: true, description: 'true -> return only deleted assets, false -> return only nondeleted assets, null -> return all assets' })
-  deleted?: boolean
+  @Field(type => DeletedFilter, { nullable: true })
+  deleted?: DeletedFilter
 }
 
 export enum DownloadsResolution {
