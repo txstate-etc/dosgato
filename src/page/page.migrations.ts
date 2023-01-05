@@ -14,6 +14,7 @@ async function processMigration (templateKey: string, migrate: ComponentMigratio
     for (let i = 0; i < areaList.length; i++) {
       const cData = areaList[i]
       const subpath = [...path, 'areas', areaKey, String(i)]
+      newAreas[areaKey] ??= []
       newAreas[areaKey].push(processMigration(templateKey, migrate, cData, subpath, { ...extras, path: subpath.join('.') }))
     }
   }
