@@ -54,8 +54,8 @@ export async function migratePage (page: PageData, extras: PageExtras, toSchemaV
     .concat([templateRegistry.getPageTemplate(pageTemplateKey)])
     .flatMap(p => (p.migrations ?? []).map(m => ({ ...m, templateKey: p.templateKey, isPage: p.type === 'page' })))
     .filter(m => backward
-      ? m.createdAt.getTime() < fromSchemaVersionMillis && m.createdAt.getTime() > toSchemaVersionMillis
-      : m.createdAt.getTime() > fromSchemaVersionMillis && m.createdAt.getTime() < toSchemaVersionMillis
+      ? m.createdAt.getTime() < fromSchemaVersionMillis && m.createdAt.getTime() >= toSchemaVersionMillis
+      : m.createdAt.getTime() > fromSchemaVersionMillis && m.createdAt.getTime() <= toSchemaVersionMillis
     )
   // now that we have a big list of migrations, we need to sort them by date to
   // make sure they go in order (e.g. if component A has a migration between the two
