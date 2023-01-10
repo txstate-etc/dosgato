@@ -20,7 +20,7 @@ import {
   AccessResolver, DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
   DataRootPermissionsResolver, updateLastLogin, createAssetRoutes, UrlSafePath, UrlSafePathScalar,
-  AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap
+  AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -55,6 +55,7 @@ export class DGServer {
     // sync templates with database
     await syncRegistryWithDB()
 
+    await fileHandler.init()
     if (process.env.NODE_ENV === 'development' && process.env.RESET_DB_ON_STARTUP === 'true' && opts.fixtures) {
       console.info('running fixtures')
       await resetdb()

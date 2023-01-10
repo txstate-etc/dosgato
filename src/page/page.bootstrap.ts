@@ -17,7 +17,6 @@ async function gatherFiles (path: string) {
 }
 
 export async function bootstrap () {
-  await fileHandler.init()
   const files = await gatherFiles('/bootstrap')
   for (const file of sortby(files, ({ name }) => name.split('.').slice(0, -1).join('.'))) {
     try {
