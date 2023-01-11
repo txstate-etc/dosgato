@@ -19,7 +19,7 @@ async function processMigration (templateKey: string, migrate: ComponentMigratio
     }
   }
   for (const areaKey of Object.keys(component.areas ?? {})) {
-    component.areas![areaKey] = await Promise.all(newAreas[areaKey])
+    if (newAreas[areaKey] != null) component.areas![areaKey] = await Promise.all(newAreas[areaKey])
   }
   if (templateKey === component.templateKey) component = await migrate(component, extras)
   return component
