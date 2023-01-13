@@ -40,7 +40,9 @@ async function processFilters (filter?: DataFilter) {
     } else if (filter.deleted === DeletedFilter.HIDE) {
       // hide fully deleted data
       const deletedDataIds = await getDeleted()
-      where.push(`data.id NOT IN (${db.in(binds, deletedDataIds)})`)
+      if (deletedDataIds.length) {
+        where.push(`data.id NOT IN (${db.in(binds, deletedDataIds)})`)
+      }
     }
     // If deleted is SHOW, we don't need to filter out anything
   }
