@@ -3,7 +3,7 @@ import db from 'mysql2-async/db'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, mapConcurrent, unique, someConcurrent, filterAsync, sortby, eachConcurrent } from 'txstate-utils'
-import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter, templateRegistry, getPageIndexes, DeleteState, numerate } from '../internal.js'
+import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter, templateRegistry, getPageIndexes, DeleteState, numerate, Versioned } from '../internal.js'
 import { PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 
@@ -207,7 +207,6 @@ export async function createPage (versionedService: VersionedService, userId: st
     }
     const displayOrder = await handleDisplayOrder(db, parent, aboveTarget)
     const indexes = getPageIndexes(data)
-    if (data.legacyId) indexes.push({ name: 'legacyId', values: [data.legacyId] })
     const createdBy = data.legacyId ? (extra?.createdBy || extra?.modifiedBy || userId) : userId // || is intended - to catch blanks
     const createdAt = data.legacyId ? (extra?.createdAt ?? extra?.modifiedAt ?? undefined) : undefined
     const modifiedBy = data.legacyId ? (extra?.modifiedBy || createdBy || userId) : userId // || is intended - to catch blanks
@@ -300,7 +299,8 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
 }
 
 async function handleCopy (db: Queryable, versionedService: VersionedService, userId: string, page: Page, parent: Page, displayOrder: number, includeChildren?: boolean) {
-  const pageData = await versionedService.get(page.dataId)
+  const pageData = await versionedService.get<PageData>(page.dataId)
+  delete pageData!.data.legacyId
   const pageIndexes = await versionedService.getIndexes(page.dataId, pageData!.version)
   const newDataId = await versionedService.create('page', pageData!.data, pageIndexes, userId, db)
   let newPageName = page.name

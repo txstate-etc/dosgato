@@ -144,6 +144,7 @@ export class PageFilter {
   @Field(type => Int, { nullable: true, description: 'Only return pages at a depth less than or equal to maxDepth. Root page is 0 depth.' })
   maxDepth?: number
 
+  @Field(type => [String], { nullable: true, description: 'Only return pages matching one of the given legacy IDs. Legacy IDs are set when migrating content from another system and may be used to help determine if the content has been previously moved.' })
   legacyIds?: string[]
 }
 
