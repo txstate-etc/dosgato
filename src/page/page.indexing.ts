@@ -10,7 +10,7 @@ export function getPageIndexes (page: PageData): Index[] {
     storage[index.name] ??= new Set()
     storage[index.name].add(index.value)
   }
-  if (isNotBlank(page.legacyId)) storage.legacyId = page.legacyId
+  if (isNotBlank(page.legacyId)) storage.legacyId = new Set([page.legacyId])
   storage.template = new Set(components.map(c => c.templateKey).filter(isNotBlank))
   storage.fulltext = new Set()
   for (const component of components) {

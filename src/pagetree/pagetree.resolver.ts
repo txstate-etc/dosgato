@@ -22,8 +22,8 @@ export class PagetreeResolver {
 
   @FieldResolver(returns => Page)
   async rootPage (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
-    const pages = await ctx.svc(PageService).findByPagetreeId(pagetree.id)
-    return pages.find((p: Page) => isNull(p.parentInternalId))
+    const [page] = await ctx.svc(PageService).findByPagetreeId(pagetree.id, { maxDepth: 0 })
+    return page
   }
 
   @FieldResolver(returns => [Template], { description: 'All templates that are approved for use in this pagetree.' })

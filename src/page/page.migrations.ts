@@ -52,6 +52,7 @@ export async function migratePage (page: PageData, extras: PageExtras, toSchemaV
     .filter(p => p.type === 'component')
     // then add back the page template
     .concat([templateRegistry.getPageTemplate(pageTemplateKey)])
+    .filter(isNotNull)
     .flatMap(p => (p.migrations ?? []).map(m => ({ ...m, templateKey: p.templateKey, isPage: p.type === 'page' })))
     .filter(m => backward
       ? m.createdAt.getTime() < fromSchemaVersionMillis && m.createdAt.getTime() >= toSchemaVersionMillis

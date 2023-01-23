@@ -1,7 +1,8 @@
 import db from 'mysql2-async/db'
-import { unique } from 'txstate-utils'
+import { unique, isNotBlank } from 'txstate-utils'
 import { PageData } from '@dosgato/templating'
-import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, Site, getPageIndexes, createSiteComment, User, DeletedFilter, numerate } from '../internal.js'
+import { Pagetree, PagetreeFilter, PagetreeType, VersionedService, Site, createSiteComment, User, DeletedFilter, numerate, createVersionedPage, CreatePageExtras } from '../internal.js'
+import { nanoid } from 'nanoid'
 
 function processFilters (filter?: PagetreeFilter) {
   const binds: string[] = []
@@ -63,20 +64,20 @@ export async function getPagetreesByTemplate (templateIds: number[], direct?: bo
   }
 }
 
-export async function createPagetree (versionedService: VersionedService, user: User, site: Site, data: PageData, linkId: string) {
+export async function createPagetree (versionedService: VersionedService, user: User, site: Site, data: PageData, extra?: CreatePageExtras) {
   return await db.transaction(async db => {
-    // numerage pagetree names
+    // numerate pagetree names
     const usedNames = new Set(await db.getvals<string>('SELECT name FROM pagetrees WHERE siteId = ? AND type = ?', [site.id, PagetreeType.SANDBOX]))
     let pagetreeName = `${site.name}-sandbox`
     while (usedNames.has(pagetreeName)) pagetreeName = numerate(pagetreeName)
     // create the pagetree
-    const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt) VALUES (?, ?, ?, NOW())', [site.id, PagetreeType.SANDBOX, pagetreeName])
+    const createdAt = data.legacyId && isNotBlank(extra?.createdAt) ? new Date(extra!.createdAt) : new Date()
+    const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt) VALUES (?, ?, ?, ?)', [site.id, PagetreeType.SANDBOX, pagetreeName, createdAt])
     // create the root page for the pagetree
-    const indexes = getPageIndexes(data)
-    const dataId = await versionedService.create('page', data, indexes, user.id, db)
+    const dataId = await createVersionedPage(versionedService, user.id, data, db, extra)
     await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
-      VALUES (?,?,?,?,?,?)`, [pagetreeName, '/', 1, pagetreeId, dataId, linkId])
+      VALUES (?,?,?,?,?,?)`, [pagetreeName, '/', 1, pagetreeId, dataId, extra?.linkId ?? nanoid(10)])
     await createSiteComment(site.id, `Added sandbox ${pagetreeName}.`, user.internalId, db)
     return new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE id=?', [pagetreeId]))
   })

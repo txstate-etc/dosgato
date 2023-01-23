@@ -312,7 +312,7 @@ export class VersionedService extends BaseService {
     }
     if (tdb) await action(tdb)
     else await db.transaction(action)
-}
+  }
 
   /**
    * Restore a previous version of the object. Creates a new version. You could do
@@ -458,7 +458,7 @@ export class VersionedService extends BaseService {
     if (tobeadded.length) {
       const binds: (string | number)[] = []
       await db.insert(`
-        INSERT INTO indexes (id, version, name, value_id) VALUES ${db.in(binds, tobeadded)}
+        INSERT INTO indexes (id, version, name, value_id) VALUES ${db.in(binds, tobeadded)} ON DUPLICATE KEY UPDATE value_id=value_id
       `, binds)
     }
   }

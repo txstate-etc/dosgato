@@ -1,12 +1,11 @@
 import { OneToManyLoader, ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { BaseService } from '@txstate-mws/graphql-server'
 import { PageData } from '@dosgato/templating'
-import { nanoid } from 'nanoid'
 import {
   Pagetree, PagetreeFilter, getPagetreesById, getPagetreesBySite, renamePagetree,
   getPagetreesByTemplate, SiteService, DosGatoService, PagetreeType, PagetreeResponse,
   promotePagetree, createPagetree, VersionedService, deletePagetree,
-  undeletePagetree, archivePagetree, SiteServiceInternal, PageService
+  undeletePagetree, archivePagetree, SiteServiceInternal, PageService, PageServiceInternal
 } from '../internal.js'
 
 const PagetreesByIdLoader = new PrimaryKeyLoader({
@@ -61,12 +60,14 @@ export class PagetreeService extends DosGatoService<Pagetree> {
   async create (siteId: string, data: PageData, validateOnly?: boolean) {
     const site = await this.svc(SiteServiceInternal).findById(siteId)
     if (!site) throw new Error('Pagetree site does not exist.')
+    const [primaryPagetree] = await this.raw.findBySiteId(siteId, { types: [PagetreeType.PRIMARY] })
+    if (!primaryPagetree) throw new Error('Site has no primary pagetree.')
+    const [rootPage] = await this.svc(PageServiceInternal).findByPagetreeId(primaryPagetree.id, { maxDepth: 0 })
+    const linkId = rootPage.linkId
     if (!(await this.svc(SiteService).mayManageState(site))) {
       throw new Error('Current user is not permitted to create pagetrees in this site.')
     }
-    const currentPagetrees = await this.raw.findBySiteId(siteId)
     const response = new PagetreeResponse({ success: true })
-    const linkId = nanoid(10)
     // validate root page data if a template has been chosen
     if (data.templateKey) {
       const pageValidationResponse = await this.svc(PageService).validatePageData(data, site, undefined, undefined, site.name, linkId)
@@ -80,7 +81,7 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (validateOnly || response.hasErrors()) return response
     const versionedService = this.svc(VersionedService)
     const currentUser = await this.currentUser()
-    const pagetree = await createPagetree(versionedService, currentUser!, site, data, linkId)
+    const pagetree = await createPagetree(versionedService, currentUser!, site, data, { linkId })
     this.loaders.clear()
     response.pagetree = pagetree
     return response

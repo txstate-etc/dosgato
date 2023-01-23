@@ -156,7 +156,7 @@ export class SiteService extends DosGatoService<Site> {
     }
     if (!validateOnly) {
       const versionedService = this.svc(VersionedService)
-      response.site = await createSite(versionedService, this.login, name, data, linkId)
+      response.site = await createSite(versionedService, this.login, name, data, extra)
     }
     return response
   }

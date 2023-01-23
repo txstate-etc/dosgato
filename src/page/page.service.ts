@@ -165,7 +165,8 @@ export class PageServiceInternal extends BaseService {
   async processFilters (filter: PageFilter) {
     if (filter.legacyIds?.length) {
       const pages = await this.svc(VersionedService).find([{ indexName: 'legacyId', in: filter.legacyIds }], 'page', filter.published ? 'published' : 'latest')
-      filter.ids = intersect({ skipEmpty: true }, filter.ids, pages)
+      if (!pages.length) filter.ids = ['-1']
+      else filter.ids = intersect({ skipEmpty: true }, filter.ids, pages)
     }
     if (filter.referencedByPageIds?.length) {
       // TODO: refactor this to use VersionedService indexes instead of rescanning the data

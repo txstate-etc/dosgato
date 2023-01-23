@@ -198,6 +198,18 @@ async function updateSourceDisplayOrder (db: Queryable, page: Page, parent: Page
   await db.update('UPDATE pages SET displayOrder = displayOrder - 1 WHERE path = ? AND displayOrder > ?', [page.path, page.displayOrder])
 }
 
+export async function createVersionedPage (versionedService: VersionedService, userId: string, data: PageData & { legacyId?: string }, db: Queryable, extra?: CreatePageExtras) {
+  const indexes = getPageIndexes(data)
+  const createdBy = data.legacyId ? (extra?.createdBy || extra?.modifiedBy || userId) : userId // || is intended - to catch blanks
+  const createdAt = data.legacyId ? (extra?.createdAt ?? extra?.modifiedAt ?? undefined) : undefined
+  const modifiedBy = data.legacyId ? (extra?.modifiedBy || createdBy || userId) : userId // || is intended - to catch blanks
+  const modifiedAt = data.legacyId ? (extra?.modifiedAt ?? extra?.createdAt ?? undefined) : undefined
+  const dataId = await versionedService.create('page', data, indexes, createdBy, db)
+  await versionedService.setStamps(dataId, { createdAt: createdAt ? new Date(createdAt) : undefined, modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
+  if (data.legacyId && extra?.publishedAt) await versionedService.tag(dataId, 'published', undefined, extra?.publishedBy || extra?.modifiedBy || extra?.createdBy || userId, new Date(extra.publishedAt), db)
+  return dataId
+}
+
 export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page | undefined, name: string, data: PageData & { legacyId?: string }, extra?: CreatePageExtras) {
   let linkId = extra?.linkId ?? nanoid(10)
   return await db.transaction(async db => {
@@ -206,14 +218,7 @@ export async function createPage (versionedService: VersionedService, userId: st
       throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
     }
     const displayOrder = await handleDisplayOrder(db, parent, aboveTarget)
-    const indexes = getPageIndexes(data)
-    const createdBy = data.legacyId ? (extra?.createdBy || extra?.modifiedBy || userId) : userId // || is intended - to catch blanks
-    const createdAt = data.legacyId ? (extra?.createdAt ?? extra?.modifiedAt ?? undefined) : undefined
-    const modifiedBy = data.legacyId ? (extra?.modifiedBy || createdBy || userId) : userId // || is intended - to catch blanks
-    const modifiedAt = data.legacyId ? (extra?.modifiedAt ?? extra?.createdAt ?? undefined) : undefined
-    const dataId = await versionedService.create('page', data, indexes, createdBy, db)
-    await versionedService.setStamps(dataId, { createdAt: createdAt ? new Date(createdAt) : undefined, modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
-    if (data.legacyId && extra?.publishedAt) await versionedService.tag(dataId, 'published', undefined, extra?.publishedBy || extra?.modifiedBy || extra?.createdBy || userId, new Date(extra.publishedAt), db)
+    const dataId = await createVersionedPage(versionedService, userId, data, db, extra)
     async function insert () {
       const newInternalId = await db.insert(`
         INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
