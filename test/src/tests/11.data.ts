@@ -152,6 +152,13 @@ describe('datafolder', () => {
     expect(roleNames).to.include.members(['datarolestest1'])
     expect(roleNames).to.not.have.members(['datarolestest2'])
   })
+  it('should return the path for a datafolder', async () => {
+    const { datafolders } = await query('{ datafolders { id name path } }')
+    const site5folder = datafolders.find((f: any) => f.name === 'site5datafolder2')
+    expect(site5folder.path).to.equal('/site5/site5datafolder2')
+    const globalFolder = datafolders.find((f: any) => f.name === 'globaldatafolder')
+    expect(globalFolder.path).to.equal('/global/globaldatafolder')
+  })
 })
 
 describe('data', () => {
@@ -348,6 +355,21 @@ describe('data', () => {
         expect(version.data.align).to.equal('left')
       }
     }
+  })
+  it('should return paths for data entries', async () => {
+    const { data } = await query('{ data(filter: { deleted: HIDE, templateKeys: ["keyd1"] }) { id  path name } }')
+    // global not in folder
+    const yellowItem = data.find((d: any) => d.name === 'Yellow Content')
+    expect(yellowItem.path).to.equal('/global/Yellow Content')
+    // global in folder
+    const sandstoneItem = data.find((d: any) => d.name === 'Sandstone Content')
+    expect(sandstoneItem.path).to.equal('/global/globalcolordata/Sandstone Content')
+    // site level
+    const goldItem = data.find((d: any) => d.name === 'Gold Content')
+    expect(goldItem.path).to.equal('/site2/Gold Content')
+    // in site folder
+    const redItem = data.find((d: any) => d.name === 'Red Content')
+    expect(redItem.path).to.equal('/site2/site2datafolder/Red Content')
   })
 })
 

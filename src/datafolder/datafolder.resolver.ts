@@ -44,6 +44,11 @@ export class DataFolderResolver {
     return await ctx.svc(DataService).findByFolderInternalId(folder.internalId, filter)
   }
 
+  @FieldResolver(returns => String)
+  async path (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    return await ctx.svc(DataFolderService).getPath(folder)
+  }
+
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this folder, or any permission if null.' })
   async roles (@Ctx() ctx: Context, @Root() folder: DataFolder,
     @Arg('withPermission', type => [DataFolderPermission], { nullable: true }) withPermission?: DataFolderPermission[]

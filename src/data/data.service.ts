@@ -98,7 +98,13 @@ export class DataServiceInternal extends BaseService {
   }
 
   async getPath (data: Data) {
-    if (!data.folderInternalId) return '/'
+    if (!data.folderInternalId) {
+      if (!data.siteId) return appendPath('/global', data.name as string)
+      else {
+        const site = await this.svc(SiteServiceInternal).findById(data.siteId)
+        return appendPath(`/${site!.name}`, data.name as string)
+      }
+    }
     const folder = await this.svc(DataFolderServiceInternal).findByInternalId(data.folderInternalId)
     const folderPath = await this.svc(DataFolderServiceInternal).getPath(folder!)
     return appendPath(folderPath, data.name as string)

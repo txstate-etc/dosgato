@@ -75,6 +75,9 @@ export class DataFilter {
 
   @Field(type => DeletedFilter, { nullable: true })
   deleted?: DeletedFilter
+
+  @Field(type => [DataLinkInput], { nullable: true, description: 'Resolve data links preferring id and falling back to path.' })
+  links?: DataLinkInput[]
 }
 
 @InputType()
@@ -154,3 +157,15 @@ registerEnumType(DataPermission, {
   name: 'DataPermission',
   description: 'All the action types that can be individually permissioned on a data entry.'
 })
+
+@InputType()
+export class DataLinkInput {
+  @Field(type => ID)
+  id!: string
+
+  @Field(type => ID)
+  siteId!: string
+
+  @Field()
+  path!: string
+}

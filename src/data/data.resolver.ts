@@ -51,6 +51,11 @@ export class DataResolver {
     else return await ctx.svc(SiteService).findById(data.siteId)
   }
 
+  @FieldResolver(returns => String)
+  async path (@Ctx() ctx: Context, @Root() data: Data) {
+    return await ctx.svc(DataService).getPath(data)
+  }
+
   @FieldResolver(returns => Boolean, { description: 'True if the data entry has a version marked as published.' })
   async published (@Ctx() ctx: Context, @Root() data: Data) {
     const published = await ctx.svc(VersionedService).get(data.dataId, { tag: 'published' })

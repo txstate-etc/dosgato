@@ -8,7 +8,8 @@ import {
   SiteService, DataFoldersResponse, moveDataFolders, DeletedFilter, DataRoot, DataRootService,
   folderNameUniqueInDataRoot,
   TemplateServiceInternal,
-  VersionedService
+  VersionedService,
+  SiteServiceInternal
 } from '../internal.js'
 
 const dataFoldersByIdLoader = new PrimaryKeyLoader({
@@ -72,7 +73,12 @@ export class DataFolderServiceInternal extends BaseService {
   }
 
   async getPath (folder: DataFolder) {
-    return '/' + (folder.name as string)
+    if (!folder.siteId) {
+      return '/global/' + (folder.name as string)
+    } else {
+      const site = await this.svc(SiteServiceInternal).findById(folder.siteId)
+      return `/${site!.name}/` + (folder.name as string)
+    }
   }
 
   async processFilters (filter?: DataFolderFilter) {
