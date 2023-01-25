@@ -53,6 +53,9 @@ async function processFilters (filter?: DataFilter) {
   if (filter?.ids?.length) {
     where.push(`data.dataId IN (${db.in(binds, filter.ids)})`)
   }
+  if (filter?.names?.length) {
+    where.push(`data.name IN (${db.in(binds, filter.names)})`)
+  }
   if (isNotNull(filter?.global)) {
     if (filter?.global) {
       where.push('data.siteId IS NULL')

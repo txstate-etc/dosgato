@@ -56,12 +56,17 @@ export class DataFolderFilter {
 
   @Field(type => DeletedFilter, { nullable: true })
   deleted?: DeletedFilter
+
+  @Field(type => [DataFolderLinkInput], { nullable: true, description: 'Resolve data folder links preferring id and falling back to path.' })
+  links?: DataFolderLinkInput[]
+
+  names?: String[]
 }
 
 @InputType()
 export class CreateDataFolderInput {
   @Field()
-  name!: string
+  name!: UrlSafeString
 
   @Field(type => ID)
   templateKey!: string
@@ -105,3 +110,15 @@ registerEnumType(DataFolderPermission, {
   name: 'DataFolderPermission',
   description: 'All the action types that can be individually permissioned on a data entry.'
 })
+
+@InputType()
+export class DataFolderLinkInput {
+  @Field(type => ID)
+  id!: string
+
+  @Field(type => ID, { nullable: true })
+  siteId!: string
+
+  @Field()
+  path!: string
+}

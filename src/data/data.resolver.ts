@@ -7,7 +7,7 @@ import {
   DataFolder, DataFolderService, Role, JsonData, Site, SiteService, Template,
   TemplateService, User, UserService, ObjectVersion, VersionedService, Data,
   DataFilter, DataPermission, DataPermissions, DataService, DataResponse, DataMultResponse,
-  CreateDataInput, UpdateDataInput, DataRuleService, RoleService, MoveDataTarget
+  CreateDataInput, UpdateDataInput, DataRuleService, RoleService, MoveDataTarget, UrlSafeString
 } from '../internal.js'
 
 @Resolver(of => Data)
@@ -137,8 +137,8 @@ export class DataResolver {
   }
 
   @Mutation(returns => DataResponse)
-  async renameDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string, @Arg('name') name: string, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
-    return await ctx.svc(DataService).rename(dataId, name, validateOnly)
+  async renameDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string, @Arg('name') name: UrlSafeString, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(DataService).rename(dataId, name as string, validateOnly)
   }
 
   @Mutation(returns => DataResponse, { description: 'Update a data entry.' })

@@ -1,7 +1,7 @@
 /* eslint-disable no-trailing-spaces */
 import { BaseService, ValidatedResponse, MutationMessageType, Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique, isNotNull, someAsync, eachConcurrent, mapConcurrent, intersect, isNull } from 'txstate-utils'
+import { unique, isNotNull, someAsync, eachConcurrent, mapConcurrent, intersect, isNull, keyby, isNotBlank } from 'txstate-utils'
 import {
   Data, DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
@@ -125,6 +125,55 @@ export class DataServiceInternal extends BaseService {
       const searchRule = { indexName: 'templateKey', in: filter.templateKeys }
       const dataIds = await this.svc(VersionedService).find([searchRule], 'data')
       filter.ids = intersect({ skipEmpty: true }, dataIds, filter.ids)
+    }
+
+    if (filter?.paths?.length) {
+      // path has a sitename (or global) then maybe a folder name and then the data entry name
+      const siteNames = filter.paths.map(p => p.split('/').filter(isNotBlank)[0]).filter(name => name !== 'global')
+      const sites = await this.svc(SiteServiceInternal).find({ names: siteNames })
+      const sitesByName = keyby(sites, 'name')
+      const folderNames = filter.paths.map(p => p.split('/').filter(isNotBlank)).filter(a => a.length > 2).map(a => a[1])
+      const folders = await this.svc(DataFolderServiceInternal).find({ names: folderNames })
+      const foldersByName: Record<string, DataFolder[]> = {}
+      for (const folder of folders) {
+        const name = folder.name as string
+        foldersByName[name] ||= []
+        foldersByName[name].push(folder)
+      }
+      const promises: Promise<Data[]>[] = []
+      for (const path of filter.paths) {
+        const parts = path.split('/').filter(isNotBlank)
+        const filter: DataFilter = {}
+        if (parts.length === 3) {
+          // there's a folder in the path
+          const foldersWithName = foldersByName[parts[1]]
+         filter.folderIds = foldersWithName.map(f => f.id)
+        }
+        if (parts[0] === 'global') filter.global = true
+        else filter.siteIds = [sitesByName[parts[0]].id]
+        filter.names = [parts[parts.length - 1]]
+        console.log(filter)
+        promises.push(this.find(filter))
+      }
+      const data = (await Promise.all(promises)).flat()
+      if (!data.length) filter.internalIds = [-1]
+      else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, data.map(d => d.internalId))
+    }
+
+    if (filter?.links?.length) {
+      const data = await this.findByIds(filter.links.map(l => l.id))
+      const dataById = keyby(data, 'id')
+      const notFoundById = filter.links.filter(l => !dataById[l.id])
+      if (notFoundById.length) {
+        const pathDataEntries = await this.find({ paths: notFoundById.map(l => l.path) })
+        const dataByPath: Record<string, Data> = {}
+        await Promise.all(pathDataEntries.map(async d => {
+          dataByPath[await this.getPath(d)] = d
+        }))
+        data.push(...notFoundById.map(link => dataByPath[link.path]).filter(isNotNull))
+      }
+      if (!data.length) filter.internalIds = [-1]
+      else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, data.map(d => d.internalId))
     }
     return filter ?? {} as DataFilter
   }

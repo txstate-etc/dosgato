@@ -84,37 +84,37 @@ describe('data mutations', () => {
     datatestsite2Id = site2.id
   })
   it('should create a data folder', async () => {
-    const { success, dataFolder } = await createDataFolder('datafolderA', 'keyd1')
+    const { success, dataFolder } = await createDataFolder('datafolder-a', 'keyd1')
     expect(success).to.be.true
-    expect(dataFolder.name).to.equal('datafolderA')
+    expect(dataFolder.name).to.equal('datafolder-a')
   })
   it('should not allow an unauthorized user to create a data folder', async () => {
     await expect(createDataFolder('test', 'keyd1', undefined, 'ed07')).to.be.rejected
   })
   it('should rename a data folder', async () => {
-    const { dataFolder: folder } = await createDataFolder('datafolderB', 'keyd1')
+    const { dataFolder: folder } = await createDataFolder('datafolder-b', 'keyd1')
     const { renameDataFolder: { success, dataFolder } } = await query(`
-    mutation RenameDataFolder ($folderId: ID!, $name: String!) {
+    mutation RenameDataFolder ($folderId: ID!, $name: UrlSafeString!) {
       renameDataFolder (folderId: $folderId, name: $name) {
         success
         dataFolder { id name }
       }
-    }`, { folderId: folder.id, name: 'RenamedDataFolderB' })
+    }`, { folderId: folder.id, name: 'renamed-datafolder-b' })
     expect(success).to.be.true
-    expect(dataFolder.name).to.equal('RenamedDataFolderB')
+    expect(dataFolder.name).to.equal('renamed-datafolder-b')
   })
   it('should not allow an unauthorized user to rename a data folder', async () => {
-    const { dataFolder: folder } = await createDataFolder('datafolderC', 'keyd1')
+    const { dataFolder: folder } = await createDataFolder('datafolder-c', 'keyd1')
     await expect(queryAs('ed07', `
-    mutation RenameDataFolder ($folderId: ID!, $name: String!) {
+    mutation RenameDataFolder ($folderId: ID!, $name: UrlSafeString!) {
       renameDataFolder (folderId: $folderId, name: $name) {
         success
         dataFolder { id name }
       }
-    }`, { folderId: folder.id, name: 'RenamedDataFolderB' })).to.be.rejected
+    }`, { folderId: folder.id, name: 'renamed-datafolder-b' })).to.be.rejected
   })
   it('should delete a data folder', async () => {
-    const { dataFolder: folder } = await createDataFolder('datafolderD', 'keyd1')
+    const { dataFolder: folder } = await createDataFolder('datafolder-d', 'keyd1')
     const { data: dataEntry } = await createDataEntry('datatodelete', { templateKey: 'keyd1', title: 'Delete Me', color: 'orangish', align: 'center' }, undefined, folder.id)
     const { deleteDataFolders: { success, dataFolders } } = await query(`
       mutation DeleteDataFolders ($folderIds: [ID!]!) {
@@ -138,7 +138,7 @@ describe('data mutations', () => {
     expect(data[0].deleted).to.be.true
   })
   it('should not allow an unauthorized user to delete a data folder', async () => {
-    const { dataFolder: folder } = await createDataFolder('datafolderE', 'keyd1')
+    const { dataFolder: folder } = await createDataFolder('datafolder-e', 'keyd1')
     await expect(queryAs('ed07', `
     mutation DeleteDataFolders ($folderIds: [ID!]!) {
       deleteDataFolders (folderIds: $folderIds) {
@@ -147,7 +147,7 @@ describe('data mutations', () => {
     }`, { folderIds: [folder.id] })).to.be.rejected
   })
   it('should undelete a data folder', async () => {
-    const { dataFolder: folder } = await createDataFolder('datafolderF', 'keyd1')
+    const { dataFolder: folder } = await createDataFolder('datafolder-f', 'keyd1')
     await query(`
       mutation DeleteDataFolders ($folderIds: [ID!]!) {
         deleteDataFolders (folderIds: $folderIds) {
@@ -180,7 +180,7 @@ describe('data mutations', () => {
     expect(dataFolders[0].deletedAt).to.be.null
   })
   it('should not allow an unauthorized user to undelete a data folder', async () => {
-    const { dataFolder: folder } = await createDataFolder('datafolderG', 'keyd1')
+    const { dataFolder: folder } = await createDataFolder('datafolder-g', 'keyd1')
     await query(`
       mutation DeleteDataFolders ($folderIds: [ID!]!) {
         deleteDataFolders (folderIds: $folderIds) {
@@ -202,8 +202,8 @@ describe('data mutations', () => {
       }`, { folderIds: [folder.id] })).to.be.rejected
   })
   it('should move global data folders to a site', async () => {
-    const { dataFolder: folder1 } = await createDataFolder('movingDataFolder1', 'keyd1')
-    const { dataFolder: folder2 } = await createDataFolder('movingDataFolder2', 'keyd1')
+    const { dataFolder: folder1 } = await createDataFolder('moving-datafolder-1', 'keyd1')
+    const { dataFolder: folder2 } = await createDataFolder('moving-datafolder-2', 'keyd1')
     const { moveDataFolders: { success } } = await query(`
       mutation MoveDataFolders ($folderIds: [ID!]!, $siteId: ID) {
         moveDataFolders (folderIds: $folderIds, siteId: $siteId) {

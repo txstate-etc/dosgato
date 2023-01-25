@@ -5,7 +5,7 @@ import {
   Data, DataFilter, DataService, Site, SiteService, Template, TemplateService,
   User, UserService, Role, DataFolder, DataFolderPermission, DataFolderPermissions,
   DataFolderService, CreateDataFolderInput, DataFolderResponse, DataFoldersResponse,
-  DataRuleService, RoleService, DataFolderFilter, DataRoot, DataRootService
+  DataRuleService, RoleService, DataFolderFilter, DataRoot, DataRootService, UrlSafeString
 } from '../internal.js'
 
 @Resolver(of => DataFolder)
@@ -72,8 +72,8 @@ export class DataFolderResolver {
   }
 
   @Mutation(returns => DataFolderResponse)
-  async renameDataFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string, @Arg('name') name: string, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
-    return await ctx.svc(DataFolderService).rename(folderId, name, validateOnly)
+  async renameDataFolder (@Ctx() ctx: Context, @Arg('folderId', type => ID) folderId: string, @Arg('name') name: UrlSafeString, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
+    return await ctx.svc(DataFolderService).rename(folderId, name as string, validateOnly)
   }
 
   @Mutation(returns => DataFoldersResponse)

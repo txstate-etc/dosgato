@@ -23,6 +23,9 @@ export async function getDataFolders (filter?: DataFolderFilter) {
   if (filter?.global) {
     where.push('datafolders.siteId IS NULL')
   }
+  if (filter?.names?.length) {
+    where.push(`datafolders.name IN (${db.in(binds, filter.names)})`)
+  }
   if (filter?.deleted) {
     if (filter.deleted === DeletedFilter.ONLY) {
       where.push('datafolders.deletedAt IS NOT NULL')
@@ -39,9 +42,9 @@ export async function getDataFolders (filter?: DataFolderFilter) {
   return folders.map(f => new DataFolder(f))
 }
 
-export async function folderNameUniqueInDataRoot (name: string, siteId?: string): Promise<boolean> {
-  const where: string[] = ['name = ?']
-  const binds: string[] = [name]
+export async function folderNameUniqueInDataRoot (name: string, templateId: number, siteId?: string): Promise<boolean> {
+  const where: string[] = ['name = ? ', 'templateId = ? ']
+  const binds: (string | number)[] = [name, templateId]
   if (siteId) {
     where.push('siteId = ?')
     binds.push(siteId)

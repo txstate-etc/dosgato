@@ -133,11 +133,11 @@ export class DataFolderService extends DosGatoService<DataFolder> {
       if (!(await this.haveGlobalPerm('manageGlobalData'))) throw new Error('Current user is not permitted to create global data folders.')
     }
     const response = new DataFolderResponse({ success: true })
-    if (!(await folderNameUniqueInDataRoot(args.name, args.siteId))) {
+    if (!(await folderNameUniqueInDataRoot(args.name as string, template.id, args.siteId))) {
       response.addMessage(`A folder with this name already exists in ${args.siteId ? 'this site' : 'global data'}.`, 'args.name')
     }
     if (validateOnly || response.hasErrors()) return response
-    const dataFolder = await createDataFolder(args.name, template.id, args.siteId)
+    const dataFolder = await createDataFolder(args.name as string, template.id, args.siteId)
     this.loaders.clear()
     response.dataFolder = dataFolder
     return response
@@ -148,7 +148,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
     if (!folder) throw new Error('Cannot rename a data folder that does not exist.')
     if (!(await this.haveDataFolderPerm(folder, 'update'))) throw new Error(`Current user is not permitted to rename folder ${String(folder.name)}.`)
     const response = new DataFolderResponse({ success: true })
-    if (name !== folder.name && !(await folderNameUniqueInDataRoot(name, folder.siteId))) {
+    if (name !== folder.name && !(await folderNameUniqueInDataRoot(name, folder.templateId, folder.siteId))) {
       response.addMessage(`A folder with this name already exists in ${folder.siteId ? 'this site' : 'global data'}.`, 'name')
     }
     if (validateOnly || response.hasErrors()) return response
