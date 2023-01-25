@@ -65,7 +65,7 @@ describe('templates', () => {
   it('should retrieve data entries using a given template', async () => {
     const { templates } = await query('{ templates(filter: { keys: ["keyd1"] }) { key name data(filter: { deleted: SHOW }) { name } } }')
     const template1data = templates.find((t: any) => t.key === 'keyd1')
-    expect(template1data.data.map((d: any) => d.name)).to.include.members(['Red Content', 'Blue Content', 'Orange Content'])
+    expect(template1data.data.map((d: any) => d.name)).to.include.members(['red-content', 'blue-content', 'orange-content'])
   })
   it('should return an empty array if we try to retrieve data using a page or component template', async () => {
     const { templates } = await query('{ templates(filter: { keys: ["keyp1", "keyc1"] }) { key name data { name } } }')

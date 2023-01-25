@@ -322,7 +322,7 @@ describe('data', () => {
           }
         }
       }`)
-    const blueItem = data.find((d: any) => d.name === 'Blue Content')
+    const blueItem = data.find((d: any) => d.name === 'blue-content')
     expect(blueItem.roles.map((r: any) => r.name)).to.include.members(['datarolestest1', 'datarolestest2'])
   })
   it('should return rols with a specific permission on a data entry', async () => {
@@ -337,7 +337,7 @@ describe('data', () => {
           }
         }
       }`)
-    const blueItem = data.find((d: any) => d.name === 'Blue Content')
+    const blueItem = data.find((d: any) => d.name === 'blue-content')
     const roleNames = blueItem.roles.map((r: any) => r.name)
     expect(roleNames).to.include.members(['datarolestest1'])
     expect(roleNames).to.not.include.members(['datarolestest2'])
@@ -359,17 +359,17 @@ describe('data', () => {
   it('should return paths for data entries', async () => {
     const { data } = await query('{ data(filter: { deleted: HIDE, templateKeys: ["keyd1"] }) { id  path name } }')
     // global not in folder
-    const yellowItem = data.find((d: any) => d.name === 'Yellow Content')
-    expect(yellowItem.path).to.equal('/global/Yellow Content')
+    const yellowItem = data.find((d: any) => d.name === 'yellow-content')
+    expect(yellowItem.path).to.equal('/global/yellow-content')
     // global in folder
-    const sandstoneItem = data.find((d: any) => d.name === 'Sandstone Content')
-    expect(sandstoneItem.path).to.equal('/global/globalcolordata/Sandstone Content')
+    const sandstoneItem = data.find((d: any) => d.name === 'sandstone-content')
+    expect(sandstoneItem.path).to.equal('/global/globalcolordata/sandstone-content')
     // site level
-    const goldItem = data.find((d: any) => d.name === 'Gold Content')
-    expect(goldItem.path).to.equal('/site2/Gold Content')
+    const goldItem = data.find((d: any) => d.name === 'gold-content')
+    expect(goldItem.path).to.equal('/site2/gold-content')
     // in site folder
-    const redItem = data.find((d: any) => d.name === 'Red Content')
-    expect(redItem.path).to.equal('/site2/site2datafolder/Red Content')
+    const redItem = data.find((d: any) => d.name === 'red-content')
+    expect(redItem.path).to.equal('/site2/site2datafolder/red-content')
   })
 })
 
