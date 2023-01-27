@@ -7,7 +7,7 @@ import {
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, MoveDataTarget, moveDataEntries,
-  DataFolder, Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions, DeletedFilter, DeleteState
+  DataFolder, Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions, DeletedFilter, DeleteState, popPath
 } from '../internal.js'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
@@ -128,31 +128,48 @@ export class DataServiceInternal extends BaseService {
     }
 
     if (filter?.paths?.length) {
-      // path has a sitename (or global) then maybe a folder name and then the data entry name
       const siteNames = filter.paths.map(p => p.split('/').filter(isNotBlank)[0]).filter(name => name !== 'global')
       const sites = await this.svc(SiteServiceInternal).find({ names: siteNames })
       const sitesByName = keyby(sites, 'name')
-      const folderNames = filter.paths.map(p => p.split('/').filter(isNotBlank)).filter(a => a.length > 2).map(a => a[1])
-      const folders = await this.svc(DataFolderServiceInternal).find({ names: folderNames })
-      const foldersByName: Record<string, DataFolder[]> = {}
-      for (const folder of folders) {
-        const name = folder.name as string
-        foldersByName[name] ||= []
-        foldersByName[name].push(folder)
+      const longPaths = filter.paths.map(p => p.split('/').filter(isNotBlank)).filter(arr => arr.length > 1)
+      const possibleFolderPaths = longPaths.map(p => {
+        if (p.length === 2) return `/${p.join('/')}`
+        else return popPath(p.join('/'))
+      })
+      const foundFolders = await this.svc(DataFolderServiceInternal).find({ paths: possibleFolderPaths })
+      const foundFolderPaths = await mapConcurrent(foundFolders, async (f) => await this.svc(DataFolderServiceInternal).getPath(f))
+      const foldersByPath: Record<string, DataFolder[]> = {}
+      for (const [i, p] of foundFolderPaths.entries()) {
+        foldersByPath[p] ||= []
+        foldersByPath[p].push(foundFolders[i])
       }
       const promises: Promise<Data[]>[] = []
       for (const path of filter.paths) {
         const parts = path.split('/').filter(isNotBlank)
         const filter: DataFilter = {}
-        if (parts.length === 3) {
-          // there's a folder in the path
-          const foldersWithName = foldersByName[parts[1]]
-         filter.folderIds = foldersWithName.map(f => f.id)
+        if (parts.length === 1) {
+          filter.root = true
+          if (parts[0] === 'global') {
+            filter.global = true
+          } else {
+            filter.siteIds = [sitesByName[parts[0]].id]
+          }
+        } else if (parts.length === 2) {
+          const folders = foldersByPath[path]
+          if (folders?.length) {
+            filter.folderIds = [...folders.map(f => f.id)]
+          } else {
+            filter.root = true
+            filter.names = [parts[1]]
+          }
+        } else if (parts.length === 3) {
+          // it has a site, folder, and item
+          const folders = foldersByPath[popPath(path)]
+          if (folders?.length) {
+            filter.folderIds = [...folders.map(f => f.id)]
+            filter.names = [parts[2]]
+          } else continue // path does not exist
         }
-        if (parts[0] === 'global') filter.global = true
-        else filter.siteIds = [sitesByName[parts[0]].id]
-        filter.names = [parts[parts.length - 1]]
-        console.log(filter)
         promises.push(this.find(filter))
       }
       const data = (await Promise.all(promises)).flat()

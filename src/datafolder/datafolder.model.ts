@@ -2,7 +2,7 @@ import { DateTime } from 'luxon'
 import { isNotNull, optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
-import { UrlSafeString, DeletedFilter } from '../internal.js'
+import { UrlSafeString, DeletedFilter, UrlSafePath } from '../internal.js'
 
 @ObjectType({ description: 'A folder that contains data objects. Each folder can only accept data objects with one particular template. Data folders are a single level organizational tool (folders do not contain more folders) and optional (data may not belong to any folder at all).' })
 export class DataFolder {
@@ -59,6 +59,9 @@ export class DataFolderFilter {
 
   @Field(type => [DataFolderLinkInput], { nullable: true, description: 'Resolve data folder links preferring id and falling back to path.' })
   links?: DataFolderLinkInput[]
+
+  @Field(type => [UrlSafePath], { nullable: true, description: 'Return folders with the given paths.' })
+  paths?: string[]
 
   names?: String[]
 }

@@ -159,6 +159,13 @@ describe('datafolder', () => {
     const globalFolder = datafolders.find((f: any) => f.name === 'globaldatafolder')
     expect(globalFolder.path).to.equal('/global/globaldatafolder')
   })
+  it('should filter datafolders by path', async () => {
+    const { datafolders } = await query('{ datafolders(filter: { paths: ["/site2/site2datafolder", "/site5", "/global/globaldatafolder", "/site7", "/wrong/path"]}) { id name path } }')
+    const folderNames = datafolders.map(f => f.name)
+    expect(folderNames).to.include('site2datafolder')
+    expect(folderNames).to.include('site5datafolder2')
+    expect(folderNames).to.include('globaldatafolder')
+  })
 })
 
 describe('data', () => {
@@ -202,6 +209,11 @@ describe('data', () => {
       expect(entry.template.key).to.equal('keyd1')
       expect(entry.data).to.have.property('color')
     }
+  })
+  it('should filter data entries by path', async () => {
+    const { data } = await query('{ data(filter: { paths: ["/global/globalcolordata","/global","/site2/site2datafolder/red-content", "/site2/gold-content","/global/mauve-content", "/wrong/path"] }){ id name path } }')
+    const dataNames = data.map(d => d.name)
+    expect(dataNames).to.include.members(['ebony-content', 'cottonwood-hall', 'red-content', 'gold-content', 'mauve-content'])
   })
   it('should return only deleted data entries when the deleted=ONLY filter is used', async () => {
     const { data } = await query('{ data(filter: { deleted: ONLY }) {id name deleted site { deleted } folder { deleted } } }')

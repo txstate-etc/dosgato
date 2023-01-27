@@ -1,6 +1,6 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { PrimaryKeyLoader, OneToManyLoader } from 'dataloader-factory'
-import { isNotNull, someAsync } from 'txstate-utils'
+import { intersect, isNotBlank, isNotNull, keyby, someAsync } from 'txstate-utils'
 import {
   DataFolder, DataFolderFilter, DosGatoService, getDataFolders,
   DataServiceInternal, CreateDataFolderInput, createDataFolder, DataFolderResponse,
@@ -88,6 +88,35 @@ export class DataFolderServiceInternal extends BaseService {
       if (filter.templateIds) {
         filter.templateIds.push(...ids)
       } else filter.templateIds = ids
+    }
+    if (filter?.paths) {
+      const siteNames = filter.paths.map(p => p.split('/').filter(isNotBlank)[0]).filter(name => name !== 'global')
+      const sites = await this.svc(SiteServiceInternal).find({ names: siteNames })
+      const sitesByName = keyby(sites, 'name')
+      const promises: Promise<DataFolder[]>[] = []
+      for (const path of filter.paths) {
+        const parts = path.split('/').filter(isNotBlank)
+        if (parts.length === 2) {
+          if (parts[0] === 'global') {
+            promises.push(this.find({ global: true, names: [parts[1]] }))
+          } else {
+            if (sitesByName[parts[0]]) {
+              promises.push(this.find({ names: [parts[1]], siteIds: [sitesByName[parts[0]].id] }))
+            }
+          }
+        } else if (parts.length === 1) {
+          if (parts[0] === 'global') {
+            promises.push(this.find({ global: true }))
+          } else {
+            if (sitesByName[parts[0]]) {
+              promises.push(this.find({ siteIds: [sitesByName[parts[0]].id] }))
+            }
+          }
+        }
+      }
+      const folders = (await Promise.all(promises)).flat()
+      if (!folders.length) filter.internalIds = [-1]
+      else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, folders.map(f => f.internalId))
     }
     return filter
   }
