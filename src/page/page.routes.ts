@@ -5,7 +5,7 @@ import { HttpError } from 'fastify-txstate'
 import db from 'mysql2-async/db'
 import { isNotBlank, pick } from 'txstate-utils'
 import {
-  createPage, CreatePageInput, createSite, getEnabledUser, getPageIndexes, GlobalRuleService,
+  createPage, CreatePageInput, createPagetree, createSite, getEnabledUser, getPageIndexes, GlobalRuleService,
   makeSafe,
   numerate, PageService, PageServiceInternal, PagetreeServiceInternal,
   SiteService, SiteServiceInternal, UpdatePageInput, VersionedService
@@ -73,11 +73,9 @@ export async function createPageRoutes (app: FastifyInstance) {
     if (!await ctx.svc(SiteService).mayManageState(site) || !await ctx.svc(GlobalRuleService).mayOverrideStamps()) throw new HttpError(403, 'You are not permitted to create new pagetrees by importing a file.')
     const { pageRecord, body } = await handleUpload(req)
     if (!pageRecord.data.legacyId) throw new HttpError(400, 'The pagetree import endpoint is only meant for migrating from another CMS.')
-    const [existing] = await siteServiceInternal.find({ names: [pageRecord.name] })
-    if (existing) throw new HttpError(409, 'The site you are trying to import already exists, update the page instead.')
     const [existingPage] = await ctx.svc(PageServiceInternal).find({ legacyIds: [pageRecord.data.legacyId] })
     if (existingPage) throw new HttpError(400, 'Another page has that legacy id. Use /pages/update/:id instead.')
-    const pagetree = await createSite(ctx.svc(VersionedService), user.id, makeSafe(pageRecord.name), pageRecord.data, { ...pick(pageRecord, 'linkId', 'createdAt', 'createdBy', 'modifiedAt', 'modifiedBy'), publishedAt: body?.publishedAt, publishedBy: body?.publishedBy })
+    const pagetree = await createPagetree(ctx.svc(VersionedService), user, site, pageRecord.data, { ...pick(pageRecord, 'linkId', 'createdAt', 'createdBy', 'modifiedAt', 'modifiedBy'), publishedAt: body?.publishedAt, publishedBy: body?.publishedBy })
     return { id: pagetree.id }
   })
 
