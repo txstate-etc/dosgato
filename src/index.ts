@@ -1,4 +1,4 @@
-import { APIAnyTemplate } from '@dosgato/templating'
+import { APIAnyTemplate, FulltextGatheringFn, LinkGatheringFn, Migration, ValidationFeedback } from '@dosgato/templating'
 import { Context, GQLServer, GQLStartOpts } from '@txstate-mws/graphql-server'
 import { FastifyInstance } from 'fastify'
 import { FastifyTxStateOptions, devLogger } from 'fastify-txstate'
@@ -31,11 +31,19 @@ async function updateLogin (queryTime: number, operationName: string, query: str
   await loginCache.get(auth.sub, Number(auth.iat))
 }
 
+export interface AssetMeta <DataType = any> {
+  validation: (data: DataType, extras: { path: string }) => Promise<ValidationFeedback[]>
+  migrations: Migration<any, { path: string }>[]
+  getLinks: LinkGatheringFn<DataType>
+  getFulltext: FulltextGatheringFn<DataType>
+}
+
 export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
   templates: APIAnyTemplate[]
   fixtures?: () => Promise<void>
   migrations?: DBMigration[]
   resolvers?: Function[]
+  assetMeta?: AssetMeta
 }
 
 export class DGServer {

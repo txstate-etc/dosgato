@@ -15,6 +15,7 @@ export interface AssetInput {
   height?: number
   modifiedBy?: string
   modifiedAt?: string
+  meta?: any
 }
 
 export interface CreateAssetInput extends AssetInput {
@@ -280,16 +281,21 @@ export async function compressDownloads () {
   }
 }
 
+export function getIndexes (data: any) {
+  const indexes = data.legacyId ? [{ name: 'legacyId', values: [data.legacyId] }] : []
+  return indexes
+}
+
 export async function createAsset (versionedService: VersionedService, userId: string, args: CreateAssetInput) {
   return await db.transaction(async db => {
-    const indexes = args.legacyId ? [{ name: 'legacyId', values: [args.legacyId] }] : []
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const createdBy = args.legacyId ? (args.createdBy || args.modifiedBy || userId) : userId // || is intended - to catch blanks
     const createdAt = args.legacyId ? (args.createdAt ?? args.modifiedAt ?? undefined) : undefined
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const modifiedBy = args.legacyId ? (args.modifiedBy || createdBy || userId) : userId // || is intended - to catch blanks
     const modifiedAt = args.legacyId ? (args.modifiedAt ?? args.createdAt ?? undefined) : undefined
-    const dataId = await versionedService.create('asset', { legacyId: args.legacyId, shasum: args.checksum, uploadedFilename: args.filename }, indexes, createdBy, db)
+    const data = { legacyId: args.legacyId, shasum: args.checksum, uploadedFilename: args.filename, meta: args.meta }
+    const dataId = await versionedService.create('asset', data, getIndexes(data), createdBy, db)
     await versionedService.setStamps(dataId, { createdAt: createdAt ? new Date(createdAt) : undefined, modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
     const folderInternalId = await db.getval<string>('SELECT id FROM assetfolders WHERE guid = ?', [args.folderId])
     await db.insert(`
@@ -309,13 +315,36 @@ export async function replaceAsset (versionedService: VersionedService, userId: 
     await db.insert(`
     INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)
     VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify(pick(args, 'width', 'height')), args.size])
-    await versionedService.update(args.assetId, { ...data.data, shasum: args.checksum, uploadedFilename: args.filename }, [], { user: userId }, db)
+    const newData = { ...data.data, shasum: args.checksum, uploadedFilename: args.filename, meta: args.meta }
+    await versionedService.update(args.assetId, newData, getIndexes(newData), { user: userId }, db)
     const modifiedBy = data.data.legacyId ? (args.modifiedBy ?? userId) : userId
     const modifiedAt = data.data.legacyId ? (args.modifiedAt ?? undefined) : undefined
     await versionedService.setStamps(args.assetId, { modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
     await db.update('UPDATE assets SET shasum=? WHERE dataId=?', [args.checksum, args.assetId])
     return (await getAssets({ ids: [args.assetId] }, db))[0]
   })
+}
+
+export async function updateAssetMeta (versionedService: VersionedService, asset: Asset, meta: any, userId: string, stamps?: { modifiedBy: string, modifiedAt: Date }) {
+  const oldVersion = await versionedService.get(asset.dataId)
+  if (!oldVersion) throw new Error('Asset data missing.')
+  const newData = {
+      ...oldVersion.data,
+      meta
+  }
+  await versionedService.update(asset.dataId, newData, getIndexes(newData), { user: userId })
+  if (newData.legacyId && stamps) await versionedService.setStamps(asset.dataId, stamps, db)
+}
+
+export async function renameAsset (assetId: string, name: string, folderInternalIdPath: string) {
+  const affectedRows = await db.update(`
+    UPDATE assets a
+    LEFT JOIN assets adupe ON a.id != adupe.id AND a.folderId=adupe.folderId AND adupe.name=?
+    LEFT JOIN assetfolders fdupe ON fdupe.path=? AND fdupe.name=?
+    SET a.name=?
+    WHERE a.id=? AND adupe.id IS NULL AND fdupe.id IS NULL
+  `, [name, folderInternalIdPath, name, name, assetId])
+  if (affectedRows === 0) throw new Error('Rename failed, likely the name became unavailable.')
 }
 
 export async function registerResize (asset: Asset, width: number, shasum: string, mime: string, quality: number, size: number, lossless: boolean) {

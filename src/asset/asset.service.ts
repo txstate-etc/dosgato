@@ -1,14 +1,14 @@
-import { BaseService } from '@txstate-mws/graphql-server'
+import { BaseService, MutationMessageType, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { lookup } from 'mime-types'
 import sharp from 'sharp'
-import { intersect, isNotNull, keyby, roundTo, sortby } from 'txstate-utils'
+import { intersect, isBlank, isNotNull, keyby, roundTo, sortby } from 'txstate-utils'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
   fileHandler, deleteAsset, undeleteAsset, popPath, basename, registerResize,
   getResizesById, VersionedService, cleanupBinaries, getDownloads, DownloadsFilter, getResizeDownloads,
-  AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion, DeletedFilter
+  AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion, DeletedFilter, renameAsset, updateAssetMeta
 } from '../internal.js'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
@@ -102,8 +102,12 @@ export class AssetServiceInternal extends BaseService {
   }
 
   async findByFolder (folder: AssetFolder, filter?: AssetFilter) {
+    return await this.findByFolderInternalId(folder.internalId, filter)
+  }
+
+  async findByFolderInternalId (folderInternalId: number, filter?: AssetFilter) {
     filter = await this.processAssetFilters(filter)
-    return await this.loaders.get(assetsByFolderInternalIdLoader, filter).load(folder.internalId)
+    return await this.loaders.get(assetsByFolderInternalIdLoader, filter).load(folderInternalId)
   }
 
   async findByFolders (folders: AssetFolder[], filter?: AssetFilter) {
@@ -266,6 +270,41 @@ export class AssetService extends DosGatoService<Asset> {
     await moveAssets(targetFolder, assets, folders)
     this.loaders.clear()
     return new AssetFolderResponse({ assetFolder: targetFolder, success: true })
+  }
+
+  async rename (assetId: string, name: string, validateOnly?: boolean) {
+    if (isBlank(name)) return ValidatedResponse.error('Name is required.', 'name')
+    const asset = await this.raw.findById(assetId)
+    if (!asset) throw new Error('Asset not found.')
+    const folder = await this.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
+    const [siblings, siblingFolders] = await Promise.all([
+      this.raw.findByFolderInternalId(asset.folderInternalId),
+      this.svc(AssetFolderServiceInternal).getChildFolders(folder!)
+    ])
+    const response = new AssetResponse({ asset })
+    if (siblings.some(s => s.name === name) || siblingFolders.some(f => f.name === name)) response.addMessage('That name is already taken.', 'name')
+    else response.addMessage('Name is available.', 'name', MutationMessageType.success)
+    if (response.hasErrors() || validateOnly) return response
+    await renameAsset(assetId, name, folder!.path)
+    this.loaders.clear()
+    const newAsset = await this.raw.findById(assetId)
+    response.success = true
+    response.asset = newAsset
+    return response
+  }
+
+  async update (assetId: string, data: any, validateOnly?: boolean) {
+    const asset = await this.raw.findById(assetId)
+    if (!asset) throw new Error('Asset not found.')
+    const siblings = await this.raw.findByFolderInternalId(asset.folderInternalId)
+    const response = new AssetResponse({ asset })
+    if (response.hasErrors() || validateOnly) return response
+    await updateAssetMeta(this.svc(VersionedService), asset, data, this.login)
+    this.loaders.clear()
+    const newAsset = await this.raw.findById(assetId)
+    response.success = true
+    response.asset = newAsset
+    return response
   }
 
   async copy (folderId: string, assetIds?: string[], folderIds?: string[]) {

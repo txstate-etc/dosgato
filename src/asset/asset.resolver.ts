@@ -5,7 +5,7 @@ import { isNull } from 'txstate-utils'
 import {
   AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
-  RoleService, AssetResponse, UpdateAssetInput, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site, SiteService
+  RoleService, AssetResponse, UpdateAssetInput, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site, SiteService, UrlSafeString
 } from '../internal.js'
 
 @Resolver(of => Asset)
@@ -124,16 +124,29 @@ export class AssetResolver {
     return asset
   }
 
-  @Mutation(returns => AssetResponse, { description: 'Update an asset' })
-  async updateAsset (@Ctx() ctx: Context, @Arg('args', type => UpdateAssetInput) args: UpdateAssetInput) {
-    throw new UnimplementedError()
+  @Mutation(returns => AssetResponse, { description: 'Rename an asset.' })
+  async renameAsset (@Ctx() ctx: Context,
+    @Arg('assetId', type => ID) assetId: string,
+    @Arg('name', type => UrlSafeString) name: string,
+    @Arg('validateOnly', type => Boolean, { nullable: true }) validateOnly?: boolean
+  ) {
+    return await ctx.svc(AssetService).rename(assetId, name, validateOnly)
+  }
+
+  @Mutation(returns => AssetResponse, { description: 'Update metadata for an asset.' })
+  async updateAsset (@Ctx() ctx: Context,
+    @Arg('assetId', type => ID) assetId: string,
+    @Arg('data', type => JsonData) data: any,
+    @Arg('validateOnly', type => Boolean, { nullable: true }) validateOnly?: boolean
+  ) {
+    return await ctx.svc(AssetService).update(assetId, data, validateOnly)
   }
 
   @Mutation(returns => AssetFolderResponse)
   async moveAssetsAndFolders (@Ctx() ctx: Context,
-  @Arg('targetFolderId', type => ID) targetFolderId: string,
-  @Arg('assetIds', type => [ID], { nullable: true }) assetIds?: string[],
-  @Arg('folderIds', type => [ID], { nullable: true }) folderIds?: string[]
+    @Arg('targetFolderId', type => ID) targetFolderId: string,
+    @Arg('assetIds', type => [ID], { nullable: true }) assetIds?: string[],
+    @Arg('folderIds', type => [ID], { nullable: true }) folderIds?: string[]
   ) {
     return await ctx.svc(AssetService).move(targetFolderId, assetIds, folderIds)
   }
