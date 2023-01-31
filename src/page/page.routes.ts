@@ -6,9 +6,8 @@ import db from 'mysql2-async/db'
 import { isNotBlank, pick } from 'txstate-utils'
 import {
   createPage, CreatePageInput, createPagetree, createSite, getEnabledUser, getPageIndexes, GlobalRuleService,
-  makeSafe,
-  numerate, PageService, PageServiceInternal, PagetreeServiceInternal,
-  SiteService, SiteServiceInternal, UpdatePageInput, VersionedService
+  makeSafe, numerate, PageService, PageServiceInternal, PagetreeServiceInternal,
+  SiteService, SiteServiceInternal, VersionedService
 } from '../internal.js'
 
 export interface PageExport {
@@ -143,7 +142,7 @@ export async function createPageRoutes (app: FastifyInstance) {
         await svcPageInternal.find({ legacyIds: [pageRecord.data.legacyId] })
       ])
       if (!allowed) throw new HttpError(403, 'You are not permitted to migrate content from another CMS.')
-      if (existing.length) throw new HttpError(400, 'Another page has that legacy id. Use /pages/update/:id instead.')
+      if (existing.length) throw new HttpError(400, `${pageRecord.name} in ${parent.name}: Another page has legacy id ${pageRecord.data.legacyId}. Use /pages/update/:id instead.`)
     }
     if (body?.publishedAt || body?.publishedBy) {
       if (!pageRecord.data.legacyId) throw new HttpError(400, 'Only pages being imported from another system may override published stamps.')

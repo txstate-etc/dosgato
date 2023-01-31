@@ -134,7 +134,7 @@ export class PageResolver {
   @FieldResolver(returns => Boolean, { description: 'True if versions of this page have been added since it was last published. Also true if page is currently unpublished.' })
   async hasUnpublishedChanges (@Ctx() ctx: Context, @Root() page: Page) {
     const tags = await ctx.svc(VersionedService).getCurrentTags(page.dataId)
-    return tags.some(t => t.tag === 'published')
+    return !tags.some(t => t.tag === 'published')
   }
 
   @FieldResolver(returns => Boolean, { description: 'True if the page is published, part of the active pagetree, and on a site that is currently launched.' })

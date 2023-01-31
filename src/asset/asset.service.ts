@@ -226,8 +226,8 @@ export class AssetService extends DosGatoService<Asset> {
   }
 
   async getThumbnail (asset: Asset) {
-    const resizes = sortby(await this.getResizes(asset), 'size')
-    return resizes.find(r => thumbnailMimes.has(r.mime))
+    const resizes = sortby((await this.getResizes(asset)).filter(r => thumbnailMimes.has(r.mime)), 'size')
+    return resizes.find(r => r.width > 300) ?? resizes[0]
   }
 
   async getLatestDownload (asset: Asset) {
