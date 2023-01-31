@@ -28,7 +28,7 @@ const tagLoader = new PrimaryKeyLoader({
 const currentTagsLoader = new OneToManyLoader({
   fetch: async (ids: string[]) => {
     const binds: string[] = []
-    return await db.getall<Tag>(`SELECT * FROM tags WHERE id IN (${db.in(binds, ids)})`, binds)
+    return await db.getall<Tag>(`SELECT t.* FROM tags t INNER JOIN storage s ON s.id=t.id AND s.version=t.version WHERE t.id IN (${db.in(binds, ids)})`, binds)
   },
   extractKey: tag => tag.id
 })
