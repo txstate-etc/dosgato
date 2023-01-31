@@ -65,13 +65,16 @@ export class DGServer {
 
     await fileHandler.init()
     if (process.env.NODE_ENV === 'development' && process.env.RESET_DB_ON_STARTUP === 'true' && opts.fixtures) {
-      console.info('running fixtures')
+      console.info('resetting database')
       await resetdb()
       await seeddb()
-      await opts.fixtures()
-      console.info('importing bootstrap files')
-      await bootstrap()
-      console.info('finished fixtures')
+      if (!process.env.SKIP_FIXTURES) {
+        console.info('running fixtures')
+        await opts.fixtures()
+        console.info('importing bootstrap files')
+        await bootstrap()
+        console.info('finished fixtures')
+      }
     }
 
     await createAssetRoutes(this.app)

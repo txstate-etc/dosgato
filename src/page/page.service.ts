@@ -419,8 +419,8 @@ export class PageService extends DosGatoService<Page> {
     const templateByKey = keyby(templates.filter(isNotNull), 'key')
     const oldData = placement.page ? await this.raw.getData(placement.page) : undefined
     if (oldData?.templateKey !== data.templateKey) {
-      if (!templateByKey[data.templateKey]) throw new Error('Tried to set page template to a non-existing template.')
-      if (templateByKey[data.templateKey].type !== TemplateType.PAGE) throw new Error('Tried to set page template to a non-page template.')
+      if (!templateByKey[data.templateKey]) throw new Error(`Tried to set page template to a non-existing template ${data.templateKey}.`)
+      if (templateByKey[data.templateKey].type !== TemplateType.PAGE) throw new Error(`Tried to set page template to a non-page template ${data.templateKey}.`)
     }
 
     const invalid = placement.page

@@ -5,7 +5,7 @@ import { processLink, templateRegistry, Index, collectComponents } from '../inte
 export function getPageIndexes (page: PageData): Index[] {
   const storage: Record<string, Set<string>> = {}
   const components = collectComponents(page)
-  const indexes = components.flatMap(c => (templateRegistry.get(c.templateKey)?.getLinks(c)).flatMap(processLink) ?? [])
+  const indexes = components.flatMap(c => (templateRegistry.get(c.templateKey)?.getLinks(c) ?? []).flatMap(processLink) ?? [])
   for (const index of indexes) {
     storage[index.name] ??= new Set()
     storage[index.name].add(index.value)
