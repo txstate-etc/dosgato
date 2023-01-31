@@ -68,11 +68,13 @@ export class DGServer {
       console.info('resetting database')
       await resetdb()
       await seeddb()
-      if (!process.env.SKIP_FIXTURES) {
+      if (process.env.SKIP_FIXTURES !== 'true') {
         console.info('running fixtures')
         await opts.fixtures()
-        console.info('importing bootstrap files')
-        await bootstrap()
+        if (process.env.SKIP_BOOTSTRAP !== 'true') {
+          console.info('importing bootstrap files')
+          await bootstrap()
+        }
         console.info('finished fixtures')
       }
     }
