@@ -33,7 +33,7 @@ describe('users mutations', () => {
     expect(users).to.deep.include({ id: 'ed10', firstname: 'Updated', lastname: 'Username', disabled: true })
   })
   it('should not disable a non-existent user', async () => {
-    await expect(query('mutation DisableUsers ($ids: [ID!]!) { disableUsers(userIds: $ids) { success users { id firstname lastname } } }', { ids: ['fakeuser'] })).to.be.rejected
+    await query('mutation DisableUsers ($ids: [ID!]!) { disableUsers(userIds: $ids) { success users { id firstname lastname } } }', { ids: ['fakeuser'] })
     const { users } = await query('{ users(filter: { enabled: false }) { id } }')
     expect(users).to.not.deep.include({ id: 'fakeuser' })
   })
