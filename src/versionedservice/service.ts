@@ -213,7 +213,7 @@ export class VersionedService extends BaseService {
         `, deletebinds)
       }
       const tobeadded = sindex.values.filter(v => !currentSet.has(v))
-      const valuehash = await this.getIndexValueIds(tobeadded)
+      const valuehash = await this.getIndexValueIds(tobeadded, db)
       const indexEntries = tobeadded.map(value => [id, version, index.name, valuehash[value]])
       const binds: (string | number)[] = []
       await db.insert(`
@@ -424,15 +424,14 @@ export class VersionedService extends BaseService {
    * internal method to map a set of index strings to their id in indexvalues table
    * inserts any values that do not already exist
    */
-  protected async getIndexValueIds (values: string[]) {
+  protected async getIndexValueIds (values: string[], db: Queryable) {
     if (!values.length) return {} as Record<string, number>
-    await db.insert(`INSERT IGNORE INTO indexvalues (value) VALUES ${db.in([], values.map(v => [v]))}`, values)
-    const valuerows = await db.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${db.in([], values)})`, values, { rowsAsArray: true })
+    await db.insert(`INSERT INTO indexvalues (value) VALUES ${db.in([], values.map(v => [v]))} ON DUPLICATE KEY UPDATE id=id`, values)
+    const valuerows = await db.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${db.in([], values)}) LOCK IN SHARE MODE`, values, { rowsAsArray: true })
     const valuehash: Record<string, number> = {}
     for (const [id, value] of valuerows) {
       valuehash[value] = id
     }
-    console.log(valuehash)
     return valuehash
   }
 
@@ -443,7 +442,7 @@ export class VersionedService extends BaseService {
   protected async _setIndexes (id: string, version: number, indexes: Index[], db: Queryable) {
     const sindexes = zerofillIndexes(indexes)
     const values = sindexes.flatMap(ind => ind.values)
-    const valuehash = await this.getIndexValueIds(values)
+    const valuehash = await this.getIndexValueIds(values, db)
     const indexEntries = sindexes.flatMap(ind => ind.values.map(value => [id, version, ind.name, valuehash[value]]))
     const wanted = new Set(indexEntries.map(e => `${e[2]}.${e[3]}`))
     const currentEntries = await db.getall<IndexStorage>('SELECT * FROM indexes WHERE id=? AND version=?', [id, version])
