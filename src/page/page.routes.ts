@@ -108,7 +108,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     const pagetree = (await ctx.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
     const site = (await ctx.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const response = await svcPage.validatePageData(pageRecord.data, site, pagetree, page, pageRecord.name)
-    if (!response.success) throw new HttpError(422, 'Exported page data does not validate.')
+    if (!response.success) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
 
     const indexes = getPageIndexes(pageRecord.data)
     const modifiedBy = pageRecord.data.legacyId && isNotBlank(pageRecord.modifiedBy) ? pageRecord.modifiedBy : user.id
@@ -162,7 +162,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     const pagetree = (await ctx.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const site = (await ctx.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const response = await svcPage.validatePageData(pageRecord.data, site, pagetree, parent, newPageName)
-    if (!response.success) throw new HttpError(422, 'Exported page data does not validate.')
+    if (!response.success) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
 
     const page = await createPage(ctx.svc(VersionedService), user.id, parent, above, newPageName, pageRecord.data, {
       ...body,
