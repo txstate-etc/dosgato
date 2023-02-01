@@ -108,7 +108,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     const pagetree = (await ctx.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
     const site = (await ctx.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const response = await svcPage.validatePageData(pageRecord.data, site, pagetree, page, pageRecord.name)
-    if (!response.success) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
+    if (!response.success && !pageRecord.data.legacyId) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
 
     const indexes = getPageIndexes(pageRecord.data)
     const modifiedBy = pageRecord.data.legacyId && isNotBlank(pageRecord.modifiedBy) ? pageRecord.modifiedBy : user.id
@@ -119,7 +119,7 @@ export async function createPageRoutes (app: FastifyInstance) {
       if (publishedAt && modifiedAt && publishedAt >= modifiedAt) await versionedService.tag(page.dataId, 'published', undefined, body.publishedBy ?? modifiedBy, publishedAt, db)
     }, { retries: 2 })
 
-    return { id: page.id, linkId: page.linkId }
+    return { id: page.id, linkId: page.linkId, messages: response.messages }
   })
 
   app.post<{ Params: { parentPageId: string }, Body?: CreatePageInput }>('/pages/:parentPageId', async (req, res) => {
@@ -162,13 +162,13 @@ export async function createPageRoutes (app: FastifyInstance) {
     const pagetree = (await ctx.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const site = (await ctx.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const response = await svcPage.validatePageData(pageRecord.data, site, pagetree, parent, newPageName)
-    if (!response.success) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
+    if (!response.success && !pageRecord.data.legacyId) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
 
     const page = await createPage(ctx.svc(VersionedService), user.id, parent, above, newPageName, pageRecord.data, {
       ...body,
       ...pick(pageRecord, 'createdBy', 'createdAt', 'modifiedBy', 'modifiedAt', 'linkId')
     })
-    return { id: page.id, linkId: page.linkId }
+    return { id: page.id, linkId: page.linkId, messages: response.messages }
   })
 
   app.get<{ Params: { id: string } }>('/pages/:id', async (req, res) => {
@@ -186,7 +186,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     void res.header('Cache-Control', 'no-cache')
     void res.header('Content-Type', 'application/json')
     void res.header('Content-Disposition', 'attachment;filename=' + path.split('/').filter(isNotBlank).join('.') + '.json')
-
+    data.data.legacyId = undefined
     return {
       name: page.name,
       linkId: page.linkId,
