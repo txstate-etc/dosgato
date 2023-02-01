@@ -423,10 +423,15 @@ export class PageService extends DosGatoService<Page> {
       if (templateByKey[data.templateKey].type !== TemplateType.PAGE) throw new Error(`Tried to set page template to a non-page template ${data.templateKey}.`)
     }
 
-    const invalid = placement.page
-      ? await someAsync(templateKeys, async templateKey => !await this.svc(TemplateService).mayKeepOnPage(templateKey, placement.page!, templateByKey[templateKey]))
-      : await someAsync(templateKeys, async templateKey => !await this.svc(TemplateService).mayUseOnPage(templateByKey[templateKey], placement.parent!))
-    if (invalid) throw new Error('Template is not approved for use in this site or pagetree.')
+    for (const templateKey of templateKeys) if (!templateByKey[templateKey]) throw new Error(`Template key ${templateKey} has not been registered.`)
+    await Promise.all(placement.page
+      ? templateKeys.map(async templateKey => {
+        if (!await this.svc(TemplateService).mayKeepOnPage(templateKey, placement.page!, templateByKey[templateKey])) throw new Error(`Template ${templateKey} is not approved for use in this site or pagetree.`)
+      })
+      : templateKeys.map(async templateKey => {
+        if (!await this.svc(TemplateService).mayUseOnPage(templateByKey[templateKey], placement.page!)) throw new Error(`Template ${templateKey} is not approved for use in this site or pagetree.`)
+      })
+    )
   }
 
   async validatePageData (data: PageData, site: Site | undefined, pagetree: Pagetree | undefined, parent: Page | undefined, name: string, linkId?: string, pageId?: string) {
