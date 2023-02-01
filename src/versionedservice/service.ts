@@ -426,9 +426,7 @@ export class VersionedService extends BaseService {
    */
   protected async getIndexValueIds (values: string[], db: Queryable) {
     if (!values.length) return {} as Record<string, number>
-    const existing = new Set(await db.getvals<string>(`SELECT value FROM indexvalues WHERE value IN (${values.map(v => '?').join(',')})`, values))
-    const newvalues = values.filter(v => !existing.has(v))
-    if (newvalues.length) await db.insert(`INSERT INTO indexvalues (value) VALUES (${newvalues.map(v => '?').join('),(')}) ON DUPLICATE KEY UPDATE value=value`, newvalues)
+    await db.insert(`INSERT INTO indexvalues (value) VALUES (${values.map(v => '?').join('),(')}) ON DUPLICATE KEY UPDATE value=value`, values)
     const valuerows = await db.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${values.map(v => '?').join(',')})`, values, { rowsAsArray: true })
     const valuehash: Record<string, number> = {}
     for (const [id, value] of valuerows) {

@@ -57,26 +57,23 @@ export class DGServer {
 
   async start (opts: DGStartOpts) {
     for (const template of opts.templates) templateRegistry.register(template)
+    const shouldResetDb = process.env.NODE_ENV === 'development' && process.env.RESET_DB_ON_STARTUP === 'true'
 
+    if (shouldResetDb) await resetdb()
     await migrations(opts.migrations)
 
     // sync templates with database
     await syncRegistryWithDB()
 
     await fileHandler.init()
-    if (process.env.NODE_ENV === 'development' && process.env.RESET_DB_ON_STARTUP === 'true' && opts.fixtures) {
-      console.info('resetting database')
-      await resetdb()
-      await seeddb()
-      if (process.env.SKIP_FIXTURES !== 'true') {
-        console.info('running fixtures')
-        await opts.fixtures()
-        if (process.env.SKIP_BOOTSTRAP !== 'true') {
-          console.info('importing bootstrap files')
-          await bootstrap()
-        }
-        console.info('finished fixtures')
+    if (shouldResetDb && process.env.SKIP_FIXTURES !== 'true') {
+      console.info('running fixtures')
+      await opts.fixtures?.()
+      if (process.env.SKIP_BOOTSTRAP !== 'true') {
+        console.info('importing bootstrap files')
+        await bootstrap()
       }
+      console.info('finished fixtures')
     }
 
     await createAssetRoutes(this.app)

@@ -699,7 +699,7 @@ export async function fixtures () {
     const id = await db.transaction(async db => {
       const dataId = await versionedService.create('data', entryContent, indexes, creator, db)
       return await db.insert('INSERT INTO data (dataId, name, displayOrder) VALUES (?, ?, ?)', [dataId, name, displayOrder])
-    })
+    }, { retries: 1 })
     return id
   }
 

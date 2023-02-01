@@ -69,7 +69,8 @@ const dgMigrations: DBMigration[] = [
     description: 'split users.name into firstname and lastname fields',
     run: async (db) => {
       await db.execute('ALTER TABLE `users` ADD COLUMN firstname VARCHAR(255) NOT NULL DEFAULT \'\', ADD COLUMN lastname VARCHAR(255) NOT NULL')
-      await db.update('UPDATE users SET firstname = substring_index(name, \' \', 1), lastname = substring_index(name, \' \', -1)')
+      await db.update('UPDATE users SET firstname = substring_index(name, \' \', 1), lastname = substring_index(name, \' \', -1) WHERE system=0')
+      await db.update('UPDATE users SET firstname = "", lastname = name WHERE system=1')
       await db.execute('ALTER table `users` DROP COLUMN `name`')
     }
   },
@@ -113,43 +114,45 @@ export async function migrations (moreMigrations?: DBMigration[]) {
 }
 
 export async function resetdb () {
+  console.info('resetting database')
   await db.transaction(async db => {
     await db.execute('SET FOREIGN_KEY_CHECKS = 0')
     await Promise.all([
-      db.execute('TRUNCATE TABLE downloads'),
-      db.execute('TRUNCATE TABLE globalrules'),
-      db.execute('TRUNCATE TABLE mutationlog'),
-      db.execute('TRUNCATE TABLE datarules'),
-      db.execute('TRUNCATE TABLE data'),
-      db.execute('TRUNCATE TABLE pagetrees_templates'),
-      db.execute('TRUNCATE TABLE assetrules'),
-      db.execute('TRUNCATE TABLE pagerules'),
-      db.execute('TRUNCATE TABLE sites_templates'),
-      db.execute('TRUNCATE TABLE resizes'),
-      db.execute('TRUNCATE TABLE users_roles'),
-      db.execute('TRUNCATE TABLE groups_roles'),
-      db.execute('TRUNCATE TABLE users_groups'),
-      db.execute('TRUNCATE TABLE siterules'),
-      db.execute('TRUNCATE TABLE groups_groups'),
-      db.execute('TRUNCATE TABLE assets'),
-      db.execute('TRUNCATE TABLE sites_managers'),
-      db.execute('TRUNCATE TABLE templaterules'),
-      db.execute('TRUNCATE TABLE datafolders'),
-      db.execute('TRUNCATE TABLE binaries'),
-      db.execute('TRUNCATE TABLE pages'),
-      db.execute('TRUNCATE TABLE roles'),
-      db.execute('TRUNCATE TABLE groups'),
-      db.execute('TRUNCATE TABLE comments'),
-      db.execute('TRUNCATE TABLE pagetrees'),
-      db.execute('TRUNCATE TABLE assetfolders'),
-      db.execute('TRUNCATE TABLE organizations'),
-      db.execute('TRUNCATE TABLE indexes'),
-      db.execute('TRUNCATE TABLE tags'),
-      db.execute('TRUNCATE TABLE versions'),
-      db.execute('TRUNCATE TABLE sites'),
-      db.execute('TRUNCATE TABLE users'),
-      db.execute('TRUNCATE TABLE indexvalues'),
-      db.execute('TRUNCATE TABLE storage')
+      db.execute('DROP TABLE IF EXISTS dbversion'),
+      db.execute('DROP TABLE IF EXISTS downloads'),
+      db.execute('DROP TABLE IF EXISTS globalrules'),
+      db.execute('DROP TABLE IF EXISTS mutationlog'),
+      db.execute('DROP TABLE IF EXISTS datarules'),
+      db.execute('DROP TABLE IF EXISTS data'),
+      db.execute('DROP TABLE IF EXISTS pagetrees_templates'),
+      db.execute('DROP TABLE IF EXISTS assetrules'),
+      db.execute('DROP TABLE IF EXISTS pagerules'),
+      db.execute('DROP TABLE IF EXISTS sites_templates'),
+      db.execute('DROP TABLE IF EXISTS resizes'),
+      db.execute('DROP TABLE IF EXISTS users_roles'),
+      db.execute('DROP TABLE IF EXISTS groups_roles'),
+      db.execute('DROP TABLE IF EXISTS users_groups'),
+      db.execute('DROP TABLE IF EXISTS siterules'),
+      db.execute('DROP TABLE IF EXISTS groups_groups'),
+      db.execute('DROP TABLE IF EXISTS assets'),
+      db.execute('DROP TABLE IF EXISTS sites_managers'),
+      db.execute('DROP TABLE IF EXISTS templaterules'),
+      db.execute('DROP TABLE IF EXISTS datafolders'),
+      db.execute('DROP TABLE IF EXISTS binaries'),
+      db.execute('DROP TABLE IF EXISTS pages'),
+      db.execute('DROP TABLE IF EXISTS roles'),
+      db.execute('DROP TABLE IF EXISTS groups'),
+      db.execute('DROP TABLE IF EXISTS comments'),
+      db.execute('DROP TABLE IF EXISTS pagetrees'),
+      db.execute('DROP TABLE IF EXISTS assetfolders'),
+      db.execute('DROP TABLE IF EXISTS organizations'),
+      db.execute('DROP TABLE IF EXISTS indexes'),
+      db.execute('DROP TABLE IF EXISTS tags'),
+      db.execute('DROP TABLE IF EXISTS versions'),
+      db.execute('DROP TABLE IF EXISTS sites'),
+      db.execute('DROP TABLE IF EXISTS users'),
+      db.execute('DROP TABLE IF EXISTS indexvalues'),
+      db.execute('DROP TABLE IF EXISTS storage')
     ])
     await db.execute('SET FOREIGN_KEY_CHECKS = 1')
   })
@@ -164,7 +167,7 @@ export async function seeddb (tdb: Queryable = db) {
     tdb.insert('INSERT INTO pagerules (`roleId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1, 1]),
     tdb.insert('INSERT INTO datarules (`roleId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1, 1]),
     tdb.insert('INSERT INTO templaterules (`roleId`, `use`) VALUES (?,?)', [superuserRole, 1]),
-    tdb.insert('INSERT INTO users (login, firstname, lastname, email, system, lastlogin, lastlogout, disabledAt) VALUES ("superuser", "System User", "", "", true, null, null, null)')
+    tdb.insert('INSERT INTO users (login, name, email, system, lastlogin, lastlogout, disabledAt) VALUES ("superuser", "System User", "", true, null, null, null)')
   ])
   await tdb.insert('INSERT INTO users_roles (userId, roleId) VALUES (?, ?)', [userId, superuserRole])
 }
