@@ -235,7 +235,7 @@ export async function createPage (versionedService: VersionedService, userId: st
       linkId = nanoid(10)
       return await insert()
     }
-  })
+  }, { retries: 2 })
 }
 
 export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page) {
