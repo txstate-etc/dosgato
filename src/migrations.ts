@@ -83,6 +83,13 @@ const dgMigrations: DBMigration[] = [
       await db.execute('ALTER TABLE `assetfolders` ADD COLUMN deleteState TINYINT UNSIGNED NOT NULL DEFAULT 0')
       await db.execute('UPDATE assetfolders SET deleteState = 2 WHERE deletedAt IS NOT NULL')
     }
+  },
+  {
+    id: 20230201120000,
+    description: 'fix collation on assets.dataId since we use case-sensitive ids',
+    run: async db => {
+      await db.execute('ALTER TABLE `assets` MODIFY `dataId` CHAR(10) CHARACTER SET ascii COLLATE ascii_bin')
+    }
   }
 ]
 

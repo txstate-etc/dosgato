@@ -426,8 +426,9 @@ export class VersionedService extends BaseService {
    */
   protected async getIndexValueIds (values: string[], db: Queryable) {
     if (!values.length) return {} as Record<string, number>
-    await db.insert(`INSERT INTO indexvalues (value) VALUES ${db.in([], values.map(v => [v]))} ON DUPLICATE KEY UPDATE id=id`, values)
-    const valuerows = await db.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${db.in([], values)}) LOCK IN SHARE MODE`, values, { rowsAsArray: true })
+    await db.execute('SELECT * FROM dbversion FOR UPDATE')
+    await db.insert(`INSERT INTO indexvalues (value) VALUES ${db.in([], values.map(v => [v]))} ON DUPLICATE KEY UPDATE value=value`, values)
+    const valuerows = await db.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${db.in([], values)})`, values, { rowsAsArray: true })
     const valuehash: Record<string, number> = {}
     for (const [id, value] of valuerows) {
       valuehash[value] = id
