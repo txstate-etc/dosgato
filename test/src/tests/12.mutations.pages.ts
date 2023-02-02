@@ -6,8 +6,8 @@ import db from 'mysql2-async/db'
 
 chai.use(chaiAsPromised)
 
-async function createPage (name: string, parentId: string, templateKey: string, username?: string) {
-  const data = { savedAtVersion: '20220710120000', templateKey, title: 'Test Title' }
+async function createPage (name: string, parentId: string, templateKey: string, username?: string, extra?: any) {
+  const data = { savedAtVersion: '20220710120000', templateKey, title: 'Test Title', ...extra }
   const { createPage: { success, page, messages } } = await queryAs((username ?? 'su01'), 'mutation CreatePage ($name: UrlSafeString!, $data: JsonData!, $targetId: ID!) { createPage (name: $name, data: $data, targetId: $targetId) { success messages { message } page { id name } } }', { name, targetId: parentId, data })
   return { success, page, messages }
 }
@@ -25,6 +25,21 @@ describe('pages mutations', () => {
     const { success, page } = await createPage('testpage1', testSite6PageRootId, 'keyp3')
     expect(success).to.be.true
     expect(page.name).to.equal('testpage1')
+  })
+  it('should create 10 pages simultaneously', async () => {
+    const responses = await Promise.all([
+      createPage('concurrentpage1', testSite6PageRootId, 'keyp3', undefined, { title: 'Concurrency Problems Sink Ships' }),
+      createPage('concurrentpage2', testSite6PageRootId, 'keyp3', undefined, { title: 'Concurrency Problems Sink Ships' }),
+      createPage('concurrentpage3', testSite6PageRootId, 'keyp3', undefined, { title: 'Concurrency Problems Sink Ships' }),
+      createPage('concurrentpage4', testSite6PageRootId, 'keyp3', undefined, { title: 'Concurrency Problems Sink Ships' }),
+      createPage('concurrentpage5', testSite6PageRootId, 'keyp3', undefined, { title: 'Concurrency Problems Sink Ships' }),
+      createPage('concurrentpage6', testSite6PageRootId, 'keyp3', undefined, { title: 'Concurrency Problems Sink Ships' }),
+      createPage('concurrentpage7', testSite6PageRootId, 'keyp3', undefined, { title: 'Concurrency Problems Sink Ships' }),
+      createPage('concurrentpage8', testSite6PageRootId, 'keyp3', undefined, { title: 'Concurrency Problems Sink Ships' }),
+      createPage('concurrentpage9', testSite6PageRootId, 'keyp3', undefined, { title: 'Concurrency Problems Sink Ships' }),
+      createPage('concurrentpage0', testSite6PageRootId, 'keyp3', undefined, { title: 'Concurrency Problems Sink Ships' })
+    ])
+    expect(responses.map(r => r.success)).to.deep.equal((Array(10) as boolean[]).fill(true))
   })
   it('should not allow an unauthorized user to create a page', async () => {
     await expect(createPage('testpage2', testSite6PageRootId, 'keyp3', 'ed07')).to.be.rejected
