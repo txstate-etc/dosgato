@@ -1,19 +1,16 @@
-import { PageData, PageExtras, PageLink } from '@dosgato/templating'
+import { ComponentData, PageData, PageExtras, PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
-import { filterAsync, intersect, isNotBlank, isNotNull, keyby, someAsync, stringify, unique } from 'txstate-utils'
+import { filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set, someAsync, stringify, unique } from 'txstate-utils'
 import {
-  VersionedService, templateRegistry, DosGatoService, Page, PageFilter,
-  PageResponse, PagesResponse, createPage, getPages, movePages,
-  deletePages, renamePage, TemplateService,
-  TemplateFilter, getPageIndexes, undeletePages,
-  validatePage, DeletedFilter, copyPages, TemplateType, migratePage,
-  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal,
-  SiteServiceInternal, Site, PagetreeType, DeleteState, publishPageDeletions, CreatePageExtras,
-  getPagesByPath,
-  parsePath,
-  normalizePath
+  VersionedService, templateRegistry, DosGatoService, Page, PageFilter, PageResponse, PagesResponse,
+  createPage, getPages, movePages, deletePages, renamePage, TemplateService, TemplateFilter,
+  getPageIndexes, undeletePages, validatePage, DeletedFilter, copyPages, TemplateType, migratePage,
+  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
+  Site, PagetreeType, DeleteState, publishPageDeletions, CreatePageExtras, getPagesByPath, parsePath,
+  normalizePath, validateRecurse, Template
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -434,6 +431,20 @@ export class PageService extends DosGatoService<Page> {
     )
   }
 
+  checkAvailableTemplates (data: ComponentData, templateByKey: Record<string, Template>) {
+    for (const area of Object.keys(data.areas ?? {})) {
+      const availableComponents = templateByKey[data.templateKey]._areasByName[area]?._availableComponentSet ?? new Set()
+      const areaList = data.areas?.[area] ?? []
+      if (!Array.isArray(areaList)) throw new Error('Encountered a non-array in area. That is not valid data.')
+      for (let i = 0; i < areaList.length; i++) {
+        const component = areaList[i]
+        if (!component) throw new Error('Encountered an undefined component.')
+        if (!availableComponents.has(component.templateKey)) throw new Error('At least one component is in an incompatible area.')
+        this.checkAvailableTemplates(component, templateByKey)
+      }
+    }
+  }
+
   async validatePageData (data: PageData, site: Site | undefined, pagetree: Pagetree | undefined, parent: Page | undefined, name: string, linkId?: string, pageId?: string) {
     const response = new PageResponse({ success: true })
     const extras: PageExtras = {
@@ -493,6 +504,272 @@ export class PageService extends DosGatoService<Page> {
     return response
   }
 
+  async checkLatestVersion (dataId: string, dataVersion: number) {
+    const latestVersion = await this.svc(VersionedService).get(dataId)
+    if (!latestVersion) throw new Error('Page you are trying to update is corrupted. Please contact user support.')
+    if (latestVersion.version !== dataVersion) throw new Error('Unable to update page. Another user has updated the page since you loaded it. Try again after refreshing.')
+  }
+
+  async updateComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, data: ComponentData, comment?: string, validateOnly?: boolean) {
+    if (!data.templateKey) throw new Error('Component must have a templateKey.')
+    delete data.areas
+    let page = await this.raw.findById(dataId)
+    if (!page) throw new Error('Cannot update a page that does not exist.')
+    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    await this.checkLatestVersion(dataId, dataVersion)
+    const pageData = await this.raw.getData(page, dataVersion)
+    const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
+    const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
+    const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
+    const response = new PageResponse({ success: true })
+    const extras: PageExtras = {
+      query: this.ctx.query,
+      siteId: site?.id,
+      pagetreeId: pagetree?.id,
+      parentId: parent?.id,
+      pagePath: await this.raw.getPath(page),
+      pageId: page.id,
+      linkId: page.linkId,
+      name: page.name
+    }
+    const migrated = await migratePage(pageData, extras, editedSchemaVersion)
+    const existing = get(migrated, path)
+    if (!existing) throw new Error('Cannot update a component that does not exist.')
+    if (existing.templateKey !== data.templateKey) throw new Error('Cannot update a component to have a new template key.')
+    const updated = set(migrated, path, data)
+    const fullymigrated = await migratePage(updated, extras)
+    const migratedComponent = get<ComponentData>(fullymigrated, path)
+    if (!migratedComponent || migratedComponent.templateKey !== data.templateKey) throw new Error('There was a problem interpreting this save. You may need to refresh the page and try again.')
+    const validator = templateRegistry.getComponentTemplate(migratedComponent.templateKey)?.validate
+    const messages = (await validator?.(migratedComponent, { ...extras, page: fullymigrated, path })) ?? []
+    for (const message of messages) {
+      response.addMessage(message.message, message.path, message.type as MutationMessageType)
+    }
+    if (!validateOnly && response.success) {
+      const indexes = getPageIndexes(fullymigrated)
+      await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+      this.loaders.clear()
+      page = await this.raw.findById(dataId)
+    }
+    response.page = page
+    return response
+  }
+
+  async addComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, data: ComponentData, comment?: string, validateOnly?: boolean) {
+    if (!data.templateKey) throw new Error('Component must have a templateKey.')
+    let page = await this.raw.findById(dataId)
+    if (!page) throw new Error('Cannot update a page that does not exist.')
+    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    await this.checkLatestVersion(dataId, dataVersion)
+    const pageData = await this.raw.getData(page, dataVersion)
+
+    // migrate the stored page data to match the schemaversion the UI was using
+    const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
+    const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
+    const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
+    const response = new PageResponse({ success: true })
+    const extras: PageExtras = {
+      query: this.ctx.query,
+      siteId: site?.id,
+      pagetreeId: pagetree?.id,
+      parentId: parent?.id,
+      pagePath: await this.raw.getPath(page),
+      pageId: page.id,
+      linkId: page.linkId,
+      name: page.name
+    }
+    const migrated = await migratePage(pageData, extras, editedSchemaVersion)
+
+    // perform the operation to add the component to the requested area
+    const parentComponentPath = path.split('.').slice(0, -2).join('.')
+    const toParentComponent = get<ComponentData | undefined>(migrated, parentComponentPath)
+    if (!toParentComponent?.templateKey) throw new Error('Cannot add content at the given path.')
+    const existingArray = get<ComponentData[] | undefined>(migrated, path)
+    const compPath = path + '.' + String(existingArray?.length ?? 0)
+    const updated = set(migrated, compPath, data)
+
+    // migrate the edited page data up to the latest version of the API so that we can validate
+    const fullymigrated = await migratePage(updated, extras)
+
+    // check that the migration didn't move things around so much that we have to abort
+    // this will happen when the UI and the API are so far apart that some particularly aggressive
+    // migrations exist between them that move components around on the page
+    // in that situation we cannot recover and we have to demand that the UI software is updated to
+    // the latest version in order to proceed - typically this means having the editor refresh their
+    // browser window
+    const migratedComponent = get<ComponentData | undefined>(fullymigrated, compPath)
+    const migratedToParentComponent = get<ComponentData | undefined>(fullymigrated, parentComponentPath)
+    if (migratedComponent?.templateKey !== data.templateKey || migratedToParentComponent?.templateKey !== toParentComponent.templateKey) throw new Error('There was a problem interpreting this action. You may need to refresh the page and try again.')
+
+    // check that any new templates exist and are legal in their areas
+    const templateKeys = Array.from(collectTemplates(migratedComponent))
+    const templates = await Promise.all(templateKeys.map(async k => await this.svc(TemplateServiceInternal).findByKey(k)))
+    const templateByKey = keyby(templates.filter(isNotNull), 'key')
+    for (const templateKey of templateKeys) if (!templateByKey[templateKey]) throw new Error(`Template key ${templateKey} has not been registered.`)
+
+    // check that the new component is compatible with its area
+    const toParentTemplate = templateRegistry.getPageOrComponentTemplate(toParentComponent.templateKey)
+    const areaName = path.split('.').slice(-1)[0]
+    if (!toParentTemplate?.areas?.[areaName]?.includes(migratedComponent.templateKey)) throw new Error('The content you are trying to add is not compatible with the area you are trying to add it into.')
+
+    // check that any sub-components are compatible with their areas
+    this.checkAvailableTemplates(migratedComponent, templateByKey)
+
+    // check that any new templates are legal on the page
+    await Promise.all(templateKeys.map(async templateKey => {
+      if (!await this.svc(TemplateService).mayUseOnPage(templateByKey[templateKey], page!)) throw new Error(`Template ${templateKey} is not approved for use in this site or pagetree.`)
+    }))
+
+    // run validations only on the new component and any areas beneath it
+    const messages = await validateRecurse({ ...extras, page: fullymigrated, path: compPath }, migratedComponent, compPath.split('.'))
+    for (const message of messages) {
+      response.addMessage(message.message, message.path, message.type as MutationMessageType)
+    }
+
+    // execute the mutation if appropriate
+    if (!validateOnly && response.success) {
+      const indexes = getPageIndexes(fullymigrated)
+      await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+      this.loaders.clear()
+      page = await this.raw.findById(dataId)
+    }
+    response.page = page
+    return response
+  }
+
+  async moveComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, fromPath: string, toPath: string, comment?: string) {
+    let page = await this.raw.findById(dataId)
+    if (!page) throw new Error('Cannot update a page that does not exist.')
+    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    await this.checkLatestVersion(dataId, dataVersion)
+    const pageData = await this.raw.getData(page, dataVersion)
+
+    // migrate the stored page data to match the schemaversion the UI was using
+    const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
+    const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
+    const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
+    const response = new PageResponse({ success: true })
+    const extras: PageExtras = {
+      query: this.ctx.query,
+      siteId: site?.id,
+      pagetreeId: pagetree?.id,
+      parentId: parent?.id,
+      pagePath: await this.raw.getPath(page),
+      pageId: page.id,
+      linkId: page.linkId,
+      name: page.name
+    }
+    let migrated = await migratePage(pageData, extras, editedSchemaVersion)
+
+    // perform the operation to move the component from one place to another
+    const fromObj = get<ComponentData>(migrated, fromPath)
+    if (!fromObj?.templateKey) throw new Error('Cannot find valid content at the given path.')
+    const fromParts = fromPath.split('.')
+    const fromParentParts = fromParts.slice(0, -1)
+    const fromParentPath = fromParentParts.join('.')
+    const fromIdx = Number(fromParts[fromParts.length - 1])
+
+    const toParts = toPath.split('.')
+    const toObj = get<ComponentData | ComponentData[]>(migrated, toPath)
+    let toParentPath = toPath
+    let toIdx: number
+    if (!Array.isArray(toObj)) {
+      toParentPath = toParts.slice(0, -1).join('.')
+      toIdx = Number(toParts[toParts.length - 1])
+
+      // if the desired index is exactly one below, reorder below that item
+      if (fromParentPath === toParentPath && toIdx === fromIdx + 1) toIdx++
+    } else {
+      toIdx = toObj.length
+    }
+    const toParentParts = toParentPath.split('.')
+    const toParentComponentPath = toParentParts.slice(0, -2).join('.')
+    const toParentComponent = isBlank(toParentComponentPath) ? migrated : get(migrated, toParentComponentPath)
+    if (!toParentComponent) throw new Error('Cannot move component to the given path.')
+
+    let finalIdx = toIdx
+    function add () {
+      const toComponents = get<ComponentData[] | undefined>(migrated, toParentPath) ?? []
+      migrated = set(migrated, toParentPath, toIdx === toComponents.length ? [...toComponents, fromObj] : toComponents.flatMap((c, i) => i === toIdx ? [fromObj, c] : c))
+    }
+    function remove () {
+      migrated = set(migrated, fromParentPath, get<ComponentData[]>(migrated, fromParentPath).filter((c, i) => i !== fromIdx))
+    }
+    if (fromParentParts.length > toParentParts.length || (fromParentParts.length === toParentParts.length && toIdx < fromIdx)) {
+      // moving from deep to shallow or up in the same list -> delete then add
+      remove()
+      add()
+    } else {
+      // moving from shallow to deep or down in the same list -> add then delete
+      add()
+      remove()
+      if (fromParentParts.length === toParentParts.length) finalIdx--
+    }
+    const finalComponentPath = [...toParentParts, finalIdx].join('.')
+
+    // migrate the edited page data to the latest version of the API so we can check for available component compatibility
+    const fullymigrated = await migratePage(migrated, extras)
+    const migratedToParentComponent = get(fullymigrated, toParentComponentPath)
+    const migratedComponent = get(fullymigrated, finalComponentPath)
+    if (!migratedComponent || migratedComponent.templateKey !== fromObj.templateKey || !migratedToParentComponent || migratedToParentComponent.templateKey !== toParentComponent.templateKey) throw new Error('There was a problem interpreting this action. You may need to refresh the page and try again.')
+    const toParentTemplate = templateRegistry.getPageOrComponentTemplate(toParentComponent.templateKey)
+    const areaName = toParentParts[toParentParts.length - 1]
+    if (!toParentTemplate?.areas?.[areaName]?.includes(migratedComponent.templateKey)) throw new Error('The content you are trying to move is not compatible with the area you are trying to move it into.')
+
+    // if we haven't thrown yet then we can execute the mutation
+    const indexes = getPageIndexes(fullymigrated)
+    await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+    this.loaders.clear()
+    page = await this.raw.findById(dataId)
+    response.page = page
+    return response
+  }
+
+  async deleteComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, comment?: string) {
+    let page = await this.raw.findById(dataId)
+    if (!page) throw new Error('Cannot update a page that does not exist.')
+    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    await this.checkLatestVersion(dataId, dataVersion)
+    const pageData = await this.raw.getData(page, dataVersion)
+
+    // migrate the stored page data to match the schemaversion of the admin UI
+    const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
+    const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
+    const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
+    const response = new PageResponse({ success: true })
+    const extras: PageExtras = {
+      query: this.ctx.query,
+      siteId: site?.id,
+      pagetreeId: pagetree?.id,
+      parentId: parent?.id,
+      pagePath: await this.raw.getPath(page),
+      pageId: page.id,
+      linkId: page.linkId,
+      name: page.name
+    }
+    const migrated = await migratePage(pageData, extras, editedSchemaVersion)
+
+    // execute the deletion
+    const dataToDelete = get<ComponentData>(migrated, path)
+    if (!dataToDelete) throw new Error('Cannot find any content at the given path.')
+    const fromParentPath = path.split('.').slice(0, -1).join('.')
+    const fromArray = get<ComponentData[] | undefined>(migrated, fromParentPath)
+    const fromIndex = Number(path.split('.').slice(-1)[0])
+    if (!fromArray || isNaN(fromIndex)) throw new Error('Cannot delete content from the given path.')
+    fromArray.splice(fromIndex, 1)
+
+    // migrate the edited data to the latest version of the API so we can index it properly
+    const fullymigrated = await migratePage(migrated, extras)
+
+    // if we haven't thrown yet then we can execute the mutation
+    const indexes = getPageIndexes(fullymigrated)
+    await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+    this.loaders.clear()
+    page = await this.raw.findById(dataId)
+    response.page = page
+    return response
+  }
+
   async renamePage (dataId: string, name: string, validateOnly?: boolean) {
     const page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot rename a page that does not exist.')
@@ -515,7 +792,6 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async deletePages (dataIds: string[]) {
-    // TODO: Should they be able to delete the root page of the pagetree?
     const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (await someAsync(pages, async (page: Page) => !(await this.mayDelete(page)))) {
       throw new Error('Current user is not permitted to delete one or more pages')

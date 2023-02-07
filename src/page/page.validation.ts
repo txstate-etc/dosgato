@@ -1,7 +1,7 @@
 import { ComponentData, ComponentExtras, PageData, PageExtras } from '@dosgato/templating'
 import { templateRegistry } from '../internal.js'
 
-async function validateRecurse (extras: ComponentExtras, data: ComponentData, path: string[]) {
+export async function validateRecurse (extras: ComponentExtras, data: ComponentData, path: string[]) {
   if (!data.templateKey) throw new Error(`Encountered a component without a templateKey at ${path.join('.')}`)
   const validator = templateRegistry.getComponentTemplate(data.templateKey)?.validate
   const messages = (await validator?.(data, extras)) ?? []

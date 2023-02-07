@@ -1,4 +1,4 @@
-import { PageData } from '@dosgato/templating'
+import { ComponentData, PageData } from '@dosgato/templating'
 import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { get, isNull } from 'txstate-utils'
@@ -224,6 +224,63 @@ export class PageResolver {
     @Arg('validateOnly', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validateOnly?: boolean
   ) {
     return await ctx.svc(PageService).updatePage(pageId, dataVersion, data, comment, validateOnly)
+  }
+
+  @Mutation(returns => PageResponse, { description: 'Update only one component on a page. Validation will only cover the inserted data and validation failures in other components will not cause the mutation to fail. This is in contrast to updatePage where the full page must validate in order to be accepted.' })
+  async updatePageComponent (@Ctx() ctx: Context,
+    @Arg('pageId', type => ID) pageId: string,
+    @Arg('dataVersion', type => Int, {
+      description: "When a user begins editing a page, they view the latest version and begin making changes. If time passes, it's possible there will be a new version in the database by the time the editor saves. We pass along the version that the editor thinks they are saving against so that we can return an error if it is no longer the latest version."
+    }) dataVersion: number,
+    @Arg('schemaversion', { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime,
+    @Arg('path', { description: 'The dot-separated path within the page to the component being edited. e.g. `areas.main.1.areas.content.1`' }) path: string,
+    @Arg('data', type => JsonData, { description: 'The new component data. Cannot add or update child components in any of its areas. If it includes an `areas` property, it will be ignored.' }) data: ComponentData,
+    @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string,
+    @Arg('validateOnly', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validateOnly?: boolean
+  ) {
+    return await ctx.svc(PageService).updateComponent(pageId, dataVersion, schemaversion, path, data, comment, validateOnly)
+  }
+
+  @Mutation(returns => PageResponse, { description: 'Add one component to a page. Validation will only cover the inserted data and validation failures in other components will not cause the mutation to fail. This is in contrast to updatePage where the full page must validate in order to be accepted.' })
+  async createPageComponent (@Ctx() ctx: Context,
+    @Arg('pageId', type => ID) pageId: string,
+    @Arg('dataVersion', type => Int, {
+      description: "When a user begins editing a page, they view the latest version and begin making changes. If time passes, it's possible there will be a new version in the database by the time the editor saves. We pass along the version that the editor thinks they are saving against so that we can return an error if it is no longer the latest version."
+    }) dataVersion: number,
+    @Arg('schemaversion', { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime,
+    @Arg('path', { description: 'The dot-separated path within the page to the area being appended. e.g. `areas.main.1.areas.content`' }) path: string,
+    @Arg('data', type => JsonData, { description: 'The new component data. Cannot add or update child components in any of its areas. If it includes an `areas` property, it will be ignored.' }) data: ComponentData,
+    @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string,
+    @Arg('validateOnly', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validateOnly?: boolean
+  ) {
+    return await ctx.svc(PageService).addComponent(pageId, dataVersion, schemaversion, path, data, comment, validateOnly)
+  }
+
+  @Mutation(returns => PageResponse, { description: 'Move one component to another area within a page. No validation happens aside from legal template placement, so validation failures will not cause the mutation to fail. This is in contrast to updatePage where the full page must validate in order to be accepted.' })
+  async movePageComponent (@Ctx() ctx: Context,
+    @Arg('pageId', type => ID) pageId: string,
+    @Arg('dataVersion', type => Int, {
+      description: "When a user begins editing a page, they view the latest version and begin making changes. If time passes, it's possible there will be a new version in the database by the time the editor saves. We pass along the version that the editor thinks they are saving against so that we can return an error if it is no longer the latest version."
+    }) dataVersion: number,
+    @Arg('schemaversion', { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime,
+    @Arg('fromPath', { description: 'The dot-separated path within the page to the component being moved. e.g. `areas.main.1.areas.content`' }) fromPath: string,
+    @Arg('toPath', { description: 'The dot-separated path within the page to the new location. This must include the desired index in the new array so that ordering is preserved. e.g. `areas.main.1.areas.content.1`' }) toPath: string,
+    @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string
+  ) {
+    return await ctx.svc(PageService).moveComponent(pageId, dataVersion, schemaversion, fromPath, toPath, comment)
+  }
+
+  @Mutation(returns => PageResponse, { description: 'Delete one component from a page. No validation is necessary, so validation failures in other components will not cause the mutation to fail. This is in contrast to updatePage where the full page must validate in order to be accepted.' })
+  async deletePageComponent (@Ctx() ctx: Context,
+    @Arg('pageId', type => ID) pageId: string,
+    @Arg('dataVersion', type => Int, {
+      description: "When a user begins editing a page, they view the latest version and begin making changes. If time passes, it's possible there will be a new version in the database by the time the editor saves. We pass along the version that the editor thinks they are saving against so that we can return an error if it is no longer the latest version."
+    }) dataVersion: number,
+    @Arg('schemaversion', { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime,
+    @Arg('path', { description: 'The dot-separated path within the page to the component being deleted. e.g. `areas.main.1.areas.content.1`' }) path: string,
+    @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string
+  ) {
+    return await ctx.svc(PageService).deleteComponent(pageId, dataVersion, schemaversion, path, comment)
   }
 
   @Mutation(returns => PageResponse)

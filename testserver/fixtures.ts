@@ -668,13 +668,14 @@ export async function fixtures () {
   await createPage('site5', nanoid(10), pagetree5, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 5 Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
 
   /* Site 6 */
-  await createPage('site6', nanoid(10), pagetree6, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 6 Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp2'] }])
+  await createPage('site6', nanoid(10), pagetree6, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 6 Home', areas: { content: [] } }, [{ name: 'templateKey', values: ['keyp2'] }])
 
   /* Site 7 */
   await createPage('site7', nanoid(10), pagetree7, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 7 Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
 
   /* Site 8 */
-  await createPage('site8', nanoid(10), pagetree8, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Asset Test Site Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
+  const page8id = await createPage('site8', nanoid(10), pagetree8, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Asset Test Site Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
+  await createPage('validation-error-page', nanoid(10), pagetree8, page8id, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Validation Error Page', areas: { content: [{ templateKey: 'keyc1', text: 'Link with no target' }] } }, [{ name: 'templateKey', values: ['keyp2'] }])
 
   /* Deleted Site */
   await createPage('deletedsite', nanoid(10), deletedSitePrimary, null, 1, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Page in Deleted Site', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp3'] }])

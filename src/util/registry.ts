@@ -1,6 +1,6 @@
-import { APITemplateType, APIAnyTemplate, APIPageTemplate, APIComponentTemplate, APIDataTemplate, ComponentData, LinkDefinition, LinkGatheringFn } from '@dosgato/templating'
+import { APITemplateType, APIAnyTemplate, APIPageTemplate, APIComponentTemplate, APIDataTemplate, ComponentData, LinkDefinition, Migration } from '@dosgato/templating'
 import { DateTime } from 'luxon'
-import { isNotEmpty } from 'txstate-utils'
+import { isNotEmpty, sortby } from 'txstate-utils'
 import { TemplateArea } from '../internal.js'
 
 interface HasHydratedAreas {
@@ -16,6 +16,9 @@ type AnyTemplate = PageTemplate | ComponentTemplate | DataTemplate
 class TemplateRegistry {
   protected byType: { page: PageTemplate[], component: ComponentTemplate[], data: DataTemplate[] } = { page: [], component: [], data: [] }
   protected byKey: Record<string, AnyTemplate> = {}
+  protected migrations: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
+  public migrationsForward: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
+  public migrationsBackward: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
   public currentSchemaVersion!: DateTime
 
   register (template: APIAnyTemplate) {
@@ -30,6 +33,12 @@ class TemplateRegistry {
     hydrated.getLinks = (data: ComponentData) => originalGetLinks(data).filter(isNotEmpty).map(l => typeof l === 'string' ? JSON.parse(l) as LinkDefinition : l)
     this.byType[template.type].push(hydrated as any)
     this.byKey[template.templateKey] = hydrated
+    this.migrations.push(...(template.migrations?.map(m => ({ ...m, templateKey: template.templateKey, isPage: template.type === 'page' })) ?? []))
+  }
+
+  sortMigrations () {
+    this.migrationsForward = sortby(this.migrations, 'createdAt', false)
+    this.migrationsBackward = sortby(this.migrations, 'createdAt', true)
   }
 
   /**

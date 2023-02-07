@@ -11,6 +11,11 @@ async function createPage (name: string, parentId: string, templateKey: string, 
   const { createPage: { success, page, messages } } = await queryAs((username ?? 'su01'), 'mutation CreatePage ($name: UrlSafeString!, $data: JsonData!, $targetId: ID!) { createPage (name: $name, data: $data, targetId: $targetId) { success messages { message } page { id name } } }', { name, targetId: parentId, data })
   return { success, page, messages }
 }
+async function createPageReturnData (name: string, parentId: string, templateKey: string, username?: string, extra?: any) {
+  const data = { savedAtVersion: '20220710120000', templateKey, title: 'Test Title', ...extra }
+  const { createPage: { success, page, messages } } = await queryAs((username ?? 'su01'), 'mutation CreatePage ($name: UrlSafeString!, $data: JsonData!, $targetId: ID!) { createPage (name: $name, data: $data, targetId: $targetId) { success messages { message } page { id name data version { version } } } }', { name, targetId: parentId, data })
+  return { success, page, messages }
+}
 
 describe('pages mutations', () => {
   let testSite6Id: string
@@ -402,5 +407,250 @@ describe('pages mutations', () => {
     const { page: testpage } = await createPage('testpage12a', testSite6PageRootId, 'keyp3')
     await query('mutation PublishPages ($pageIds: [ID!]!) {publishPages (pageIds: $pageIds) { success } }', { pageIds: [testpage.id] })
     await expect(queryAs('ed07', 'mutation UnpublishPages ($pageIds: [ID!]!) { unpublishPages (pageIds: $pageIds) { success } }', { pageIds: [testpage.id] })).to.be.rejected
+  })
+  it('should update a page', async () => {
+    const { page } = await createPageReturnData('testpage13', testSite6PageRootId, 'keyp2')
+    const { updatePage } = await query<{ updatePage: { success: boolean, page: { data: any, version: { version: number } } } }>(`
+      mutation updatePage ($pageId: ID!, $data: JsonData!, $dataVersion: Int!) {
+        updatePage (pageId: $pageId, data: $data, dataVersion: $dataVersion) {
+          success
+          page {
+            data
+            version { version }
+          }
+        }
+      }
+    `, { pageId: page.id, dataVersion: page.version.version, data: { ...page.data, areas: { content: [{ templateKey: 'keyc1', text: 'Link', link: '{ "type": "raw", "url": "http://www.google.com" }' }] } } })
+    expect(updatePage.success).to.be.true
+    expect(page.version.version === updatePage.page.version.version - 1)
+    expect(page.data).to.not.deep.equal(updatePage.page.data)
+  })
+  const createPageComponentQuery = `
+    mutation createPageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $path: String!, $data: JsonData!) {
+      createPageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, path: $path, data: $data) {
+        success
+        messages {
+          type
+        }
+        page {
+          data
+          version { version }
+        }
+      }
+    }
+  `
+  interface PageComponentResponse {
+    success: boolean
+    messages: { type: string }[]
+    page: { data: any, version: { version: number } }
+  }
+  interface CreatePageComponentResponse {
+    createPageComponent: PageComponentResponse
+  }
+  it('should allow adding a single component to a page that has validation errors.', async () => {
+    const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
+    const oldPage = pages[0]
+    const { createPageComponent: { success, messages, page } } = await query<CreatePageComponentResponse>(createPageComponentQuery, {
+      pageId: oldPage.id,
+      dataVersion: oldPage.version.version,
+      schemaversion: oldPage.data.savedAtVersion,
+      path: 'areas.content',
+      data: { templateKey: 'keyc1', text: 'Added Link', link: '{ "type": "raw", "url": "https://bing.com" }' }
+    })
+    expect(success).to.be.true
+    expect(messages.length).to.equal(0)
+    expect(page.data).to.not.deep.equal(oldPage.data)
+    expect(page.data.areas.content.length).to.equal(2)
+    expect(page.data.areas.content[1].text).to.equal('Added Link')
+    expect(page.version.version + 1 === oldPage.version.version)
+  })
+  it('should reject adding a single component that has validation errors', async () => {
+    const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
+    const oldPage = pages[0]
+    const { createPageComponent: { success, messages, page } } = await query<CreatePageComponentResponse>(createPageComponentQuery, {
+      pageId: oldPage.id,
+      dataVersion: oldPage.version.version,
+      schemaversion: oldPage.data.savedAtVersion,
+      path: 'areas.content',
+      data: { templateKey: 'keyc1' }
+    })
+    expect(success).to.be.false
+    expect(messages.length).to.be.greaterThan(0)
+    expect(page.data).to.deep.equal(oldPage.data)
+    expect(page.version.version === oldPage.version.version)
+  })
+  it('should reject adding a single component that is incompatible with its parent', async () => {
+    const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
+    const oldPage = pages[0]
+    try {
+      const { createPageComponent: { success, messages, page } } = await query<CreatePageComponentResponse>(createPageComponentQuery, {
+        pageId: oldPage.id,
+        dataVersion: oldPage.version.version,
+        schemaversion: oldPage.data.savedAtVersion,
+        path: 'areas.content',
+        data: { templateKey: 'textimage', title: 'Text Image', text: 'Not allowed.' }
+      })
+      expect.fail('Adding a text & image to the validation page should throw.')
+    } catch (e: any) {
+      expect(e.message).to.include('not compatible')
+    }
+  })
+  it('should allow updating a component on a page that has validation errors.', async () => {
+    const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
+    const oldPage = pages[0]
+    const { updatePageComponent: { success, messages, page } } = await query<{ updatePageComponent: PageComponentResponse }>(`
+      mutation updatePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $path: String!, $data: JsonData!) {
+        updatePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, path: $path, data: $data) {
+          success
+          messages {
+            type
+          }
+          page {
+            data
+            version { version }
+          }
+        }
+      }
+    `, {
+      pageId: oldPage.id,
+      dataVersion: oldPage.version.version,
+      schemaversion: oldPage.data.savedAtVersion,
+      path: 'areas.content.1',
+      data: { templateKey: 'keyc1', text: 'Added Link Edited', link: '{ "type": "raw", "url": "https://bing.com" }' }
+    })
+    expect(success).to.be.true
+    expect(messages.length).to.equal(0)
+    expect(page.data).to.not.deep.equal(oldPage.data)
+    expect(page.data.areas.content.length).to.equal(2)
+    expect(page.data.areas.content[1].text).to.equal('Added Link Edited')
+    expect(page.version.version + 1 === oldPage.version.version)
+  })
+  it('should reject updating a component that has validation errors.', async () => {
+    const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
+    const oldPage = pages[0]
+    const { updatePageComponent: { success, messages, page } } = await query<{ updatePageComponent: PageComponentResponse }>(`
+      mutation updatePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $path: String!, $data: JsonData!) {
+        updatePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, path: $path, data: $data) {
+          success
+          messages {
+            type
+          }
+          page {
+            data
+            version { version }
+          }
+        }
+      }
+    `, {
+      pageId: oldPage.id,
+      dataVersion: oldPage.version.version,
+      schemaversion: oldPage.data.savedAtVersion,
+      path: 'areas.content.1',
+      data: { templateKey: 'keyc1', text: 'Removed HREF' }
+    })
+    expect(success).to.be.false
+    expect(messages.length).to.be.greaterThan(0)
+    expect(page.data).to.deep.equal(oldPage.data)
+    expect(page.data.areas.content.length).to.equal(2)
+    expect(page.data.areas.content[1].text).to.equal('Added Link Edited')
+    expect(page.version.version === oldPage.version.version)
+  })
+  it('should allow moving a component down in its own area, on a page that has validation errors.', async () => {
+    const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
+    const oldPage = pages[0]
+    const { movePageComponent: { success, page } } = await query<{ movePageComponent: { success: true, page: { version: { version: number }, data: any } } }>(`
+      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $fromPath: String!, $toPath: String!) {
+        movePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, fromPath: $fromPath, toPath: $toPath) {
+          success
+          page {
+            data
+            version { version }
+          }
+        }
+      }
+    `, {
+      pageId: oldPage.id,
+      dataVersion: oldPage.version.version,
+      schemaversion: oldPage.data.savedAtVersion,
+      fromPath: 'areas.content.0',
+      toPath: 'areas.content.1'
+    })
+    expect(success).to.be.true
+    expect(page.data).to.not.deep.equal(oldPage.data)
+    expect(page.data.areas.content[0].text).to.equal('Added Link Edited')
+    expect(page.version.version - 1 === oldPage.version.version)
+  })
+  it('should allow moving a component up in its own area, on a page that has validation errors.', async () => {
+    const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
+    const oldPage = pages[0]
+    const { movePageComponent: { success, page } } = await query<{ movePageComponent: { success: true, page: { version: { version: number }, data: any } } }>(`
+      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $fromPath: String!, $toPath: String!) {
+        movePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, fromPath: $fromPath, toPath: $toPath) {
+          success
+          page {
+            data
+            version { version }
+          }
+        }
+      }
+    `, {
+      pageId: oldPage.id,
+      dataVersion: oldPage.version.version,
+      schemaversion: oldPage.data.savedAtVersion,
+      fromPath: 'areas.content.1',
+      toPath: 'areas.content.0'
+    })
+    expect(success).to.be.true
+    expect(page.data).to.not.deep.equal(oldPage.data)
+    expect(page.data.areas.content[1].text).to.equal('Added Link Edited')
+    expect(page.version.version - 1 === oldPage.version.version)
+  })
+  it('should allow moving a component to the bottom of an area, on a page that has validation errors.', async () => {
+    const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
+    const oldPage = pages[0]
+    const { movePageComponent: { success, page } } = await query<{ movePageComponent: { success: true, page: { version: { version: number }, data: any } } }>(`
+      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $fromPath: String!, $toPath: String!) {
+        movePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, fromPath: $fromPath, toPath: $toPath) {
+          success
+          page {
+            data
+            version { version }
+          }
+        }
+      }
+    `, {
+      pageId: oldPage.id,
+      dataVersion: oldPage.version.version,
+      schemaversion: oldPage.data.savedAtVersion,
+      fromPath: 'areas.content.0',
+      toPath: 'areas.content'
+    })
+    expect(success).to.be.true
+    expect(page.data).to.not.deep.equal(oldPage.data)
+    expect(page.data.areas.content[0].text).to.equal('Added Link Edited')
+    expect(page.version.version - 1 === oldPage.version.version)
+  })
+  it('should allow deleting a component from a page that has validation errors.', async () => {
+    const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
+    const oldPage = pages[0]
+    const { deletePageComponent: { success, page } } = await query<{ deletePageComponent: { success: true, page: { version: { version: number }, data: any } } }>(`
+      mutation deletePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $path: String!) {
+        deletePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, path: $path) {
+          success
+          page {
+            data
+            version { version }
+          }
+        }
+      }
+    `, {
+      pageId: oldPage.id,
+      dataVersion: oldPage.version.version,
+      schemaversion: oldPage.data.savedAtVersion,
+      path: 'areas.content.0'
+    })
+    expect(success).to.be.true
+    expect(page.data).to.not.deep.equal(oldPage.data)
+    expect(page.version.version - 1 === oldPage.version.version)
   })
 })

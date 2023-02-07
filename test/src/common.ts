@@ -11,12 +11,12 @@ const client = axios.create({
   timeout: 10000
 })
 
-export async function query (query: string, variables?: any) {
-  return await queryAs('su01', query, variables)
+export async function query <T = any> (query: string, variables?: any) {
+  return await queryAs<T>('su01', query, variables)
 }
 
 const tokenCache: Record<string, string> = {}
-export async function queryAs (login: string, query: string, variables?: any) {
+export async function queryAs <T = any> (login: string, query: string, variables?: any) {
   tokenCache[login] ??= jwt.sign({ sub: login }, process.env.JWT_SECRET ?? '')
   try {
     const resp = await client.post('graphql', {
@@ -28,7 +28,7 @@ export async function queryAs (login: string, query: string, variables?: any) {
       }
     })
     expect(resp.data.errors?.length ?? 0).to.equal(0, resp.data.errors?.[0].message)
-    return resp.data.data
+    return resp.data.data as T
   } catch (e: any) {
     if (!e.response) throw e
     throw new Error(JSON.stringify(e.response.data, undefined, 2))

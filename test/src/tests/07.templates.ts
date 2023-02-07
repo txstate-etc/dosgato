@@ -22,7 +22,7 @@ describe('templates', () => {
   })
   it('should retrieve templates by type', async () => {
     const resp = await query('{ templates(filter: { types: [COMPONENT] }) { key name } }')
-    expect(resp.templates).to.have.lengthOf(5)
+    expect(resp.templates).to.have.lengthOf(6)
     const keys = resp.templates.map((t: any) => t.key)
     expect(keys).to.include.members(['keyc1', 'keyc2', 'keyc3', 'richtext', 'horizontalrule'])
   })

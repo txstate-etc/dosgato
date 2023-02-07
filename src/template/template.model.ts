@@ -1,3 +1,4 @@
+import { keyby } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { templateRegistry, JsonData, UrlSafeString } from '../internal.js'
 
@@ -48,6 +49,8 @@ export class Template {
   @Field(type => JsonData, { nullable: true, description: 'Hard-coded properties that may be set on page templates to influence the rendering of components on the page. For instance, a set of color choices that are customized for each template design. Components on the page may refer to the color information stored in the template during dialogs and while rendering. Changing to a different page template could then result in different color choices for components like buttons. Will be null for non-page templates.' })
   templateProperties?: any
 
+  _areasByName: Record<string, TemplateArea | undefined>
+
   constructor (row: any) {
     this.id = row.id
     this.key = row.key
@@ -57,6 +60,7 @@ export class Template {
     const tmpl = templateRegistry.get(this.key)
     this.name = tmpl.name
     this.areas = Object.entries(tmpl.hydratedAreas).map(([key, area]) => new TemplateArea(key, area.availableComponents))
+    this._areasByName = keyby(this.areas, 'name')
     if (tmpl.type === 'page') this.templateProperties = tmpl.templateProperties
   }
 }
