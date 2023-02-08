@@ -227,6 +227,20 @@ export class PageResolver {
   }
 
   @Mutation(returns => PageResponse, { description: 'Update only one component on a page. Validation will only cover the inserted data and validation failures in other components will not cause the mutation to fail. This is in contrast to updatePage where the full page must validate in order to be accepted.' })
+  async updatePageProperties (@Ctx() ctx: Context,
+    @Arg('pageId', type => ID) pageId: string,
+    @Arg('dataVersion', type => Int, {
+      description: "When a user begins editing a page, they view the latest version and begin making changes. If time passes, it's possible there will be a new version in the database by the time the editor saves. We pass along the version that the editor thinks they are saving against so that we can return an error if it is no longer the latest version."
+    }) dataVersion: number,
+    @Arg('schemaversion', { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime,
+    @Arg('data', type => JsonData, { description: 'The new component data. Cannot add or update child components in any of its areas. If it includes an `areas` property, it will be ignored.' }) data: ComponentData,
+    @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string,
+    @Arg('validateOnly', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validateOnly?: boolean
+  ) {
+    return await ctx.svc(PageService).updatePageProperties(pageId, dataVersion, schemaversion, data, comment, validateOnly)
+  }
+
+  @Mutation(returns => PageResponse, { description: 'Update only one component on a page. Validation will only cover the inserted data and validation failures in other components will not cause the mutation to fail. This is in contrast to updatePage where the full page must validate in order to be accepted.' })
   async updatePageComponent (@Ctx() ctx: Context,
     @Arg('pageId', type => ID) pageId: string,
     @Arg('dataVersion', type => Int, {

@@ -526,6 +526,38 @@ export class PageService extends DosGatoService<Page> {
     } as PageExtras
   }
 
+  async updatePageProperties (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, data: ComponentData, comment?: string, validateOnly?: boolean) {
+    if (!data.templateKey) throw new Error('Component must have a templateKey.')
+    delete data.areas
+    let page = await this.raw.findById(dataId)
+    if (!page) throw new Error('Cannot update a page that does not exist.')
+    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    await this.checkLatestVersion(dataId, dataVersion)
+    const pageData = await this.raw.getData(page, dataVersion)
+    const extras = await this.pageExtras(page)
+    const migrated = await migratePage(pageData, extras, editedSchemaVersion)
+    if (migrated.templateKey !== data.templateKey) throw new Error('You may not change page templates while updating properties. Use changePageTemplate instead.')
+
+    const response = new PageResponse({ success: true })
+    const updated: PageData = { ...data, templateKey: migrated.templateKey, savedAtVersion: migrated.savedAtVersion, areas: migrated.areas }
+    const fullymigrated = await migratePage(updated, extras)
+    if (fullymigrated.templateKey !== data.templateKey) throw new Error('There was a problem interpreting this save. You may need to refresh the page and try again.')
+
+    const validator = templateRegistry.getPageTemplate(fullymigrated.templateKey)?.validate
+    const messages = (await validator?.(fullymigrated, extras)) ?? []
+    for (const message of messages) {
+      response.addMessage(message.message, message.path, message.type as MutationMessageType)
+    }
+    if (!validateOnly && response.success) {
+      const indexes = getPageIndexes(fullymigrated)
+      await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+      this.loaders.clear()
+      page = await this.raw.findById(dataId)
+    }
+    response.page = page
+    return response
+  }
+
   async updateComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, data: ComponentData, comment?: string, validateOnly?: boolean) {
     if (!data.templateKey) throw new Error('Component must have a templateKey.')
     delete data.areas
