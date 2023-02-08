@@ -683,7 +683,8 @@ export class PageService extends DosGatoService<Page> {
       toIdx = toObj.length
     }
     const toParentParts = toParentPath.split('.')
-    const toParentComponentPath = toParentParts.slice(0, -2).join('.')
+    const toParentComponentParts = toParentParts.slice(0, -2)
+    const toParentComponentPath = toParentComponentParts.join('.')
     const toParentComponent = isBlank(toParentComponentPath) ? migrated : get(migrated, toParentComponentPath)
     if (!toParentComponent) throw new Error('Cannot move component to the given path.')
 
@@ -704,15 +705,21 @@ export class PageService extends DosGatoService<Page> {
       add()
       remove()
       if (fromParentParts.length === toParentParts.length) finalIdx--
+      else if (toParentPath.startsWith(fromParentPath) && fromIdx < Number(toParentParts[fromParentParts.length])) {
+        toParentParts[fromParentParts.length] = String(Number(toParentParts[fromParentParts.length]) - 1)
+        toParentComponentParts[fromParentParts.length] = String(Number(toParentComponentParts[fromParentParts.length]) - 1)
+      }
     }
+
     const finalComponentPath = [...toParentParts, finalIdx].join('.')
+    const finalToParentComponentPath = toParentComponentParts.join('.')
 
     // migrate the edited page data to the latest version of the API so we can check for available component compatibility
     const fullymigrated = await migratePage(migrated, extras)
-    const migratedToParentComponent = get(fullymigrated, toParentComponentPath)
+    const migratedToParentComponent = get(fullymigrated, finalToParentComponentPath)
     const migratedComponent = get(fullymigrated, finalComponentPath)
     if (!migratedComponent || migratedComponent.templateKey !== fromObj.templateKey || !migratedToParentComponent || migratedToParentComponent.templateKey !== toParentComponent.templateKey) throw new Error('There was a problem interpreting this action. You may need to refresh the page and try again.')
-    const toParentTemplate = templateRegistry.getPageOrComponentTemplate(toParentComponent.templateKey)
+    const toParentTemplate = templateRegistry.getPageOrComponentTemplate(migratedToParentComponent.templateKey)
     const areaName = toParentParts[toParentParts.length - 1]
     if (!toParentTemplate?.areas?.[areaName]?.includes(migratedComponent.templateKey)) throw new Error('The content you are trying to move is not compatible with the area you are trying to move it into.')
 
