@@ -580,13 +580,24 @@ export class PageService extends DosGatoService<Page> {
     }
     const migrated = await migratePage(pageData, extras, editedSchemaVersion)
 
-    // perform the operation to add the component to the requested area
-    const parentComponentPath = path.split('.').slice(0, -2).join('.')
+    // perform the operation to add the component to the requested area or location
+    const toParts = path.split('.')
+    let toParentArray: ComponentData[]
+    let toParentPath = path
+    let toIdx = Number(toParts[toParts.length - 1])
+    if (!isNaN(toIdx)) { // they gave us a desired ordering
+      toParentPath = toParts.slice(0, -1).join('.')
+      toParentArray = get<ComponentData[] | undefined>(migrated, toParentPath) ?? []
+    } else { // they only gave us an area, insert at the end
+      toParentArray = get<ComponentData[] | undefined>(migrated, toParentPath) ?? []
+      if (!Array.isArray(toParentArray)) throw new Error('Invalid target path.')
+      toIdx = toParentArray.length
+    }
+    const parentComponentPath = toParentPath.split('.').slice(0, -2).join('.')
     const toParentComponent = get<ComponentData | undefined>(migrated, parentComponentPath)
     if (!toParentComponent?.templateKey) throw new Error('Cannot add content at the given path.')
-    const existingArray = get<ComponentData[] | undefined>(migrated, path)
-    const compPath = path + '.' + String(existingArray?.length ?? 0)
-    const updated = set(migrated, compPath, data)
+    const compPath = toParentPath + '.' + String(toIdx)
+    const updated = set(migrated, toParentPath, toIdx === toParentArray.length ? [...toParentArray, data] : toParentArray.flatMap((c, i) => i === toIdx ? [data, c] : c))
 
     // migrate the edited page data up to the latest version of the API so that we can validate
     const fullymigrated = await migratePage(updated, extras)
@@ -608,8 +619,8 @@ export class PageService extends DosGatoService<Page> {
     for (const templateKey of templateKeys) if (!templateByKey[templateKey]) throw new Error(`Template key ${templateKey} has not been registered.`)
 
     // check that the new component is compatible with its area
-    const toParentTemplate = templateRegistry.getPageOrComponentTemplate(toParentComponent.templateKey)
-    const areaName = path.split('.').slice(-1)[0]
+    const toParentTemplate = templateRegistry.getPageOrComponentTemplate(migratedToParentComponent.templateKey)
+    const areaName = toParentPath.split('.').slice(-1)[0]
     if (!toParentTemplate?.areas?.[areaName]?.includes(migratedComponent.templateKey)) throw new Error('The content you are trying to add is not compatible with the area you are trying to add it into.')
 
     // check that any sub-components are compatible with their areas
@@ -670,17 +681,17 @@ export class PageService extends DosGatoService<Page> {
     const fromIdx = Number(fromParts[fromParts.length - 1])
 
     const toParts = toPath.split('.')
-    const toObj = get<ComponentData | ComponentData[]>(migrated, toPath)
     let toParentPath = toPath
-    let toIdx: number
-    if (!Array.isArray(toObj)) {
+    let toIdx: number = Number(toParts[toParts.length - 1])
+    if (!isNaN(toIdx)) { // they gave us a component path, we will insert content there
       toParentPath = toParts.slice(0, -1).join('.')
       toIdx = Number(toParts[toParts.length - 1])
-
       // if the desired index is exactly one below, reorder below that item
       if (fromParentPath === toParentPath && toIdx === fromIdx + 1) toIdx++
-    } else {
-      toIdx = toObj.length
+    } else { // they gave us an area path, we will append content to it
+      const toParentArray = get<ComponentData[] | undefined>(migrated, toPath) ?? []
+      if (!Array.isArray(toParentArray)) throw new Error('Invalid target path.')
+      toIdx = toParentArray.length
     }
     const toParentParts = toParentPath.split('.')
     const toParentComponentParts = toParentParts.slice(0, -2)
