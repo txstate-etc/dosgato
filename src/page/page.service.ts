@@ -510,19 +510,11 @@ export class PageService extends DosGatoService<Page> {
     if (latestVersion.version !== dataVersion) throw new Error('Unable to update page. Another user has updated the page since you loaded it. Try again after refreshing.')
   }
 
-  async updateComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, data: ComponentData, comment?: string, validateOnly?: boolean) {
-    if (!data.templateKey) throw new Error('Component must have a templateKey.')
-    delete data.areas
-    let page = await this.raw.findById(dataId)
-    if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
-    await this.checkLatestVersion(dataId, dataVersion)
-    const pageData = await this.raw.getData(page, dataVersion)
+  async pageExtras (page: Page) {
     const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const response = new PageResponse({ success: true })
-    const extras: PageExtras = {
+    return {
       query: this.ctx.query,
       siteId: site?.id,
       pagetreeId: pagetree?.id,
@@ -531,8 +523,21 @@ export class PageService extends DosGatoService<Page> {
       pageId: page.id,
       linkId: page.linkId,
       name: page.name
-    }
+    } as PageExtras
+  }
+
+  async updateComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, data: ComponentData, comment?: string, validateOnly?: boolean) {
+    if (!data.templateKey) throw new Error('Component must have a templateKey.')
+    delete data.areas
+    let page = await this.raw.findById(dataId)
+    if (!page) throw new Error('Cannot update a page that does not exist.')
+    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    await this.checkLatestVersion(dataId, dataVersion)
+    const pageData = await this.raw.getData(page, dataVersion)
+    const extras = await this.pageExtras(page)
     const migrated = await migratePage(pageData, extras, editedSchemaVersion)
+
+    const response = new PageResponse({ success: true })
     const existing = get(migrated, path)
     if (!existing) throw new Error('Cannot update a component that does not exist.')
     if (existing.templateKey !== data.templateKey) throw new Error('Cannot update a component to have a new template key.')
@@ -564,20 +569,7 @@ export class PageService extends DosGatoService<Page> {
     const pageData = await this.raw.getData(page, dataVersion)
 
     // migrate the stored page data to match the schemaversion the UI was using
-    const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
-    const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
-    const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const response = new PageResponse({ success: true })
-    const extras: PageExtras = {
-      query: this.ctx.query,
-      siteId: site?.id,
-      pagetreeId: pagetree?.id,
-      parentId: parent?.id,
-      pagePath: await this.raw.getPath(page),
-      pageId: page.id,
-      linkId: page.linkId,
-      name: page.name
-    }
+    const extras = await this.pageExtras(page)
     const migrated = await migratePage(pageData, extras, editedSchemaVersion)
 
     // perform the operation to add the component to the requested area or location
@@ -632,6 +624,7 @@ export class PageService extends DosGatoService<Page> {
     }))
 
     // run validations only on the new component and any areas beneath it
+    const response = new PageResponse({ success: true })
     const messages = await validateRecurse({ ...extras, page: fullymigrated, path: compPath }, migratedComponent, compPath.split('.'))
     for (const message of messages) {
       response.addMessage(message.message, message.path, message.type as MutationMessageType)
@@ -656,20 +649,7 @@ export class PageService extends DosGatoService<Page> {
     const pageData = await this.raw.getData(page, dataVersion)
 
     // migrate the stored page data to match the schemaversion the UI was using
-    const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
-    const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
-    const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const response = new PageResponse({ success: true })
-    const extras: PageExtras = {
-      query: this.ctx.query,
-      siteId: site?.id,
-      pagetreeId: pagetree?.id,
-      parentId: parent?.id,
-      pagePath: await this.raw.getPath(page),
-      pageId: page.id,
-      linkId: page.linkId,
-      name: page.name
-    }
+    const extras = await this.pageExtras(page)
     let migrated = await migratePage(pageData, extras, editedSchemaVersion)
 
     // perform the operation to move the component from one place to another
@@ -739,6 +719,7 @@ export class PageService extends DosGatoService<Page> {
     await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
     this.loaders.clear()
     page = await this.raw.findById(dataId)
+    const response = new PageResponse({ success: true })
     response.page = page
     return response
   }
@@ -754,7 +735,6 @@ export class PageService extends DosGatoService<Page> {
     const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const response = new PageResponse({ success: true })
     const extras: PageExtras = {
       query: this.ctx.query,
       siteId: site?.id,
@@ -784,6 +764,33 @@ export class PageService extends DosGatoService<Page> {
     await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
     this.loaders.clear()
     page = await this.raw.findById(dataId)
+    const response = new PageResponse({ success: true })
+    response.page = page
+    return response
+  }
+
+  async changePageTemplate (dataId: string, templateKey: string, dataVersion?: number, comment?: string, validateOnly?: boolean) {
+    let page = await this.raw.findById(dataId)
+    if (!page) throw new Error('Cannot update a page that does not exist.')
+    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    const pageData = await this.raw.getData(page, dataVersion)
+
+    const extras = await this.pageExtras(page)
+    const fullymigrated = await migratePage(pageData, extras)
+
+    const template = await this.svc(TemplateServiceInternal).findByKey(templateKey)
+    if (!template) throw new Error(`Tried to set page template to a non-existing template ${templateKey}.`)
+    if (template.type !== TemplateType.PAGE) throw new Error(`Tried to set page template to a non-page template ${templateKey}.`)
+    const response = new PageResponse({ success: true })
+    if (!await this.svc(TemplateService).mayUseOnPage(template, page)) response.addMessage('You are not permitted to use that template here.')
+
+    if (!validateOnly && response.success) {
+      fullymigrated.templateKey = templateKey
+      const indexes = getPageIndexes(fullymigrated)
+      await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+      this.loaders.clear()
+      page = await this.raw.findById(dataId)
+    }
     response.page = page
     return response
   }

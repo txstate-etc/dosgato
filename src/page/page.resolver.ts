@@ -283,6 +283,20 @@ export class PageResolver {
     return await ctx.svc(PageService).deleteComponent(pageId, dataVersion, schemaversion, path, comment)
   }
 
+  @Mutation(returns => PageResponse, { description: 'Change the template of a page.' })
+  async changePageTemplate (@Ctx() ctx: Context,
+    @Arg('pageId', type => ID) pageId: string,
+    @Arg('templateKey', { description: 'The new templateKey for the page.' }) templateKey: string,
+    @Arg('dataVersion', type => Int, {
+      nullable: true,
+      description: "When a user begins editing a page, they view the latest version and begin making changes. If time passes, it's possible there will be a new version in the database by the time the editor saves. We pass along the version that the editor thinks they are saving against so that we can return an error if it is no longer the latest version."
+    }) dataVersion?: number,
+    @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string,
+    @Arg('validateOnly', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validateOnly?: boolean
+  ) {
+    return await ctx.svc(PageService).changePageTemplate(pageId, templateKey, dataVersion, comment, validateOnly)
+  }
+
   @Mutation(returns => PageResponse)
   async renamePage (@Ctx() ctx: Context,
     @Arg('pageId', type => ID) pageId: string,
