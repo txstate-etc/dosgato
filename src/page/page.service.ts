@@ -573,7 +573,7 @@ export class PageService extends DosGatoService<Page> {
     const existing = get(migrated, path)
     if (!existing) throw new Error('Cannot update a component that does not exist.')
     if (existing.templateKey !== data.templateKey) throw new Error('Cannot update a component to have a new template key.')
-    const updated = set(migrated, path, data)
+    const updated = set(migrated, path, { ...data, areas: get(migrated, path).areas })
     const fullymigrated = await migratePage(updated, extras)
     const migratedComponent = get<ComponentData>(fullymigrated, path)
     if (!migratedComponent || migratedComponent.templateKey !== data.templateKey) throw new Error('There was a problem interpreting this save. You may need to refresh the page and try again.')
