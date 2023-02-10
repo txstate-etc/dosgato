@@ -267,12 +267,10 @@ export class VersionedService extends BaseService {
     const action = async (db: Queryable) => {
       const row = await db.getrow<{ modified: Date, modifiedBy: string, created: Date }>('SELECT created, modified, modifiedBy FROM storage WHERE id=?', [id])
       if (!row) throw new Error('Tried to update timestamps on a non-existing object.')
-      const createdAt = stamps.createdAt ?? row.created
-      const modifiedAt = stamps.modifiedAt && stamps.modifiedAt > createdAt
+      const createdAt = stamps.createdAt ?? stamps.modifiedAt ?? row.created
+      const modifiedAt = stamps.modifiedAt && stamps.modifiedAt >= createdAt
         ? stamps.modifiedAt
-        : (createdAt > row.modified
-          ? createdAt
-          : row.modified)
+        : row.modified
       const modifiedBy = stamps.modifiedBy ?? row.modifiedBy
       await db.update('UPDATE storage SET created=?, modified=?, modifiedBy=? WHERE id=?', [createdAt, modifiedAt, modifiedBy, id])
     }
