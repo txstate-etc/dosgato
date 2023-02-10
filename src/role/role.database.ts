@@ -104,7 +104,7 @@ export async function deleteRole (id: string) {
 
 export async function addRolesToUser (roleIds: string[], userId: number) {
   const binds: string[] = []
-  return await db.insert(`INSERT INTO users_roles (userId, roleId) VALUES ${db.in(binds, roleIds.map(id => [userId, id]))}`, binds)
+  return await db.insert(`INSERT INTO users_roles (userId, roleId) VALUES ${db.in(binds, roleIds.map(id => [userId, id]))} ON DUPLICATE KEY UPDATE userId=userId`, binds)
 }
 
 export async function removeRoleFromUser (roleId: string, userId: number) {
