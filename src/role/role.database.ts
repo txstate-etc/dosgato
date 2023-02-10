@@ -8,6 +8,9 @@ export async function getRoles (filter?: RoleFilter) {
   if (filter?.ids?.length) {
     where.push(`roles.id IN (${db.in(binds, filter.ids)})`)
   }
+  if (filter?.names?.length) {
+    where.push(`roles.name IN (${db.in(binds, filter.names)})`)
+  }
   if (filter?.users?.length) {
     where.push(`users.login IN (${db.in(binds, filter.users)})`)
   }

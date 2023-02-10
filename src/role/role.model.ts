@@ -51,6 +51,9 @@ export class RoleFilter {
 
   @Field(type => [ID], { nullable: true, description: 'Return roles that have been granted to any of the given users.' })
   users?: string[]
+
+  @Field(type => [String], { nullable: true, description: 'Return roles matching one of the given names.' })
+  names?: string[]
 }
 
 @ObjectType()
