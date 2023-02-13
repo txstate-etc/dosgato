@@ -1,11 +1,12 @@
 import { createHash } from 'crypto'
 import { createReadStream, createWriteStream } from 'fs'
-import { mkdir, rename, unlink } from 'fs/promises'
+import { access, constants, mkdir, rename, unlink } from 'fs/promises'
 import { nanoid } from 'nanoid'
 import { dirname } from 'path'
 import sharp from 'sharp'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
+import { rescue } from 'txstate-utils'
 
 interface FileHandler {
   init: () => Promise<void>
@@ -40,6 +41,11 @@ class FileSystemHandler implements FileHandler {
     const filepath = this.#getFileLocation(checksum)
     const stream = createReadStream(filepath)
     return stream
+  }
+
+  async exists (checksum: string) {
+    const filepath = this.#getFileLocation(checksum)
+    return (await rescue(access(filepath, constants.R_OK), false)) ?? true
   }
 
   async put (stream: Readable) {

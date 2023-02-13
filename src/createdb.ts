@@ -533,4 +533,17 @@ export async function init (db: Queryable) {
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;')
+  await db.execute('\
+    CREATE TABLE IF NOT EXISTS `migratedurlinfo` ( \
+      `urlhash` BINARY(20) NOT NULL, \
+      `checksum` CHAR(43) CHARACTER SET "ascii" COLLATE "ascii_bin" NOT NULL, \
+      `mime` VARCHAR(255) CHARACTER SET "ascii" COLLATE "ascii_bin" NOT NULL, \
+      `size` INT UNSIGNED NOT NULL, \
+      `width` SMALLINT UNSIGNED, \
+      `height` SMALLINT UNSIGNED, \
+      PRIMARY KEY (`urlhash`) \
+    ) \
+    ENGINE = InnoDB \
+    DEFAULT CHARACTER SET = utf8mb4 \
+    DEFAULT COLLATE = utf8mb4_general_ci;')
 }

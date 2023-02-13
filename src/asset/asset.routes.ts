@@ -1,11 +1,13 @@
 import multipart from '@fastify/multipart'
 import { Context } from '@txstate-mws/graphql-server'
+import { createHash } from 'crypto'
 import type { FastifyInstance } from 'fastify'
 import { FastifyRequest } from 'fastify'
 import { HttpError } from 'fastify-txstate'
 import { fileTypeStream } from 'file-type'
 import { DateTime } from 'luxon'
 import { lookup } from 'mime-types'
+import db from 'mysql2-async/db'
 import probe from 'probe-image-size'
 import { PassThrough, Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
@@ -54,18 +56,36 @@ export async function placeFile (readStream: Readable, filename: string, mimeGue
   return { filename, name, checksum, mime, size, width, height }
 }
 
-export async function handleURLUpload (url: string, auth?: string) {
+export async function handleURLUpload (url: string, modifiedAt?: string, auth?: string) {
+  const filename = url.split('/').slice(-1)[0] ?? randomid()
+  let urlhash: string | undefined
+  if (modifiedAt) { // only try to skip download if modifiedAt was included... otherwise we can't determine that the target hasn't changed
+    urlhash = createHash('sha1').update(url + modifiedAt).digest('hex')
+    const existing = await db.getrow<{ checksum: string, mime: string, size: number, width?: number, height?: number }>('SELECT * FROM migratedurlinfo WHERE urlhash=UNHEX(?)', [urlhash])
+    if (existing && await fileHandler.exists(existing.checksum)) {
+      return {
+        filename,
+        name: makeSafeFilename(filename),
+        checksum: existing.checksum,
+        mime: existing.mime,
+        size: existing.size,
+        width: existing.width,
+        height: existing.height
+      }
+    }
+  }
   const resp = await fetch(url, {
     headers: {
       Authorization: auth ?? ''
     }
   })
   if ((resp.status ?? 500) >= 400) throw new HttpError(resp.status ?? 500, `Target URL returned status ${resp.status}`)
-  const filename = url.split('/').slice(-1)[0] ?? randomid()
   const mimeGuess = resp.headers.get('content-type') ?? (lookup(url) || 'application/octet-stream')
   const readStream = resp.body
   if (!readStream) throw new Error('Unable to read from given URL.')
-  return await placeFile(Readable.fromWeb(readStream as ReadableStream), filename, mimeGuess)
+  const file = await placeFile(Readable.fromWeb(readStream as ReadableStream), filename, mimeGuess)
+  if (urlhash) await db.insert('INSERT INTO migratedurlinfo (urlhash, checksum, mime, size, width, height) VALUES (UNHEX(?), ?, ?, ?, ?, ?) ON DUPLICATE KEY update checksum=checksum', [urlhash, file.checksum, file.mime, file.size, file.width ?? null, file.height ?? null])
+  return file
 }
 
 export async function handleUpload (req: FastifyRequest, maxFiles = 200) {
@@ -121,7 +141,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
         resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)
       }
     } else if (req.body?.url) {
-      const file = await handleURLUpload(req.body.url, req.body.auth)
+      const file = await handleURLUpload(req.body.url, req.body.modifiedAt, req.body.auth)
       const asset = await createAsset(versionedService, user.id, {
         ...file,
         legacyId: req.body.legacyId,
