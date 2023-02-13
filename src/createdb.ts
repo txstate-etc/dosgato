@@ -131,7 +131,7 @@ export async function init (db: Queryable) {
   await db.execute("\
     CREATE TABLE IF NOT EXISTS `binaries` ( \
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
-      `shasum` CHAR(40) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `shasum` CHAR(43) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `mime` VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `meta` JSON NOT NULL, \
       `bytes` BIGINT UNSIGNED NOT NULL, \
@@ -146,7 +146,7 @@ export async function init (db: Queryable) {
       `name` VARCHAR(255) NOT NULL, \
       `folderId` MEDIUMINT UNSIGNED NOT NULL, \
       `dataId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL, \
-      `shasum` CHAR(40) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `shasum` CHAR(43) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `deletedAt` DATETIME, \
       `deletedBy` MEDIUMINT UNSIGNED, \
       PRIMARY KEY (`id`), \

@@ -23,7 +23,7 @@ class FileSystemHandler implements FileHandler {
   }
 
   #getFileLocation (checksum: string) {
-    return `/files/storage/${checksum.slice(0, 2)}/${checksum.slice(2, 4)}/${checksum.slice(4)}`
+    return `/files/storage/${checksum.slice(0, 1)}/${checksum.slice(1, 2)}/${checksum.slice(2)}`
   }
 
   async #moveToPerm (tmp: string, checksum: string) {
@@ -50,11 +50,11 @@ class FileSystemHandler implements FileHandler {
 
   async put (stream: Readable) {
     const tmp = this.#getTmpLocation()
-    const hash = createHash('sha1')
+    const hash = createHash('sha256')
     let size = 0
     stream.on('data', (data: Buffer) => { hash.update(data); size += data.length })
     await pipeline(stream, createWriteStream(tmp))
-    const checksum = hash.digest('hex')
+    const checksum = hash.digest('base64url')
     await this.#moveToPerm(tmp, checksum)
     return { checksum, size }
   }
@@ -66,7 +66,7 @@ class FileSystemHandler implements FileHandler {
 
   async sharpWrite (img: sharp.Sharp) {
     const tmp = this.#getTmpLocation()
-    const hash = createHash('sha1', { encoding: 'hex' })
+    const hash = createHash('sha256', { encoding: 'base64url' })
     await pipeline(img.clone(), hash)
     const checksum = hash.read()
     const info = await img.toFile(tmp)
