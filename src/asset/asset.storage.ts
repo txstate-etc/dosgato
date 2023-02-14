@@ -53,10 +53,15 @@ class FileSystemHandler implements FileHandler {
     const hash = createHash('sha256')
     let size = 0
     stream.on('data', (data: Buffer) => { hash.update(data); size += data.length })
-    await pipeline(stream, createWriteStream(tmp))
-    const checksum = hash.digest('base64url')
-    await this.#moveToPerm(tmp, checksum)
-    return { checksum, size }
+    try {
+      await pipeline(stream, createWriteStream(tmp))
+      const checksum = hash.digest('base64url')
+      await this.#moveToPerm(tmp, checksum)
+      return { checksum, size }
+    } catch (e: any) {
+      await unlink(tmp)
+      throw e
+    }
   }
 
   sharp (checksum: string, opts?: sharp.SharpOptions) {

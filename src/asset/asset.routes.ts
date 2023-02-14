@@ -28,7 +28,12 @@ export async function placeFile (readStream: Readable, filename: string, mimeGue
   const fileTypePassthru = await fileTypeStream(readStream)
   const probePassthru = new PassThrough()
   const metadataPromise = probe(probePassthru, true)
-  const { checksum, size } = await fileHandler.put(fileTypePassthru.pipe(probePassthru))
+  const finalStream = fileTypePassthru.pipe(probePassthru)
+  readStream.on('limit', () => {
+    (finalStream as any).truncated = true
+    finalStream.emit('error', new Error('Max file size limit reached.'))
+  })
+  const { checksum, size } = await fileHandler.put(finalStream)
   let { mime } = fileTypePassthru.fileType ?? { mime: mimeGuess }
   if (mime === 'application/x-cfb' || mime.startsWith('plain/text')) mime = mimeGuess // npm file-type library not good at distinguishing old MS Office formats
 
