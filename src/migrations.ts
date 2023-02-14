@@ -90,6 +90,16 @@ const dgMigrations: DBMigration[] = [
     run: async db => {
       await db.execute('ALTER TABLE `assets` MODIFY `dataId` CHAR(10) CHARACTER SET ascii COLLATE ascii_bin')
     }
+  },
+  {
+    id: 20230214080000,
+    description: 'add checksum to versionedservice indexvalues table and make it the unique key so we can shorten the index on the value column',
+    run: async db => {
+      await db.execute('ALTER TABLE `indexvalues` ADD COLUMN `checksum` BINARY(20) NOT NULL DEFAULT "", DROP INDEX `value`, MODIFY COLUMN `value` VARCHAR(1024) NOT NULL, ADD INDEX `value` (`value`(100))')
+      await db.execute('UPDATE indexvalues SET checksum=UNHEX(SHA1(value))')
+      await db.execute('CREATE UNIQUE INDEX `checksum` on `indexvalues`(`checksum`)')
+      await db.execute('ALTER TABLE `indexvalues` ALTER `checksum` DROP DEFAULT')
+    }
   }
 ]
 

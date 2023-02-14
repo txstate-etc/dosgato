@@ -5,6 +5,7 @@ import jsonPatch from 'fast-json-patch'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
+import { createHash } from 'node:crypto'
 import { clone, intersect } from 'txstate-utils'
 import { Index, IndexJoinedStorage, IndexStorage, IndexStringified, NotFoundError, SearchRule, Tag, UpdateConflictError, Version, Versioned, VersionedStorage, VersionStorage } from '../internal.js'
 const { applyPatch, compare } = jsonPatch
@@ -61,6 +62,22 @@ function zerofillIndexes (indexes: Index[]) {
     }
   }
   return indexes as IndexStringified[]
+}
+
+function createChecksum (v: string) {
+  return createHash('sha1').update(v).digest('hex')
+}
+
+function sortChecksums (vals: (string | number)[]) {
+  const filledvals = vals.map(zerofill)
+  const checksums = filledvals.filter(v => v.length > 1024).map(createChecksum)
+  const smallvals = filledvals.filter(v => v.length <= 1024)
+  return [checksums, smallvals]
+}
+
+function unhexIn (binds: any[], hexvals: string[]) {
+  binds.push(...hexvals)
+  return hexvals.map(v => 'UNHEX(?)').join(',')
 }
 
 export class VersionedService extends BaseService {
@@ -132,20 +149,40 @@ export class VersionedService extends BaseService {
       const where = [...permwhere, 'i.name=?']
       const binds = [...permbinds, rule.indexName]
 
-      if ('in' in rule) where.push(`v.value IN (${db.in(binds, rule.in.map(zerofill))})`)
-      else if ('notIn' in rule) where.push(`v.value NOT IN (${db.in(binds, rule.notIn.map(zerofill))})`)
-      else if ('greaterThan' in rule) {
+      if ('in' in rule) {
+        const [checksums, smallvals] = sortChecksums(rule.in)
+        const ors = []
+        if (checksums.length) ors.push(`v.checksum IN (${unhexIn(binds, checksums)})`)
+        if (smallvals.length) ors.push(`v.value IN (${db.in(binds, smallvals)})`)
+        if (ors.length) where.push(ors.join(' OR '))
+      } else if ('notIn' in rule) {
+        const [checksums, smallvals] = sortChecksums(rule.notIn)
+        if (checksums.length) where.push(`v.checksum NOT IN (${unhexIn(binds, checksums)})`)
+        if (smallvals.length) where.push(`v.value NOT IN (${db.in(binds, smallvals)})`)
+      } else if ('greaterThan' in rule) {
         where.push(`v.value >${rule.orEqual ? '=' : ''} ?`)
         binds.push(zerofill(rule.greaterThan))
       } else if ('lessThan' in rule) {
         where.push(`v.value <${rule.orEqual ? '=' : ''} ?`)
         binds.push(zerofill(rule.lessThan))
       } else if ('equal' in rule) {
-        where.push('v.value = ?')
-        binds.push(zerofill(rule.equal))
+        const val = zerofill(rule.equal)
+        if (val.length > 1024) {
+          where.push('v.checksum = UNHEX(?)')
+          binds.push(createChecksum(val))
+        } else {
+          where.push('v.value = ?')
+          binds.push(val)
+        }
       } else if ('notEqual' in rule) {
-        where.push('v.value != ?')
-        binds.push(zerofill(rule.notEqual))
+        const val = zerofill(rule.notEqual)
+        if (val.length > 1024) {
+          where.push('v.checksum != UNHEX(?)')
+          binds.push(createChecksum(val))
+        } else {
+          where.push('v.value != ?')
+          binds.push(val)
+        }
       } else if ('startsWith' in rule) {
         where.push('v.value LIKE ?')
         binds.push(zerofill(rule.startsWith) + '%')
@@ -424,12 +461,14 @@ export class VersionedService extends BaseService {
    */
   protected async getIndexValueIds (values: string[], db: Queryable) {
     if (!values.length) return {} as Record<string, number>
+    const checksumMap = new Map(values.map(v => [createChecksum(v), v]))
     await db.execute('SELECT * FROM dbversion FOR UPDATE')
-    await db.insert(`INSERT INTO indexvalues (value) VALUES ${db.in([], values.map(v => [v]))} ON DUPLICATE KEY UPDATE value=value`, values)
-    const valuerows = await db.getall<[number, string]>(`SELECT id, value FROM indexvalues WHERE value IN (${db.in([], values)}) LOCK IN SHARE MODE`, values, { rowsAsArray: true })
+    await db.insert(`INSERT INTO indexvalues (value, checksum) VALUES ${values.map(v => '(?,UNHEX(?))').join(',')} ON DUPLICATE KEY UPDATE value=value`, Array.from(checksumMap.entries()).flatMap(([checksum, value], i) => [value.substring(0, 1024), checksum]))
+    const checksums = Array.from(checksumMap.keys())
+    const valuerows = await db.getall<[number, string]>(`SELECT id, LOWER(HEX(checksum)) FROM indexvalues WHERE checksum IN (${checksums.map(v => 'UNHEX(?)').join(',')}) LOCK IN SHARE MODE`, checksums, { rowsAsArray: true })
     const valuehash: Record<string, number> = {}
-    for (const [id, value] of valuerows) {
-      valuehash[value] = id
+    for (const [id, checksum] of valuerows) {
+      if (checksumMap.has(checksum)) valuehash[checksumMap.get(checksum)!] = id
     }
     return valuehash
   }

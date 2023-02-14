@@ -186,7 +186,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
         resizeLimiter(async () => await assetService.createResizes(newAsset)).catch(console.error)
       }
     } else if (req.body?.url) {
-      const file = await handleURLUpload(req.body.url, req.body.auth)
+      const file = await handleURLUpload(req.body.url, req.body.modifiedAt, req.body.auth)
       const newAsset = await replaceAsset(versionedService, user.id, {
         ...file,
         assetId: asset.id,
