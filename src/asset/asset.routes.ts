@@ -104,7 +104,7 @@ export async function handleUpload (req: FastifyRequest, maxFiles = 200) {
 }
 
 export async function createAssetRoutes (app: FastifyInstance) {
-  await app.register(multipart)
+  await app.register(multipart, { limits: { fileSize: 2 * 1024 * 1024 * 1024 } })
   app.post<{ Params: { folderId: string }, Body?: { url: string, legacyId?: string, auth?: string, modifiedBy?: string, modifiedAt?: string, createdBy?: string, createdAt?: string } }>(
     '/assets/:folderId', async (req, res) => {
     const ctx = new Context(req)
