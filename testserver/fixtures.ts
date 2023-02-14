@@ -782,19 +782,20 @@ export async function fixtures () {
   async function createAsset (name: string, folder: number, checksum: string, mime: string, size: number, indexes: Index[], creator: string, width?: number, height?: number) {
     const ctx = new Context()
     const versionedService = new VersionedService(ctx)
+    const b64urlchecksum = Buffer.from(checksum, 'hex').toString('base64url')
     const id = await db.transaction(async db => {
-      const dataId = await versionedService.create('asset', { shasum: checksum, uploadedFilename: name + '.' + (extension(mime) || '') }, indexes, creator, db)
-      await db.insert('INSERT IGNORE INTO binaries (shasum, mime, meta, bytes) VALUES (?,?,?,?)', [checksum, mime, stringify(width && height ? { width, height } : {}), size])
-      await db.insert('INSERT INTO assets (name, folderId, dataId, shasum) VALUES (?,?,?,?)', [name, folder, dataId, checksum])
+      const dataId = await versionedService.create('asset', { shasum: b64urlchecksum, uploadedFilename: name + '.' + (extension(mime) || '') }, indexes, creator, db)
+      await db.insert('INSERT IGNORE INTO binaries (shasum, mime, meta, bytes) VALUES (?,?,?,?)', [b64urlchecksum, mime, stringify(width && height ? { width, height } : {}), size])
+      await db.insert('INSERT INTO assets (name, folderId, dataId, shasum) VALUES (?,?,?,?)', [name, folder, dataId, b64urlchecksum])
     })
     return id
   }
 
   if (existsSync('/files/storage')) {
-    await createAsset('blankpdf', site1AssetRoot, 'd731d520ca21a90b2ca28b5068cfdd678dbd3ace', 'application/pdf', 1264, [{ name: 'type', values: ['application/pdf'] }], 'su01')
-    await createAsset('bobcat', site1AssetRoot, '6ce119a866c6821764edcdd5b30395d0997c8aff', 'image/jpeg', 3793056, [{ name: 'type', values: ['image/jpeg'] }], 'su01', 6016, 4016)
-    await createAsset('blankpdf', site8AssetRoot, 'd731d520ca21a90b2ca28b5068cfdd678dbd3ace', 'application/pdf', 1264, [{ name: 'type', values: ['application/pdf'] }], 'su01')
-    await createAsset('anotherbobcat', site1Images, '6ce119a866c6821764edcdd5b30395d0997c8aff', 'image/jpeg', 3793056, [{ name: 'type', values: ['image/jpeg'] }], 'su01', 6016, 4016)
+    await createAsset('blankpdf', site1AssetRoot, '3ca054a20869a20013aa62b5e2bcb5c2a2ac3fe7be4bc195a872ae0b11fb9359', 'application/pdf', 1264, [{ name: 'type', values: ['application/pdf'] }], 'su01')
+    await createAsset('bobcat', site1AssetRoot, '43b1cdd66a05b515b113f80bcafc4cf01dac2b90ab8c1df8f362edb6381b58c1', 'image/jpeg', 3793056, [{ name: 'type', values: ['image/jpeg'] }], 'su01', 6016, 4016)
+    await createAsset('blankpdf', site8AssetRoot, '3ca054a20869a20013aa62b5e2bcb5c2a2ac3fe7be4bc195a872ae0b11fb9359', 'application/pdf', 1264, [{ name: 'type', values: ['application/pdf'] }], 'su01')
+    await createAsset('anotherbobcat', site1Images, '43b1cdd66a05b515b113f80bcafc4cf01dac2b90ab8c1df8f362edb6381b58c1', 'image/jpeg', 3793056, [{ name: 'type', values: ['image/jpeg'] }], 'su01', 6016, 4016)
   }
   const deletedAssetId = await db.getval<number>('SELECT id FROM assets WHERE name = ?', ['anotherbobcat'])
   await db.update('UPDATE assets SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [su01, 2, deletedAssetId!])

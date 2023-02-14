@@ -15,7 +15,7 @@ COPY package.json ./
 RUN apk add build-base && npm install --omit=dev --omit=optional && apk del --purge build-base && rm -rf /var/cache/apk/*
 COPY --from=build /usr/app/dist dist
 COPY tsconfig.json ./
-COPY test/files/blankpdf.pdf /files/storage/d7/31/d520ca21a90b2ca28b5068cfdd678dbd3ace
-COPY test/files/bobcat.jpg /files/storage/6c/e1/19a866c6821764edcdd5b30395d0997c8aff
+COPY test/files/blankpdf.pdf /files/storage/P/K/BUoghpogATqmK14ry1wqKsP-e-S8GVqHKuCxH7k1k
+COPY test/files/bobcat.jpg /files/storage/Q/7/HN1moFtRWxE_gLyvxM8B2sK5CrjB3482LttjgbWME
 
 CMD [ "npm", "start" ]
