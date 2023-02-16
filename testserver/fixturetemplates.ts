@@ -101,6 +101,7 @@ export const PanelComponent: APIComponentTemplate = {
   type: 'component',
   templateKey: 'keyc2',
   name: 'Panel',
+  displayCategory: 'Containers',
   areas: {
     content: [
       'keyc3',
