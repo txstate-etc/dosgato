@@ -156,6 +156,7 @@ export async function createSite (versionedService: VersionedService, userId: st
     // create the site, get the internal id for the page template
     const siteId = await db.insert('INSERT INTO sites (name) VALUES (?)', [name])
     const templateInternalId = await db.getval('SELECT id FROM templates WHERE `key`=?', [data.templateKey])
+    if (!templateInternalId) throw new Error(`${data.templateKey} is not a recognized template key.`)
     const currentUserInternalId = await db.getval<number>('SELECT id FROM users WHERE login = ?', [userId])
     // create the assetfolder
     // create the primary pagetree
@@ -163,7 +164,7 @@ export async function createSite (versionedService: VersionedService, userId: st
     const folderId = await db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?,?,?,?)', [siteId, '/', name, nanoid(10)])
     const createdAt = data.legacyId && isNotBlank(extra?.createdAt) ? new Date(extra!.createdAt) : new Date()
     const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt, promotedAt) VALUES (?,?,?, ?, ?)', [siteId, PagetreeType.PRIMARY, name, createdAt, createdAt])
-    await db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [siteId, templateInternalId!])
+    await db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [siteId, templateInternalId])
     await db.update('UPDATE sites SET primaryPagetreeId = ?, rootAssetFolderId = ? WHERE id = ?', [pagetreeId, folderId, siteId])
     // create the root page.
     const dataId = await createVersionedPage(versionedService, userId, data, db, extra)
