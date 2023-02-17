@@ -1,11 +1,12 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { isNull, isNotNull, unique, mapConcurrent, intersect, isNotBlank, keyby, isBlank } from 'txstate-utils'
 import {
   AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
   CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
-  deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter, normalizePath, finalizeAssetFolderDeletion, DeletedFilter
+  deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter, normalizePath,
+  finalizeAssetFolderDeletion, DeletedFilter
 } from '../internal.js'
-import { isNull, isNotNull, unique, mapConcurrent, intersect, isNotBlank, keyby, isBlank } from 'txstate-utils'
 
 const assetFolderByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids, deleted: DeletedFilter.SHOW }),

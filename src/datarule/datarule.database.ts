@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { DataRule, DataRuleFilter, CreateDataRuleInput, UpdateDataRuleInput } from '../internal.js'
 import { isNotNull } from 'txstate-utils'
+import { DataRule, DataRuleFilter, CreateDataRuleInput, UpdateDataRuleInput } from '../internal.js'
 
 function processFilters (filter: DataRuleFilter) {
   const where: string[] = []

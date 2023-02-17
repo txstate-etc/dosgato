@@ -1,7 +1,7 @@
+import type { PageData } from '@dosgato/templating'
 import { Context } from '@txstate-mws/graphql-server'
-import { isNull, unique } from 'txstate-utils'
+import { unique } from 'txstate-utils'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
-import { PageData } from '@dosgato/templating'
 import {
   Page, PageService, PageFilter, Role, Site, SiteService, Template, TemplateFilter, TemplateService,
   Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, SiteRuleService,

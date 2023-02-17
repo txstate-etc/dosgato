@@ -7,7 +7,8 @@ import {
   DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, MoveDataTarget, moveDataEntries,
-  DataFolder, Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions, DeletedFilter, DeleteState, popPath
+  DataFolder, Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions,
+  DeletedFilter, DeleteState, popPath
 } from '../internal.js'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({

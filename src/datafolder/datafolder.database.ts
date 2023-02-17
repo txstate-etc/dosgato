@@ -1,8 +1,8 @@
-import db from 'mysql2-async/db'
-import { eachConcurrent, isNotNull } from 'txstate-utils'
-import { nanoid } from 'nanoid'
-import { DataFolder, DataFolderFilter, Site, DeletedFilter, DeleteState, VersionedService } from '../internal.js'
 import { DateTime } from 'luxon'
+import db from 'mysql2-async/db'
+import { nanoid } from 'nanoid'
+import { eachConcurrent } from 'txstate-utils'
+import { DataFolder, DataFolderFilter, Site, DeletedFilter, DeleteState, VersionedService } from '../internal.js'
 
 export async function getDataFolders (filter?: DataFolderFilter) {
   const where: string[] = []

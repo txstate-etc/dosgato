@@ -1,4 +1,4 @@
-import { DataData } from '@dosgato/templating'
+import type { DataData } from '@dosgato/templating'
 import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'

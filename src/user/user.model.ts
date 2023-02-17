@@ -1,6 +1,6 @@
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
-import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { isNotBlank } from 'txstate-utils'
 
 @ObjectType()

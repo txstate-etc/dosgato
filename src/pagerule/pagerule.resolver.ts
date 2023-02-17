@@ -3,7 +3,7 @@ import { Resolver, Ctx, FieldResolver, Root, Arg, Mutation } from 'type-graphql'
 import { isNull } from 'txstate-utils'
 import {
   Role, RoleService, Site, SiteService, CreatePageRuleInput, PageRule,
-  PageRulePermissions, PageRuleResponse, UpdatePageRuleInput, PageRuleService, PagetreeService
+  PageRulePermissions, PageRuleResponse, UpdatePageRuleInput, PageRuleService
 } from '../internal.js'
 
 @Resolver(of => PageRule)

@@ -1,11 +1,11 @@
 import { Context } from '@txstate-mws/graphql-server'
+import { isNull } from 'txstate-utils'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'type-graphql'
 import {
   Asset, AssetFilter, Role, RoleService, User, AssetFolder, AssetFolderFilter,
   AssetFolderPermission, AssetFolderPermissions, AssetFolderService, AssetRuleService,
   UserService, AssetFolderResponse, CreateAssetFolderInput, UrlSafeString, Site, SiteService
 } from '../internal.js'
-import { isNull } from 'txstate-utils'
 
 @Resolver(of => AssetFolder)
 export class AssetFolderResolver {

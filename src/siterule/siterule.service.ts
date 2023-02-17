@@ -4,7 +4,7 @@ import { Cache } from 'txstate-utils'
 import {
   Site, DosGatoService, tooPowerfulHelper, getSiteRules, SiteRule, SiteRuleFilter,
   CreateSiteRuleInput, RoleService, createSiteRule, SiteRuleResponse, UpdateSiteRuleInput,
-  deleteSiteRule, updateSiteRule, Pagetree, SiteService, RoleServiceInternal
+  deleteSiteRule, updateSiteRule, Pagetree, RoleServiceInternal
 } from '../internal.js'
 
 const siteRulesByIdLoader = new PrimaryKeyLoader({

@@ -4,9 +4,9 @@ import { FastifyInstance } from 'fastify'
 import { FastifyTxStateOptions, devLogger } from 'fastify-txstate'
 import { GraphQLError, GraphQLScalarType } from 'graphql'
 import { DateTime } from 'luxon'
-import { NonEmptyArray } from 'type-graphql'
-import { migrations, resetdb, seeddb } from './migrations.js'
 import { Cache } from 'txstate-utils'
+import { NonEmptyArray } from 'type-graphql'
+import { migrations, resetdb } from './migrations.js'
 import {
   DateTimeScalar, UrlSafeString, UrlSafeStringScalar, AssetPermissionsResolver, AssetResolver,
   AssetRuleResolver, AssetRulePermissionsResolver, DataPermissionsResolver, DataResolver,

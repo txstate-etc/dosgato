@@ -1,11 +1,11 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import { isNull } from 'txstate-utils'
 import {
   AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
-  RoleService, AssetResponse, UpdateAssetInput, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site, SiteService, UrlSafeString
+  RoleService, AssetResponse, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site, SiteService, UrlSafeString
 } from '../internal.js'
 
 @Resolver(of => Asset)

@@ -6,10 +6,7 @@ import {
   DataServiceInternal, CreateDataFolderInput, createDataFolder, DataFolderResponse,
   renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
   SiteService, DataFoldersResponse, moveDataFolders, DeletedFilter, DataRoot, DataRootService,
-  folderNameUniqueInDataRoot,
-  TemplateServiceInternal,
-  VersionedService,
-  SiteServiceInternal
+  folderNameUniqueInDataRoot, TemplateServiceInternal, VersionedService, SiteServiceInternal
 } from '../internal.js'
 
 const dataFoldersByIdLoader = new PrimaryKeyLoader({

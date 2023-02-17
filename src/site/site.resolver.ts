@@ -3,16 +3,12 @@ import { Context } from '@txstate-mws/graphql-server'
 import { isNotNull, unique } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
-  AssetPermission, AssetFolder, AssetFolderService, DataPermission,
-  Organization, OrganizationService, Page, PageFilter, PagePermission, PageService, Pagetree,
-  PagetreeFilter, PagetreeService, Role, Template, TemplateFilter, TemplateService, User, UserService,
-  Site, SiteFilter, SitePermission, SitePermissions, SiteResponse,
-  UpdateSiteManagementInput, SiteService, AssetRuleService, PageRuleService, SiteRuleService, DataRuleService,
-  RoleService,
-  DataRoot,
-  DataRootService,
-  DataRootFilter,
-  SiteComment, SiteCommentService, JsonData, UrlSafeString
+  AssetPermission, AssetFolder, AssetFolderService, DataPermission, Organization, OrganizationService, Page,
+  PageFilter, PagePermission, PageService, Pagetree, PagetreeFilter, PagetreeService, Role, Template,
+  TemplateFilter, TemplateService, User, UserService, Site, SiteFilter, SitePermission, SitePermissions,
+  SiteResponse, UpdateSiteManagementInput, SiteService, AssetRuleService, PageRuleService, SiteRuleService,
+  DataRuleService, RoleService, DataRoot, DataRootService, DataRootFilter, SiteComment, SiteCommentService,
+  JsonData, UrlSafeString
 } from '../internal.js'
 
 @Resolver(of => Site)
