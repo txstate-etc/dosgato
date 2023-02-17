@@ -1,13 +1,13 @@
 /* eslint-disable no-multi-str */
 import { BaseService } from '@txstate-mws/graphql-server'
-import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import jsonPatch from 'fast-json-patch'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { createHash } from 'node:crypto'
 import { clone, intersect } from 'txstate-utils'
-import { Index, IndexJoinedStorage, IndexStorage, IndexStringified, NotFoundError, SearchRule, Tag, UpdateConflictError, Version, Versioned, VersionedStorage, VersionStorage } from '../internal.js'
+import { Index, IndexJoinedStorage, IndexStorage, IndexStringified, NotFoundError, SearchRule, Tag, UpdateConflictError, Version, Versioned, VersionedCommon, VersionedStorage, VersionStorage } from '../internal.js'
 const { applyPatch, compare } = jsonPatch
 
 const storageLoader = new PrimaryKeyLoader({
@@ -15,6 +15,53 @@ const storageLoader = new PrimaryKeyLoader({
     const binds: string[] = []
     const rows = await db.getall<VersionedStorage>(`SELECT * FROM storage WHERE id IN (${db.in(binds, ids)})`, binds)
     return rows.map(r => ({ ...r, data: JSON.parse(r.data) }) as Versioned)
+  }
+})
+
+const metaLoader = new ManyJoinedLoader({
+  fetch: async (pairs: { id: string, version?: number }[]) => {
+    const latests = pairs.filter(p => p.version == null)
+    const versions = pairs.filter(p => p.version != null)
+    const ret: { key: { id: string, version?: number }, value: VersionedCommon }[] = []
+    await Promise.all([
+      (async () => {
+        if (latests.length) {
+          const binds: string[] = []
+          const latestrows = await db.getall<VersionedCommon>(`
+            SELECT s.id, s.type, s.version, s.created, s.createdBy, s.modified, s.modifiedBy, s.comment
+            FROM storage s
+            WHERE s.id IN (${db.in(binds, latests.map(p => p.id))})
+          `, binds)
+          ret.push(...latestrows.map(r => ({ key: { id: r.id }, value: r })))
+        }
+      })(),
+      (async () => {
+        if (versions.length) {
+          const binds: (string | number)[] = []
+          const versionsrows = await db.getall<VersionedCommon & { selectedVersion?: number, selectedModified?: Date, selectedModifier?: string, selectedComment: string }>(`
+            SELECT s.id, s.type, s.version, s.created, s.createdBy, s.modified, s.modifiedBy, s.comment,
+              v.version as selectedVersion, v.date as selectedModified, v.user as selectedModifier, v.comment as selectedComment
+            FROM storage s
+            LEFT JOIN versions v ON v.id = s.id
+            WHERE
+              (s.id, s.version) IN (${db.in(binds, versions.map(p => [p.id, p.version]))})
+              OR
+              (v.id, v.version) IN (${db.in(binds, versions.map(p => [p.id, p.version]))})
+          `, binds)
+          ret.push(...versionsrows.map(r => ({
+            key: { id: r.id, version: r.selectedVersion ?? r.version },
+            value: {
+              ...r,
+              version: r.selectedVersion ?? r.version,
+              modified: r.selectedModified ?? r.modified,
+              modifiedBy: r.selectedModifier ?? r.modifiedBy,
+              comment: r.selectedVersion != null ? r.selectedComment : r.comment
+            }
+          })))
+        }
+      })()
+    ])
+    return ret
   }
 })
 
@@ -114,6 +161,16 @@ export class VersionedService extends BaseService {
       if (versioned.version !== version) return undefined
     }
     return versioned as Versioned<DataType>
+  }
+
+  async getMeta (id: string, opts?: { version?: number, tag?: string }) {
+    let { tag, version } = opts ?? {}
+    if (tag && tag !== 'latest') {
+      const verNum = (await this.loaders.get(tagLoader).load({ id, tag }))?.version
+      if (typeof verNum === 'undefined') return undefined
+      version = verNum
+    }
+    return (await this.loaders.get(metaLoader).load({ id, version }))[0]
   }
 
   /**

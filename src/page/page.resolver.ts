@@ -104,25 +104,25 @@ export class PageResolver {
 
   @FieldResolver(returns => DateTime)
   async createdAt (@Ctx() ctx: Context, @Root() page: Page) {
-    const data = await ctx.svc(VersionedService).get(page.dataId)
+    const data = await ctx.svc(VersionedService).getMeta(page.dataId)
     return DateTime.fromJSDate(data!.created)
   }
 
   @FieldResolver(returns => User)
   async createdBy (@Ctx() ctx: Context, @Root() page: Page) {
-    const data = await ctx.svc(VersionedService).get(page.dataId)
+    const data = await ctx.svc(VersionedService).getMeta(page.dataId)
     return await ctx.svc(UserService).findById(data!.createdBy)
   }
 
   @FieldResolver(returns => DateTime, { description: 'Date page was last modified. May be used to determine whether page has been modified since being published: (page.published && page.modifiedAt > page.publishedAt).' })
   async modifiedAt (@Ctx() ctx: Context, @Root() page: Page) {
-    const data = await ctx.svc(VersionedService).get(page.dataId)
+    const data = await ctx.svc(VersionedService).getMeta(page.dataId)
     return DateTime.fromJSDate(data!.modified)
   }
 
   @FieldResolver(returns => User)
   async modifiedBy (@Ctx() ctx: Context, @Root() page: Page) {
-    const data = await ctx.svc(VersionedService).get(page.dataId)
+    const data = await ctx.svc(VersionedService).getMeta(page.dataId)
     return await ctx.svc(UserService).findById(data!.modifiedBy)
   }
 
@@ -179,7 +179,7 @@ export class PageResolver {
   @FieldResolver(returns => ObjectVersion, { description: 'Returns the latest version information for the page.' })
   async version (@Ctx() ctx: Context, @Root() page: Page) {
     const [versioned, tags] = await Promise.all([
-      ctx.svc(VersionedService).get(page.dataId),
+      ctx.svc(VersionedService).getMeta(page.dataId),
       ctx.svc(VersionedService).getCurrentTags(page.dataId)
     ])
     if (!versioned) throw new Error('Tried to retrieve version for a page that does not exist.')

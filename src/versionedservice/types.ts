@@ -1,4 +1,4 @@
-interface VersionedCommon {
+export interface VersionedCommon {
   id: string
   type: string
   version: number
