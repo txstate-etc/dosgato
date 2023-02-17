@@ -169,8 +169,8 @@ export async function createSite (versionedService: VersionedService, userId: st
     // create the root page.
     const dataId = await createVersionedPage(versionedService, userId, data, db, extra)
     await db.insert(`
-      INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
-      VALUES (?,?,?,?,?,?)`, [name, '/', 1, pagetreeId, dataId, extra?.linkId ?? nanoid(10)])
+      INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId, siteId, title, templateKey)
+      VALUES (?,?,?,?,?,?,?,?,?)`, [name, '/', 1, pagetreeId, dataId, extra?.linkId ?? nanoid(10), siteId, data.title, data.templateKey])
     await createSiteComment(String(siteId), `Site created: ${name}`, currentUserInternalId!, db)
     return new Site(await db.getrow('SELECT * FROM sites WHERE id=?', [siteId]))
   })

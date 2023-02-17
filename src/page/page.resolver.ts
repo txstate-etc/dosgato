@@ -52,17 +52,9 @@ export class PageResolver {
     return await ctx.svc(PageService).getPath(page)
   }
 
-  @FieldResolver(returns => String, { nullable: true })
-  async title (@Ctx() ctx: Context, @Root() page: Page) {
-    const versioned = await ctx.svc(VersionedService).get(page.dataId)
-    return versioned?.data.title
-  }
-
   @FieldResolver(returns => Template, { nullable: true })
   async template (@Ctx() ctx: Context, @Root() page: Page) {
-    const versioned = await ctx.svc(VersionedService).get<PageData>(page.dataId)
-    if (!versioned) throw new Error(`Could not retrieve template for page ${String(page.name)} because its data was missing!`)
-    return await ctx.svc(TemplateService).findByKey(versioned.data.templateKey)
+    return await ctx.svc(TemplateService).findByKey(page.templateKey)
   }
 
   @FieldResolver(returns => Pagetree)

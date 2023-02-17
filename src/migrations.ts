@@ -100,6 +100,32 @@ const dgMigrations: DBMigration[] = [
       await db.execute('CREATE UNIQUE INDEX `checksum` on `indexvalues`(`checksum`)')
       await db.execute('ALTER TABLE `indexvalues` ALTER `checksum` DROP DEFAULT')
     }
+  },
+  {
+    id: 20230217120000,
+    description: 'add computed columns to pages table to avoid having to look up the full latest page data',
+    run: async db => {
+      await db.execute(`
+        ALTER TABLE pages
+        ADD COLUMN title VARCHAR(255),
+        ADD COLUMN templateKey VARCHAR(255) CHARACTER SET "ascii" COLLATE "ascii_bin" NOT NULL DEFAULT '',
+        ADD COLUMN siteId SMALLINT UNSIGNED NOT NULL DEFAULT 0
+      `)
+      await db.execute(`
+        UPDATE pages p
+        INNER JOIN pagetrees pt ON pt.id=p.pagetreeId
+        INNER JOIN storage s ON s.id=p.dataId
+        SET p.siteId=pt.siteId,
+          p.templateKey=JSON_EXTRACT(s.data, '$.templateKey'),
+          p.title=JSON_EXTRACT(s.data, '$.title')
+      `)
+      await db.execute(`
+        ALTER TABLE pages
+        ALTER siteId DROP DEFAULT,
+        ALTER templateKey DROP DEFAULT,
+        ADD FOREIGN KEY (siteId) REFERENCES sites(id)
+      `)
+    }
   }
 ]
 

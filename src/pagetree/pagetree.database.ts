@@ -79,8 +79,8 @@ export async function createPagetree (versionedService: VersionedService, user: 
     // create the root page for the pagetree
     const dataId = await createVersionedPage(versionedService, user.id, data, db, extra)
     await db.insert(`
-      INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
-      VALUES (?,?,?,?,?,?)`, [pagetreeName, '/', 1, pagetreeId, dataId, extra?.linkId ?? nanoid(10)])
+      INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId, siteId, title, templateKey)
+      VALUES (?,?,?,?,?,?,?,?,?)`, [pagetreeName, '/', 1, pagetreeId, dataId, extra?.linkId ?? nanoid(10), site.id, data.title, data.templateKey])
     await createSiteComment(site.id, `Added sandbox ${pagetreeName}.`, user.internalId, db)
     return new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE id=?', [pagetreeId]))
   })

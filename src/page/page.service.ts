@@ -497,6 +497,7 @@ export class PageService extends DosGatoService<Page> {
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(data)
       await this.svc(VersionedService).update(dataId, data, indexes, { user: this.login, comment, version: dataVersion })
+      await db.update('UPDATE pages SET title=?, templateKey=? WHERE id=?', [data.title, data.templateKey, page.internalId])
       this.loaders.clear()
       page = await this.raw.findById(dataId)
     }
@@ -511,14 +512,11 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async pageExtras (page: Page) {
-    const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
-    const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
-    const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     return {
       query: this.ctx.query,
-      siteId: site?.id,
-      pagetreeId: pagetree?.id,
-      parentId: parent?.id,
+      siteId: String(page.siteInternalId),
+      pagetreeId: page.pagetreeId,
+      parentId: String(page.parentInternalId),
       pagePath: await this.raw.getPath(page),
       pageId: page.id,
       linkId: page.linkId,
@@ -551,6 +549,7 @@ export class PageService extends DosGatoService<Page> {
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(fullymigrated)
       await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+      await db.update('UPDATE pages SET title=? WHERE id=?', [fullymigrated.title, page.internalId])
       this.loaders.clear()
       page = await this.raw.findById(dataId)
     }
@@ -764,19 +763,7 @@ export class PageService extends DosGatoService<Page> {
     const pageData = await this.raw.getData(page, dataVersion)
 
     // migrate the stored page data to match the schemaversion of the admin UI
-    const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
-    const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
-    const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const extras: PageExtras = {
-      query: this.ctx.query,
-      siteId: site?.id,
-      pagetreeId: pagetree?.id,
-      parentId: parent?.id,
-      pagePath: await this.raw.getPath(page),
-      pageId: page.id,
-      linkId: page.linkId,
-      name: page.name
-    }
+    const extras = await this.pageExtras(page)
     const migrated = await migratePage(pageData, extras, editedSchemaVersion)
 
     // execute the deletion
@@ -820,6 +807,7 @@ export class PageService extends DosGatoService<Page> {
       fullymigrated.templateKey = templateKey
       const indexes = getPageIndexes(fullymigrated)
       await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+      await db.update('UPDATE pages SET templateKey=? WHERE id=?', [fullymigrated.templateKey, page.internalId])
       this.loaders.clear()
       page = await this.raw.findById(dataId)
     }

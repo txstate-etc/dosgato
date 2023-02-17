@@ -52,6 +52,9 @@ export class Page {
   @Field({ description: 'Indicates whether this page is undeleted, marked for deletion, or deleted.' })
   deleteState: DeleteState
 
+  @Field({ nullable: true })
+  title: string
+
   deletedBy?: number
   pagetreeId: string
   path: string
@@ -60,6 +63,8 @@ export class Page {
   parentInternalId?: number
   dataId: string
   pathAsParent: string
+  siteInternalId: number
+  templateKey: string
 
   // this is a helper property for determining whether templates can be kept on a page
   // see TemplateService.mayKeepOnPage()
@@ -70,6 +75,9 @@ export class Page {
     this.id = row.dataId
     this.name = row.name
     this.pagetreeId = String(row.pagetreeId)
+    this.siteInternalId = row.siteId
+    this.title = row.title
+    this.templateKey = row.templateKey
     this.path = row.path
     this.pathSplit = row.path.split(/\//).filter(isNotBlank).map(Number)
     this.parentInternalId = this.pathSplit[this.pathSplit.length - 1]

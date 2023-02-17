@@ -373,9 +373,10 @@ export async function fixtures () {
 
     const pageId = await db.transaction(async db => {
       const parentsPath = parentId && await db.getval<string>('SELECT p.path FROM pages p WHERE p.id=?', [parentId])
+      const siteId = await db.getval<number>('SELECT siteId FROM pagetrees WHERE id=?', [pagetreeId])
       const path = `${parentsPath ?? ''}${parentsPath === '/' ? '' : '/'}${parentId ?? ''}`
       const dataId = await versionedService.create('page', pageData, indexes, 'su01', db)
-      return await db.insert('INSERT INTO pages (name, pagetreeId, path, displayOrder, dataId, linkId) VALUES (?,?,?,?,?,?)', [name, pagetreeId, path, displayOrder, dataId, linkId])
+      return await db.insert('INSERT INTO pages (name, pagetreeId, path, displayOrder, dataId, linkId, templateKey, siteId, title) VALUES (?,?,?,?,?,?,?,?,?)', [name, pagetreeId, path, displayOrder, dataId, linkId, pageData.templateKey, siteId, pageData.title])
     })
     return pageId
   }

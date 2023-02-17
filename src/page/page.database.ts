@@ -221,9 +221,9 @@ export async function createPage (versionedService: VersionedService, userId: st
     const dataId = await createVersionedPage(versionedService, userId, data, db, extra)
     async function insert () {
       const newInternalId = await db.insert(`
-        INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId)
-        VALUES (?,?,?,?,?,?)
-      `, [name, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder, parent.pagetreeId, dataId, linkId])
+        INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId, siteId, title, templateKey)
+        VALUES (?,?,?,?,?,?,?,?,?)
+      `, [name, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder, parent.pagetreeId, dataId, linkId, parent.siteInternalId, data.title, data.templateKey])
       // return the newly created page
       return new Page(await db.getrow('SELECT * FROM pages WHERE id=?', [newInternalId]))
     }
@@ -316,8 +316,8 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
   // the linkId already, otherwise re-use it so copying pages into a sandbox will maintain links
   const newLinkId = page.pagetreeId === parent.pagetreeId || await db.getval('SELECT linkId FROM pages WHERE pagetreeId=?', [parent.pagetreeId]) ? nanoid(10) : page.linkId
   const newInternalId = await db.insert(`
-    INSERT INTO pages (name, pagetreeId, dataId, linkId, path, displayOrder)
-    VALUES (?, ?, ?, ?, ?, ?)`, [newPageName, parent.pagetreeId, newDataId, newLinkId, parent.pathAsParent, displayOrder])
+    INSERT INTO pages (name, pagetreeId, dataId, linkId, path, displayOrder, siteId, title, templateKey)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [newPageName, parent.pagetreeId, newDataId, newLinkId, parent.pathAsParent, displayOrder, parent.siteInternalId, pageData!.data.title, pageData!.data.templateKey])
   if (includeChildren) {
     const children = (await db.getall('SELECT * FROM pages WHERE path = ?', [page.pathAsParent])).map(r => new Page(r))
     const newParent = new Page(await db.getrow('SELECT * FROM pages WHERE id = ?', [newInternalId]))
