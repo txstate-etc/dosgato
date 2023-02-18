@@ -117,6 +117,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     await db.transaction(async db => {
       await versionedService.update(page.dataId, pageRecord.data, indexes, { user: modifiedBy, date: modifiedAt }, db)
       if (publishedAt && modifiedAt && publishedAt >= modifiedAt) await versionedService.tag(page.dataId, 'published', undefined, body.publishedBy ?? modifiedBy, publishedAt, db)
+      await db.update('UPDATE pages SET title=?, templateKey=? WHERE dataId=?', [pageRecord.data.title, pageRecord.data.templateKey, page.dataId])
     }, { retries: 2 })
 
     return { id: page.id, linkId: page.linkId, messages: response.messages }
