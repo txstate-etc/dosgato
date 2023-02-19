@@ -10,7 +10,7 @@ import {
   getPageIndexes, undeletePages, validatePage, DeletedFilter, copyPages, TemplateType, migratePage,
   Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
   Site, PagetreeType, DeleteState, publishPageDeletions, CreatePageExtras, getPagesByPath, parsePath,
-  normalizePath, validateRecurse, Template
+  normalizePath, validateRecurse, Template, PageRuleGrants
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -121,7 +121,7 @@ export class PageServiceInternal extends BaseService {
 
   async getPageChildren (page: Page, recursive?: boolean, filter?: PageFilter) {
     const loader = recursive ? pagesByInternalIdPathRecursiveLoader : pagesByInternalIdPathLoader
-    return await this.loaders.get(loader).load(`${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`)
+    return await this.loaders.get(loader, filter).load(`${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`)
   }
 
   async getPageAncestors (page: Page) {
@@ -319,61 +319,72 @@ export class PageService extends DosGatoService<Page> {
     return !!tag
   }
 
-  async isDeleted (page: Page) {
+  async isOrphaned (page: Page) {
+    const [pagetree, site] = await Promise.all([
+      this.svc(PagetreeServiceInternal).findById(page.pagetreeId),
+      this.svc(SiteServiceInternal).findByPagetreeId(page.pagetreeId)
+    ])
+    return pagetree!.deleted || site!.deleted
+  }
+
+  async isOrphanedOrDeleted (page: Page) {
     if (page.deleteState !== DeleteState.NOTDELETED) return true
-    const pagetree = await this.svc(PagetreeServiceInternal).findById(page.pagetreeId)
-    if (pagetree!.deleted) return true
-    const site = await this.svc(SiteServiceInternal).findByPagetreeId(pagetree!.id)
-    if (site!.deleted) return true
-    return false
+    return await this.isOrphaned(page)
+  }
+
+  async checkPerm (page: Page, perm: keyof PageRuleGrants) {
+    const [isInArchive, isOrphanedOrDeleted, havePagePerm] = await Promise.all([
+      this.isInArchive(page),
+      this.isOrphanedOrDeleted(page),
+      this.havePagePerm(page, perm)
+    ])
+    return !isInArchive && !isOrphanedOrDeleted && havePagePerm
   }
 
   // authenticated user may create pages underneath given page
   async mayCreate (page: Page) {
-    if (await this.isInArchive(page)) return false
-    if (await this.isDeleted(page)) return false
-    return await this.havePagePerm(page, 'create')
+    return await this.checkPerm(page, 'create')
   }
 
   async mayUpdate (page: Page) {
-    if (await this.isInArchive(page)) return false
-    if (await this.isDeleted(page)) return false
-    return await this.havePagePerm(page, 'update')
+    return await this.checkPerm(page, 'update')
   }
 
   async mayPublish (page: Page, parentBeingPublished?: boolean) {
-    if (await this.isInArchive(page)) return false
-    if (await this.isDeleted(page)) return false
+    if (!await this.checkPerm(page, 'publish')) return false
     if (page.parentInternalId && !parentBeingPublished) {
       const parent = await this.raw.findByInternalId(page.parentInternalId)
       if (!await this.isPublished(parent!)) return false
     }
-    return await this.havePagePerm(page, 'publish')
   }
 
   async mayUnpublish (page: Page) {
     if (!page.parentInternalId) return false // root page of a site/pagetree cannot be unpublished - the site launch should be disabled instead
-    if (await this.isInArchive(page)) return false
-    if (!await this.isPublished(page)) return false
-    if (await this.isDeleted(page)) return false
-    return await this.havePagePerm(page, 'unpublish')
+    const [checkPerm, isPublished] = await Promise.all([
+      this.checkPerm(page, 'unpublish'),
+      this.isPublished(page)
+    ])
+    return checkPerm && !isPublished
   }
 
   async mayMove (page: Page) {
     if (!page.parentInternalId) return false // root page of a site/pagetree cannot be moved
-    if (await this.isInArchive(page)) return false
-    return await this.havePagePerm(page, 'move')
+    return await this.checkPerm(page, 'move')
   }
 
   async mayDelete (page: Page) {
     if (!page.parentInternalId) return false // root page of a site/pagetree cannot be deleted
-    if (await this.isInArchive(page)) return false
-    return await this.havePagePerm(page, 'delete')
+    return await this.checkPerm(page, 'delete')
   }
 
   async mayUndelete (page: Page) {
-    if (await this.isInArchive(page)) return false
-    return await this.havePagePerm(page, 'undelete')
+    if (page.deleteState === DeleteState.NOTDELETED) return false
+    const [isInArchive, isOrphaned, havePagePerm] = await Promise.all([
+      this.isInArchive(page),
+      this.isOrphaned(page),
+      this.havePagePerm(page, 'undelete')
+    ])
+    return !isInArchive && havePagePerm
   }
 
   /**

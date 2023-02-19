@@ -3,6 +3,7 @@ import { Cache, keyby, eachConcurrent, isNotNull, sortby } from 'txstate-utils'
 import { TemplateFilter, Template, templateRegistry, Pagetree, createSiteComment, Site } from '../internal.js'
 
 const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted', 'templates.universal']
+const columnsjoined = columns.join(', ')
 
 export const universalTemplateCache = new Cache(async () => {
   const templates = (await db.getall('SELECT * FROM templates WHERE universal = 1')).map(row => new Template(row))
@@ -37,30 +38,33 @@ function processFilters (filter?: TemplateFilter) {
 
 export async function getTemplates (filter?: TemplateFilter) {
   const { where, binds } = processFilters(filter)
-  let query = `SELECT ${columns.join(', ')} FROM templates`
+  let query = `SELECT ${columnsjoined} FROM templates`
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`
   }
+  query += ' ORDER BY name'
   const templates = await db.getall(query, binds)
-  return sortby(templates.map(t => new Template(t)), 'name')
+  return templates.map(t => new Template(t))
 }
 
 export async function getTemplatesBySite (siteIds: string[], filter?: TemplateFilter) {
   const { where, binds } = processFilters(filter)
   where.push(`sites_templates.siteId IN (${db.in(binds, siteIds)})`)
-  const templates = await db.getall(`SELECT ${columns.join(', ')}, sites_templates.siteId as siteId FROM templates
+  const templates = await db.getall(`SELECT ${columnsjoined}, sites_templates.siteId as siteId FROM templates
                            INNER JOIN sites_templates ON templates.id = sites_templates.templateId
-                           WHERE (${where.join(') AND (')})`, binds)
-  return sortby(templates.map(row => ({ key: String(row.siteId), value: new Template(row) })), 'value.name')
+                           WHERE (${where.join(') AND (')})
+                           ORDER BY name`, binds)
+  return templates.map(row => ({ key: String(row.siteId), value: new Template(row) }))
 }
 
 export async function getTemplatesByPagetree (pagetreeIds: string[], filter?: TemplateFilter) {
   const { where, binds } = processFilters(filter)
   where.push(`pagetrees_templates.pagetreeId IN (${db.in(binds, pagetreeIds)})`)
-  const rows = await db.getall(`SELECT ${columns.join(', ')}, pagetrees_templates.pagetreeId as pagetreeId FROM templates
+  const rows = await db.getall(`SELECT ${columnsjoined}, pagetrees_templates.pagetreeId as pagetreeId FROM templates
                                 INNER JOIN pagetrees_templates ON templates.id = pagetrees_templates.templateId
-                                WHERE (${where.join(') AND (')})`, binds)
-  return sortby(rows.map(row => ({ key: String(row.pagetreeId), value: new Template(row) })), 'value.name')
+                                WHERE (${where.join(') AND (')})
+                                ORDER BY name`, binds)
+  return rows.map(row => ({ key: String(row.pagetreeId), value: new Template(row) }))
 }
 
 export async function getTemplatePagetreePairs (pairs: { pagetreeId: string, templateKey: string }[]) {

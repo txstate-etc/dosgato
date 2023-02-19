@@ -58,8 +58,8 @@ export class Pagetree {
     this.siteId = String(row.siteId)
     this.created = DateTime.fromJSDate(row.createdAt)
     this.archived = row.archivedAt ? DateTime.fromJSDate(row.archivedAt) : undefined
-    this.deleted = isNotNull(row.deletedAt)
-    this.deletedAt = DateTime.fromJSDate(row.deletedAt)
+    this.deleted = row.deletedAt != null
+    this.deletedAt = row.deletedAt ? DateTime.fromJSDate(row.deletedAt) : undefined
     this.deletedBy = row.deletedBy
   }
 }

@@ -44,7 +44,6 @@ function processFilters (filter?: AssetFilter) {
   const joins = new Map<string, string>()
 
   if (typeof filter !== 'undefined') {
-    joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
     if (filter.internalIds?.length) {
       where.push(`assets.id IN (${db.in(binds, filter.internalIds)})`)
     }
@@ -52,12 +51,14 @@ function processFilters (filter?: AssetFilter) {
       where.push(`assets.dataId IN (${db.in(binds, filter.ids)})`)
     }
     if (filter.folderIds?.length) {
+      joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
       where.push(`assetfolders.guid IN (${db.in(binds, filter.folderIds)})`)
     }
     if (filter.folderInternalIds?.length) {
       where.push(`assets.folderId IN (${db.in(binds, filter.folderInternalIds)})`)
     }
     if (filter.siteIds?.length) {
+      joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
       where.push(`assetfolders.siteId IN (${db.in(binds, filter.siteIds)})`)
     }
     if (filter.names?.length) {
@@ -66,18 +67,12 @@ function processFilters (filter?: AssetFilter) {
     if (isNotNull(filter.referenced)) {
       // TODO
     }
-    if (filter.deleted) {
-      if (filter.deleted === DeletedFilter.ONLY) {
-        // Only show deleted assets
-        where.push(`(assets.deleteState = ${DeleteState.DELETED} OR assetfolders.deletedAt IS NOT NULL)`)
-      } else if (filter.deleted === DeletedFilter.HIDE) {
-        // hide fully deleted assets
-        where.push(`assets.deleteState != ${DeleteState.DELETED}`)
-        where.push(`assetfolders.deleteState != ${DeleteState.DELETED}`)
-      }
-    } else {
-      // deleted filter not specified, return assets that are not fully deleted
+    if (!filter.deleted || filter.deleted === DeletedFilter.HIDE) {
+      // hide fully deleted assets
       where.push(`assets.deleteState != ${DeleteState.DELETED}`)
+    } else if (filter.deleted === DeletedFilter.ONLY) {
+      // Only show deleted assets
+      where.push(`assets.deleteState = ${DeleteState.DELETED}`)
     }
     if (filter.checksums?.length) {
       where.push(`binaries.shasum IN (${db.in(binds, filter.checksums)})`)

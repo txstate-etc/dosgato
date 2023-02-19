@@ -42,9 +42,9 @@ export class Data {
     this.displayOrder = row.displayOrder
     this.siteId = optionalString(row.siteId)
     this.deleted = isNotNull(row.deletedAt)
-    this.deletedAt = DateTime.fromJSDate(row.deletedAt)
+    this.deletedAt = row.deletedAt ? DateTime.fromJSDate(row.deletedAt) : undefined
     this.deletedBy = row.deletedBy
-    this.deleteState = row.deleteState === 0 ? DeleteState.NOTDELETED : ((row.deleteState === 1 ? DeleteState.MARKEDFORDELETE : DeleteState.DELETED))
+    this.deleteState = row.deleteState
   }
 }
 
