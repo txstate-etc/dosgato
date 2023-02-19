@@ -24,14 +24,6 @@ const siteByOrganizationIdLoader = new OneToManyLoader({
   idLoader: sitesByIdLoader
 })
 
-const sitesByAssetRootLoader = new PrimaryKeyLoader({
-  fetch: async (assetRootIds: number[]) => {
-    return await getSites({ assetRootIds, deleted: DeletedFilter.SHOW })
-  },
-  extractId: site => site.rootAssetFolderInternalId,
-  idLoader: sitesByIdLoader
-})
-
 // TODO: does this loader need a filter parameter too? Without it, deleted
 // sites will be returned too
 const sitesByTemplateIdLoader = new ManyJoinedLoader({
@@ -83,10 +75,6 @@ export class SiteServiceInternal extends BaseService {
     return await this.findById(pagetree.siteId)
   }
 
-  async findByAssetRootId (assetFolderId: number) {
-    return await this.loaders.get(sitesByAssetRootLoader).load(assetFolderId)
-  }
-
   async findByOwnerInternalId (ownerInternalId: number, filter?: SiteFilter) {
     return await this.loaders.get(sitesByOwnerInternalIdLoader, filter).load(ownerInternalId)
   }
@@ -122,10 +110,6 @@ export class SiteService extends DosGatoService<Site> {
 
   async findByPagetreeId (pagetreeId: string) {
     return await this.removeUnauthorized(await this.raw.findByPagetreeId(pagetreeId))
-  }
-
-  async findByAssetRootId (assetFolderId: number) {
-    return await this.removeUnauthorized(await this.raw.findByAssetRootId(assetFolderId))
   }
 
   async findByOwnerInternalId (ownerInternalId: number, filter?: SiteFilter) {

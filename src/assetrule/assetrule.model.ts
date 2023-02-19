@@ -1,12 +1,13 @@
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
-import { RulePathMode, RuleType } from '../internal.js'
+import { PagetreeType, RulePathMode, RuleType, UrlSafePath } from '../internal.js'
 
 interface AssetRuleRow {
   id: number | string
   roleId: number | string
   siteId?: number | string
+  pagetreeType?: PagetreeType
   path: string
   mode: RulePathMode
   create?: number | boolean
@@ -83,10 +84,14 @@ export class AssetRule {
   roleId: string
   siteId?: string
 
+  @Field(type => PagetreeType, { nullable: true, description: 'The type of pagetree for which this rule applies. Null if it applies to all types' })
+  pagetreeType?: PagetreeType
+
   constructor (row: AssetRuleRow) {
     this.id = optionalString(row.id)
     this.roleId = String(row.roleId)
     this.siteId = optionalString(row.siteId)
+    this.pagetreeType = row.pagetreeType
     this.path = row.path
     this.mode = row.mode
     this.grants = new AssetRuleGrants(row)
@@ -99,6 +104,9 @@ export class AssetRuleFilter {
 
   @Field(type => [ID], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that are NOT limited to a site.' })
   siteIds?: (string | null)[]
+
+  @Field(type => [PagetreeType], { nullable: 'itemsAndList', description: 'Include a `null` to return rules that are NOT limited to a pagetree type.' })
+  pagetreeTypes?: (PagetreeType | null)[]
 
   @Field(type => [ID], { nullable: true })
   roleIds?: string[]
@@ -124,13 +132,16 @@ export class AssetRuleFilter {
 
 @InputType()
 export class CreateAssetRuleInput {
-  @Field()
+  @Field(type => ID)
   roleId!: string
 
-  @Field({ nullable: true })
+  @Field(type => ID, { nullable: true })
   siteId?: string
 
-  @Field({ nullable: true })
+  @Field(type => PagetreeType, { nullable: true })
+  pagetreeType?: PagetreeType
+
+  @Field(type => UrlSafePath, { nullable: true })
   path?: string
 
   @Field(type => RulePathMode, { nullable: true })
@@ -142,13 +153,16 @@ export class CreateAssetRuleInput {
 
 @InputType()
 export class UpdateAssetRuleInput {
-  @Field()
+  @Field(type => ID)
   ruleId!: string
 
-  @Field({ nullable: true })
+  @Field(type => ID, { nullable: true })
   siteId?: string
 
-  @Field({ nullable: true })
+  @Field(type => PagetreeType, { nullable: true })
+  pagetreeType?: PagetreeType
+
+  @Field(type => UrlSafePath, { nullable: true })
   path?: string
 
   @Field(type => RulePathMode, { nullable: true })

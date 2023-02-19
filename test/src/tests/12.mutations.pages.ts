@@ -21,10 +21,10 @@ describe('pages mutations', () => {
   let testSite6Id: string
   let testSite6PageRootId: string
   before(async () => {
-    const { sites } = await query('{ sites { id name pageroot { id } } }')
+    const { sites } = await query('{ sites { id name rootPage { id } } }')
     const site6 = sites.find((s: any) => s.name === 'site6')
     testSite6Id = site6.id
-    testSite6PageRootId = site6.pageroot.id
+    testSite6PageRootId = site6.rootPage.id
   })
   it('should create a page', async () => {
     const { success, page } = await createPage('testpage1', testSite6PageRootId, 'keyp3')

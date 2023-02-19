@@ -16,6 +16,7 @@ export interface AssetFolderRow {
 async function processFilters (filter?: AssetFolderFilter) {
   const where: any[] = []
   const binds: any[] = []
+  const joins: any[] = []
 
   if (filter?.internalIds?.length) {
     where.push(`assetfolders.id IN (${db.in(binds, filter.internalIds)})`)
@@ -39,6 +40,22 @@ async function processFilters (filter?: AssetFolderFilter) {
 
   if (filter?.siteIds?.length) {
     where.push(`assetfolders.siteId IN (${db.in(binds, filter.siteIds)})`)
+  }
+
+  if (filter?.pagetreeIds?.length) {
+    where.push(`assetfolders.pagetreeId IN (${db.in(binds, filter.pagetreeIds)})`)
+  }
+
+  if (filter?.pagetreeTypes?.length) {
+    joins.push('INNER JOIN pagetrees pt ON pt.id=assetfolders.pagetreeId')
+    where.push(`pt.type IN (${db.in(binds, filter.pagetreeTypes)})`)
+  }
+
+  if (filter?.maxDepth === 0) {
+    where.push('assetfolders.path = "/"')
+  } else if (filter?.maxDepth != null) {
+    where.push('LENGTH(assetfolders.path) - LENGTH(REPLACE(assetfolders.path, "/", "")) <= ?')
+    binds.push(filter.maxDepth)
   }
 
   if (filter?.childOfFolderInternalIds?.length) {
@@ -68,14 +85,15 @@ async function processFilters (filter?: AssetFolderFilter) {
     where.push(`assetfolders.deleteState != ${DeleteState.DELETED}`)
   }
 
-  return { where, binds }
+  return { joins, where, binds }
 }
 
 export async function getAssetFolders (filter?: AssetFolderFilter) {
-  const { where, binds } = await processFilters(filter)
+  const { joins, where, binds } = await processFilters(filter)
   return (await db.getall(`
     SELECT *
     FROM assetfolders
+    ${joins.join('\n')}
     ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
   `, binds)).map(r => new AssetFolder(r))
 }
@@ -84,8 +102,8 @@ export async function createAssetFolder (args: CreateAssetFolderInput) {
   return await db.transaction(async db => {
     const parent = new AssetFolder(await db.getrow('SELECT * from assetfolders WHERE guid = ?', [args.parentId]))
     const newInternalId = await db.insert(`
-      INSERT INTO assetfolders (siteId, path, name, guid)
-      VALUES (?, ?, ?, ?)`, [parent.siteId, `/${[...parent.pathSplit, parent.internalId].join('/')}`, args.name, nanoid(10)])
+      INSERT INTO assetfolders (siteId, pagetreeId, path, name, guid)
+      VALUES (?, ?, ?, ?, ?)`, [parent.siteId, parent.pagetreeId, `/${[...parent.pathSplit, parent.internalId].join('/')}`, args.name, nanoid(10)])
     return new AssetFolder(await db.getrow('SELECT * FROM assetfolders WHERE id=?', [newInternalId]))
   })
 }

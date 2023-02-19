@@ -35,7 +35,6 @@ export class Site {
   name: string
 
   primaryPagetreeId: string
-  rootAssetFolderInternalId: number
   organizationId?: string
   ownerId?: number
 
@@ -55,7 +54,6 @@ export class Site {
     this.name = row.name
     if (row.launchHost) this.url = new LaunchURL(row)
     this.primaryPagetreeId = String(row.primaryPagetreeId)
-    this.rootAssetFolderInternalId = row.rootAssetFolderId
     this.organizationId = optionalString(row.organizationId)
     this.ownerId = row.ownerId
     this.deleted = isNotNull(row.deletedAt)
@@ -86,8 +84,6 @@ export class SiteFilter {
   managerInternalIds?: number[]
 
   organizationIds?: string[]
-
-  assetRootIds?: number[]
 }
 
 @InputType()

@@ -16,10 +16,10 @@ describe('sites', () => {
         managers { id firstname lastname }
         pagetrees { id name type }
         templates { key name }
-        pageroot { id name }
+        rootPage { id name }
         dataroots { template { key } }
         organization { id name }
-        assetroot { id name }
+        rootAssetFolder { id name }
         launched
         roles { id name }
         comments { id comment }
@@ -81,7 +81,7 @@ describe('sites', () => {
     expect(templateNames).to.have.members(['keyp3'])
   })
   it('should get the root page for a site', async () => {
-    expect(sitehash.site2.pageroot.name).to.equal('site2')
+    expect(sitehash.site2.rootPage.name).to.equal('site2')
   })
   it('should get the data roots for a site', async () => {
     expect(sitehash.site2.dataroots.length).to.be.greaterThan(0)
@@ -96,8 +96,8 @@ describe('sites', () => {
     expect(sitehash.site2.organization.name).to.equal('Department of Mathematics')
   })
   it('should get the root asset folder for a site', async () => {
-    expect(sitehash.site3.assetroot).to.not.be.null
-    expect(sitehash.site3.assetroot.name).to.equal('site3')
+    expect(sitehash.site3.rootAssetFolder).to.not.be.null
+    expect(sitehash.site3.rootAssetFolder.name).to.equal('site3')
   })
   it('should get all the roles with any permissions on a site', async () => {
     const roleNames6 = sitehash.site6.roles.map((r: any) => r.name)

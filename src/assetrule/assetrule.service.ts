@@ -5,7 +5,7 @@ import {
   Asset, AssetRule, AssetRuleResponse, AssetRuleFilter, AssetFolder,
   comparePathsWithMode, createAssetRule, CreateAssetRuleInput, DosGatoService,
   getAssetRules, RulePathMode, RoleService, tooPowerfulHelper, UpdateAssetRuleInput,
-  updateAssetRule, deleteAssetRule, AssetServiceInternal, AssetFolderServiceInternal, RoleServiceInternal
+  updateAssetRule, deleteAssetRule, AssetServiceInternal, AssetFolderServiceInternal, RoleServiceInternal, PagetreeServiceInternal
 } from '../internal.js'
 
 const assetRulesByIdLoader = new PrimaryKeyLoader({
@@ -174,9 +174,13 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
   }
 
   async applies (rule: AssetRule, asset: Asset) {
-    const site = await this.svc(AssetServiceInternal).getSite(asset)
-    if (!site) return false
+    const [site, pagetree] = await Promise.all([
+      this.svc(AssetServiceInternal).getSite(asset),
+      this.svc(AssetServiceInternal).getPagetree(asset)
+    ])
+    if (!site || !pagetree) return false
     if (rule.siteId && rule.siteId !== site.id) return false
+    if (rule.pagetreeType && rule.pagetreeType !== pagetree.type) return false
     const assetPath = await this.svc(AssetServiceInternal).getPath(asset)
     if (rule.mode === RulePathMode.SELF && rule.path !== assetPath) return false
     if (rule.mode === RulePathMode.SELFANDSUB && !assetPath.startsWith(rule.path)) return false
@@ -186,7 +190,11 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
 
   async appliesToFolder (rule: AssetRule, folder: AssetFolder) {
     if (rule.siteId && rule.siteId !== folder.siteId) return false
-    const folderPath = await this.svc(AssetFolderServiceInternal).getPath(folder)
+    const [folderPath, pagetree] = await Promise.all([
+      this.svc(AssetFolderServiceInternal).getPath(folder),
+      this.svc(PagetreeServiceInternal).findById(folder.pagetreeId)
+    ])
+    if (rule.pagetreeType && rule.pagetreeType !== pagetree?.type) return false
     if (rule.mode === RulePathMode.SELF && rule.path !== folderPath) return false
     if (rule.mode === RulePathMode.SELFANDSUB && !folderPath.startsWith(rule.path)) return false
     if (rule.mode === RulePathMode.SUB && (rule.path === folderPath || !folderPath.startsWith(rule.path))) return false
@@ -195,6 +203,7 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
 
   asOrMorePowerful (ruleA: AssetRule, ruleB: AssetRule) { // is ruleA equal or more powerful than ruleB?
     if (ruleA.siteId && ruleA.siteId !== ruleB.siteId) return false
+    if (ruleA.pagetreeType && ruleA.pagetreeType !== ruleB.pagetreeType) return false
     return comparePathsWithMode(ruleA, ruleB)
   }
 

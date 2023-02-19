@@ -5,7 +5,8 @@ import { isNull } from 'txstate-utils'
 import {
   AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
-  RoleService, AssetResponse, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site, SiteService, UrlSafeString
+  RoleService, AssetResponse, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site, SiteService,
+  UrlSafeString, Pagetree, AssetFolderServiceInternal, PagetreeService
 } from '../internal.js'
 
 @Resolver(of => Asset)
@@ -33,8 +34,14 @@ export class AssetResolver {
 
   @FieldResolver(returns => Site)
   async site (@Ctx() ctx: Context, @Root() asset: Asset) {
-    const folder = await ctx.svc(AssetFolderService).findByInternalId(asset.folderInternalId)
+    const folder = await ctx.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
     return await ctx.svc(SiteService).findById(folder!.siteId)
+  }
+
+  @FieldResolver(returns => Pagetree)
+  async pagetree (@Ctx() ctx: Context, @Root() asset: Asset) {
+    const folder = await ctx.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
+    return await ctx.svc(PagetreeService).findById(folder!.pagetreeId)
   }
 
   @FieldResolver(returns => String)

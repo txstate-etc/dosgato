@@ -126,6 +126,31 @@ const dgMigrations: DBMigration[] = [
         ADD FOREIGN KEY (siteId) REFERENCES sites(id)
       `)
     }
+  },
+  {
+    id: 20230217130000,
+    description: 'add pagetreeId to asset folders and remove rootAssetFolder from sites',
+    run: async db => {
+      await db.execute(`
+        ALTER TABLE assetfolders
+        ADD COLUMN pagetreeId MEDIUMINT UNSIGNED NOT NULL DEFAULT 0
+      `)
+      await db.execute('UPDATE assetfolders af INNER JOIN pagetrees pt ON pt.siteId=af.siteId AND pt.type="primary" SET af.pagetreeId=pt.id')
+      await db.insert('INSERT INTO assetfolders (siteId, pagetreeId, path, name, guid) SELECT siteId, id, "/", name, SUBSTRING(MD5(RAND()) FROM 1 FOR 10) FROM pagetrees WHERE type != "primary"')
+      await db.execute(`
+        ALTER TABLE assetfolders
+        ALTER pagetreeId DROP DEFAULT,
+        ADD FOREIGN KEY (pagetreeId) REFERENCES pagetrees(id)
+      `)
+      await db.execute(`
+        ALTER TABLE sites
+        DROP CONSTRAINT FK_sites_assetfolders,
+        DROP INDEX asset_root_id_UNIQUE,
+        DROP COLUMN rootAssetFolderId
+      `)
+      await db.execute('ALTER TABLE assetrules ADD COLUMN `pagetreeType` ENUM("primary", "sandbox", "archive")')
+      await db.execute('ALTER TABLE `pagetrees` ADD INDEX (name)')
+    }
   }
 ]
 

@@ -1,8 +1,8 @@
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { isNotBlank, isNotNull } from 'txstate-utils'
-import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { DeletedFilter, DeleteState, UrlSafePath, UrlSafeString } from '../internal.js'
+import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
+import { DeletedFilter, DeleteState, PagetreeType, UrlSafePath, UrlSafeString } from '../internal.js'
 
 @ObjectType({ description: 'An asset folder is a folder that contains assets and other asset folders. Each site has exactly one root asset folder that is nameless and cannot be deleted.' })
 export class AssetFolder {
@@ -29,6 +29,7 @@ export class AssetFolder {
   pathSplit: number[]
   parentInternalId?: number
   pathAsParent: string
+  pagetreeId: string
 
   constructor (row: any) {
     this.internalId = row.id
@@ -38,11 +39,12 @@ export class AssetFolder {
     this.path = row.path
     this.pathSplit = row.path.split(/\//).filter(isNotBlank).map(Number)
     this.parentInternalId = this.pathSplit[this.pathSplit.length - 1]
+    this.pagetreeId = String(row.pagetreeId)
     this.pathAsParent = '/' + [...this.pathSplit, this.internalId].join('/')
     this.deleted = isNotNull(row.deletedAt)
-    this.deletedAt = DateTime.fromJSDate(row.deletedAt)
+    this.deletedAt = row.deletedAt ? DateTime.fromJSDate(row.deletedAt) : undefined
     this.deletedBy = row.deletedBy
-    this.deleteState = this.deleteState = row.deleteState === 0 ? DeleteState.NOTDELETED : ((row.deleteState === 1 ? DeleteState.MARKEDFORDELETE : DeleteState.DELETED))
+    this.deleteState = row.deleteState
   }
 }
 
@@ -57,6 +59,15 @@ export class AssetFolderFilter {
 
   @Field(type => [ID], { nullable: true })
   siteIds?: string[]
+
+  @Field(type => [ID], { nullable: true })
+  pagetreeIds?: string[]
+
+  @Field(type => [PagetreeType], { nullable: true })
+  pagetreeTypes?: PagetreeType[]
+
+  @Field(type => Int, { nullable: true, description: 'Only return folders at a depth less than or equal to maxDepth. Root folder is 0 depth.' })
+  maxDepth?: number
 
   @Field(type => [AssetFolderLinkInput], { nullable: true, description: 'Resolve asset folder links preferring id and falling back to path.' })
   links?: AssetFolderLinkInput[]

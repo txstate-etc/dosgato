@@ -16,23 +16,24 @@ function processFilters (filter?: PagetreeFilter) {
   if (filter?.types?.length) {
     where.push(`pagetrees.type IN (${db.in(binds, filter.types)})`)
   }
-  if (filter?.deleted) {
-    if (filter.deleted === DeletedFilter.ONLY) {
-      where.push('pagetrees.deletedAt IS NOT NULL')
-    } else if (filter.deleted === DeletedFilter.HIDE) {
-      where.push('pagetrees.deletedAt IS NULL')
-    }
-  } else {
+  if (!filter?.deleted || filter.deleted === DeletedFilter.HIDE) {
     where.push('pagetrees.deletedAt IS NULL')
+  } else if (filter.deleted === DeletedFilter.ONLY) {
+    where.push('pagetrees.deletedAt IS NOT NULL')
   }
   return { binds, where }
 }
 
-export async function getPagetreesById (ids: string[]) {
-  const { binds, where } = processFilters({ ids, deleted: DeletedFilter.SHOW })
+export async function getPagetrees (filter?: PagetreeFilter) {
+  const { binds, where } = processFilters(filter)
   const pagetrees = await db.getall(`SELECT * FROM pagetrees
-                                     WHERE (${where.join(') AND (')})`, binds)
+                                     WHERE (${where.join(') AND (')})
+                                     ORDER BY name`, binds)
   return pagetrees.map(p => new Pagetree(p))
+}
+
+export async function getPagetreesById (ids: string[]) {
+  return await getPagetrees({ ids, deleted: DeletedFilter.SHOW })
 }
 
 export async function getPagetreesBySite (siteIds: string[], filter?: PagetreeFilter) {
@@ -81,6 +82,8 @@ export async function createPagetree (versionedService: VersionedService, user: 
     await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId, siteId, title, templateKey)
       VALUES (?,?,?,?,?,?,?,?,?)`, [pagetreeName, '/', 1, pagetreeId, dataId, extra?.linkId ?? nanoid(10), site.id, data.title, data.templateKey])
+    // create the root asset folder for the pagetree
+    await db.insert('INSERT INTO assetfolders (siteId, pagetreeId, path, name, guid) VALUES (?,?,?,?,?)', [site.id, pagetreeId, '/', pagetreeName, nanoid(10)])
     await createSiteComment(site.id, `Added sandbox ${pagetreeName}.`, user.internalId, db)
     return new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE id=?', [pagetreeId]))
   })
@@ -91,6 +94,7 @@ export async function renamePagetree (pagetreeId: string, name: string, user: Us
     const pagetree = new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE ID=?', [pagetreeId]))
     await db.update('UPDATE pagetrees SET name = ? WHERE id = ?', [name, pagetreeId])
     await db.update('UPDATE pages SET name = ? WHERE pagetreeId = ? AND path = "/"', [name, pagetreeId])
+    await db.update('UPDATE assetfolders SET name = ? WHERE pagetreeId = ? AND path = "/"', [name, pagetreeId])
     await createSiteComment(pagetree.siteId, `Renamed pagetree. ${pagetree.name} is now ${name}.`, user.internalId, db)
   })
 }

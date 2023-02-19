@@ -2,7 +2,6 @@
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common.js'
-import { DateTime } from 'luxon'
 
 chai.use(chaiAsPromised)
 
@@ -19,9 +18,9 @@ describe('sites mutations', () => {
     expect(site.name).to.equal('newsitea')
     const { pages } = await query(`{ pages(filter: { siteIds: [${site.id}] }) { id name } }`)
     expect(pages[0].name).to.equal('newsitea')
-    const { sites } = await query('{ sites { name assetroot { name } } }')
+    const { sites } = await query('{ sites { name rootAssetFolder { name } } }')
     const newSite = sites.find((s: any) => s.name === 'newsitea')
-    expect(newSite.assetroot.name).to.equal('newsitea')
+    expect(newSite.rootAssetFolder.name).to.equal('newsitea')
   })
   it('should not allow a duplicate site name', async () => {
     const { success, messages } = await createSite('site1', 'keyp2')

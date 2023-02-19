@@ -4,7 +4,7 @@ import { isNotNull, unique } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
   AssetPermission, AssetFolder, AssetFolderService, DataPermission, Organization, OrganizationService, Page,
-  PageFilter, PagePermission, PageService, Pagetree, PagetreeFilter, PagetreeService, Role, Template,
+  PagePermission, PageService, Pagetree, PagetreeFilter, PagetreeService, Role, Template,
   TemplateFilter, TemplateService, User, UserService, Site, SiteFilter, SitePermission, SitePermissions,
   SiteResponse, UpdateSiteManagementInput, SiteService, AssetRuleService, PageRuleService, SiteRuleService,
   DataRuleService, RoleService, DataRoot, DataRootService, DataRootFilter, SiteComment, SiteCommentService,
@@ -23,16 +23,21 @@ export class SiteResolver {
     return await ctx.svc(PagetreeService).findBySiteId(site.id, filter)
   }
 
+  @FieldResolver(returns => Pagetree)
+  async primaryPagetree (@Ctx() ctx: Context, @Root() site: Site) {
+    return await ctx.svc(PagetreeService).findById(site.primaryPagetreeId)
+  }
+
   @FieldResolver(returns => Page)
-  async pageroot (@Ctx() ctx: Context, @Root() site: Site) {
-    const filter: PageFilter = { pagetreeIds: [site.primaryPagetreeId], paths: [`/${site.name}`] }
-    const pages = await ctx.svc(PageService).find(filter)
-    return pages[0]
+  async rootPage (@Ctx() ctx: Context, @Root() site: Site) {
+    const [page] = await ctx.svc(PageService).findByPagetreeId(site.primaryPagetreeId, { maxDepth: 0 })
+    return page
   }
 
   @FieldResolver(returns => AssetFolder)
-  async assetroot (@Ctx() ctx: Context, @Root() site: Site) {
-    return await ctx.svc(AssetFolderService).findByInternalId(site.rootAssetFolderInternalId)
+  async rootAssetFolder (@Ctx() ctx: Context, @Root() site: Site) {
+    const [folder] = await ctx.svc(AssetFolderService).findByPagetreeId(site.primaryPagetreeId, { maxDepth: 0 })
+    return folder
   }
 
   @FieldResolver(returns => [DataRoot], { description: 'Each site has a set of data roots, one for each active data template in the system.' })

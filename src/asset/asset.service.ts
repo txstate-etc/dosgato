@@ -8,7 +8,8 @@ import {
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
   fileHandler, deleteAsset, undeleteAsset, popPath, basename, registerResize,
   getResizesById, VersionedService, cleanupBinaries, getDownloads, DownloadsFilter, getResizeDownloads,
-  AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion, DeletedFilter, renameAsset, updateAssetMeta
+  AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion, DeletedFilter, renameAsset,
+  updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal
 } from '../internal.js'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
@@ -122,8 +123,13 @@ export class AssetServiceInternal extends BaseService {
   }
 
   async getSite (asset: Asset) {
-    const ancestors = await this.getAncestors(asset)
-    return await this.svc(SiteService).findByAssetRootId(ancestors[0].internalId)
+    const folder = await this.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
+    return await this.svc(SiteServiceInternal).findById(folder!.siteId)
+  }
+
+  async getPagetree (asset: Asset) {
+    const folder = await this.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
+    return await this.svc(PagetreeServiceInternal).findById(folder!.pagetreeId)
   }
 
   async getPath (asset: Asset) {

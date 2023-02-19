@@ -5,7 +5,7 @@ import {
   Pagetree, PagetreeFilter, getPagetreesById, getPagetreesBySite, renamePagetree,
   getPagetreesByTemplate, SiteService, DosGatoService, PagetreeType, PagetreeResponse,
   promotePagetree, createPagetree, VersionedService, deletePagetree,
-  undeletePagetree, archivePagetree, SiteServiceInternal, PageService, PageServiceInternal
+  undeletePagetree, archivePagetree, SiteServiceInternal, PageService, PageServiceInternal, getPagetrees
 } from '../internal.js'
 
 const PagetreesByIdLoader = new PrimaryKeyLoader({
@@ -29,6 +29,14 @@ const PagetreesByTemplateIdLoader = new ManyJoinedLoader({
 })
 
 export class PagetreeServiceInternal extends BaseService {
+  async find (filter?: PagetreeFilter) {
+    const pagetrees = await getPagetrees(filter)
+    for (const pagetree of pagetrees) {
+      this.loaders.get(PagetreesByIdLoader).prime(pagetree.id, pagetree)
+    }
+    return pagetrees
+  }
+
   async findById (id: string) {
     return await this.loaders.get(PagetreesByIdLoader).load(id)
   }
@@ -44,6 +52,10 @@ export class PagetreeServiceInternal extends BaseService {
 
 export class PagetreeService extends DosGatoService<Pagetree> {
   raw = this.svc(PagetreeServiceInternal)
+
+  async find (filter?: PagetreeFilter) {
+    return await this.removeUnauthorized(await this.raw.find(filter))
+  }
 
   async findById (id: string) {
     return await this.removeUnauthorized(await this.raw.findById(id))
@@ -176,54 +188,37 @@ export class PagetreeService extends DosGatoService<Pagetree> {
 
   async mayView (pagetree: Pagetree) {
     if (pagetree.type === PagetreeType.PRIMARY && this.isRenderServer()) return true
-    const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
-    if (!site) return false
     if (pagetree.type === PagetreeType.PRIMARY) return true
-    return await this.haveSitePerm(site, 'viewForEdit')
+    const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
+    return await this.haveSitePerm(site!, 'viewForEdit')
   }
 
   async mayRename (pagetree: Pagetree) {
     const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
-    if (!site) {
-      throw new Error(`Site not found for pagetree ${pagetree.name}`)
-    }
-    return await this.haveSitePerm(site, 'manageState')
+    return await this.haveSitePerm(site!, 'manageState')
   }
 
   async mayDelete (pagetree: Pagetree) {
     if (pagetree.deleted) return false
     const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
-    if (!site) {
-      throw new Error(`Site not found for pagetree ${pagetree.name}`)
-    }
-    return await this.haveSitePerm(site, 'manageState')
+    return await this.haveSitePerm(site!, 'manageState')
   }
 
   async mayUndelete (pagetree: Pagetree) {
     if (!pagetree.deleted) return false
     const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
-    if (!site) {
-      throw new Error(`Site not found for pagetree ${pagetree.name}`)
-    }
-    return await this.haveSitePerm(site, 'manageState')
+    return await this.haveSitePerm(site!, 'manageState')
   }
 
   async mayPromote (pagetree: Pagetree) {
-    // TODO: It says to return false if the pagetree is live. Do we need to check if the site is launched too?
     if (pagetree.type === PagetreeType.PRIMARY) return false
     const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
-    if (!site) {
-      throw new Error(`Site not found for pagetree ${pagetree.name}`)
-    }
-    return await this.haveSitePerm(site, 'manageState')
+    return await this.haveSitePerm(site!, 'manageState')
   }
 
   async mayArchive (pagetree: Pagetree) {
     if (pagetree.type === PagetreeType.ARCHIVE) return false
     const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
-    if (!site) {
-      throw new Error(`Site not found for pagetree ${pagetree.name}`)
-    }
-    return await this.haveSitePerm(site, 'manageState')
+    return await this.haveSitePerm(site!, 'manageState')
   }
 }

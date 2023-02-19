@@ -45,6 +45,15 @@ const foldersByInternalIdPathRecursiveLoader = new OneToManyLoader({
   idLoader: [assetFolderByInternalIdLoader, assetFolderByIdLoader]
 })
 
+const foldersInPagetreeLoader = new OneToManyLoader({
+  fetch: async (pagetreeIds: string[], filter?: AssetFolderFilter) => {
+    return await getAssetFolders({ ...filter, pagetreeIds })
+  },
+  extractKey: (f: AssetFolder) => f.pagetreeId,
+  keysFromFilter: (filter: AssetFolderFilter | undefined) => filter?.pagetreeIds ?? [],
+  idLoader: [assetFolderByInternalIdLoader, assetFolderByIdLoader]
+})
+
 export class AssetFolderServiceInternal extends BaseService {
   async find (filter?: AssetFolderFilter) {
     const folders = await getAssetFolders(await this.processFolderFilters(filter))
@@ -65,6 +74,10 @@ export class AssetFolderServiceInternal extends BaseService {
 
   async findByIds (ids: string[]) {
     return await this.loaders.loadMany(assetFolderByIdLoader, ids)
+  }
+
+  async findByPagetreeId (id: string, filter?: AssetFolderFilter) {
+    return await this.loaders.get(foldersInPagetreeLoader, filter).load(id)
   }
 
   async getAncestors (folder: AssetFolder) {
@@ -208,6 +221,10 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
 
   async findById (id: string) {
     return await this.removeUnauthorized(await this.raw.findById(id))
+  }
+
+  async findByPagetreeId (id: string, filter?: AssetFolderFilter) {
+    return await this.removeUnauthorized(await this.raw.findByPagetreeId(id, filter))
   }
 
   async getAncestors (folder: AssetFolder) {

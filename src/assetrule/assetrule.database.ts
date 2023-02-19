@@ -18,6 +18,13 @@ function processFilters (filter: AssetRuleFilter) {
     if (siteIds.length) ors.push(`assetrules.siteId IN (${db.in(binds, siteIds)})`)
     where.push(ors.join('OR'))
   }
+  if (filter?.pagetreeTypes?.length) {
+    const ors = []
+    if (filter.pagetreeTypes.some(id => !id)) ors.push('assetrules.pagetreeType IS NULL')
+    const pagetreeTypes = filter.pagetreeTypes.filter(isNotNull)
+    if (pagetreeTypes.length) ors.push(`assetrules.pagetreeType IN (${db.in(binds, pagetreeTypes)})`)
+    where.push(ors.join('OR'))
+  }
   if (filter?.paths?.length) {
     where.push(`assetrules.path IN (${db.in(binds, filter.paths)})`)
   }
@@ -84,6 +91,10 @@ export async function createAssetRule (args: CreateAssetRuleInput) {
   if (args.siteId) {
     columns.push('siteId')
     binds.push(args.siteId)
+  }
+  if (args.pagetreeType) {
+    columns.push('pagetreeType')
+    binds.push(args.pagetreeType)
   }
   if (args.grants) {
     if (args.grants.create) {

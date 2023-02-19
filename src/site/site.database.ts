@@ -7,7 +7,8 @@ import {
   DeletedFilter, normalizeHost, parsePath, CreatePageExtras, createVersionedPage
 } from '../internal.js'
 
-const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.launchEnabled', 'sites.primaryPagetreeId', 'sites.rootAssetFolderId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
+const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.launchEnabled', 'sites.primaryPagetreeId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
+const columnsjoined = columns.join(', ')
 
 interface SiteNode {
   stopHere?: string
@@ -66,15 +67,12 @@ async function processFilters (filter?: SiteFilter) {
   if (filter?.ownerInternalIds) {
     where.push(`sites.ownerId IN (${db.in(binds, filter.ownerInternalIds)})`)
   }
-  if (filter?.assetRootIds?.length) {
-    where.push(`sites.rootAssetFolderId IN (${db.in(binds, filter.assetRootIds)})`)
-  }
   return { where, binds }
 }
 
 export async function getSites (filter?: SiteFilter) {
   const { binds, where } = await processFilters(filter)
-  let query = `SELECT ${columns.join(', ')} FROM sites`
+  let query = `SELECT ${columnsjoined} FROM sites`
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`
   }
@@ -88,7 +86,7 @@ export async function getSitesByOrganization (orgIds: string[]) {
 
   where.push(`sites.organizationId IN (${db.in(binds, orgIds)})`)
 
-  const sites = await db.getall(`SELECT ${columns.join(', ')} FROM sites
+  const sites = await db.getall(`SELECT ${columnsjoined} FROM sites
                                  WHERE (${where.join(') AND (')})`, binds)
   return sites.map(s => new Site(s))
 }
@@ -96,7 +94,7 @@ export async function getSitesByOrganization (orgIds: string[]) {
 export async function getSitesByTemplate (templateIds: number[], atLeastOneTree?: boolean) {
   const binds: string[] = []
 
-  const wholeSites = await db.getall(`SELECT ${columns.join(', ')}, sites_templates.templateId as templateId FROM sites
+  const wholeSites = await db.getall(`SELECT ${columnsjoined}, sites_templates.templateId as templateId FROM sites
                                  INNER JOIN sites_templates ON sites.id = sites_templates.siteId
                                  WHERE sites_templates.templateId IN (${db.in(binds, templateIds)})`, binds)
   if (!atLeastOneTree) {
@@ -104,7 +102,7 @@ export async function getSitesByTemplate (templateIds: number[], atLeastOneTree?
   } else {
     // also return any sites where one or more pagetrees are able to use the template
     const binds2: string[] = []
-    const sitesWithPagetreesWithTemplate = await db.getall(`SELECT ${columns.join(', ')}, pagetrees_templates.templateId as templateId FROM sites
+    const sitesWithPagetreesWithTemplate = await db.getall(`SELECT ${columnsjoined}, pagetrees_templates.templateId as templateId FROM sites
                                             INNER JOIN pagetrees ON pagetrees.siteId = sites.id
                                             INNER JOIN pagetrees_templates ON pagetrees_templates.pagetreeId = pagetrees.id
                                             WHERE pagetrees_templates.templateId IN (${db.in(binds2, templateIds)})`, binds2)
@@ -114,7 +112,7 @@ export async function getSitesByTemplate (templateIds: number[], atLeastOneTree?
 }
 
 export async function getSitesByOwnerInternalId (ownerInternalIds: number[]) {
-  const rows = await db.getall(`SELECT sites.*
+  const rows = await db.getall(`SELECT ${columnsjoined}
                                 FROM sites
                                 INNER JOIN users ON sites.ownerId = users.id
                                 WHERE users.id IN (${db.in([], ownerInternalIds)})`, ownerInternalIds)
@@ -126,7 +124,7 @@ export async function getSitesByManagerInternalId (managerInternalIds: number[],
 
   where.push(`sites_managers.userId IN (${db.in(binds, managerInternalIds)})`)
 
-  const rows = await db.getall(`SELECT sites.*, sites_managers.userId
+  const rows = await db.getall(`SELECT ${columnsjoined}, sites_managers.userId
                                 FROM sites
                                 INNER JOIN sites_managers ON sites.id = sites_managers.siteId
                                 WHERE (${where.join(') AND (')})`, binds)
@@ -161,11 +159,11 @@ export async function createSite (versionedService: VersionedService, userId: st
     // create the assetfolder
     // create the primary pagetree
     // add root page template key to list of templates approved for the site
-    const folderId = await db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?,?,?,?)', [siteId, '/', name, nanoid(10)])
     const createdAt = data.legacyId && isNotBlank(extra?.createdAt) ? new Date(extra!.createdAt) : new Date()
     const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt, promotedAt) VALUES (?,?,?, ?, ?)', [siteId, PagetreeType.PRIMARY, name, createdAt, createdAt])
+    const folderId = await db.insert('INSERT INTO assetfolders (siteId, pagetreeId, path, name, guid) VALUES (?,?,?,?,?)', [siteId, pagetreeId, '/', name, nanoid(10)])
     await db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [siteId, templateInternalId])
-    await db.update('UPDATE sites SET primaryPagetreeId = ?, rootAssetFolderId = ? WHERE id = ?', [pagetreeId, folderId, siteId])
+    await db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetreeId, siteId])
     // create the root page.
     const dataId = await createVersionedPage(versionedService, userId, data, db, extra)
     await db.insert(`
@@ -179,10 +177,10 @@ export async function createSite (versionedService: VersionedService, userId: st
 export async function renameSite (site: Site, name: string, currentUserInternalId: number) {
   return await db.transaction(async db => {
     await db.update('UPDATE sites SET name = ? WHERE id = ?', [name, site.id])
-    // if the site is renamed, the root assetfolder and root page for all the pagetrees in the site need to be renamed too
-    await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [name, site.rootAssetFolderInternalId])
+    // if the site is renamed, the root assetfolders and root pages for all the pagetrees in the site need to be renamed too
     // update the pagetree names
     await db.update(`UPDATE pagetrees SET name = REPLACE(name, '${site.name}', ?) WHERE siteId = ?`, [name, site.id])
+    await db.update('UPDATE assetfolders f INNER JOIN pagetrees pt ON pt.id=f.pagetreeId SET f.name = pt.name WHERE pt.siteId = ? AND f.path="/"', [site.id])
     await db.update('UPDATE pages p INNER JOIN pagetrees pt ON pt.id=p.pagetreeId SET p.name = pt.name WHERE pt.siteId = ? AND p.path="/"', [site.id])
     await createSiteComment(site.id, `Site renamed. Former name: ${site.name} New name: ${name}`, currentUserInternalId, db)
   })

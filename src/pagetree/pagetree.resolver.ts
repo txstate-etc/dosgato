@@ -1,15 +1,20 @@
 import type { PageData } from '@dosgato/templating'
 import { Context } from '@txstate-mws/graphql-server'
 import { unique } from 'txstate-utils'
-import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
+import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'type-graphql'
 import {
   Page, PageService, PageFilter, Role, Site, SiteService, Template, TemplateFilter, TemplateService,
   Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, SiteRuleService,
-  RoleService, JsonData, UrlSafeString
+  RoleService, JsonData, UrlSafeString, AssetFolder, AssetFolderService, PagetreeFilter
 } from '../internal.js'
 
 @Resolver(of => Pagetree)
 export class PagetreeResolver {
+  @Query(returns => [Pagetree])
+  async pagetrees (@Ctx() ctx: Context, @Arg('filter', { nullable: true }) filter?: PagetreeFilter) {
+    return await ctx.svc(PagetreeService).find(filter)
+  }
+
   @FieldResolver(returns => Site)
   async site (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
     return await ctx.svc(SiteService).findById(pagetree.siteId)
@@ -24,6 +29,12 @@ export class PagetreeResolver {
   async rootPage (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
     const [page] = await ctx.svc(PageService).findByPagetreeId(pagetree.id, { maxDepth: 0 })
     return page
+  }
+
+  @FieldResolver(returns => AssetFolder)
+  async rootAssetFolder (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
+    const [folder] = await ctx.svc(AssetFolderService).findByPagetreeId(pagetree.id, { maxDepth: 0 })
+    return folder
   }
 
   @FieldResolver(returns => [Template], { description: 'All templates that are approved for use in this pagetree.' })
