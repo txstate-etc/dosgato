@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { Cache, hashify, unique } from 'txstate-utils'
-import { Group, GroupFilter, User } from '../internal.js'
+import { Cache, keyby } from 'txstate-utils'
+import { Group, GroupFilter } from '../internal.js'
 
 class HierarchyGroup extends Group {
   children: HierarchyGroup[]
@@ -42,7 +42,7 @@ export const groupHierarchyCache = new Cache(async () => {
     `)
   ])
   const groupNodes = groups.map(g => new HierarchyGroup(g))
-  const groupMap = hashify(groupNodes, 'id')
+  const groupMap = keyby(groupNodes, 'id')
   for (const r of relationships) {
     groupMap[r.childId].parents.push(groupMap[r.parentId])
     groupMap[r.parentId].children.push(groupMap[r.childId])
@@ -69,7 +69,7 @@ function processFilters (filter?: GroupFilter) {
 
 export async function getGroups (filter?: GroupFilter) {
   const { binds, where, joins } = processFilters(filter)
-  let query = 'SELECT * FROM groups'
+  let query = 'SELECT groups.* FROM groups'
   if (joins.size) {
     query += Array.from(joins.values()).join('\n')
   }

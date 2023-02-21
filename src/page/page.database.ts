@@ -2,8 +2,8 @@
 import db from 'mysql2-async/db'
 import { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
-import { isNotBlank, isNotNull, keyby, mapConcurrent, unique, someConcurrent, filterAsync, sortby, eachConcurrent } from 'txstate-utils'
-import { Page, PageFilter, VersionedService, normalizePath, formatSavedAtVersion, DeletedFilter, templateRegistry, getPageIndexes, DeleteState, numerate, Versioned } from '../internal.js'
+import { isNotBlank, isNotNull, keyby, unique, sortby } from 'txstate-utils'
+import { Page, PageFilter, VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault } from '../internal.js'
 import { PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 
@@ -54,20 +54,75 @@ async function convertPathsToIDPaths (pathstrings: string[]) {
   return idpaths
 }
 
-async function processFilters (filter: PageFilter) {
-  const binds: (string | number)[] = []
+export function processDeletedFilters (filter: any, tableName: string, orphansJoins: Map<string, string>, excludeOrphansClause: string, onlyOrphansClause: string) {
+  const binds: any[] = []
   const where: string[] = []
-  const joins = new Map<string, string>()
-
-  // joins.set('sites', 'INNER JOIN sites ON pagetrees.siteId = sites.id')
-
-  if (!filter.deleted || filter.deleted === DeletedFilter.HIDE) {
-    // hide fully deleted pages
-    where.push(`pages.deleteState != ${DeleteState.DELETED}`)
-  } else if (filter.deleted === DeletedFilter.ONLY) {
-    // Only show deleted pages.
-    where.push(`pages.deleteState = ${DeleteState.DELETED}`)
+  let joins = new Map<string, string>()
+  let deleteStates = new Set(filter?.deleteStates ?? DeleteStateDefault)
+  if (deleteStates.has(DeleteStateInput.ALL)) deleteStates = new Set(DeleteStateAll)
+  if (
+    !deleteStates.has(DeleteStateInput.NOTDELETED) ||
+    !deleteStates.has(DeleteStateInput.MARKEDFORDELETE) ||
+    !deleteStates.has(DeleteStateInput.DELETED) ||
+    !deleteStates.has(DeleteStateInput.ORPHAN_MARKEDFORDELETE) ||
+    !deleteStates.has(DeleteStateInput.ORPHAN_NOTDELETED) ||
+    !deleteStates.has(DeleteStateInput.ORPHAN_DELETED)
+  ) {
+    const deleteOrs: any[] = []
+    if (deleteStates.has(DeleteStateInput.NOTDELETED) !== deleteStates.has(DeleteStateInput.ORPHAN_NOTDELETED)) {
+      joins = orphansJoins
+      if (deleteStates.has(DeleteStateInput.ORPHAN_NOTDELETED)) {
+        deleteOrs.push(`${tableName}.deleteState = ${DeleteState.NOTDELETED}${onlyOrphansClause}`)
+      } else {
+        deleteOrs.push(`${tableName}.deleteState = ${DeleteState.NOTDELETED}${excludeOrphansClause}`)
+      }
+    } else {
+      if (deleteStates.has(DeleteStateInput.ORPHAN_NOTDELETED)) {
+        deleteOrs.push(`${tableName}.deleteState = ${DeleteState.NOTDELETED}`)
+      }
+    }
+    if (deleteStates.has(DeleteStateInput.MARKEDFORDELETE) !== deleteStates.has(DeleteStateInput.ORPHAN_MARKEDFORDELETE)) {
+      joins = orphansJoins
+      if (deleteStates.has(DeleteStateInput.ORPHAN_MARKEDFORDELETE)) {
+        deleteOrs.push(`${tableName}.deleteState = ${DeleteState.MARKEDFORDELETE}${onlyOrphansClause}`)
+      } else {
+        deleteOrs.push(`${tableName}.deleteState = ${DeleteState.MARKEDFORDELETE}${excludeOrphansClause}`)
+      }
+    } else {
+      if (deleteStates.has(DeleteStateInput.ORPHAN_MARKEDFORDELETE)) {
+        deleteOrs.push(`${tableName}.deleteState = ${DeleteState.MARKEDFORDELETE}`)
+      }
+    }
+    if (deleteStates.has(DeleteStateInput.DELETED) !== deleteStates.has(DeleteStateInput.ORPHAN_DELETED)) {
+      joins = orphansJoins
+      if (deleteStates.has(DeleteStateInput.ORPHAN_DELETED)) {
+        deleteOrs.push(`${tableName}.deleteState = ${DeleteState.DELETED}${onlyOrphansClause}`)
+      } else {
+        deleteOrs.push(`${tableName}.deleteState = ${DeleteState.DELETED}${excludeOrphansClause}`)
+      }
+    } else {
+      if (deleteStates.has(DeleteStateInput.ORPHAN_DELETED)) {
+        deleteOrs.push(`${tableName}.deleteState = ${DeleteState.DELETED}`)
+      }
+    }
+    where.push(`(${deleteOrs.join(') OR (')})`)
   }
+  return { binds, where, joins }
+}
+
+async function processFilters (filter?: PageFilter) {
+  const { binds, where, joins } = processDeletedFilters(
+    filter,
+    'pages',
+    new Map([
+      ['sites', 'INNER JOIN sites ON pages.siteId = sites.id'],
+      ['pagetrees', 'INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id']
+    ]),
+    ' AND sites.deletedAt IS NULL AND pagetrees.deletedAt IS NULL',
+    ' AND (sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL)'
+  )
+
+  if (filter == null) return { binds, joins, where }
 
   // dataIds
   if (filter.ids?.length) {
@@ -167,7 +222,7 @@ export async function getPagesByPath (paths: string[], filter: PageFilter) {
 }
 
 async function refetch (db: Queryable, ...pages: (Page | undefined)[]) {
-  const refetched = keyby(await getPages({ internalIds: pages.filter(isNotNull).map(p => p.internalId), deleted: DeletedFilter.SHOW }, db), 'internalId')
+  const refetched = keyby(await getPages({ internalIds: pages.filter(isNotNull).map(p => p.internalId), deleteStates: DeleteStateAll }, db), 'internalId')
   return pages.map(p => refetched[p?.internalId ?? 0])
 }
 
@@ -346,10 +401,10 @@ export async function deletePages (versionedService: VersionedService, pages: Pa
     const binds: (string | number)[] = [userInternalId, DeleteState.MARKEDFORDELETE]
     const refetchedPages = await refetch(db, ...pages)
     const pageInternalIds = refetchedPages.map(p => p.internalId)
-    const children = (await mapConcurrent(refetchedPages, async (page) => await getPages({ deleted: DeletedFilter.SHOW, internalIdPathsRecursive: [`${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`] }, db))).flat()
+    const children = await getPages({ deleteStates: DeleteStateAll, internalIdPathsRecursive: refetchedPages.map(page => `${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`) }, db)
     const childInternalIds = children.map(c => c.internalId)
     const pageIds = [...refetchedPages.map(p => p.dataId), ...children.map(p => p.dataId)]
-    await eachConcurrent(pageIds, async (id) => await versionedService.removeTag(id, 'published'))
+    await versionedService.removeTags(pageIds, ['published'], db)
     await db.update(`UPDATE pages SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id IN (${db.in(binds, unique([...pageInternalIds, ...childInternalIds]))})`, binds)
   })
 }
@@ -360,7 +415,7 @@ export async function publishPageDeletions (pages: Page[], userInternalId: numbe
     const binds: (string | number)[] = [userInternalId, DeleteState.DELETED]
     const refetchedPages = await refetch(db, ...pages)
     const pageInternalIds = refetchedPages.map(p => p.internalId)
-    const children = (await mapConcurrent(refetchedPages, async (page) => await getPages({ deleted: DeletedFilter.SHOW, internalIdPathsRecursive: [`${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`] }, db))).flat()
+    const children = await getPages({ deleteStates: DeleteStateAll, internalIdPathsRecursive: refetchedPages.map(page => `${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`) }, db)
     const childInternalIds = children.map(c => c.internalId)
     await db.update(`UPDATE pages SET deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, unique([...pageInternalIds, ...childInternalIds]))})`, binds)
   })
@@ -368,10 +423,13 @@ export async function publishPageDeletions (pages: Page[], userInternalId: numbe
 
 export async function undeletePages (pages: Page[]) {
   return await db.transaction(async db => {
-    const binds: (string | number)[] = [DeleteState.NOTDELETED]
+    let binds: (string | number)[] = []
     const refetchedPages = await refetch(db, ...pages)
-    return await db.update(`
-      UPDATE pages
+    const deletedParents = await db.getall(`SELECT id FROM pages WHERE deleteState != ${DeleteState.NOTDELETED} AND id NOT IN (${db.in(binds, refetchedPages.map(rp => rp.internalId))}) AND id IN (${db.in(binds, refetchedPages.map(rp => rp.parentInternalId).filter(isNotNull))})`, binds)
+    if (deletedParents.length) throw new Error('Cannot undelete a page with a deleted parent.')
+    binds = [DeleteState.NOTDELETED]
+    await db.update(`
+      UPDATE pages p
       SET deletedAt = NULL, deletedBy = NULL, deleteState = ?
       WHERE id IN (${db.in(binds, refetchedPages.map(p => p.internalId))})`, binds)
   })

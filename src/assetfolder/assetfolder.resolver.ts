@@ -4,14 +4,14 @@ import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'ty
 import {
   Asset, AssetFilter, Role, RoleService, User, AssetFolder, AssetFolderFilter,
   AssetFolderPermission, AssetFolderPermissions, AssetFolderService, AssetRuleService,
-  UserService, AssetFolderResponse, CreateAssetFolderInput, UrlSafeString, Site, SiteService
+  UserService, AssetFolderResponse, CreateAssetFolderInput, UrlSafeString, Site, SiteService, DeleteStateRootDefault
 } from '../internal.js'
 
 @Resolver(of => AssetFolder)
 export class AssetFolderResolver {
   @Query(returns => [AssetFolder])
   async assetfolders (@Ctx() ctx: Context, @Arg('filter', { nullable: true }) filter?: AssetFolderFilter) {
-    return await ctx.svc(AssetFolderService).find(filter)
+    return await ctx.svc(AssetFolderService).find({ ...filter, deleteStates: filter?.deleteStates ?? DeleteStateRootDefault })
   }
 
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the folder is not in the soft-deleted state.' })

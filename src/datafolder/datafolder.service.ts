@@ -5,20 +5,20 @@ import {
   DataFolder, DataFolderFilter, DosGatoService, getDataFolders,
   DataServiceInternal, CreateDataFolderInput, createDataFolder, DataFolderResponse,
   renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
-  SiteService, DataFoldersResponse, moveDataFolders, DeletedFilter, DataRoot, DataRootService,
-  folderNameUniqueInDataRoot, TemplateServiceInternal, VersionedService, SiteServiceInternal
+  SiteService, DataFoldersResponse, moveDataFolders, DataRoot, DataRootService,
+  folderNameUniqueInDataRoot, TemplateServiceInternal, VersionedService, SiteServiceInternal, DeleteStateAll, finalizeDataFolderDeletion
 } from '../internal.js'
 
 const dataFoldersByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
-    return await getDataFolders({ ids, deleted: DeletedFilter.SHOW })
+    return await getDataFolders({ ids, deleteStates: DeleteStateAll })
   },
   extractId: (item: DataFolder) => item.id
 })
 
 const dataFoldersByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
-    return await getDataFolders({ internalIds, deleted: DeletedFilter.SHOW })
+    return await getDataFolders({ internalIds, deleteStates: DeleteStateAll })
   },
   extractId: (item: DataFolder) => item.internalId,
   idLoader: dataFoldersByIdLoader
@@ -79,13 +79,6 @@ export class DataFolderServiceInternal extends BaseService {
   }
 
   async processFilters (filter?: DataFolderFilter) {
-    if (filter?.templateKeys) {
-      const templates = await this.svc(TemplateService).findByKeys(filter.templateKeys)
-      const ids = templates.map(t => t.id)
-      if (filter.templateIds) {
-        filter.templateIds.push(...ids)
-      } else filter.templateIds = ids
-    }
     if (filter?.paths) {
       const siteNames = filter.paths.map(p => p.split('/').filter(isNotBlank)[0]).filter(name => name !== 'global')
       const sites = await this.svc(SiteServiceInternal).find({ names: siteNames })
@@ -212,36 +205,41 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   }
 
   async delete (folderIds: string[]) {
-    const dataFolders = (await Promise.all(folderIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    const dataFolders = await this.raw.findByIds(folderIds)
+    if (!dataFolders.length) throw new Error('Folders to be deleted do not exist.')
     if (await someAsync(dataFolders, async (d: DataFolder) => !(await this.mayDelete(d)))) {
-      throw new Error('Current user is not permitted to delete one or more data folders')
+      throw new Error('Current user is not permitted to delete one or more data folders.')
     }
     const currentUser = await this.currentUser()
-    try {
-      await deleteDataFolder(this.svc(VersionedService), dataFolders.map(f => f.id), currentUser!.internalId)
-      this.loaders.clear()
-      const deletedFolders = await this.raw.findByIds(dataFolders.map(f => f.id))
-      return new DataFoldersResponse({ dataFolders: deletedFolders, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to delete one or more data folders')
+    await deleteDataFolder(this.svc(VersionedService), dataFolders.map(f => f.id), currentUser!.internalId)
+    this.loaders.clear()
+    const deletedFolders = await this.raw.findByIds(dataFolders.map(f => f.id))
+    return new DataFoldersResponse({ dataFolders: deletedFolders, success: true })
+  }
+
+  async finalizeDeletion (folderIds: string[]) {
+    const folders = await this.raw.findByIds(folderIds)
+    if (!folders.length) throw new Error('Folders to be deleted do not exist.')
+    if (await someAsync(folders, async (d: DataFolder) => !(await this.mayDelete(d)))) {
+      throw new Error('Current user is not permitted to delete one or more data folders.')
     }
+    const currentUser = await this.currentUser()
+    await finalizeDataFolderDeletion(folderIds, currentUser!.internalId)
+    this.loaders.clear()
+    const deletedfolders = await this.raw.findByIds(folderIds)
+    return new DataFoldersResponse({ dataFolders: deletedfolders, success: true })
   }
 
   async undelete (folderIds: string[]) {
-    const dataFolders = (await Promise.all(folderIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    const dataFolders = await this.raw.findByIds(folderIds)
+    if (!dataFolders.length) throw new Error('Folders to be restored do not exist.')
     if (await someAsync(dataFolders, async (d: DataFolder) => !(await this.mayUndelete(d)))) {
-      throw new Error('Current user is not permitted to restore one or more data folders')
+      throw new Error('Current user is not permitted to restore one or more data folders.')
     }
-    try {
-      await undeleteDataFolders(dataFolders.map(f => f.id))
-      this.loaders.clear()
-      const restoredFolders = await this.raw.findByIds(dataFolders.map(f => f.id))
-      return new DataFoldersResponse({ dataFolders: restoredFolders, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to restore one or more data folders')
-    }
+    await undeleteDataFolders(dataFolders.map(f => f.id))
+    this.loaders.clear()
+    const restoredFolders = await this.raw.findByIds(dataFolders.map(f => f.id))
+    return new DataFoldersResponse({ dataFolders: restoredFolders, success: true })
   }
 
   async mayView (folder: DataFolder) {

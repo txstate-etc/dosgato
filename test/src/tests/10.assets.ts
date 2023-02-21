@@ -6,14 +6,14 @@ describe('assetfolders', () => {
   let testSiteId: string
   let folderhash: any
   before(async () => {
-    const { sites } = await query('{ sites { id name rootAssetFolder { id name folders(recursive: true, filter: { deleted: SHOW } ) { id name } } } }')
+    const { sites } = await query('{ sites { id name rootAssetFolder { id name folders(recursive: true, filter: { deleteStates: [ALL] } ) { id name } } } }')
     const site8 = sites.find((s: any) => s.name === 'site8')
     testSiteId = site8.id
     folderhash = keyby(site8.rootAssetFolder.folders, 'name')
     folderhash[site8.rootAssetFolder.name] = { id: site8.rootAssetFolder.id, name: site8.rootAssetFolder.name }
   })
   it('should retrieve asset folders recursively', async () => {
-    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id folders(recursive: true, filter: { deleted: SHOW }) { name } } } }`)
+    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id folders(recursive: true, filter: { deleteStates: [ALL] }) { name } } } }`)
     expect(sites[0].rootAssetFolder.folders).to.deep.include.members([{ name: 'folderA' }, { name: 'folderD' }, { name: 'folderF' }, { name: 'folderH' }, { name: 'folderJ' }, { name: 'folderL' }])
   })
   it('should retrieve asset folders by id', async () => {
@@ -22,7 +22,7 @@ describe('assetfolders', () => {
     expect(sites[0].rootAssetFolder.folders).to.have.deep.members([folderhash.folderA, folderhash.folderB])
   })
   it('should retrieve deleted asset folders', async () => {
-    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id folders(filter: { deleted: ONLY }) { name } } } }`)
+    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id folders(filter: { deleteStates: [DELETED, ORPHAN_NOTDELETED, ORPHAN_MARKEDFORDELETE, ORPHAN_DELETED] }) { name } } } }`)
     expect(sites[0].rootAssetFolder.folders).to.deep.equal([{ name: 'folderD' }])
   })
   it('should retrieve asset folders\' parent folders', async () => {
@@ -36,7 +36,7 @@ describe('assetfolders', () => {
     expect(sites[0].rootAssetFolder.folders).to.have.deep.members([folderhash.folderF, folderhash.folderG, folderhash.folderI, folderhash.folderJ])
   })
   it('should retrieve asset folders by site id', async () => {
-    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id name folders(filter: { siteIds: [${testSiteId}], deleted: SHOW }) { id name } } } }`)
+    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id name folders(filter: { siteIds: [${testSiteId}], deleteStates: [ALL] }) { id name } } } }`)
     expect(sites[0].rootAssetFolder.folders).to.deep.include.members([folderhash.folderA, folderhash.folderB, folderhash.folderC, folderhash.folderD, folderhash.folderE])
   })
 })

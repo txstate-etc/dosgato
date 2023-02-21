@@ -1,9 +1,9 @@
 import type { DataData } from '@dosgato/templating'
 import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import { isNotNull, optionalString } from 'txstate-utils'
+import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { UrlSafeString, JsonData, DeletedFilter, DeleteState, UrlSafePath } from '../internal.js'
+import { UrlSafeString, JsonData, DeleteState, UrlSafePath, DeleteStateInput } from '../internal.js'
 
 @ObjectType({ description: 'Data are pieces of shareable versioned content with a template and a dialog but not rendering code. The data will be consumed by component templates, each of which will do its own rendering of the data. For example, an Article data type could be displayed by an Article List component or an Article Detail component. In addition, outside services could access the article data directly from GraphQL.' })
 export class Data {
@@ -29,9 +29,7 @@ export class Data {
   folderInternalId?: number
   siteId?: string
   displayOrder: number
-
-  // template identifier is NOT a property because it's part of the upgradeable data,
-  // we'll have to use the versionedservice indexing to look up data by template id
+  templateId: number
 
   constructor (row: any) {
     this.internalId = row.id
@@ -41,7 +39,8 @@ export class Data {
     this.folderInternalId = row.folderId
     this.displayOrder = row.displayOrder
     this.siteId = optionalString(row.siteId)
-    this.deleted = isNotNull(row.deletedAt)
+    this.templateId = row.templateId
+    this.deleted = row.deleteState !== DeleteState.NOTDELETED
     this.deletedAt = row.deletedAt ? DateTime.fromJSDate(row.deletedAt) : undefined
     this.deletedBy = row.deletedBy
     this.deleteState = row.deleteState
@@ -74,8 +73,8 @@ export class DataFilter {
   @Field(type => [ID], { nullable: true, description: 'Return data using one of the specified templates.' })
   templateKeys?: string[]
 
-  @Field(type => DeletedFilter, { nullable: true })
-  deleted?: DeletedFilter
+  @Field(type => [DeleteStateInput], { nullable: true, description: 'Return based on deleted status. If you do not specify this filter it will still hide deleted and orphaned by default but show those that are marked for deletion. Orphaned refers to the situation where an object is effectively deleted because it belongs to a site, pagetree, or parent that has been deleted.' })
+  deleteStates?: DeleteStateInput[]
 
   @Field(type => [UrlSafePath], { nullable: true, description: 'Return data entries with the given paths.' })
   paths?: string[]

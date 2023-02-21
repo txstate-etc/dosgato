@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 import { extension } from 'mime-types'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
-import { DeletedFilter, DeleteState, JsonData, UrlSafePath, UrlSafeString } from '../internal.js'
+import { DeleteState, DeleteStateInput, JsonData, UrlSafePath, UrlSafeString } from '../internal.js'
 
 const resizeMimeToExt: Record<string, string> = {
   'image/jpg': 'jpg',
@@ -138,8 +138,8 @@ export class AssetFilter {
   @Field({ nullable: true, description: 'true -> return assets referenced by any page, false -> return assets not referenced by any page, null -> return all assets' })
   referenced?: boolean
 
-  @Field(type => DeletedFilter, { nullable: true })
-  deleted?: DeletedFilter
+  @Field(type => [DeleteStateInput], { nullable: true, description: 'Return based on deleted status. If you do not specify this filter it will still hide deleted and orphaned by default but show those that are marked for deletion. Orphaned refers to the situation where an object is effectively deleted because it belongs to a site, pagetree, or parent that has been deleted.' })
+  deleteStates?: DeleteStateInput[]
 }
 
 export enum DownloadsResolution {

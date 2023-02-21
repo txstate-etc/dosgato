@@ -1,8 +1,6 @@
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { isNotNull } from 'txstate-utils'
-import { DeletedFilter } from '../internal.js'
 
 export enum PagetreeType {
   PRIMARY = 'primary',
@@ -19,6 +17,29 @@ registerEnumType(PagetreeType, {
     PRIMARY: { description: 'The primary pagetree. There will always be exactly one of these per site.' },
     SANDBOX: { description: 'A pagetree that is currently being groomed to be the next primary pagetree.' },
     ARCHIVE: { description: 'A pagetree that used to be the primary pagetree.' }
+  }
+})
+
+export enum DeleteStateInputNoFinalize {
+  NOTDELETED = 0,
+  DELETED = 2,
+  ORPHAN_NOTDELETED = 3,
+  ORPHAN_DELETED = 5,
+  ALL = 6
+}
+export const DeleteStateNoFinalizeRootDefault = [DeleteStateInputNoFinalize.NOTDELETED]
+export const DeleteStateNoFinalizeDefault = [DeleteStateInputNoFinalize.NOTDELETED, DeleteStateInputNoFinalize.ORPHAN_NOTDELETED]
+export const DeleteStateNoFinalizeAll = [DeleteStateInputNoFinalize.NOTDELETED, DeleteStateInputNoFinalize.DELETED, DeleteStateInputNoFinalize.ORPHAN_NOTDELETED, DeleteStateInputNoFinalize.ORPHAN_DELETED]
+
+registerEnumType(DeleteStateInputNoFinalize, {
+  name: 'DeleteStateInputNoFinalize',
+  description: 'Filter for whether an object is deleted, marked for deletion, or not deleted. Also filter for objects that have been orphaned. Default is typically [NOTDELETED, MARKEDFORDELETE] for root queries and [NOTDELETED, MARKEDFORDELETE, ORPHAN_NOTDELETED, ORPHAN_MARKEDFORDELETE] for relations.',
+  valuesConfig: {
+    NOTDELETED: { description: 'Objects that have not been deleted and are not orphaned.' },
+    DELETED: { description: 'Has been deleted and the deletion has been finalized. Also is not an orphan.' },
+    ORPHAN_NOTDELETED: { description: 'Not specifically deleted by a user, but belongs to a parent object, like a site or pagetree, which has been deleted.' },
+    ORPHAN_DELETED: { description: 'Specifically deleted by a user, but also belongs to a parent object, like a site or pagetree, which has been deleted.' },
+    ALL: { description: 'Supercedes all the other filters. Essentially disables the filter, which is useful because this filter is generally enabled by default.' }
   }
 })
 
@@ -72,8 +93,11 @@ export class PagetreeFilter {
   @Field(type => [PagetreeType], { nullable: true })
   types?: PagetreeType[]
 
-  @Field(type => DeletedFilter, { nullable: true })
-  deleted?: DeletedFilter
+  @Field(type => [ID], { nullable: true })
+  siteIds?: string[]
+
+  @Field(type => [DeleteStateInputNoFinalize], { nullable: true, description: 'Return based on deleted status. If you do not specify this filter it will still hide deleted and orphaned by default. Orphaned refers to the situation where an object is effectively deleted because it belongs to a site, pagetree, or parent that has been deleted.' })
+  deleteStates?: DeleteStateInputNoFinalize[]
 }
 
 @ObjectType()

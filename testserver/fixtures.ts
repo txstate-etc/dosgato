@@ -634,10 +634,10 @@ export async function fixtures () {
   const [datafolder1, datafolder2, datafolder3, datafolder4, datafolder5, datafolder6, globalcolordata, deletedsitedatafolder] = await Promise.all([
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site2datafolder', nanoid(10), site2, datatemplate1!]),
     db.insert('INSERT INTO datafolders (name, guid, templateId) VALUES (?,?,?)', ['globaldatafolder', nanoid(10), articleTemplate!]),
-    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deletedAt, deletedBy) VALUES (?,?,?,?,NOW(),?)', ['deletedfolder', nanoid(10), site2, datatemplate1!, su03]),
+    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deleteState, deletedAt, deletedBy) VALUES (?,?,?,?,2,NOW(),?)', ['deletedfolder', nanoid(10), site2, datatemplate1!, su03]),
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site5datafolder1', nanoid(10), site5, datatemplate1!]),
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site5datafolder2', nanoid(10), site5, datatemplate2!]),
-    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deletedAt, deletedBy) VALUES (?,?,?,?,NOW(),?)', ['site5datafolder3', nanoid(10), site5, datatemplate1!, su01]),
+    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deleteState, deletedAt, deletedBy) VALUES (?,?,?,?,2,NOW(),?)', ['site5datafolder3', nanoid(10), site5, datatemplate1!, su01]),
     db.insert('INSERT INTO datafolders (name, guid, templateId) VALUES (?,?,?)', ['globalcolordata', nanoid(10), datatemplate1!]),
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['deletedsitedata', nanoid(10), deletedsite, datatemplate1!])
   ])
@@ -649,7 +649,9 @@ export async function fixtures () {
     const indexes = [{ name: 'templateKey', values: [content.templateKey] }]
     const id = await db.transaction(async db => {
       const dataId = await versionedService.create('data', entryContent, indexes, creator, db)
-      return await db.insert('INSERT INTO data (dataId, name, displayOrder) VALUES (?, ?, ?)', [dataId, name, displayOrder])
+      const templateId = await db.getval<number>('SELECT id FROM templates WHERE `key`=?', [content.templateKey])
+      if (!templateId) throw new Error('templateKey does not exist.')
+      return await db.insert('INSERT INTO data (dataId, templateId, name, displayOrder) VALUES (?, ?, ?, ?)', [dataId, templateId, name, displayOrder])
     }, { retries: 1 })
     return id
   }

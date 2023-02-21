@@ -63,7 +63,7 @@ describe('templates', () => {
     expect(templates[0].pages).to.have.lengthOf(0)
   })
   it('should retrieve data entries using a given template', async () => {
-    const { templates } = await query('{ templates(filter: { keys: ["keyd1"] }) { key name data(filter: { deleted: SHOW }) { name } } }')
+    const { templates } = await query('{ templates(filter: { keys: ["keyd1"] }) { key name data(filter: { deleteStates: [ALL] }) { name } } }')
     const template1data = templates.find((t: any) => t.key === 'keyd1')
     expect(template1data.data.map((d: any) => d.name)).to.include.members(['red-content', 'blue-content', 'orange-content'])
   })

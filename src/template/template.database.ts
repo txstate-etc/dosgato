@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { Cache, keyby, eachConcurrent, isNotNull, sortby } from 'txstate-utils'
+import { Cache, keyby, eachConcurrent, isNotNull } from 'txstate-utils'
 import { TemplateFilter, Template, templateRegistry, Pagetree, createSiteComment, Site } from '../internal.js'
 
 const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted', 'templates.universal']
@@ -13,7 +13,6 @@ export const universalTemplateCache = new Cache(async () => {
 function processFilters (filter?: TemplateFilter) {
   const where: string[] = ['deleted = 0']
   const binds: string[] = []
-
   if (filter?.ids?.length) {
     where.push(`templates.id IN (${db.in(binds, filter.ids)})`)
   }

@@ -1,44 +1,48 @@
 import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { eachConcurrent } from 'txstate-utils'
-import { DataFolder, DataFolderFilter, Site, DeletedFilter, DeleteState, VersionedService } from '../internal.js'
+import { DataFolder, DataFolderFilter, Site, DeleteState, VersionedService, processDeletedFilters } from '../internal.js'
 
 export async function getDataFolders (filter?: DataFolderFilter) {
-  const where: string[] = []
-  const binds: string[] = []
+  const { binds, where, joins } = processDeletedFilters(
+    filter,
+    'datafolders',
+    new Map([
+      ['templates', 'INNER JOIN templates ON datafolders.templateId = templates.id'],
+      ['sites', 'LEFT JOIN sites ON datafolders.siteId = sites.id']
+    ]),
+    ' AND sites.deletedAt IS NULL AND templates.deleted = 0',
+    ' AND (sites.deletedAt IS NOT NULL OR templates.deleted = 1)'
+  )
 
-  if (filter?.internalIds?.length) {
-    where.push(`datafolders.id IN (${db.in(binds, filter.internalIds)})`)
-  }
-  if (filter?.ids?.length) {
-    where.push(`datafolders.guid IN (${db.in(binds, filter.ids)})`)
-  }
-  if (filter?.templateIds?.length) {
-    where.push(`datafolders.templateId IN (${db.in(binds, filter.templateIds)})`)
-  }
-  if (filter?.siteIds?.length) {
-    where.push(`datafolders.siteId IN (${db.in(binds, filter.siteIds)})`)
-  }
-  if (filter?.global) {
-    where.push('datafolders.siteId IS NULL')
-  }
-  if (filter?.names?.length) {
-    where.push(`datafolders.name IN (${db.in(binds, filter.names)})`)
-  }
-  if (filter?.deleted) {
-    if (filter.deleted === DeletedFilter.ONLY) {
-      where.push('datafolders.deletedAt IS NOT NULL')
-    } else if (filter.deleted === DeletedFilter.HIDE) {
-      where.push('datafolders.deletedAt IS NULL')
+  if (filter != null) {
+    if (filter.internalIds?.length) {
+      where.push(`datafolders.id IN (${db.in(binds, filter.internalIds)})`)
     }
-  } else {
-    where.push('datafolders.deletedAt IS NULL')
+    if (filter.ids?.length) {
+      where.push(`datafolders.guid IN (${db.in(binds, filter.ids)})`)
+    }
+    if (filter.templateIds?.length) {
+      where.push(`datafolders.templateId IN (${db.in(binds, filter.templateIds)})`)
+    }
+    if (filter.templateKeys?.length) {
+      joins.set('templates', 'INNER JOIN templates ON templates.id=datafolders.templateId')
+      where.push(`templates.\`key\` IN (${db.in(binds, filter.templateKeys)})`)
+    }
+    if (filter.siteIds?.length) {
+      where.push(`datafolders.siteId IN (${db.in(binds, filter.siteIds)})`)
+    }
+    if (filter.global) {
+      where.push('datafolders.siteId IS NULL')
+    }
+    if (filter.names?.length) {
+      where.push(`datafolders.name IN (${db.in(binds, filter.names)})`)
+    }
   }
   if (!where.length) {
     throw new Error('Must include a filter')
   }
-  const folders = await db.getall(`SELECT * FROM datafolders WHERE (${where.join(') AND (')})`, binds)
+  const folders = await db.getall(`SELECT datafolders.* FROM datafolders ${Array.from(joins.values()).join('\n')} WHERE (${where.join(') AND (')})`, binds)
   return folders.map(f => new DataFolder(f))
 }
 
@@ -91,15 +95,28 @@ export async function deleteDataFolder (versionedService: VersionedService, fold
     const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
     const dataEntryIds = await db.getvals<string>(`SELECT dataId from data INNER JOIN datafolders ON data.folderId = datafolders.id WHERE datafolders.guid IN (${db.in([], folderIds)})`, folderIds)
     if (dataEntryIds.length) {
-      await eachConcurrent(dataEntryIds, async (id) => await versionedService.removeTag(id, 'published'))
-      await db.update(`UPDATE data SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE dataId IN (${db.in([], dataEntryIds)})`, [userInternalId, DeleteState.DELETED, ...dataEntryIds])
+      await versionedService.removeTags(dataEntryIds, ['published'], db)
+      await db.update(`UPDATE data SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE dataId IN (${db.in([], dataEntryIds)})`, [userInternalId, DeleteState.MARKEDFORDELETE, ...dataEntryIds])
     }
-    const binds: (string | number)[] = [userInternalId]
-    return await db.update(`UPDATE datafolders SET deletedBy = ?, deletedAt = NOW(), name = CONCAT(name, '-${deleteTime}') WHERE guid IN (${db.in(binds, folderIds)})`, binds)
+    const binds: (string | number)[] = [userInternalId, DeleteState.MARKEDFORDELETE]
+    return await db.update(`UPDATE datafolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE guid IN (${db.in(binds, folderIds)})`, binds)
   })
 }
 
-export async function undeleteDataFolders (folderIds: string[]) {
-  const binds: string[] = []
-  return await db.update(`UPDATE datafolders SET deletedBy = null, deletedAt = null WHERE guid IN (${db.in(binds, folderIds)})`, binds)
+export async function finalizeDataFolderDeletion (guids: string[], userInternalId: number) {
+  return await db.transaction(async db => {
+    const folderInternalIds = await db.getvals<number>(`SELECT id FROM datafolders WHERE guid IN (${db.in([], guids)})`, guids)
+    const binds: number[] = [userInternalId, DeleteState.DELETED]
+    await db.update(`UPDATE datafolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE id IN (${db.in(binds, folderInternalIds)})`, binds)
+    await db.update(`UPDATE data SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE folderId IN (${db.in([], folderInternalIds)})`, binds)
+  })
+}
+
+export async function undeleteDataFolders (guids: string[]) {
+  return await db.transaction(async db => {
+    const folderInternalIds = await db.getvals<number>(`SELECT id FROM datafolders WHERE guid IN (${db.in([], guids)})`, guids)
+    const binds: number[] = [DeleteState.NOTDELETED]
+    await db.update(`UPDATE datafolders SET deletedBy = null, deletedAt = null, deleteState = ? WHERE id IN (${db.in(binds, folderInternalIds)})`, binds)
+    await db.update(`UPDATE data SET deletedBy = null, deletedAt = null, deleteState = ? WHERE folderId IN (${db.in([], folderInternalIds)})`, binds)
+  })
 }

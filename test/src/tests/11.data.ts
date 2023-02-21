@@ -45,14 +45,14 @@ describe('datafolder', () => {
   it('should return only deleted data folders', async () => {
     const { datafolders } = await query(`
       {
-        datafolders(filter: {siteIds:["${testSiteId}"], deleted: ONLY }){
+        datafolders(filter: {siteIds:["${testSiteId}"], deleteStates: [DELETED, ORPHAN_NOTDELETED, ORPHAN_MARKEDFORDELETE, ORPHAN_DELETED] }){
           name
-          deleted
+          deletedAt
         }
       }
     `)
     for (const folder of datafolders) {
-      expect(folder.deleted).to.be.true
+      expect(folder.deletedAt).to.not.be.null
     }
     const folderNames = datafolders.map((f: any) => f.name)
     expect(folderNames).to.include('site5datafolder3')
@@ -61,61 +61,61 @@ describe('datafolder', () => {
   it('should return only undeleted data folders', async () => {
     const { datafolders } = await query(`
       {
-        datafolders(filter: {siteIds:["${testSiteId}"], deleted: HIDE }){
+        datafolders(filter: {siteIds:["${testSiteId}"], deleteStates: [NOTDELETED, MARKEDFORDELETE] }){
           name
-          deleted
+          deletedAt
         }
       }
     `)
     for (const folder of datafolders) {
-      expect(folder.deleted).to.be.false
+      expect(folder.deletedAt).to.be.null
     }
     const folderNames = datafolders.map((f: any) => f.name)
     expect(folderNames).to.not.include('site5datafolder3')
     expect(folderNames).to.include('site5datafolder1')
   })
   it('should return the user who deleted a datafolder', async () => {
-    const { data } = await query('{ data(filter: { deleted: SHOW }) { id folder { name deletedBy { id } } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [ALL] }) { id folder { name deletedBy { id } } } }')
     const entry = data.find((d: any) => d.folder?.name === 'deletedfolder')
     expect(entry.folder.deletedBy.id).to.equal('su03')
   })
   it('should return null for the user who deleted a datafolder if that datafolder is not deleted', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) { id folder { name deletedBy { id } } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) { id folder { name deletedBy { id } } } }')
     const site2data = data.filter((d: any) => d.folder?.name === 'site2datafolder')
     for (const dataEntry of site2data) {
       expect(dataEntry.folder.deletedBy).to.be.null
     }
   })
   it('should return the template for a datafolder', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) { id folder { name template { name } } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) { id folder { name template { name } } } }')
     const site2data = data.filter((d: any) => d.folder?.name === 'site2datafolder')
     for (const dataEntry of site2data) {
       expect(dataEntry.folder.template.name).to.equal('Colors')
     }
   })
   it('should return the site a datafolder belongs to', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) { id folder { name site { name } } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) { id folder { name site { name } } } }')
     const site2data = data.filter((d: any) => d.folder?.name === 'site2datafolder')
     for (const dataEntry of site2data) {
       expect(dataEntry.folder.site.name).to.equal('site2')
     }
   })
   it('should return null for a datafolder\'s owning site if the datafolder is for global data', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) { id folder { name site { name } } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) { id folder { name site { name } } } }')
     const globaldata = data.filter((d: any) => d.folder?.name === 'globaldatafolder')
     for (const dataEntry of globaldata) {
       expect(dataEntry.folder.site).to.be.null
     }
   })
   it('should return all data entries for a datafolder', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) { id folder { name data(filter: { deleted: SHOW }) { id data } } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) { id folder { name data(filter: { deleteStates: [ALL] }) { id data } } } }')
     const site2data = data.find((d: any) => d.folder?.name === 'site2datafolder')
     const dataEntries = site2data.folder.data
     const colors = dataEntries.map((e: any) => e.data.color)
     expect(colors).to.have.members(['red', 'blue', 'green', 'orange'])
   })
   it('should return filtered data entries for a datafolder', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) { id folder { name data(filter:{ deleted: HIDE }) { id data } } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) { id folder { name data(filter:{ deleteStates: [NOTDELETED, MARKEDFORDELETE] }) { id data } } } }')
     const site2data = data.find((d: any) => d.folder?.name === 'site2datafolder')
     const dataEntries = site2data.folder.data
     const colors = dataEntries.map((e: any) => e.data.color)
@@ -125,7 +125,7 @@ describe('datafolder', () => {
   it('should return roles that have any permissions on a datafolder', async () => {
     const { data } = await query(`
       {
-        data(filter: { deleted: HIDE }) {
+        data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {
           id
           folder {
             name
@@ -139,7 +139,7 @@ describe('datafolder', () => {
   it('should return roles that have a specific permission on a datafolder', async () => {
     const { data } = await query(`
       {
-        data(filter: { deleted: HIDE }) {
+        data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {
           id
           folder {
             name
@@ -170,7 +170,7 @@ describe('datafolder', () => {
 
 describe('data', () => {
   it('should filter data entries by ID (dataId)', async () => {
-    const idResp = await query('{ data(filter: { deleted: HIDE }) { id } }')
+    const idResp = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) { id } }')
     const ids = idResp.data.map((val: any) => val.id)
     const { data } = await query(`{ data(filter: { ids: ["${ids.slice(0, 3).join('","')}"]}) { id }}`)
     const returnIds = data.map((val: any) => val.id)
@@ -189,10 +189,10 @@ describe('data', () => {
     }
   })
   it('should filter data entries by folder ID', async () => {
-    const entries = await query('{ data(filter: { deleted: SHOW }) {id folder { id name } } }')
+    const entries = await query('{ data(filter: { deleteStates: [ALL] }) {id folder { id name } } }')
     const site2data = entries.data.find((d: any) => d.folder?.name === 'site2datafolder')
     const folderId = site2data.folder.id
-    const { data } = await query(`{ data(filter: { deleted: SHOW, folderIds: ["${folderId}"]}) { id } }`)
+    const { data } = await query(`{ data(filter: { deleteStates: [ALL], folderIds: ["${folderId}"]}) { id } }`)
     expect(data).to.have.lengthOf(4)
   })
   it('should filter data entries by site ID', async () => {
@@ -216,31 +216,31 @@ describe('data', () => {
     expect(dataNames).to.include.members(['ebony-content', 'cottonwood-hall', 'red-content', 'gold-content', 'mauve-content'])
   })
   it('should return only deleted data entries when the deleted=ONLY filter is used', async () => {
-    const { data } = await query('{ data(filter: { deleted: ONLY }) {id name deleted site { deleted } folder { deleted } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [DELETED, ORPHAN_NOTDELETED, ORPHAN_MARKEDFORDELETE, ORPHAN_DELETED] }) {id name deleted site { deleted } folder { deleted } } }')
     for (const entry of data) {
       expect(entry.deleted || entry.site?.deleted || entry.folder?.deleted).to.be.true
     }
   })
   it('should return only undeleted data entries when the deleted=HIDE filter is used', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) {id deleted deleteState } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {id deleted deleteState } }')
     for (const entry of data) {
       expect(entry.deleteState).to.not.equal(2)
     }
   })
   it('should return the user who deleted a data entry', async () => {
-    const { data } = await query('{ data(filter: { deleted: ONLY }) {id deleteState deletedBy { id } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [DELETED, ORPHAN_NOTDELETED, ORPHAN_MARKEDFORDELETE, ORPHAN_DELETED] }) {id deleteState deletedBy { id } } }')
     for (const entry of data) {
       if (entry.deleteState === 2) expect(entry.deletedBy).to.not.be.null
     }
   })
   it('should return null for the user who deleted a data entry if the data entry is not deleted', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) {id deleteState deletedBy { id } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {id deleteState deletedBy { id } } }')
     for (const entry of data) {
       if (entry.deleteState === 0)expect(entry.deletedBy).to.be.null
     }
   })
   it('should return the JSON data for a data entry (no parameters)', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) { id data site { name } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) { id data site { name } } }')
     const site2entries = data.filter((d: any) => d.site?.name === 'site2')
     expect(site2entries.map((e: any) => e.data.color)).to.include.members(['red', 'blue', 'green'])
   })
@@ -251,21 +251,21 @@ describe('data', () => {
 
   })
   it('should return a data entry\'s template', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) {id data template { name } site { name } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {id data template { name } site { name } } }')
     const site2entries = data.filter((d: any) => d.site?.name === 'site2')
     for (const entry of site2entries) {
       expect(entry.template.name).to.equal('Colors')
     }
   })
   it('should return a data entry\'s parent folder', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) {id data folder { name } site { name } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {id data folder { name } site { name } } }')
     const site2entries = data.filter((d: any) => d.site?.name === 'site2')
     for (const entry of site2entries) {
       if (entry.folder) expect(entry.folder.name).to.equal('site2datafolder')
     }
   })
   it('should return null for a data entry\'s parent folder if the data has no folder', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) {id data folder { name } site { name } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {id data folder { name } site { name } } }')
     const filtered = data.filter((d: any) => typeof d.data.name !== 'undefined')
     for (const entry of filtered) {
       expect(entry.folder).to.be.null
@@ -295,13 +295,13 @@ describe('data', () => {
     }
   })
   it('should return when a data entry was created', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) {id createdAt } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {id createdAt } }')
     for (const entry of data) {
       expect(entry.createdAt).to.not.be.null
     }
   })
   it('should who created a data entry', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) {id data createdBy { id } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {id data createdBy { id } } }')
     for (const entry of data) {
       expect(entry.createdBy).to.not.be.null
     }
@@ -309,13 +309,13 @@ describe('data', () => {
     expect(sampleEntry.createdBy.id).to.equal('su01')
   })
   it('should return when a data entry was last modified', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) {id modifiedAt } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {id modifiedAt } }')
     for (const entry of data) {
       expect(entry.modifiedAt).to.not.be.null
     }
   })
   it('should return who last modified a data entry', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) {id data modifiedBy { id } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {id data modifiedBy { id } } }')
     for (const entry of data) {
       expect(entry.modifiedBy).to.not.be.null
     }
@@ -325,7 +325,7 @@ describe('data', () => {
   it('should return roles with any permissions on the data entry', async () => {
     const { data } = await query(`
       {
-        data(filter: { deleted: HIDE }) {
+        data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {
           id
           name
           roles {
@@ -340,7 +340,7 @@ describe('data', () => {
   it('should return rols with a specific permission on a data entry', async () => {
     const { data } = await query(`
       {
-        data(filter: { deleted: HIDE }) {
+        data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {
           id
           name
           roles(withPermission: [DELETE]) {
@@ -355,7 +355,7 @@ describe('data', () => {
     expect(roleNames).to.not.include.members(['datarolestest2'])
   })
   it('should return a list of all versions of a data entry', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE }) { id data versions { user { id } version data } } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) { id data versions { user { id } version data } } }')
     const entryWithVersions = data.find((d: any) => d.data.color === 'red')
     expect(entryWithVersions.versions).to.have.lengthOf(2)
     for (const version of entryWithVersions.versions) {
@@ -369,7 +369,7 @@ describe('data', () => {
     }
   })
   it('should return paths for data entries', async () => {
-    const { data } = await query('{ data(filter: { deleted: HIDE, templateKeys: ["keyd1"] }) { id  path name } }')
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE], templateKeys: ["keyd1"] }) { id  path name } }')
     // global not in folder
     const yellowItem = data.find((d: any) => d.name === 'yellow-content')
     expect(yellowItem.path).to.equal('/global/yellow-content')

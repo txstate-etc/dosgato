@@ -101,7 +101,7 @@ describe('pages mutations', () => {
   })
   it('should not move a page to a different site', async () => {
     const { page: movingPage } = await createPage('movingpageD', testSite6PageRootId, 'keyp1')
-    const { pages: pagelist } = await query('{ pages(filter: { deleted: HIDE }) { id name } }')
+    const { pages: pagelist } = await query('{ pages(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) { id name } }')
     const site4rootpage = pagelist.find((p: any) => p.name === 'site4')
     await expect(query('mutation movePages ($pageIds: [ID!]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { pages { name, parent { name } } } }', { pageIds: [movingPage.id], parentId: site4rootpage.id })).to.be.rejected
   })

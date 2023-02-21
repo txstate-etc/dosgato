@@ -2,7 +2,7 @@ import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-s
 import { DateTime } from 'luxon'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
-import { DeletedFilter, DeleteState, PagetreeType, UrlSafePath, UrlSafeString } from '../internal.js'
+import { DeleteState, DeleteStateInput, PagetreeType, UrlSafePath, UrlSafeString } from '../internal.js'
 
 @ObjectType({ description: 'An asset folder is a folder that contains assets and other asset folders. Each site has exactly one root asset folder that is nameless and cannot be deleted.' })
 export class AssetFolder {
@@ -95,8 +95,8 @@ export class AssetFolderFilter {
   @Field(type => Boolean, { nullable: true, description: 'Return folders that are the root folder of a site.' })
   root?: boolean
 
-  @Field(type => DeletedFilter, { nullable: true })
-  deleted?: DeletedFilter
+  @Field(type => [DeleteStateInput], { nullable: true, description: 'Return based on deleted status. If you do not specify this filter it will still hide deleted and orphaned by default but show those that are marked for deletion. Orphaned refers to the situation where an object is effectively deleted because it belongs to a site, pagetree, or parent that has been deleted.' })
+  deleteStates?: DeleteStateInput[]
 }
 
 @InputType()

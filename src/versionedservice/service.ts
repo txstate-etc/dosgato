@@ -478,8 +478,14 @@ export class VersionedService extends BaseService {
    * Remove a tag from an object, no matter which version it might be pointing at. Cannot be undone.
    */
   async removeTag (id: string, tag: string, tdb: Queryable = db) {
-    await tdb.execute('DELETE FROM tags WHERE id=? AND tag=?', [id, tag])
+    await tdb.delete('DELETE FROM tags WHERE id=? AND tag=?', [id, tag])
     this.loaders.get(tagLoader).clear({ id, tag })
+  }
+
+  async removeTags (ids: string[], tags: string[], tdb: Queryable = db) {
+    if (!ids?.length || !tags?.length) return true
+    const binds: any[] = []
+    await tdb.delete(`DELETE FROM tags WHERE tag IN (${db.in(binds, tags)}) AND id IN (${db.in(binds, ids)})`, binds)
   }
 
   /**

@@ -7,22 +7,22 @@ import { filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set
 import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter, PageResponse, PagesResponse,
   createPage, getPages, movePages, deletePages, renamePage, TemplateService, TemplateFilter,
-  getPageIndexes, undeletePages, validatePage, DeletedFilter, copyPages, TemplateType, migratePage,
+  getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage,
   Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
   Site, PagetreeType, DeleteState, publishPageDeletions, CreatePageExtras, getPagesByPath, parsePath,
-  normalizePath, validateRecurse, Template, PageRuleGrants
+  normalizePath, validateRecurse, Template, PageRuleGrants, DeleteStateAll
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
-    return await getPages({ internalIds, deleted: DeletedFilter.SHOW })
+    return await getPages({ internalIds, deleteStates: DeleteStateAll })
   },
   extractId: (item: Page) => item.internalId
 })
 
 const pagesByDataIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
-    return await getPages({ ids, deleted: DeletedFilter.SHOW })
+    return await getPages({ ids, deleteStates: DeleteStateAll })
   },
   idLoader: pagesByInternalIdLoader
 })
@@ -356,6 +356,7 @@ export class PageService extends DosGatoService<Page> {
       const parent = await this.raw.findByInternalId(page.parentInternalId)
       if (!await this.isPublished(parent!)) return false
     }
+    return true
   }
 
   async mayUnpublish (page: Page) {
@@ -364,7 +365,7 @@ export class PageService extends DosGatoService<Page> {
       this.checkPerm(page, 'unpublish'),
       this.isPublished(page)
     ])
-    return checkPerm && !isPublished
+    return checkPerm && isPublished
   }
 
   async mayMove (page: Page) {
@@ -885,15 +886,10 @@ export class PageService extends DosGatoService<Page> {
     if (await someAsync(pages, async (page: Page) => !(await this.mayUndelete(page)))) {
       throw new Error('Current user is not permitted to restore one or more pages')
     }
-    try {
-      await undeletePages(pages)
-      this.loaders.clear()
-      const restored = await this.raw.findByIds(dataIds)
-      return new PagesResponse({ success: true, pages: restored })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to restore page')
-    }
+    await undeletePages(pages)
+    this.loaders.clear()
+    const restored = await this.raw.findByIds(dataIds)
+    return new PagesResponse({ success: true, pages: restored })
   }
 
   async publishPages (dataIds: string[], includeChildren?: boolean) {
@@ -925,16 +921,11 @@ export class PageService extends DosGatoService<Page> {
     if (await someAsync(pages, async (page: Page) => !(await this.mayUnpublish(page)))) {
       throw new Error('Current user is not permitted to unpublish one or more pages')
     }
-    try {
-      await db.transaction(async db => {
-        for (const p of pages) await this.svc(VersionedService).removeTag(p.dataId, 'published')
-      })
-      this.loaders.clear()
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to unpublish one or more pages')
-    }
+    await db.transaction(async db => {
+      await this.svc(VersionedService).removeTags(pages.map(p => p.dataId), ['published'], db)
+    })
+    this.loaders.clear()
+    return new ValidatedResponse({ success: true })
   }
 
   /**

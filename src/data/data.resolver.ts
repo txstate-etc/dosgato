@@ -7,14 +7,14 @@ import {
   DataFolder, DataFolderService, Role, JsonData, Site, SiteService, Template,
   TemplateService, User, UserService, ObjectVersion, VersionedService, Data,
   DataFilter, DataPermission, DataPermissions, DataService, DataResponse, DataMultResponse,
-  CreateDataInput, UpdateDataInput, DataRuleService, RoleService, MoveDataTarget, UrlSafeString
+  CreateDataInput, UpdateDataInput, DataRuleService, RoleService, MoveDataTarget, UrlSafeString, DeleteStateRootDefault
 } from '../internal.js'
 
 @Resolver(of => Data)
 export class DataResolver {
   @Query(returns => [Data], { name: 'data' })
   async dataquery (@Ctx() ctx: Context, @Arg('filter') filter: DataFilter) {
-    return await ctx.svc(DataService).find(filter)
+    return await ctx.svc(DataService).find({ ...filter, deleteStates: filter.deleteStates ?? DeleteStateRootDefault })
   }
 
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the data is not in the soft-deleted state.' })

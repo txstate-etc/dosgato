@@ -5,14 +5,14 @@ import {
   Data, DataFilter, DataService, Site, SiteService, Template, TemplateService,
   User, UserService, Role, DataFolder, DataFolderPermission, DataFolderPermissions,
   DataFolderService, CreateDataFolderInput, DataFolderResponse, DataFoldersResponse,
-  DataRuleService, RoleService, DataFolderFilter, DataRoot, DataRootService, UrlSafeString
+  DataRuleService, RoleService, DataFolderFilter, DataRoot, DataRootService, UrlSafeString, DeleteStateRootDefault
 } from '../internal.js'
 
 @Resolver(of => DataFolder)
 export class DataFolderResolver {
   @Query(returns => [DataFolder])
   async datafolders (@Ctx() ctx: Context, @Arg('filter', { nullable: true }) filter?: DataFolderFilter) {
-    return await ctx.svc(DataFolderService).find(filter)
+    return await ctx.svc(DataFolderService).find({ ...filter, deleteStates: filter?.deleteStates ?? DeleteStateRootDefault })
   }
 
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the folder is not in the soft-deleted state.' })
@@ -84,6 +84,11 @@ export class DataFolderResolver {
   @Mutation(returns => DataFoldersResponse)
   async deleteDataFolders (@Ctx() ctx: Context, @Arg('folderIds', type => [ID]) folderIds: string[]) {
     return await ctx.svc(DataFolderService).delete(folderIds)
+  }
+
+  @Mutation(returns => DataFoldersResponse)
+  async finalizeDataFolderDeletion (@Ctx() ctx: Context, @Arg('folderIds', type => [ID]) folderIds: string[]) {
+    return await ctx.svc(DataFolderService).finalizeDeletion(folderIds)
   }
 
   @Mutation(returns => DataFoldersResponse)

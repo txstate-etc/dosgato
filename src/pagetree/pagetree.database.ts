@@ -3,45 +3,91 @@ import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { unique, isNotBlank } from 'txstate-utils'
 import {
-  Pagetree, PagetreeFilter, PagetreeType, VersionedService, Site, createSiteComment, User, DeletedFilter,
-  numerate, createVersionedPage, CreatePageExtras
+  Pagetree, PagetreeFilter, PagetreeType, VersionedService, Site, createSiteComment, User,
+  numerate, createVersionedPage, CreatePageExtras, DeleteStateNoFinalizeDefault, DeleteStateInputNoFinalize, DeleteStateNoFinalizeAll
 } from '../internal.js'
 
-function processFilters (filter?: PagetreeFilter) {
-  const binds: string[] = []
+export function processDeletedFiltersNoFinalize (filter: any, tableName: string, orphansJoins: Map<string, string>, excludeOrphansClause: string, onlyOrphansClause: string) {
+  const binds: any[] = []
   const where: string[] = []
-  if (filter?.ids?.length) {
+  let joins = new Map<string, string>()
+  let deleteStates = new Set(filter?.deleteStates ?? DeleteStateNoFinalizeDefault)
+  if (deleteStates.has(DeleteStateInputNoFinalize.ALL)) deleteStates = new Set(DeleteStateNoFinalizeAll)
+  if (
+    !deleteStates.has(DeleteStateInputNoFinalize.NOTDELETED) ||
+    !deleteStates.has(DeleteStateInputNoFinalize.DELETED) ||
+    !deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_NOTDELETED) ||
+    !deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_DELETED)
+  ) {
+    const deleteOrs: any[] = []
+    if (deleteStates.has(DeleteStateInputNoFinalize.NOTDELETED) !== deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_NOTDELETED)) {
+      joins = orphansJoins
+      if (deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_NOTDELETED)) {
+        deleteOrs.push(`${tableName}.deletedAt IS NULL${onlyOrphansClause}`)
+      } else {
+        deleteOrs.push(`${tableName}.deletedAt IS NULL${excludeOrphansClause}`)
+      }
+    } else {
+      if (deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_NOTDELETED)) {
+        deleteOrs.push(`${tableName}.deletedAt IS NULL`)
+      }
+    }
+    if (deleteStates.has(DeleteStateInputNoFinalize.DELETED) !== deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_DELETED)) {
+      joins = orphansJoins
+      if (deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_DELETED)) {
+        deleteOrs.push(`${tableName}.deletedAt IS NOT NULL${onlyOrphansClause}`)
+      } else {
+        deleteOrs.push(`${tableName}.deletedAt IS NOT NULL${excludeOrphansClause}`)
+      }
+    } else {
+      if (deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_DELETED)) {
+        deleteOrs.push(`${tableName}.deletedAt IS NOT NULL`)
+      }
+    }
+    where.push(`(${deleteOrs.join(') OR (')})`)
+  }
+  return { binds, where, joins }
+}
+
+function processFilters (filter?: PagetreeFilter) {
+  const { binds, where, joins } = processDeletedFiltersNoFinalize(
+    filter,
+    'pagetrees',
+    new Map([
+      ['sites', 'INNER JOIN sites ON pagetrees.siteId = sites.id']
+    ]),
+    ' AND sites.deletedAt IS NULL',
+    ' AND sites.deletedAt IS NOT NULL'
+  )
+
+  if (filter == null) return { binds, where, joins }
+  if (filter.ids?.length) {
     where.push(`pagetrees.id IN (${db.in(binds, filter.ids)})`)
   }
-  if (filter?.types?.length) {
+  if (filter.types?.length) {
     where.push(`pagetrees.type IN (${db.in(binds, filter.types)})`)
   }
-  if (!filter?.deleted || filter.deleted === DeletedFilter.HIDE) {
-    where.push('pagetrees.deletedAt IS NULL')
-  } else if (filter.deleted === DeletedFilter.ONLY) {
-    where.push('pagetrees.deletedAt IS NOT NULL')
+  if (filter.siteIds?.length) {
+    where.push(`pagetrees.siteId IN (${db.in(binds, filter.siteIds)})`)
   }
-  return { binds, where }
+  return { binds, where, joins }
 }
 
 export async function getPagetrees (filter?: PagetreeFilter) {
-  const { binds, where } = processFilters(filter)
-  const pagetrees = await db.getall(`SELECT * FROM pagetrees
+  const { binds, where, joins } = processFilters(filter)
+  const pagetrees = await db.getall(`SELECT pagetrees.* FROM pagetrees
+                                     ${Array.from(joins.values()).join('\n')}
                                      WHERE (${where.join(') AND (')})
                                      ORDER BY name`, binds)
   return pagetrees.map(p => new Pagetree(p))
 }
 
 export async function getPagetreesById (ids: string[]) {
-  return await getPagetrees({ ids, deleted: DeletedFilter.SHOW })
+  return await getPagetrees({ ids, deleteStates: DeleteStateNoFinalizeAll })
 }
 
 export async function getPagetreesBySite (siteIds: string[], filter?: PagetreeFilter) {
-  const { binds, where } = processFilters(filter)
-  where.push(`pagetrees.siteID IN (${db.in(binds, siteIds)})`)
-  const pagetrees = await db.getall(`SELECT * from pagetrees
-                     WHERE (${where.join(') AND (')}) ORDER BY type`, binds)
-  return pagetrees.map(p => new Pagetree(p))
+  return await getPagetrees({ ...filter, siteIds })
 }
 
 export async function getPagetreesByTemplate (templateIds: number[], direct?: boolean) {

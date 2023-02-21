@@ -5,14 +5,14 @@ import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'ty
 import {
   Page, PageService, PageFilter, Role, Site, SiteService, Template, TemplateFilter, TemplateService,
   Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, SiteRuleService,
-  RoleService, JsonData, UrlSafeString, AssetFolder, AssetFolderService, PagetreeFilter
+  RoleService, JsonData, UrlSafeString, AssetFolder, AssetFolderService, PagetreeFilter, DeleteStateNoFinalizeRootDefault
 } from '../internal.js'
 
 @Resolver(of => Pagetree)
 export class PagetreeResolver {
   @Query(returns => [Pagetree])
   async pagetrees (@Ctx() ctx: Context, @Arg('filter', { nullable: true }) filter?: PagetreeFilter) {
-    return await ctx.svc(PagetreeService).find(filter)
+    return await ctx.svc(PagetreeService).find({ ...filter, deleteStates: DeleteStateNoFinalizeRootDefault })
   }
 
   @FieldResolver(returns => Site)

@@ -6,14 +6,14 @@ import {
   AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
   RoleService, AssetResponse, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site, SiteService,
-  UrlSafeString, Pagetree, AssetFolderServiceInternal, PagetreeService
+  UrlSafeString, Pagetree, AssetFolderServiceInternal, PagetreeService, DeleteStateRootDefault
 } from '../internal.js'
 
 @Resolver(of => Asset)
 export class AssetResolver {
   @Query(returns => [Asset])
   async assets (@Ctx() ctx: Context, @Arg('filter') filter: AssetFilter) {
-    return await ctx.svc(AssetService).find(filter)
+    return await ctx.svc(AssetService).find({ ...filter, deleteStates: filter.deleteStates ?? DeleteStateRootDefault })
   }
 
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the asset is not in the soft-deleted state.' })

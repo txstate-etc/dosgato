@@ -1,86 +1,59 @@
 import db from 'mysql2-async/db'
-import { isNotNull, unique, sortby, eachConcurrent, isNull } from 'txstate-utils'
+import { isNotNull, unique, sortby } from 'txstate-utils'
 import { Queryable } from 'mysql2-async'
-import { Data, DataFilter, VersionedService, CreateDataInput, getDataIndexes, DataFolder, Site, MoveDataTarget, DeleteState, DeletedFilter } from '../internal.js'
+import { Data, DataFilter, VersionedService, CreateDataInput, getDataIndexes, DataFolder, Site, MoveDataTarget, DeleteState, processDeletedFilters } from '../internal.js'
 import { DateTime } from 'luxon'
 
-async function getDeleted () {
-  return await db.getvals<number>(`
-    SELECT data.* FROM data
-    LEFT OUTER JOIN sites ON data.siteId = sites.id
-    WHERE data.deleteState = ${DeleteState.DELETED}
-    OR sites.deletedAt IS NOT NULL
-    OR data.folderId IN
-      (SELECT datafolders.id
-      FROM datafolders
-      INNER JOIN sites ON datafolders.siteId = sites.id
-      WHERE sites.deletedAt IS NOT NULL)
-    `)
-}
-
 async function processFilters (filter?: DataFilter) {
-  const where: string[] = []
-  const binds: string[] = []
-  const joins: string[] = []
-  const joined = new Map<string, boolean>()
+  const { binds, where, joins } = processDeletedFilters(
+    filter,
+    'data',
+    new Map([
+      ['templates', 'INNER JOIN templates ON data.templateId = templates.id'],
+      ['sites', 'LEFT JOIN sites ON data.siteId = sites.id']
+    ]),
+    ' AND sites.deletedAt IS NULL AND templates.deleted = 0',
+    ' AND (sites.deletedAt IS NOT NULL OR templates.deleted = 1)'
+  )
 
-  if (isNull(filter?.deleted)) {
-    filter = { ...filter, deleted: DeletedFilter.HIDE }
+  if (filter == null) return { where, binds, joins }
+
+  if (filter.templateKeys?.length) {
+    joins.set('templates', 'INNER JOIN templates ON templates.id=data.templateId')
+    where.push(`templates.\`key\` IN (${db.in(binds, filter.templateKeys)})`)
   }
 
-  if (filter?.deleted) {
-    if (filter.deleted === DeletedFilter.ONLY) {
-      // Only show deleted data. It could, itself, be deleted. Or, it might be in a deleted site or a folder in a deleted site.
-      const deletedDataIds = await getDeleted()
-      if (filter?.internalIds?.length) {
-        filter.internalIds = unique([...filter.internalIds, ...deletedDataIds])
-      } else {
-        filter.internalIds = deletedDataIds
-      }
-    } else if (filter.deleted === DeletedFilter.HIDE) {
-      // hide fully deleted data
-      const deletedDataIds = await getDeleted()
-      if (deletedDataIds.length) {
-        where.push(`data.id NOT IN (${db.in(binds, deletedDataIds)})`)
-      }
-    }
-    // If deleted is SHOW, we don't need to filter out anything
-  }
-
-  if (filter?.internalIds?.length) {
+  if (filter.internalIds?.length) {
     where.push(`data.id IN (${db.in(binds, filter.internalIds)})`)
   }
-  if (filter?.ids?.length) {
+  if (filter.ids?.length) {
     where.push(`data.dataId IN (${db.in(binds, filter.ids)})`)
   }
-  if (filter?.names?.length) {
+  if (filter.names?.length) {
     where.push(`data.name IN (${db.in(binds, filter.names)})`)
   }
-  if (isNotNull(filter?.global)) {
-    if (filter?.global) {
+  if (isNotNull(filter.global)) {
+    if (filter.global) {
       where.push('data.siteId IS NULL')
     } else {
       where.push('data.siteId IS NOT NULL')
     }
   }
-  if (isNotNull(filter?.root)) {
-    if (filter?.root) {
+  if (isNotNull(filter.root)) {
+    if (filter.root) {
       where.push('data.folderId IS NULL')
     } else {
       where.push('data.folderId IS NOT NULL')
     }
   }
-  if (filter?.folderIds?.length) {
+  if (filter.folderIds?.length) {
+    joins.set('datafolders', 'INNER JOIN datafolders on data.folderId = datafolders.id')
     where.push(`datafolders.guid IN (${db.in(binds, filter.folderIds)})`)
-    if (!joined.has('datafolders')) {
-      joins.push('INNER JOIN datafolders on data.folderId = datafolders.id')
-      joined.set('datafolders', true)
-    }
   }
-  if (filter?.folderInternalIds?.length) {
+  if (filter.folderInternalIds?.length) {
     where.push(`data.folderId IN (${(db.in(binds, filter.folderInternalIds))})`)
   }
-  if (filter?.siteIds?.length) {
+  if (filter.siteIds?.length) {
     where.push(`data.siteId IN (${db.in(binds, filter.siteIds)})`)
   }
   return { where, binds, joins }
@@ -89,9 +62,7 @@ async function processFilters (filter?: DataFilter) {
 export async function getData (filter?: DataFilter) {
   const { where, binds, joins } = await processFilters(filter)
   let query = 'SELECT data.* FROM data'
-  if (joins.length) {
-    query += ` ${joins.join('\n')}`
-  }
+  query += ` ${Array.from(joins.values()).join('\n')}`
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`
   }
@@ -211,20 +182,23 @@ async function updateSourceDisplayOrder (db: Queryable, versionedService: Versio
 
 export async function createDataEntry (versionedService: VersionedService, userId: string, args: CreateDataInput) {
   return await db.transaction(async db => {
-    const dataFolderInternalId = args.folderId ? await db.getval<number>('SELECT id FROM datafolders WHERE guid = ?', [args.folderId]) : undefined
-    const displayOrder = await handleDisplayOrder(db, versionedService, args.data.templateKey, 1, dataFolderInternalId, args.siteId)
+    const folder = args.folderId ? await db.getrow<{ id: number, siteId: number }>('SELECT id, siteId FROM datafolders WHERE guid = ?', [args.folderId]) : undefined
+    const siteId = folder?.siteId ?? args.siteId
+    const displayOrder = await handleDisplayOrder(db, versionedService, args.data.templateKey, 1, folder?.id, args.siteId)
     const data = args.data
+    const templateId = await db.getval<number>('SELECT id FROM templates WHERE `key`=?', [data.templateKey])
+    if (!templateId) throw new Error('templateKey does not exist.')
     const indexes = await getDataIndexes(data)
     const dataId = await versionedService.create('data', data, indexes, userId, db)
-    const columns = ['dataId', 'name', 'displayOrder']
-    const binds = [dataId, args.name, displayOrder]
-    if (args.siteId) {
+    const columns = ['templateId', 'dataId', 'name', 'displayOrder']
+    const binds = [templateId, dataId, args.name, displayOrder]
+    if (siteId) {
       columns.push('siteId')
-      binds.push(args.siteId)
+      binds.push(siteId)
     }
-    if (dataFolderInternalId) {
+    if (folder?.id) {
       columns.push('folderId')
-      binds.push(dataFolderInternalId)
+      binds.push(folder?.id)
     }
     const newInternalId = await db.insert(`
     INSERT INTO data (${columns.join(', ')})
@@ -290,7 +264,7 @@ export async function deleteDataEntries (versionedService: VersionedService, dat
   const binds: (string | number)[] = [userInternalId, DeleteState.MARKEDFORDELETE]
   const dataIds = data.map(d => d.dataId)
   return await db.transaction(async db => {
-    await eachConcurrent(dataIds, async (id) => await versionedService.removeTag(id, 'published'))
+    await versionedService.removeTags(dataIds, ['published'], db)
     return await db.update(`UPDATE data SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE dataId IN (${db.in(binds, dataIds)})`, binds)
   })
 }

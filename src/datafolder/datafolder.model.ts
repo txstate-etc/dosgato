@@ -1,8 +1,8 @@
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import { isNotNull, optionalString } from 'txstate-utils'
+import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { UrlSafeString, DeletedFilter, UrlSafePath } from '../internal.js'
+import { UrlSafeString, UrlSafePath, DeleteState, DeleteStateInput } from '../internal.js'
 
 @ObjectType({ description: 'A folder that contains data objects. Each folder can only accept data objects with one particular template. Data folders are a single level organizational tool (folders do not contain more folders) and optional (data may not belong to any folder at all).' })
 export class DataFolder {
@@ -17,6 +17,9 @@ export class DataFolder {
   @Field({ description: 'Folder has been soft-deleted but is still recoverable.' })
   deleted: boolean
 
+  @Field({ description: 'Indicates whether this folder is undeleted, marked for deletion, or deleted.' })
+  deleteState: DeleteState
+
   @Field({ nullable: true, description: 'Date this folder was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
@@ -30,7 +33,8 @@ export class DataFolder {
     this.name = row.name
     this.templateId = row.templateId
     this.siteId = optionalString(row.siteId)
-    this.deleted = isNotNull(row.deletedAt)
+    this.deleteState = row.deleteState
+    this.deleted = row.deleteState !== DeleteState.NOTDELETED
     this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
   }
@@ -54,8 +58,8 @@ export class DataFolderFilter {
   @Field(type => Boolean, { nullable: true, description: 'true -> return only folders that are not associated with a site.' })
   global?: boolean
 
-  @Field(type => DeletedFilter, { nullable: true })
-  deleted?: DeletedFilter
+  @Field(type => [DeleteStateInput], { nullable: true, description: 'Return based on deleted status. If you do not specify this filter it will still hide deleted and orphaned by default but show those that are marked for deletion. Orphaned refers to the situation where an object is effectively deleted because it belongs to a site, pagetree, or parent that has been deleted.' })
+  deleteStates?: DeleteStateInput[]
 
   @Field(type => [DataFolderLinkInput], { nullable: true, description: 'Resolve data folder links preferring id and falling back to path.' })
   links?: DataFolderLinkInput[]

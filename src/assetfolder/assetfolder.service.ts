@@ -5,23 +5,23 @@ import {
   AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
   CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
   deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter, normalizePath,
-  finalizeAssetFolderDeletion, DeletedFilter
+  finalizeAssetFolderDeletion, DeleteStateAll
 } from '../internal.js'
 
 const assetFolderByInternalIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids, deleted: DeletedFilter.SHOW }),
+  fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids, deleteStates: DeleteStateAll }),
   extractId: af => af.internalId
 })
 
 const assetFolderByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => await getAssetFolders({ ids, deleted: DeletedFilter.SHOW }),
+  fetch: async (ids: string[]) => await getAssetFolders({ ids, deleteStates: DeleteStateAll }),
   idLoader: assetFolderByInternalIdLoader
 })
 
 assetFolderByInternalIdLoader.addIdLoader(assetFolderByIdLoader)
 
 const foldersByNameLoader = new OneToManyLoader({
-  fetch: async (names: string[]) => await getAssetFolders({ names, deleted: DeletedFilter.SHOW }),
+  fetch: async (names: string[]) => await getAssetFolders({ names, deleteStates: DeleteStateAll }),
   extractKey: folder => folder.name,
   idLoader: [assetFolderByIdLoader, assetFolderByInternalIdLoader]
 })
@@ -306,8 +306,8 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     if (!(await this.haveAssetFolderPerm(folder, 'delete'))) throw new Error(`Current user is not permitted to delete folder ${String(folder.name)}.`)
     const currentUser = await this.currentUser()
     await finalizeAssetFolderDeletion(folder.internalId, currentUser!.internalId)
-    const deletedfolder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
     this.loaders.clear()
+    const deletedfolder = await this.raw.findById(folderId)
     return new AssetFolderResponse({ assetFolder: deletedfolder, success: true })
   }
 

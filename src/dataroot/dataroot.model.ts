@@ -1,5 +1,5 @@
 import { ObjectType, Field, ID, InputType, registerEnumType } from 'type-graphql'
-import { Site, Template } from '../internal.js'
+import { DeletedFilter, Site, Template } from '../internal.js'
 
 @ObjectType({ description: 'Each site has an array of dataroots, one per registered templateKey. It contains the data and datafolders of that template type in the site. There is also a set of dataroots for global data.' })
 export class DataRoot {
@@ -31,6 +31,9 @@ export class DataRootFilter {
 
   @Field(type => [ID], { nullable: true, description: 'Return dataroots that are associated with one of the given sites.' })
   siteIds?: string[]
+
+  @Field(type => DeletedFilter, { nullable: true, description: 'Return dataroots based on whether their site has been deleted. SHOW = show all dataroots regardless of being orphaned, HIDE = show non-orphaned dataroots, ONLY = return orphaned dataroots.' })
+  orphaned?: DeletedFilter
 
   @Field(type => Boolean, { nullable: true, description: 'true -> return only dataroots that are not associated with a site; false -> return only dataroots that are associated with a site; null -> return global and non-global dataroots' })
   global?: boolean

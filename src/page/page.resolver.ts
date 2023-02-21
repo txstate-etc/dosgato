@@ -7,14 +7,14 @@ import {
   Pagetree, PagetreeService, Role, JsonData, Site, SiteService, Template, TemplateFilter,
   User, UserService, ObjectVersion, VersionedService, Page, PageFilter,
   PagePermission, PagePermissions, PageResponse, PagesResponse, PageService, PageRuleService, RoleService,
-  PagetreeType, TemplateService, UrlSafeString
+  PagetreeType, TemplateService, UrlSafeString, DeleteStateInput
 } from '../internal.js'
 
 @Resolver(of => Page)
 export class PageResolver {
   @Query(returns => [Page])
   async pages (@Ctx() ctx: Context, @Arg('filter') filter: PageFilter) {
-    return await ctx.svc(PageService).find(filter)
+    return await ctx.svc(PageService).find({ ...filter, deleteStates: filter?.deleteStates ?? [DeleteStateInput.NOTDELETED, DeleteStateInput.MARKEDFORDELETE] })
   }
 
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the page is not in the soft-deleted state.' })

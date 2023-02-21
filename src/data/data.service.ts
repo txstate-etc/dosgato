@@ -8,16 +8,16 @@ import {
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, MoveDataTarget, moveDataEntries,
   DataFolder, Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions,
-  DeletedFilter, DeleteState, popPath
+  DeleteState, popPath, DeleteStateAll
 } from '../internal.js'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
-  fetch: async (internalIds: number[]) => await getData({ internalIds, deleted: DeletedFilter.SHOW }),
+  fetch: async (internalIds: number[]) => await getData({ internalIds, deleteStates: DeleteStateAll }),
   extractId: item => item.internalId
 })
 
 const dataByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => await getData({ ids, deleted: DeletedFilter.SHOW }),
+  fetch: async (ids: string[]) => await getData({ ids, deleteStates: DeleteStateAll }),
   idLoader: dataByInternalIdLoader
 })
 dataByInternalIdLoader.addIdLoader(dataByIdLoader)
@@ -81,11 +81,6 @@ export class DataServiceInternal extends BaseService {
 
   async findBySiteId (siteId: string, filter?: DataFilter) {
     filter = await this.processFilters(filter)
-    // If we were looking for data entries with particular template keys and processFilters did not
-    // find any, then there are no entries that match the filters
-    if (filter?.templateKeys && !filter?.ids?.length) {
-      return []
-    }
     return await this.loaders.get(dataBySiteIdLoader, filter).load(siteId)
   }
 
@@ -122,12 +117,6 @@ export class DataServiceInternal extends BaseService {
   }
 
   async processFilters (filter?: DataFilter) {
-    if (filter?.templateKeys?.length) {
-      const searchRule = { indexName: 'templateKey', in: filter.templateKeys }
-      const dataIds = await this.svc(VersionedService).find([searchRule], 'data')
-      filter.ids = intersect({ skipEmpty: true }, dataIds, filter.ids)
-    }
-
     if (filter?.paths?.length) {
       const siteNames = filter.paths.map(p => p.split('/').filter(isNotBlank)[0]).filter(name => name !== 'global')
       const sites = await this.svc(SiteServiceInternal).find({ names: siteNames })
@@ -243,7 +232,7 @@ export class DataService extends DosGatoService<Data> {
       }
       site = folder.siteId ? await this.svc(SiteServiceInternal).findById(folder.siteId) : undefined
       dataroot = new DataRoot(site, template)
-      const otherData = await this.raw.findByFolderInternalId(folder.internalId, { deleted: DeletedFilter.SHOW })
+      const otherData = await this.raw.findByFolderInternalId(folder.internalId, { deleteStates: DeleteStateAll })
       if (otherData.some(d => d.name === args.name)) {
         response.addMessage('A data entry with this name already exists', 'args.name')
       }
@@ -252,7 +241,7 @@ export class DataService extends DosGatoService<Data> {
       if (!site) throw new Error('Data cannot be created in a site that does not exist.')
       dataroot = new DataRoot(site, template)
       if (!await this.svc(DataRootService).mayCreate(dataroot)) throw new Error(`Current user is not permitted to create data in site ${String(site.name)}.`)
-      const dataEntries = await (await this.raw.findByDataRoot(dataroot, { deleted: DeletedFilter.SHOW })).filter(d => isNull(d.folderInternalId))
+      const dataEntries = await (await this.raw.findByDataRoot(dataroot, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId))
       if (dataEntries.some(d => d.name === args.name)) {
         response.addMessage('A data entry with this name already exists', 'args.name')
       }
@@ -260,7 +249,7 @@ export class DataService extends DosGatoService<Data> {
       // global data
       if (!(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to create global data entries.')
       dataroot = new DataRoot(undefined, template)
-      const dataEntries = await (await this.raw.findByDataRoot(dataroot, { deleted: DeletedFilter.SHOW })).filter(d => isNull(d.folderInternalId) && isNull(d.siteId))
+      const dataEntries = await (await this.raw.findByDataRoot(dataroot, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId) && isNull(d.siteId))
       if (dataEntries.some(d => d.name === args.name)) {
         response.addMessage('A data entry with this name already exists', 'args.name')
       }
@@ -311,12 +300,12 @@ export class DataService extends DosGatoService<Data> {
     const response = new DataResponse({ success: true })
     if (name !== data.name) {
       if (data.folderInternalId) {
-        const sameNameEntryInFolder = (await this.raw.findByFolderInternalId(data.folderInternalId, { deleted: DeletedFilter.SHOW })).find(d => d.name === name)
+        const sameNameEntryInFolder = (await this.raw.findByFolderInternalId(data.folderInternalId, { deleteStates: DeleteStateAll })).find(d => d.name === name)
         if (isNotNull(sameNameEntryInFolder)) {
           response.addMessage('A data entry with this name already exists', 'name')
         }
       } else if (data.siteId) {
-        const sameNameEntryInSite = (await this.raw.findBySiteId(data.siteId, { deleted: DeletedFilter.SHOW })).filter(d => isNull(d.folderInternalId) && d.name === name)
+        const sameNameEntryInSite = (await this.raw.findBySiteId(data.siteId, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId) && d.name === name)
         if (sameNameEntryInSite.length) {
           response.addMessage('A data entry with this name already exists', 'name')
         }
@@ -397,14 +386,9 @@ export class DataService extends DosGatoService<Data> {
     if (await someAsync(data, async (d: Data) => !(await this.mayUnpublish(d)))) {
       throw new Error('Current user is not permitted to unpublish one or more data entries')
     }
-    try {
-      await eachConcurrent(data.map(d => d.dataId), async (dataId) => await this.svc(VersionedService).removeTag(dataId, 'published'))
-      this.loaders.clear()
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to unpublish one or more data entries')
-    }
+    await this.svc(VersionedService).removeTags(data.map(d => d.dataId), ['published'])
+    this.loaders.clear()
+    return new ValidatedResponse({ success: true })
   }
 
   async delete (dataIds: string[]) {

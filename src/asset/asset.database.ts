@@ -2,8 +2,8 @@ import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { isNotNull, keyby, pick, stringify } from 'txstate-utils'
-import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution, AssetFolderRow, DeleteState, DeletedFilter } from '../internal.js'
+import { keyby, pick, stringify } from 'txstate-utils'
+import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution, AssetFolderRow, DeleteState, DeletedFilter, processDeletedFilters } from '../internal.js'
 
 export interface AssetInput {
   name: string
@@ -39,49 +39,47 @@ export interface AssetRow {
 }
 
 function processFilters (filter?: AssetFilter) {
-  const binds: (string | number)[] = []
-  const where: string[] = []
-  const joins = new Map<string, string>()
+  const { binds, where, joins } = processDeletedFilters(
+    filter,
+    'assets',
+    new Map([
+      ['assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id'],
+      ['pagetrees', 'INNER JOIN pagetrees ON assetfolders.pagetreeId = pagetrees.id'],
+      ['sites', 'INNER JOIN sites ON assetfolders.siteId = sites.id']
+    ]),
+    ' AND sites.deletedAt IS NULL AND pagetrees.deletedAt IS NULL',
+    ' AND (sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL)'
+  )
 
-  if (typeof filter !== 'undefined') {
-    if (filter.internalIds?.length) {
-      where.push(`assets.id IN (${db.in(binds, filter.internalIds)})`)
-    }
-    if (filter.ids?.length) {
-      where.push(`assets.dataId IN (${db.in(binds, filter.ids)})`)
-    }
-    if (filter.folderIds?.length) {
-      joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
-      where.push(`assetfolders.guid IN (${db.in(binds, filter.folderIds)})`)
-    }
-    if (filter.folderInternalIds?.length) {
-      where.push(`assets.folderId IN (${db.in(binds, filter.folderInternalIds)})`)
-    }
-    if (filter.siteIds?.length) {
-      joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
-      where.push(`assetfolders.siteId IN (${db.in(binds, filter.siteIds)})`)
-    }
-    if (filter.names?.length) {
-      where.push(`assets.name IN (${db.in(binds, filter.names)})`)
-    }
-    if (isNotNull(filter.referenced)) {
-      // TODO
-    }
-    if (!filter.deleted || filter.deleted === DeletedFilter.HIDE) {
-      // hide fully deleted assets
-      where.push(`assets.deleteState != ${DeleteState.DELETED}`)
-    } else if (filter.deleted === DeletedFilter.ONLY) {
-      // Only show deleted assets
-      where.push(`assets.deleteState = ${DeleteState.DELETED}`)
-    }
-    if (filter.checksums?.length) {
-      where.push(`binaries.shasum IN (${db.in(binds, filter.checksums)})`)
-    }
-    if (isNotNull(filter.bytes)) {
-      if (filter.bytes < 0) where.push('binaries.bytes < ?')
-      else where.push('binaries.bytes > ?')
-      binds.push(Math.abs(filter.bytes))
-    }
+  if (filter == null) return { binds, joins, where }
+
+  if (filter.internalIds?.length) {
+    where.push(`assets.id IN (${db.in(binds, filter.internalIds)})`)
+  }
+  if (filter.ids?.length) {
+    where.push(`assets.dataId IN (${db.in(binds, filter.ids)})`)
+  }
+  if (filter.folderIds?.length) {
+    joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
+    where.push(`assetfolders.guid IN (${db.in(binds, filter.folderIds)})`)
+  }
+  if (filter.folderInternalIds?.length) {
+    where.push(`assets.folderId IN (${db.in(binds, filter.folderInternalIds)})`)
+  }
+  if (filter.siteIds?.length) {
+    joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
+    where.push(`assetfolders.siteId IN (${db.in(binds, filter.siteIds)})`)
+  }
+  if (filter.names?.length) {
+    where.push(`assets.name IN (${db.in(binds, filter.names)})`)
+  }
+  if (filter.checksums?.length) {
+    where.push(`binaries.shasum IN (${db.in(binds, filter.checksums)})`)
+  }
+  if (filter.bytes != null) {
+    if (filter.bytes < 0) where.push('binaries.bytes < ?')
+    else where.push('binaries.bytes > ?')
+    binds.push(Math.abs(filter.bytes))
   }
   return { binds, where, joins }
 }

@@ -151,6 +151,24 @@ const dgMigrations: DBMigration[] = [
       await db.execute('ALTER TABLE assetrules ADD COLUMN `pagetreeType` ENUM("primary", "sandbox", "archive")')
       await db.execute('ALTER TABLE `pagetrees` ADD INDEX (name)')
     }
+  },
+  {
+    id: 20230219190000,
+    description: 'add deleteState column to datafolder table',
+    run: async (db) => {
+      await db.execute('ALTER TABLE `datafolders` ADD COLUMN deleteState TINYINT UNSIGNED NOT NULL DEFAULT 0')
+      await db.execute('UPDATE datafolders SET deleteState = 2 WHERE deletedAt IS NOT NULL')
+      await db.execute('ALTER TABLE `data` ADD COLUMN templateId SMALLINT UNSIGNED NOT NULL DEFAULT 0')
+      await db.execute('UPDATE `data` d INNER JOIN datafolders f ON d.folderId=f.id SET d.templateId=f.templateId')
+      await db.execute(`
+        UPDATE \`data\` d
+        INNER JOIN storage s ON s.id=d.dataId
+        INNER JOIN templates t ON t.key=JSON_EXTRACT(s.data, "$.templateKey")
+        SET d.templateId=t.id
+        WHERE d.folderId IS NULL
+      `)
+      await db.execute('ALTER TABLE data ALTER templateId DROP DEFAULT, ADD FOREIGN KEY (templateId) REFERENCES templates(id)')
+    }
   }
 ]
 

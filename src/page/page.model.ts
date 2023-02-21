@@ -20,6 +20,33 @@ registerEnumType(DeleteState, {
   }
 })
 
+export enum DeleteStateInput {
+  NOTDELETED = 0,
+  MARKEDFORDELETE = 1,
+  DELETED = 2,
+  ORPHAN_NOTDELETED = 3,
+  ORPHAN_MARKEDFORDELETE = 4,
+  ORPHAN_DELETED = 5,
+  ALL = 6
+}
+export const DeleteStateRootDefault = [DeleteStateInput.NOTDELETED, DeleteStateInput.MARKEDFORDELETE]
+export const DeleteStateDefault = [DeleteStateInput.NOTDELETED, DeleteStateInput.MARKEDFORDELETE, DeleteStateInput.ORPHAN_NOTDELETED, DeleteStateInput.ORPHAN_MARKEDFORDELETE]
+export const DeleteStateAll = [DeleteStateInput.NOTDELETED, DeleteStateInput.MARKEDFORDELETE, DeleteStateInput.DELETED, DeleteStateInput.ORPHAN_NOTDELETED, DeleteStateInput.ORPHAN_MARKEDFORDELETE, DeleteStateInput.ORPHAN_DELETED]
+
+registerEnumType(DeleteStateInput, {
+  name: 'DeleteStateInput',
+  description: 'Filter for whether an object is deleted, marked for deletion, or not deleted. Also filter for objects that have been orphaned. Default is typically [NOTDELETED, MARKEDFORDELETE] for root queries and [NOTDELETED, MARKEDFORDELETE, ORPHAN_NOTDELETED, ORPHAN_MARKEDFORDELETE] for relations.',
+  valuesConfig: {
+    NOTDELETED: { description: 'Objects that have not been deleted and are not orphaned.' },
+    MARKEDFORDELETE: { description: 'Has been deleted, but the deletion has not been finalized. Generally objects become unpublished and disappear from public view when they are marked for deletion. Also is not an orphan.' },
+    DELETED: { description: 'Has been deleted and the deletion has been finalized. Also is not an orphan.' },
+    ORPHAN_NOTDELETED: { description: 'Not specifically deleted by a user, but belongs to a parent object, like a site or pagetree, which has been deleted.' },
+    ORPHAN_MARKEDFORDELETE: { description: 'Marked as pending deletion by a user, but also belongs to a parent object, like a site or pagetree, which has been deleted.' },
+    ORPHAN_DELETED: { description: 'Specifically deleted by a user, but also belongs to a parent object, like a site or pagetree, which has been deleted.' },
+    ALL: { description: 'Supercedes all the other filters. Essentially disables the filter, which is useful because this filter is generally enabled by default.' }
+  }
+})
+
 @ObjectType({ description: 'Sites contain pages. Each page can have subpages. Each pagetree has one root page.' })
 export class Page {
   internalId: number // auto_increment id for internal use only
@@ -146,8 +173,8 @@ export class PageFilter {
   @Field(type => Boolean, { nullable: true, description: 'Only return pages that are published, in the active pagetree, and on a launched site.' })
   live?: boolean
 
-  @Field(type => DeletedFilter, { nullable: true })
-  deleted?: DeletedFilter
+  @Field(type => [DeleteStateInput], { nullable: true, description: 'Return based on deleted status. If you do not specify this filter it will still hide deleted and orphaned by default but show those that are marked for deletion. Orphaned refers to the situation where an object is effectively deleted because it belongs to a site, pagetree, or parent that has been deleted.' })
+  deleteStates?: DeleteStateInput[]
 
   @Field(type => Int, { nullable: true, description: 'Only return pages at a depth less than or equal to maxDepth. Root page is 0 depth.' })
   maxDepth?: number

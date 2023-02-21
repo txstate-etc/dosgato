@@ -8,18 +8,18 @@ import {
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
   fileHandler, deleteAsset, undeleteAsset, popPath, basename, registerResize,
   getResizesById, VersionedService, cleanupBinaries, getDownloads, DownloadsFilter, getResizeDownloads,
-  AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion, DeletedFilter, renameAsset,
-  updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal
+  AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion, renameAsset,
+  updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal, DeleteStateAll
 } from '../internal.js'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
 
 const assetsByIdLoader = new PrimaryKeyLoader({
-  fetch: async (dataIds: string[]) => await getAssets({ ids: dataIds, deleted: DeletedFilter.SHOW })
+  fetch: async (dataIds: string[]) => await getAssets({ ids: dataIds, deleteStates: DeleteStateAll })
 })
 
 const assetsByInternalIdLoader = new PrimaryKeyLoader({
-  fetch: async (internalIds: number[]) => await getAssets({ internalIds, deleted: DeletedFilter.SHOW }),
+  fetch: async (internalIds: number[]) => await getAssets({ internalIds, deleteStates: DeleteStateAll }),
   extractId: asset => asset.internalId,
   idLoader: assetsByIdLoader
 })
@@ -191,6 +191,8 @@ export class AssetServiceInternal extends BaseService {
       if (!assets.length) filter.internalIds = [-1]
       else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, assets.map(a => a.internalId))
     }
+
+    // TODO: referenced
 
     return filter
   }
