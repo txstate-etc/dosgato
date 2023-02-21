@@ -144,7 +144,7 @@ const dgMigrations: DBMigration[] = [
       `)
       await db.execute(`
         ALTER TABLE sites
-        DROP CONSTRAINT FK_sites_assetfolders,
+        DROP FOREIGN KEY FK_sites_assetfolders,
         DROP INDEX asset_root_id_UNIQUE,
         DROP COLUMN rootAssetFolderId
       `)
