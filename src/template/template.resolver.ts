@@ -96,7 +96,7 @@ export class TemplatePermissionsResolver {
   async useOnPage (@Ctx() ctx: Context, @Root() template: Template, @Arg('pageId', type => ID) pageId: string) {
     const page = await ctx.svc(PageService).findById(pageId)
     if (!page) return false
-    return await ctx.svc(TemplateService).mayKeepOnPage(template.key, page, template)
+    return await ctx.svc(TemplateService).mayUseOnPage(template, page)
   }
 }
 

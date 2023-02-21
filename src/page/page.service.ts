@@ -438,7 +438,7 @@ export class PageService extends DosGatoService<Page> {
         if (!await this.svc(TemplateService).mayKeepOnPage(templateKey, placement.page!, templateByKey[templateKey])) throw new Error(`Template ${templateKey} is not approved for use in this site or pagetree.`)
       })
       : templateKeys.map(async templateKey => {
-        if (!await this.svc(TemplateService).mayUseOnPage(templateByKey[templateKey], placement.page!)) throw new Error(`Template ${templateKey} is not approved for use in this site or pagetree.`)
+        if (!await this.svc(TemplateService).mayUseOnPage(templateByKey[templateKey], placement.parent!, data.templateKey)) throw new Error(`Template ${templateKey} is not approved for use in this site or pagetree.`)
       })
     )
   }

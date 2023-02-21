@@ -5,7 +5,7 @@ import {
   Template, TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
   DosGatoService, authorizeForPagetrees, authorizeForSite, setUniversal, PagetreeServiceInternal,
   SiteServiceInternal, Page, collectTemplates, PageServiceInternal, universalTemplateCache,
-  deauthorizeTemplate, getTemplatePagetreePairs
+  deauthorizeTemplate, getTemplatePagetreePairs, templateRegistry
 } from '../internal.js'
 
 const templatesByIdLoader = new PrimaryKeyLoader({
@@ -205,7 +205,11 @@ export class TemplateService extends DosGatoService<Template> {
    *
    * To take previously used templates into account, use mayKeepOnPage.
    */
-  async mayUseOnPage (template: Template, page: Page) {
+  async mayUseOnPage (template: Template, page: Page, pageTemplateKey?: string) {
+    if (template.type === 'component') {
+      const pageTemplate = templateRegistry.getPageTemplate(pageTemplateKey ?? page.templateKey)
+      if (pageTemplate.disallowSet.has(template.key)) return false
+    }
     if (await this.haveTemplatePerm(template, 'use')) return true
     return !!(await this.loaders.get(mayUseTemplateInPagetreeLoader).load({ pagetreeId: page.pagetreeId, templateKey: template.key }))
   }

@@ -6,6 +6,7 @@ import { TemplateArea } from '../internal.js'
 interface HasHydratedAreas {
   getLinks: (data: any) => LinkDefinition[]
   hydratedAreas: Record<string, TemplateArea>
+  disallowSet: Set<string>
 }
 
 type PageTemplate = Omit<APIPageTemplate, 'getLinks'> & HasHydratedAreas
@@ -31,6 +32,7 @@ class TemplateRegistry {
     }
     const originalGetLinks = template.getLinks ?? (() => [])
     hydrated.getLinks = (data: ComponentData) => originalGetLinks(data).filter(isNotEmpty).map(l => typeof l === 'string' ? JSON.parse(l) as LinkDefinition : l)
+    if (template.type === 'page') hydrated.disallowSet = new Set(template.disallowComponents ?? [])
     this.byType[template.type].push(hydrated as any)
     this.byKey[template.templateKey] = hydrated
     this.migrations.push(...(template.migrations?.map(m => ({ ...m, templateKey: template.templateKey, isPage: template.type === 'page' })) ?? []))
