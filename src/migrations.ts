@@ -116,8 +116,8 @@ const dgMigrations: DBMigration[] = [
         INNER JOIN pagetrees pt ON pt.id=p.pagetreeId
         INNER JOIN storage s ON s.id=p.dataId
         SET p.siteId=pt.siteId,
-          p.templateKey=JSON_EXTRACT(s.data, '$.templateKey'),
-          p.title=JSON_EXTRACT(s.data, '$.title')
+          p.templateKey=s.data ->> '$.templateKey',
+          p.title=s.data ->> '$.title'
       `)
       await db.execute(`
         ALTER TABLE pages
