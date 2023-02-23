@@ -1,6 +1,7 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { optionalString } from 'txstate-utils'
+import { UrlSafeString } from '../internal.js'
 
 export enum RuleType {
   GLOBAL = 'global',
@@ -52,7 +53,7 @@ export class RoleFilter {
   @Field(type => [ID], { nullable: true, description: 'Return roles that have been granted to any of the given users.' })
   users?: string[]
 
-  @Field(type => [String], { nullable: true, description: 'Return roles matching one of the given names.' })
+  @Field(type => [UrlSafeString], { nullable: true, description: 'Return roles matching one of the given names.' })
   names?: string[]
 }
 

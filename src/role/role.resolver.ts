@@ -5,7 +5,7 @@ import {
   AssetRule, AssetRuleService, AssetRuleFilter, DataRule, DataRuleService, GlobalRule, GlobalRuleService,
   PageRule, PageRuleService, SiteRule, SiteRuleFilter, SiteRuleService, Group, GroupFilter,
   GroupService, User, UserFilter, UserService, Role, RoleFilter, RolePermissions, RoleResponse,
-  RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType, Site, SiteService
+  RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType, Site, SiteService, UrlSafeString
 } from '../internal.js'
 
 @Resolver(of => Role)
@@ -76,12 +76,12 @@ export class RoleResolver {
 
   // MUTATIONS
   @Mutation(returns => RoleResponse)
-  async createRole (@Ctx() ctx: Context, @Arg('name', { description: 'name of the role being created' }) name: string, @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean): Promise<RoleResponse> {
+  async createRole (@Ctx() ctx: Context, @Arg('name', type => UrlSafeString, { description: 'name of the role being created' }) name: string, @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean): Promise<RoleResponse> {
     return await ctx.svc(RoleService).create(name, validateOnly)
   }
 
   @Mutation(returns => RoleResponse, { description: 'Give a role a new name' })
-  async updateRole (@Ctx() ctx: Context, @Arg('roleId', type => ID) roleId: string, @Arg('name') name: string, @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean): Promise<RoleResponse> {
+  async updateRole (@Ctx() ctx: Context, @Arg('roleId', type => ID) roleId: string, @Arg('name', type => UrlSafeString) name: string, @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean): Promise<RoleResponse> {
     return await ctx.svc(RoleService).update(roleId, name, validateOnly)
   }
 

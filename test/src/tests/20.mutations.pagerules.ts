@@ -50,7 +50,7 @@ describe('page rule mutations', () => {
       }
     }`, { args: { roleId: role.id, siteId: sitehash.site5.id, path: '/', mode: 'SELFANDSUB', grants: { create: false, update: true, delete: false, move: false, publish: true, unpublish: true, undelete: false } } })
     expect(success).to.be.true
-    expect(pageRule.role.name).to.equal('pagerulestestA')
+    expect(pageRule.role.name).to.equal('pagerulestesta')
     expect(pageRule.site.name).to.equal('site5')
     expect(pageRule.grants.create).to.be.false
     expect(pageRule.grants.update).to.be.true

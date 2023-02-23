@@ -9,7 +9,7 @@ describe('roles mutations', () => {
   it('should create a new role', async () => {
     const { success, role } = await createRole('roleA')
     expect(success).to.be.true
-    expect(role.name).to.equal('roleA')
+    expect(role.name).to.equal('rolea')
   })
   it('should return an error when trying to add a new role with an existing name', async () => {
     const { success, messages } = await createRole('editor')
@@ -21,22 +21,22 @@ describe('roles mutations', () => {
   })
   it('should update a role name', async () => {
     const { role: roleB } = await createRole('roleB')
-    const { updateRole: { success } } = await query('mutation UpdateRole ($roleId: ID!, $name: String!) { updateRole (roleId: $roleId, name: $name) { success role { id name } } }', { roleId: roleB.id, name: 'roleBUpdated' })
+    const { updateRole: { success } } = await query('mutation UpdateRole ($roleId: ID!, $name: UrlSafeString!) { updateRole (roleId: $roleId, name: $name) { success role { id name } } }', { roleId: roleB.id, name: 'roleBUpdated' })
     expect(success).to.be.true
     const { roles } = await query(`{ roles(filter: { ids: [${roleB.id}]}) { id name } }`)
     const roleNames = roles.map((r: any) => r.name)
-    expect(roleNames).to.include('roleBUpdated')
+    expect(roleNames).to.include('rolebupdated')
     expect(roleNames).to.not.include('roleB')
   })
   it('should not update a role name if the new role name already exists', async () => {
     const { role: roleC } = await createRole('roleC')
-    const { updateRole: { success, messages } } = await query('mutation UpdateRole ($roleId: ID!, $name: String!) { updateRole (roleId: $roleId, name: $name) { success messages { message } } }', { roleId: roleC.id, name: 'editor' })
+    const { updateRole: { success, messages } } = await query('mutation UpdateRole ($roleId: ID!, $name: UrlSafeString!) { updateRole (roleId: $roleId, name: $name) { success messages { message } } }', { roleId: roleC.id, name: 'editor' })
     expect(success).to.be.false
     expect(messages).to.have.length.greaterThan(0)
   })
   it('should not allow an unauthorized user to update a role name', async () => {
     const { role: roleBB } = await createRole('roleBB')
-    await expect(queryAs('ed07', 'mutation UpdateRole ($roleId: String!, $name: String!) { updateRole (roleId: $roleId, name: $name) { success role { id name } } }', { roleId: roleBB.id, name: 'roleBUpdated' })).to.be.rejected
+    await expect(queryAs('ed07', 'mutation UpdateRole ($roleId: String!, $name: UrlSafeString!) { updateRole (roleId: $roleId, name: $name) { success role { id name } } }', { roleId: roleBB.id, name: 'roleBUpdated' })).to.be.rejected
   })
   it('should delete a role', async () => {
     const { role: roleD } = await createRole('roleD')

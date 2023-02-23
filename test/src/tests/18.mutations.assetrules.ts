@@ -2,7 +2,7 @@
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs, createRole } from '../common.js'
-import { hashify } from 'txstate-utils'
+import { keyby } from 'txstate-utils'
 
 chai.use(chaiAsPromised)
 
@@ -18,7 +18,7 @@ describe('asset rule mutations', () => {
       }
     }`)
     sites = resp.sites
-    sitehash = hashify(sites, 'name')
+    sitehash = keyby(sites, 'name')
   })
   it('should create an asset rule', async () => {
     const { role } = await createRole('assetrulestestA')
@@ -48,7 +48,7 @@ describe('asset rule mutations', () => {
       }
     }`, { args: { roleId: role.id, siteId: sitehash.site4.id, path: '/', mode: 'SELFANDSUB', grants: { create: true, update: true, move: true, delete: false, undelete: false } } })
     expect(success).to.be.true
-    expect(assetRule.role.name).to.equal('assetrulestestA')
+    expect(assetRule.role.name).to.equal('assetrulestesta')
     expect(assetRule.site.name).to.equal('site4')
     expect(assetRule.grants.create).to.be.true
     expect(assetRule.grants.view).to.be.true

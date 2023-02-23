@@ -48,7 +48,7 @@ describe('data rule mutations', () => {
       }
     }`, { args: { roleId: role.id, siteId: sitehash.site5.id, path: '/', grants: { create: false, update: true, delete: false, move: false, publish: true, unpublish: true, undelete: false } } })
     expect(success).to.be.true
-    expect(dataRule.role.name).to.equal('datarulestestA')
+    expect(dataRule.role.name).to.equal('datarulestesta')
     expect(dataRule.site.name).to.equal('site5')
     expect(dataRule.grants.create).to.be.false
     expect(dataRule.grants.update).to.be.true
