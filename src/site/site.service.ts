@@ -16,12 +16,21 @@ const sitesByIdLoader = new PrimaryKeyLoader({
   }
 })
 
+const sitesByNameLoader = new PrimaryKeyLoader({
+  fetch: async (names: string[]) => {
+    return await getSites({ names, deleted: DeletedFilter.SHOW })
+  },
+  extractId: site => site.name,
+  idLoader: sitesByIdLoader
+})
+sitesByIdLoader.addIdLoader(sitesByNameLoader)
+
 const siteByOrganizationIdLoader = new OneToManyLoader({
   fetch: async (orgIds: string[], filter?: SiteFilter) => {
     return await getSites({ ...filter, organizationIds: orgIds })
   },
   extractKey: (item: Site) => item.organizationId!,
-  idLoader: sitesByIdLoader
+  idLoader: [sitesByIdLoader, sitesByNameLoader]
 })
 
 // TODO: does this loader need a filter parameter too? Without it, deleted
@@ -30,7 +39,7 @@ const sitesByTemplateIdLoader = new ManyJoinedLoader({
   fetch: async (templateIds: number[], atLeastOneTree?: boolean) => {
     return await getSitesByTemplate(templateIds, atLeastOneTree)
   },
-  idLoader: sitesByIdLoader
+  idLoader: [sitesByIdLoader, sitesByNameLoader]
 })
 
 const sitesByOwnerInternalIdLoader = new OneToManyLoader({
@@ -38,14 +47,14 @@ const sitesByOwnerInternalIdLoader = new OneToManyLoader({
     return await getSites({ ...filter, ownerInternalIds })
   },
   extractKey: (item: Site) => item.ownerId!,
-  idLoader: sitesByIdLoader
+  idLoader: [sitesByIdLoader, sitesByNameLoader]
 })
 
 const sitesByManagerInternalIdLoader = new ManyJoinedLoader({
   fetch: async (managerInternalIds: number[], filter?: SiteFilter) => {
     return await getSitesByManagerInternalId(managerInternalIds, filter)
   },
-  idLoader: sitesByIdLoader
+  idLoader: [sitesByIdLoader, sitesByNameLoader]
 })
 
 export class SiteServiceInternal extends BaseService {
@@ -59,6 +68,10 @@ export class SiteServiceInternal extends BaseService {
 
   async findById (siteId: string) {
     return await this.loaders.get(sitesByIdLoader).load(siteId)
+  }
+
+  async findByName (siteName: string) {
+    return await this.loaders.get(sitesByNameLoader).load(siteName)
   }
 
   async findByOrganization (orgId: string, filter?: SiteFilter) {

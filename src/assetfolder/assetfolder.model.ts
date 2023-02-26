@@ -2,7 +2,7 @@ import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-s
 import { DateTime } from 'luxon'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
-import { DeleteState, DeleteStateInput, PagetreeType, UrlSafePath, UrlSafeString } from '../internal.js'
+import { DeleteState, DeleteStateInput, LinkInputContext, PagetreeType, UrlSafePath, UrlSafeString } from '../internal.js'
 
 @ObjectType({ description: 'An asset folder is a folder that contains assets and other asset folders. Each site has exactly one root asset folder that is nameless and cannot be deleted.' })
 export class AssetFolder {
@@ -10,6 +10,9 @@ export class AssetFolder {
 
   @Field(type => ID)
   id: string
+
+  @Field({ description: 'An identifier that uniquely identifies the asset folder in its pagetree. This is not globally unique as it may be copied along with the asset folder into a new pagetree.' })
+  linkId: string
 
   @Field(type => UrlSafeString, { description: 'Name for the folder. Will be used when constructing the path.' })
   name: string
@@ -33,7 +36,8 @@ export class AssetFolder {
 
   constructor (row: any) {
     this.internalId = row.id
-    this.id = row.guid
+    this.id = String(row.id)
+    this.linkId = row.linkId
     this.name = row.name
     this.siteId = String(row.siteId)
     this.path = row.path
@@ -82,6 +86,7 @@ export class AssetFolderFilter {
 
   childOfFolderInternalIds?: number[]
   names?: string[]
+  linkIds?: string[]
 
   @Field(type => [UrlSafePath], { nullable: true, description: 'Return folders with the given paths.' })
   paths?: string[]
@@ -105,7 +110,7 @@ export class CreateAssetFolderInput {
   name!: string
 
   @Field(type => ID, { description: 'The existing asset folder that will be the new asset folder\'s parent' })
-  parentId!: string // guid
+  parentId!: string
 }
 
 @ObjectType()
@@ -135,12 +140,15 @@ registerEnumType(AssetFolderPermission, {
 
 @InputType()
 export class AssetFolderLinkInput {
-  @Field(type => ID)
-  id!: string
+  @Field()
+  linkId!: string
 
   @Field(type => ID)
   siteId!: string
 
   @Field()
   path!: string
+
+  @Field(type => LinkInputContext, { nullable: true, description: 'Context information for where this link was placed. If the link is on a sandbox page, for instance, we would want to look up this link in the sandbox pagetree instead of the main pagetree. If no context is specified, links will only be found in the PRIMARY pagetree.' })
+  context?: LinkInputContext
 }

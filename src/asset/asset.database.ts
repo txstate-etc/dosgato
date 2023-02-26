@@ -1,9 +1,10 @@
+import { Context } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { keyby, pick, stringify } from 'txstate-utils'
-import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution, AssetFolderRow, DeleteState, DeletedFilter, processDeletedFilters } from '../internal.js'
+import { intersect, isNotBlank, isNotNull, keyby, pick, stringify } from 'txstate-utils'
+import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution, AssetFolderRow, DeleteState, processDeletedFilters, normalizePath, AssetServiceInternal } from '../internal.js'
 
 export interface AssetInput {
   name: string
@@ -23,6 +24,7 @@ export interface CreateAssetInput extends AssetInput {
   legacyId?: string
   createdBy?: string
   createdAt?: string
+  linkId?: string
 }
 
 export interface ReplaceAssetInput extends AssetInput {
@@ -34,11 +36,60 @@ export interface AssetRow {
   name: string
   folderId: number
   dataId: string
+  linkId: string
   shasum: string
   deletedAt?: Date
 }
 
-function processFilters (filter?: AssetFilter) {
+export interface AssetRowWithPagetreeId extends AssetRow {
+  pagetreeId: number
+}
+
+async function convertPathsToIDPaths (pathstrings: string[]) {
+  const paths = pathstrings.map(normalizePath).map(p => p.split(/\//).filter(isNotBlank))
+  const potentialFolderNames = new Set<string>(paths.flat())
+  const potentialAssetNames = new Set<string>(paths.map(p => p[p.length - 1]))
+  const folderBinds: string[] = []
+  const assetBinds: string[] = []
+  const [folderRows, assetRows] = await Promise.all([
+    db.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM assetfolders WHERE name IN (${db.in(folderBinds, Array.from(potentialFolderNames))})`, folderBinds),
+    db.getall<{ id: number, name: string, folderId: number }>(`SELECT id, name, folderId FROM assets WHERE name IN (${db.in(assetBinds, Array.from(potentialAssetNames))})`, assetBinds)
+  ])
+  const foldersByNameAndIDPath: Record<string, Record<string, typeof folderRows[number]>> = {}
+  for (const row of folderRows) {
+    foldersByNameAndIDPath[row.name] ??= {}
+    foldersByNameAndIDPath[row.name][row.path] = row
+  }
+  const assetsByNameAndFolderId: Record<string, Record<string, typeof assetRows[number]>> = {}
+  for (const row of assetRows) {
+    assetsByNameAndFolderId[row.name] ??= {}
+    assetsByNameAndFolderId[row.name][row.folderId] = row
+  }
+  const ret: { folderIdPath: string, assetId?: number }[] = []
+  for (const entry of paths) {
+    let lastpath = '/'
+    let lastFolderId: number | undefined
+    let assetId: number | undefined
+    let finished = false
+    for (let i = 0; i < entry.length; i++) {
+      const segment = entry[i]
+      const folder = foldersByNameAndIDPath[segment]?.[lastpath]
+      if (!folder) {
+        if (i === entry.length - 1) {
+          assetId = assetsByNameAndFolderId[segment]?.[lastFolderId!]?.id
+          finished = true
+        }
+        break
+      }
+      lastpath = `${folder.path}${folder.path === '/' ? '' : '/'}${folder.id}`
+      finished = (i === entry.length - 1)
+    }
+    if (finished && lastpath !== '/') ret.push({ folderIdPath: lastpath, assetId })
+  }
+  return ret
+}
+
+async function processFilters (filter?: AssetFilter) {
   const { binds, where, joins } = processDeletedFilters(
     filter,
     'assets',
@@ -59,9 +110,49 @@ function processFilters (filter?: AssetFilter) {
   if (filter.ids?.length) {
     where.push(`assets.dataId IN (${db.in(binds, filter.ids)})`)
   }
+  if (filter.linkIds?.length) {
+    where.push(`assets.linkId IN (${db.in(binds, filter.linkIds)})`)
+  }
+  await Promise.all([
+    (async () => {
+      // named paths e.g. /site1/about
+      if (filter.paths?.length) {
+        const idpaths = await convertPathsToIDPaths(filter.paths)
+        const ids = ['-1', ...idpaths.map(p => p.assetId).filter(isNotNull)]
+        where.push(`assets.id IN (${db.in(binds, ids)})`)
+      }
+    })(),
+    (async () => {
+      // beneath a named path e.g. /site1/about
+      if (filter.beneath?.length) {
+        const idpaths = await convertPathsToIDPaths(filter.beneath)
+        const mybinds: any[] = []
+        const ors = idpaths.flatMap(p => ['assetfolder.path LIKE ?', 'assetfolder.path = ?'])
+        mybinds.push(...idpaths.flatMap(p => [`${p.folderIdPath}/%`, p.folderIdPath]))
+        const subFolderIds = await db.getvals<number>(`SELECT id FROM assetfolders WHERE ${ors.join(' OR ')}`, mybinds)
+        filter.folderIds = intersect({ skipEmpty: true }, ['-1', ...idpaths.map(p => p.folderIdPath.split(/\//).slice(-1)[0]), ...subFolderIds.map(String)], filter.folderIds)
+      }
+    })(),
+    (async () => {
+      // direct children of a named path e.g. /site1/about
+      if (filter.parentPaths?.length) {
+        const idpaths = await convertPathsToIDPaths(filter.parentPaths)
+        where.push(`assets.folderId IN (${db.in(binds, idpaths.map(p => p.folderIdPath.split(/\//).slice(-1)[0]))})`)
+      }
+    })()
+  ])
   if (filter.folderIds?.length) {
     joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
-    where.push(`assetfolders.guid IN (${db.in(binds, filter.folderIds)})`)
+    where.push(`assetfolders.id IN (${db.in(binds, filter.folderIds)})`)
+  }
+  if (filter.pagetreeIds?.length) {
+    joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
+    where.push(`assetfolders.pagetreeId IN (${db.in(binds, filter.pagetreeIds)})`)
+  }
+  if (filter.pagetreeTypes?.length) {
+    joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
+    joins.set('pagetrees', 'INNER JOIN pagetrees ON assetfolders.pagetreeId = pagetrees.id')
+    where.push(`pagetrees.type IN (${db.in(binds, filter.pagetreeTypes)})`)
   }
   if (filter.folderInternalIds?.length) {
     where.push(`assets.folderId IN (${db.in(binds, filter.folderInternalIds)})`)
@@ -85,13 +176,22 @@ function processFilters (filter?: AssetFilter) {
 }
 
 export async function getAssets (filter?: AssetFilter, tdb: Queryable = db) {
-  const { binds, where, joins } = processFilters(filter)
+  const { binds, where, joins } = await processFilters(filter)
   const assets = await tdb.getall(`
     SELECT assets.id, assets.dataId, assets.name, assets.folderId, assets.deletedAt, assets.deletedBy, assets.deleteState, binaries.bytes AS filesize, binaries.mime, binaries.shasum, binaries.meta FROM assets
     INNER JOIN binaries on assets.shasum = binaries.shasum
     ${joins.size ? Array.from(joins.values()).join('\n') : ''}
     ${where.length ? `WHERE (${where.join(') AND (')})` : ''}`, binds)
   return assets.map(a => new Asset(a))
+}
+
+export async function getAssetsByPath (paths: string[], filter: AssetFilter, ctx: Context) {
+  const assets = await getAssets({ ...filter, paths })
+  const ret: { key: string, value: Asset }[] = []
+  await Promise.all(assets.map(async a => {
+    ret.push({ key: await ctx.svc(AssetServiceInternal).getPath(a), value: a })
+  }))
+  return ret
 }
 
 export async function getResizes (assetInternalIds: number[]) {
@@ -280,6 +380,7 @@ export function getIndexes (data: any) {
 }
 
 export async function createAsset (versionedService: VersionedService, userId: string, args: CreateAssetInput) {
+  let linkId = args.linkId ?? nanoid(10)
   return await db.transaction(async db => {
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const createdBy = args.legacyId ? (args.createdBy || args.modifiedBy || userId) : userId // || is intended - to catch blanks
@@ -290,13 +391,20 @@ export async function createAsset (versionedService: VersionedService, userId: s
     const data = { legacyId: args.legacyId, shasum: args.checksum, uploadedFilename: args.filename, meta: args.meta }
     const dataId = await versionedService.create('asset', data, getIndexes(data), createdBy, db)
     await versionedService.setStamps(dataId, { createdAt: createdAt ? new Date(createdAt) : undefined, modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
-    const folderInternalId = await db.getval<string>('SELECT id FROM assetfolders WHERE guid = ?', [args.folderId])
+    const folder = await db.getrow<{ id: number, pagetreeId: number }>('SELECT id, pagetreeId FROM assetfolders WHERE id = ?', [args.folderId])
+    if (!folder) throw new Error('Folder to place asset in does not exist.')
+
+    // we can't use a UNIQUE index to enforce linkId uniqueness because we don't have the pagetreeId without joining it in
+    // so we'll just do it here and expect low probability of collision within microseconds
+    while (
+      await db.getval<number>('SELECT COUNT(*) FROM assets INNER JOIN assetfolders ON assets.folderId=assetfolders.id WHERE assets.linkId=? AND assetfolders.pagetreeId=?', [linkId, folder.pagetreeId])
+    ) linkId = nanoid(10)
     await db.insert(`
       INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)
       VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify(pick(args, 'width', 'height')), args.size])
     const newInternalId = await db.insert(`
-      INSERT INTO assets (name, folderId, dataId, shasum)
-      VALUES(?, ?, ?, ?)`, [args.name, folderInternalId!, dataId, args.checksum])
+      INSERT INTO assets (name, folderId, linkId, dataId, shasum)
+      VALUES(?, ?, ?, ?, ?)`, [args.name, folder.id, linkId, dataId, args.checksum])
     return (await getAssets({ internalIds: [newInternalId] }, db))[0]
   })
 }
@@ -368,14 +476,22 @@ export async function moveAssets (targetFolder: AssetFolder, assets: Asset[], fo
       ? await db.getall<AssetFolderRow>(`SELECT * FROM assetfolders WHERE id IN (${db.in(binds, folders.map(f => f.internalId))})`, binds)
       : []
 
+    // If any folders are moving between pagetrees, we need to error out since we don't allow that
+    // See comments in movePages() for more explanation
+    if (folderrows.some(f => f.pagetreeId !== targetrow.pagetreeId)) throw new Error('Moving between sites or pagetrees is not allowed. Copy instead.')
+
     // If folder selected to be moved is a descendent of one of the other folders being moved,
     // we don't need to move it because it will be moved with its ancestor
     const filteredFolderRows = folderrows.filter(folder => !folderrows.some(f => folder.path === makeParentPath(f) || folder.path.startsWith(makeParentPath(f) + '/')))
 
     binds = []
     const assetrows = assets.length
-      ? await db.getall<AssetRow>(`SELECT * FROM assets WHERE id IN (${db.in(binds, assets.map(a => a.internalId))})`, binds)
+      ? await db.getall<AssetRowWithPagetreeId>(`SELECT a.*, f.pagetreeId FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE a.id IN (${db.in(binds, assets.map(a => a.internalId))})`, binds)
       : []
+
+    // If any assets are moving between pagetrees, we need to error out since we don't allow that
+    // See comments in movePages() for more explanation
+    if (assetrows.some(a => a.pagetreeId !== targetrow.pagetreeId)) throw new Error('Moving between sites or pagetrees is not allowed. Copy instead.')
 
     // If a selected asset is already in one of the folders selected, we'll skip moving it since its folder
     // is also moving. Users will potentially shift-select a big block of items including both folders and assets
@@ -406,17 +522,20 @@ function makeParentPath (f: AssetFolderRow) {
   return (f.path === '/' ? '/' : f.path + '/') + String(f.id)
 }
 
-async function copyAsset (a: AssetRow, targetrow: AssetFolderRow, user: string, versionedService: VersionedService, db: Queryable) {
+async function copyAsset (a: AssetRowWithPagetreeId, targetrow: AssetFolderRow, user: string, versionedService: VersionedService, db: Queryable) {
   const data = await versionedService.get(a.dataId)
   if (!data) throw new Error(`Asset being copied "${a.name}" was corrupt.`)
   const dataId = await versionedService.create('asset', data.data, [], user, db)
-  await db.insert('INSERT INTO assets (name, folderId, dataId, shasum) VALUES (?, ?, ?, ?)', [a.name, targetrow.id, dataId, a.shasum])
+  const linkId = a.pagetreeId === targetrow.pagetreeId || await db.getval('SELECT a.linkId FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE f.pagetreeId=?', [targetrow.pagetreeId]) ? nanoid(10) : a.linkId
+
+  await db.insert('INSERT INTO assets (name, folderId, linkId, dataId, shasum) VALUES (?, ?, ?, ?, ?)', [a.name, targetrow.id, linkId, dataId, a.shasum])
 }
 
 async function copyFolder (f: AssetFolderRow, targetrow: AssetFolderRow, user: string, versionedService: VersionedService, db: Queryable) {
-  const newFolderId = await db.insert('INSERT INTO assetfolders (siteId, path, name, guid) VALUES (?, ?, ?, ?)', [targetrow.siteId, makeParentPath(targetrow), f.name, nanoid(10)])
+  const linkId = f.pagetreeId === targetrow.pagetreeId || await db.getval('SELECT linkId FROM assetfolders WHERE pagetreeId=?', [targetrow.pagetreeId]) ? nanoid(10) : f.linkId
+  const newFolderId = await db.insert('INSERT INTO assetfolders (siteId, linkId, path, name) VALUES (?, ?, ?, ?)', [targetrow.siteId, linkId, makeParentPath(targetrow), f.name])
   const newFolderRow = await db.getrow('SELECT * FROM assetfolders WHERE id = ?', [newFolderId])
-  const assets = await db.getall<AssetRow>('SELECT * FROM assets WHERE folderId = ?', [f.id])
+  const assets = await db.getall<AssetRowWithPagetreeId>('SELECT a.*, f.pagetreeId FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE a.folderId = ?', [f.id])
   for (const a of assets) await copyAsset(a, newFolderRow, user, versionedService, db)
   const folders = await db.getall<AssetFolderRow>('SELECT * FROM assetfolders WHERE path = ?', [makeParentPath(f)])
   for (const cf of folders) await copyFolder(cf, newFolderRow, user, versionedService, db)
@@ -427,7 +546,7 @@ export async function copyAssets (targetFolder: AssetFolder, assets: Asset[], fo
     // re-pull everything inside the transaction
     const [targetrow, targetassetchildren, targetfolderchildren] = await Promise.all([
       db.getrow<AssetFolderRow>('SELECT * FROM assetfolders WHERE id=?', [targetFolder.internalId]),
-      db.getall<AssetRow>('SELECT * FROM assets WHERE folderId = ?', [targetFolder.internalId]),
+      db.getall<AssetRowWithPagetreeId>('SELECT a.*, f.pagetreeId FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE folderId = ?', [targetFolder.internalId]),
       db.getall<AssetFolderRow>('SELECT * FROM assetfolders WHERE path = ?', [targetFolder.pathAsParent])
     ])
 
@@ -449,7 +568,7 @@ export async function copyAssets (targetFolder: AssetFolder, assets: Asset[], fo
 
     binds = []
     const assetrows = assets.length
-      ? await db.getall<AssetRow>(`SELECT * FROM assets WHERE id IN (${db.in(binds, assets.map(a => a.internalId))})`, binds)
+      ? await db.getall<AssetRowWithPagetreeId>(`SELECT a.*, f.pagetreeId FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE a.id IN (${db.in(binds, assets.map(a => a.internalId))})`, binds)
       : []
 
     // If a selected asset is already in one of the folders selected, we'll skip copying it since its folder

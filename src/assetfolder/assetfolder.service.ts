@@ -1,29 +1,36 @@
 import { BaseService } from '@txstate-mws/graphql-server'
-import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { isNull, isNotNull, unique, mapConcurrent, intersect, isNotBlank, keyby, isBlank } from 'txstate-utils'
+import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { isNull, isNotNull, unique, mapConcurrent, intersect, isBlank } from 'txstate-utils'
 import {
   AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
   CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
-  deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter, normalizePath,
-  finalizeAssetFolderDeletion, DeleteStateAll
+  deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter,
+  finalizeAssetFolderDeletion, DeleteStateAll, PagetreeServiceInternal, PagetreeType, SiteServiceInternal, getAssetFoldersByPath
 } from '../internal.js'
 
-const assetFolderByInternalIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: number[]) => await getAssetFolders({ internalIds: ids, deleteStates: DeleteStateAll }),
-  extractId: af => af.internalId
-})
-
 const assetFolderByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => await getAssetFolders({ ids, deleteStates: DeleteStateAll }),
-  idLoader: assetFolderByInternalIdLoader
+  fetch: async (ids: string[]) => await getAssetFolders({ ids, deleteStates: DeleteStateAll })
 })
-
-assetFolderByInternalIdLoader.addIdLoader(assetFolderByIdLoader)
 
 const foldersByNameLoader = new OneToManyLoader({
   fetch: async (names: string[]) => await getAssetFolders({ names, deleteStates: DeleteStateAll }),
   extractKey: folder => folder.name,
-  idLoader: [assetFolderByIdLoader, assetFolderByInternalIdLoader]
+  idLoader: assetFolderByIdLoader
+})
+
+const foldersByLinkIdLoader = new OneToManyLoader({
+  fetch: async (linkIds: string[], filters: AssetFolderFilter) => {
+    return await getAssetFolders({ ...filters, linkIds })
+  },
+  extractKey: f => f.linkId,
+  idLoader: assetFolderByIdLoader
+})
+
+const foldersByPathLoader = new ManyJoinedLoader({
+  fetch: async (paths: string[], filters: AssetFolderFilter) => {
+    return await getAssetFoldersByPath(paths, filters)
+  },
+  idLoader: assetFolderByIdLoader
 })
 
 const foldersByInternalIdPathLoader = new OneToManyLoader({
@@ -32,7 +39,7 @@ const foldersByInternalIdPathLoader = new OneToManyLoader({
   },
   keysFromFilter: (filter: AssetFolderFilter | undefined) => filter?.internalIdPaths ?? [],
   extractKey: (f: AssetFolder) => f.path,
-  idLoader: [assetFolderByInternalIdLoader, assetFolderByIdLoader]
+  idLoader: assetFolderByIdLoader
 })
 
 const foldersByInternalIdPathRecursiveLoader = new OneToManyLoader({
@@ -42,7 +49,7 @@ const foldersByInternalIdPathRecursiveLoader = new OneToManyLoader({
   },
   keysFromFilter: (filter: AssetFolderFilter | undefined) => filter?.internalIdPathsRecursive ?? [],
   matchKey: (path: string, f: AssetFolder) => f.path.startsWith(path),
-  idLoader: [assetFolderByInternalIdLoader, assetFolderByIdLoader]
+  idLoader: assetFolderByIdLoader
 })
 
 const foldersInPagetreeLoader = new OneToManyLoader({
@@ -51,7 +58,7 @@ const foldersInPagetreeLoader = new OneToManyLoader({
   },
   extractKey: (f: AssetFolder) => f.pagetreeId,
   keysFromFilter: (filter: AssetFolderFilter | undefined) => filter?.pagetreeIds ?? [],
-  idLoader: [assetFolderByInternalIdLoader, assetFolderByIdLoader]
+  idLoader: assetFolderByIdLoader
 })
 
 export class AssetFolderServiceInternal extends BaseService {
@@ -59,13 +66,12 @@ export class AssetFolderServiceInternal extends BaseService {
     const folders = await getAssetFolders(await this.processFolderFilters(filter))
     for (const folder of folders) {
       this.loaders.get(assetFolderByIdLoader).prime(folder.id, folder)
-      this.loaders.get(assetFolderByInternalIdLoader).prime(folder.internalId, folder)
     }
     return folders
   }
 
   async findByInternalId (id: number) {
-    return await this.loaders.get(assetFolderByInternalIdLoader).load(id)
+    return await this.loaders.get(assetFolderByIdLoader).load(String(id))
   }
 
   async findById (id: string) {
@@ -76,48 +82,27 @@ export class AssetFolderServiceInternal extends BaseService {
     return await this.loaders.loadMany(assetFolderByIdLoader, ids)
   }
 
+  async findByInternalIds (ids: number[]) {
+    return await this.findByIds(ids.map(String))
+  }
+
   async findByPagetreeId (id: string, filter?: AssetFolderFilter) {
     return await this.loaders.get(foldersInPagetreeLoader, filter).load(id)
   }
 
   async getAncestors (folder: AssetFolder) {
-    return await this.loaders.loadMany(assetFolderByInternalIdLoader, folder.pathSplit)
+    return await this.findByInternalIds(folder.pathSplit)
   }
 
   async getParent (folder: AssetFolder) {
     if (!folder.parentInternalId) return undefined
-    return await this.loaders.get(assetFolderByInternalIdLoader).load(folder.parentInternalId)
-  }
-
-  async convertPathsToIDPaths (pathstrings: string[]) {
-    const paths = pathstrings.map(normalizePath).map(p => p.split(/\//).filter(isNotBlank))
-    const names = new Set<string>(paths.flat())
-    const folders = await this.loaders.loadMany(foldersByNameLoader, Array.from(names))
-    const rowsByNameAndIDPath: Record<string, Record<string, AssetFolder[]>> = {}
-    for (const row of folders) {
-      rowsByNameAndIDPath[row.name] ??= {}
-      rowsByNameAndIDPath[row.name][row.path] ??= []
-      rowsByNameAndIDPath[row.name][row.path].push(row)
-    }
-    const idpaths: string[] = []
-    // eslint-disable-next-line no-labels
-    loop1:
-    for (const pt of paths) {
-      let searchpaths = ['/']
-      for (const segment of pt) {
-        const pages = searchpaths.flatMap(sp => rowsByNameAndIDPath[segment]?.[sp])
-        // eslint-disable-next-line no-labels
-        if (pages.some(isNull)) break loop1
-        searchpaths = pages.map(pg => `${pg.path}${pg.path === '/' ? '' : '/'}${pg.internalId}`)
-        if (!searchpaths.length) break
-      }
-      idpaths.push(...searchpaths)
-    }
-    return idpaths
+    return await this.findByInternalId(folder.parentInternalId)
   }
 
   async processFolderFilters (filter?: AssetFolderFilter) {
-    if (filter?.parentOfFolderIds) {
+    if (!filter) return filter
+
+    if (filter.parentOfFolderIds?.length) {
       const folders = await this.loaders.loadMany(assetFolderByIdLoader, filter.parentOfFolderIds)
       const parentIds = folders.map(f => f.parentInternalId).filter(isNotNull)
       if (filter.internalIds?.length) {
@@ -125,15 +110,15 @@ export class AssetFolderServiceInternal extends BaseService {
         filter.internalIds = unique(filter.internalIds)
       } else filter.internalIds = parentIds
     }
-    if (filter?.parentOfFolderInternalIds) {
-      const folders = await this.loaders.loadMany(assetFolderByInternalIdLoader, filter.parentOfFolderInternalIds)
+    if (filter.parentOfFolderInternalIds?.length) {
+      const folders = await this.findByInternalIds(filter.parentOfFolderInternalIds)
       const parentIds = folders.map(f => f.parentInternalId).filter(isNotNull)
       if (filter.internalIds?.length) {
         filter.internalIds.push(...parentIds)
         filter.internalIds = unique(filter.internalIds)
       } else filter.internalIds = parentIds
     }
-    if (filter?.childOfFolderIds) {
+    if (filter.childOfFolderIds?.length) {
       const folders = await this.loaders.loadMany(assetFolderByIdLoader, filter.childOfFolderIds)
       const childFolders = await (await mapConcurrent(folders, async (folder) => await this.getChildFolders(folder, false))).flat()
       if (filter.internalIds?.length) {
@@ -141,43 +126,46 @@ export class AssetFolderServiceInternal extends BaseService {
       } else filter.internalIds = childFolders.map(f => f.internalId)
     }
 
-    // named paths e.g. /site1/about
-    if (filter?.paths?.length) {
-      const idpaths = await this.convertPathsToIDPaths(filter.paths)
-      const ids = idpaths.map(p => +p.split(/\//).slice(-1)[0])
-      filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, ids)
-      if (!idpaths.length) filter.internalIds = [-1]
-    }
-
-    // beneath a named path e.g. /site1/about
-    if (filter?.beneath?.length) {
-      const idpaths = await this.convertPathsToIDPaths(filter.beneath)
-      filter.internalIdPathsRecursive = intersect({ skipEmpty: true }, filter.internalIdPaths, idpaths)
-      if (!idpaths.length) filter.internalIds = [-1]
-    }
-
-    // direct children of a named path e.g. /site1/about
-    if (filter?.parentPaths?.length) {
-      const idpaths = await this.convertPathsToIDPaths(filter.parentPaths)
-      filter.internalIdPaths = intersect({ skipEmpty: true }, filter.internalIdPaths, idpaths)
-      if (!idpaths.length) filter.internalIds = [-1]
-    }
-
-    if (filter?.links?.length) {
-      const folders = await this.findByIds(filter.links.map(l => l.id))
-      const foldersById = keyby(folders, 'id')
-      const notFoundById = filter.links.filter(l => !foldersById[l.id])
-      if (notFoundById.length) {
-        const pathFolders = await this.find({ paths: notFoundById.map(l => l.path) })
-
-        const foldersByPath: Record<string, AssetFolder> = {}
-        await Promise.all(pathFolders.map(async a => {
-          foldersByPath[await this.getPath(a)] = a
-        }))
-        folders.push(...notFoundById.map(link => foldersByPath[link.path]).filter(isNotNull))
-      }
-      if (!folders.length) filter.internalIds = [-1]
-      else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, folders.map(a => a.internalId))
+    if (filter.links?.length) {
+      const pagetreeSvc = this.svc(PagetreeServiceInternal)
+      const siteSvc = this.svc(SiteServiceInternal)
+      const folders = await Promise.all(filter.links.map(async l => {
+        const lookups: Promise<AssetFolder[]>[] = []
+        const [contextPagetree, targetSite] = await Promise.all([
+          l.context ? pagetreeSvc.findById(l.context.pagetreeId) : undefined,
+          siteSvc.findById(l.siteId)
+        ])
+        if (contextPagetree?.siteId === l.siteId) {
+          // the link is targeting the same site as the context, so we need to look for the link in
+          // the same pagetree as the context
+          // if we don't find the link in our pagetree, we do NOT fall back to the primary page tree,
+          // we WANT the user to see a broken link in their sandbox because it will break when they go live
+          lookups.push(
+            this.loaders.get(foldersByLinkIdLoader, { pagetreeIds: [contextPagetree.id] }).load(l.linkId),
+            this.loaders.get(foldersByPathLoader, { pagetreeIds: [contextPagetree.id] }).load(l.path.replace(/^\/[^/]+/, `/${contextPagetree.name}`))
+          )
+        } else {
+          // the link is cross-site, so we only look in the primary tree in the site the link was targeting
+          // we do NOT fall back to finding the linkId in other sites that the link did not originally
+          // point at
+          // this means that links will break when pages are moved between sites, which is unfortunate but
+          // ignoring the link's siteId leads to madness because we could have multiple sites that all have
+          // pages with the same linkId, and now I have to try to pick: do I prefer launched sites? published
+          // pages? etc
+          const resolvedTargetSite = targetSite ?? await siteSvc.findByName(l.path.split('/')[1])
+          if (!resolvedTargetSite || resolvedTargetSite.deleted) return undefined
+          const lookuppath = l.path.replace(/^\/[^/]+/, `/${resolvedTargetSite?.name}`)
+          lookups.push(
+            this.loaders.get(foldersByLinkIdLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.linkId),
+            this.loaders.get(foldersByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.path)
+          )
+        }
+        const pages = await Promise.all(lookups)
+        return pages.find(p => p.length > 0)?.[0]
+      }))
+      const found = folders.filter(isNotNull)
+      if (!found.length) filter.internalIds = [-1]
+      else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, found.map(p => p.internalId))
     }
 
     return filter

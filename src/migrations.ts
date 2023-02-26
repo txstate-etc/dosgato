@@ -169,6 +169,18 @@ const dgMigrations: DBMigration[] = [
       `)
       await db.execute('ALTER TABLE data ALTER templateId DROP DEFAULT, ADD FOREIGN KEY (templateId) REFERENCES templates(id)')
     }
+  },
+  {
+    id: 20230223120000,
+    description: 'add linkId to assets and assetfolders',
+    run: async db => {
+      await db.execute('ALTER TABLE assets ADD COLUMN linkId CHAR(10) CHARACTER SET "ascii" COLLATE "ascii_bin" NOT NULL DEFAULT ""')
+      await db.execute('ALTER TABLE assetfolders ADD COLUMN linkId CHAR(10) CHARACTER SET "ascii" COLLATE "ascii_bin" NOT NULL DEFAULT "", DROP FOREIGN KEY assetfolders_ibfk_1')
+      await db.execute('UPDATE assets SET linkId = dataId')
+      await db.execute('UPDATE assetfolders SET linkId = guid')
+      await db.execute('ALTER TABLE assets ALTER linkId DROP DEFAULT, ADD INDEX (linkId)')
+      await db.execute('ALTER TABLE assetfolders ALTER linkId DROP DEFAULT, DROP COLUMN guid, ADD UNIQUE INDEX linkId_unique_in_pagetree (pagetreeId, linkId), ADD INDEX (linkId), ADD FOREIGN KEY FK_assetfolders_pagetrees (pagetreeId) REFERENCES pagetrees(id)')
+    }
   }
 ]
 

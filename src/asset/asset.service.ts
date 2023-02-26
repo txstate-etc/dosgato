@@ -1,15 +1,15 @@
-import { BaseService, MutationMessageType, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, Context, MutationMessageType, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { lookup } from 'mime-types'
 import sharp from 'sharp'
-import { intersect, isBlank, isNotNull, keyby, roundTo, sortby } from 'txstate-utils'
+import { intersect, isBlank, isNotNull, roundTo, sortby } from 'txstate-utils'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
-  fileHandler, deleteAsset, undeleteAsset, popPath, basename, registerResize,
+  fileHandler, deleteAsset, undeleteAsset, registerResize,
   getResizesById, VersionedService, cleanupBinaries, getDownloads, DownloadsFilter, getResizeDownloads,
   AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion, renameAsset,
-  updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal, DeleteStateAll
+  updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal, DeleteStateAll, getAssetsByPath, PagetreeType
 } from '../internal.js'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
@@ -29,6 +29,28 @@ const assetsByFolderInternalIdLoader = new OneToManyLoader({
   fetch: async (folderInternalIds: number[], filter: AssetFilter) => await getAssets({ ...filter, folderInternalIds }),
   keysFromFilter: (filter: AssetFilter | undefined) => filter?.folderInternalIds ?? [],
   extractKey: asset => asset.folderInternalId,
+  idLoader: [assetsByIdLoader, assetsByInternalIdLoader]
+})
+
+const assetsByChecksumLoader = new OneToManyLoader({
+  fetch: async (checksums: string[], filter: AssetFilter) => await getAssets({ ...filter, checksums }),
+  keysFromFilter: (filter: AssetFilter | undefined) => filter?.checksums ?? [],
+  extractKey: asset => asset.checksum,
+  idLoader: [assetsByIdLoader, assetsByInternalIdLoader]
+})
+
+const assetsByLinkIdLoader = new OneToManyLoader({
+  fetch: async (linkIds: string[], filters: AssetFilter) => {
+    return await getAssets({ ...filters, linkIds })
+  },
+  extractKey: a => a.linkId,
+  idLoader: [assetsByIdLoader, assetsByInternalIdLoader]
+})
+
+const assetsByPathLoader = new ManyJoinedLoader({
+  fetch: async (paths: string[], filters: AssetFilter, ctx: Context) => {
+    return await getAssetsByPath(paths, filters, ctx)
+  },
   idLoader: [assetsByIdLoader, assetsByInternalIdLoader]
 })
 
@@ -102,6 +124,10 @@ export class AssetServiceInternal extends BaseService {
     return await this.loaders.loadMany(assetsByIdLoader, ids)
   }
 
+  async findByLinkIds (linkIds: string[]) {
+    return await this.loaders.loadMany(assetsByLinkIdLoader, linkIds)
+  }
+
   async findByFolder (folder: AssetFolder, filter?: AssetFilter) {
     return await this.findByFolderInternalId(folder.internalId, filter)
   }
@@ -149,49 +175,49 @@ export class AssetServiceInternal extends BaseService {
       if (!filter.ids.length) filter.internalIds = [-1]
     }
 
-    if (filter?.paths?.length) {
-      const folderidpaths = await this.svc(AssetFolderServiceInternal).convertPathsToIDPaths(filter.paths.map(popPath))
-      const folderids = folderidpaths.map(p => +p.split(/\//).slice(-1)[0])
-      filter.folderInternalIds = intersect({ skipEmpty: true }, filter.folderInternalIds, folderids)
-      filter.names = filter.paths.map(basename)
-      if (!folderidpaths.length) filter.internalIds = [-1]
-    }
-
-    if (filter?.beneath?.length) {
-      const folderidpaths = await this.svc(AssetFolderServiceInternal).convertPathsToIDPaths(filter.beneath)
-      const folders = await this.svc(AssetFolderServiceInternal).getChildFoldersByIDPaths(folderidpaths)
-      const ids = [...folders.map(f => f.internalId), ...folderidpaths.map(basename).map(Number)]
-      filter.folderInternalIds = intersect({ skipEmpty: true }, filter.folderInternalIds, ids)
-      if (!folderidpaths.length) filter.internalIds = [-1]
-    }
-
-    if (filter?.parentPaths?.length) {
-      const folderidpaths = await this.svc(AssetFolderServiceInternal).convertPathsToIDPaths(filter.parentPaths)
-      filter.folderInternalIds = intersect({ skipEmpty: true }, filter.folderInternalIds, folderidpaths.map(basename).map(Number))
-      if (!folderidpaths.length) filter.internalIds = [-1]
-    }
-
     if (filter?.links?.length) {
-      const assets = await this.findByIds(filter.links.map(l => l.id))
-      const assetsById = keyby(assets, 'id')
-      const notFoundById = filter.links.filter(l => !assetsById[l.id])
-      if (notFoundById.length) {
-        const [pathAssets, checksumAssets] = await Promise.all([
-          this.find({ paths: notFoundById.map(l => l.path) }),
-          this.find({ checksums: notFoundById.map(l => l.checksum) })
+      const pagetreeSvc = this.svc(PagetreeServiceInternal)
+      const siteSvc = this.svc(SiteServiceInternal)
+      const pages = await Promise.all(filter.links.map(async l => {
+        const lookups: Promise<Asset[]>[] = []
+        const [contextPagetree, targetSite] = await Promise.all([
+          l.context ? pagetreeSvc.findById(l.context.pagetreeId) : undefined,
+          siteSvc.findById(l.siteId)
         ])
+        if (contextPagetree?.siteId === l.siteId) {
+          // the link is targeting the same site as the context, so we need to look for the link in
+          // the same pagetree as the context
+          // if we don't find the link in our pagetree, we do NOT fall back to the primary page tree,
+          // we WANT the user to see a broken link in their sandbox because it will break when they go live
+          lookups.push(
+            this.loaders.get(assetsByLinkIdLoader, { pagetreeIds: [contextPagetree.id] }).load(l.linkId),
+            this.loaders.get(assetsByPathLoader, { pagetreeIds: [contextPagetree.id] }).load(l.path.replace(/^\/[^/]+/, `/${contextPagetree.name}`)),
+            this.loaders.get(assetsByChecksumLoader, { pagetreeIds: [contextPagetree.id] }).load(l.checksum)
+          )
+        } else {
+          // the link is cross-site, so we only look in the primary tree in the site the link was targeting
+          // we do NOT fall back to finding the linkId in other sites that the link did not originally
+          // point at
+          // this means that links will break when assets are moved between sites, which is unfortunate but
+          // ignoring the link's siteId leads to madness because we could have multiple sites that all have
+          // assets with the same linkId, and now I have to try to pick: do I prefer launched sites? etc
+          const resolvedTargetSite = targetSite ?? await siteSvc.findByName(l.path.split('/')[1])
+          if (!resolvedTargetSite || resolvedTargetSite.deleted) return undefined
+          const lookuppath = l.path.replace(/^\/[^/]+/, `/${resolvedTargetSite?.name}`)
+          lookups.push(
+            this.loaders.get(assetsByLinkIdLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.linkId),
+            this.loaders.get(assetsByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(lookuppath),
+            this.loaders.get(assetsByChecksumLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.checksum)
+          )
+        }
+        const pages = await Promise.all(lookups)
+        return pages.find(p => p.length > 0)?.[0]
+      }))
 
-        const assetsByPath: Record<string, Asset> = {}
-        await Promise.all(pathAssets.map(async a => {
-          assetsByPath[await this.getPath(a)] = a
-        }))
-        const assetsByChecksum = keyby(checksumAssets, 'checksum')
-        assets.push(...notFoundById.map(link => assetsByPath[link.path] ?? assetsByChecksum[link.checksum]).filter(isNotNull))
-      }
-      if (!assets.length) filter.internalIds = [-1]
-      else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, assets.map(a => a.internalId))
+      const found = pages.filter(isNotNull)
+      if (!found.length) filter.internalIds = [-1]
+      else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, found.map(p => p.internalId))
     }
-
     // TODO: referenced
 
     return filter

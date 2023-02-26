@@ -161,7 +161,7 @@ export async function createSite (versionedService: VersionedService, userId: st
     // add root page template key to list of templates approved for the site
     const createdAt = data.legacyId && isNotBlank(extra?.createdAt) ? new Date(extra!.createdAt) : new Date()
     const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt, promotedAt) VALUES (?,?,?, ?, ?)', [siteId, PagetreeType.PRIMARY, name, createdAt, createdAt])
-    const folderId = await db.insert('INSERT INTO assetfolders (siteId, pagetreeId, path, name, guid) VALUES (?,?,?,?,?)', [siteId, pagetreeId, '/', name, nanoid(10)])
+    const folderId = await db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?,?,?,?,?)', [siteId, pagetreeId, extra?.linkId ?? nanoid(10), '/', name])
     await db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [siteId, templateInternalId])
     await db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetreeId, siteId])
     // create the root page.

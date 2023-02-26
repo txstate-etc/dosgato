@@ -1,16 +1,44 @@
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { AssetFolder, AssetFolderFilter, CreateAssetFolderInput, DeleteState, processDeletedFilters } from '../internal.js'
+import { isNotBlank, keyby } from 'txstate-utils'
+import { AssetFolder, AssetFolderFilter, CreateAssetFolderInput, DeleteState, normalizePath, processDeletedFilters } from '../internal.js'
 
 export interface AssetFolderRow {
   id: number
   siteId: number
   path: string
   name: string
-  guid: string
+  linkId: string
   deletedAt?: Date
   deleteState: DeleteState
   deletedBy?: string
+  pagetreeId: number
+}
+
+async function convertPathsToIDPaths (pathstrings: string[]) {
+  const paths = pathstrings.map(normalizePath).map(p => p.split(/\//).filter(isNotBlank))
+  const names = new Set<string>(paths.flat())
+  const binds: string[] = []
+  const rows = await db.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM assetfolders WHERE name IN (${db.in(binds, Array.from(names))})`, binds)
+  const rowsByNameAndIDPath: Record<string, Record<string, typeof rows[number]>> = {}
+  for (const row of rows) {
+    rowsByNameAndIDPath[row.name] ??= {}
+    rowsByNameAndIDPath[row.name][row.path] = row
+  }
+  const idpaths: string[] = []
+  for (const entry of paths) {
+    let lastpath = '/'
+    let finished = false
+    for (let i = 0; i < entry.length; i++) {
+      const segment = entry[i]
+      const folder = rowsByNameAndIDPath[segment]?.[lastpath]
+      if (!folder) break
+      lastpath = `${folder.path}${folder.path === '/' ? '' : '/'}${folder.id}`
+      finished = (i === entry.length - 1)
+    }
+    if (finished && lastpath !== '/') idpaths.push(lastpath)
+  }
+  return idpaths
 }
 
 async function processFilters (filter?: AssetFolderFilter) {
@@ -26,8 +54,40 @@ async function processFilters (filter?: AssetFolderFilter) {
   )
 
   if (filter == null) return { where, binds, joins }
-  if (filter.internalIds?.length) {
-    where.push(`assetfolders.id IN (${db.in(binds, filter.internalIds)})`)
+
+  const awaitables: Promise<void>[] = []
+  // named paths e.g. /site1/about
+  if (filter.paths?.length) {
+    awaitables.push((async () => {
+      const idpaths = await convertPathsToIDPaths(filter.paths!)
+      const ids = ['-1', ...idpaths.map(p => p.split(/\//).slice(-1)[0])]
+      where.push(`assetfolders.id IN (${db.in(binds, ids)})`)
+    })())
+  }
+  // beneath a named path e.g. /site1/about
+  if (filter.beneath?.length) {
+    awaitables.push((async () => {
+      const idpaths = await convertPathsToIDPaths(filter.beneath!)
+      const ors = idpaths.flatMap(p => ['assetfolders.path LIKE ?', 'assetfolders.path = ?'])
+      binds.push(...idpaths.flatMap(p => [`${p}/%`, p]))
+      where.push(ors.join(' OR '))
+    })())
+  }
+  // direct children of a named path e.g. /site1/about
+  if (filter.parentPaths?.length) {
+    awaitables.push((async () => {
+      const idpaths = await convertPathsToIDPaths(filter.parentPaths!)
+      where.push(`assetfolders.path IN (${db.in(binds, idpaths)})`)
+    })())
+  }
+  if (awaitables.length > 0) await Promise.all(awaitables)
+
+  if (filter.internalIds?.length || filter.ids?.length) {
+    where.push(`assetfolders.id IN (${db.in(binds, [...(filter.internalIds ?? []), ...(filter.ids ?? [])])})`)
+  }
+
+  if (filter.linkIds?.length) {
+    where.push(`assetfolders.linkId IN (${db.in(binds, [filter.linkIds])})`)
   }
 
   // internalIdPaths for getting direct descendants of an asset folder
@@ -40,10 +100,6 @@ async function processFilters (filter?: AssetFolderFilter) {
     const ors = filter.internalIdPathsRecursive.flatMap(path => ['assetfolders.path LIKE ?', 'assetfolders.path = ?'])
     where.push(ors.join(' OR '))
     binds.push(...filter.internalIdPathsRecursive.flatMap(p => [`${p}/%`, p]))
-  }
-
-  if (filter.ids?.length) {
-    where.push(`assetfolders.guid IN (${db.in(binds, filter.ids)})`)
   }
 
   if (filter.siteIds?.length) {
@@ -93,18 +149,26 @@ export async function getAssetFolders (filter?: AssetFolderFilter) {
   `, binds)).map(r => new AssetFolder(r))
 }
 
+export async function getAssetFoldersByPath (paths: string[], filter: AssetFolderFilter) {
+  const folders = await getAssetFolders({ ...filter, paths })
+  const parents = await getAssetFolders({ internalIds: [-1, ...folders.flatMap(p => p.pathSplit)] })
+  const parentLookup = keyby(parents, 'internalId')
+  const ret = folders.map(p => ({ key: '/' + [...p.pathSplit.map(id => parentLookup[id].name), p.name].join('/'), value: p }))
+  return ret
+}
+
 export async function createAssetFolder (args: CreateAssetFolderInput) {
   return await db.transaction(async db => {
-    const parent = new AssetFolder(await db.getrow('SELECT * from assetfolders WHERE guid = ?', [args.parentId]))
+    const parent = new AssetFolder(await db.getrow('SELECT * from assetfolders WHERE id = ?', [args.parentId]))
     const newInternalId = await db.insert(`
-      INSERT INTO assetfolders (siteId, pagetreeId, path, name, guid)
-      VALUES (?, ?, ?, ?, ?)`, [parent.siteId, parent.pagetreeId, `/${[...parent.pathSplit, parent.internalId].join('/')}`, args.name, nanoid(10)])
+      INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name)
+      VALUES (?, ?, ?, ?, ?)`, [parent.siteId, parent.pagetreeId, nanoid(10), `/${[...parent.pathSplit, parent.internalId].join('/')}`, args.name])
     return new AssetFolder(await db.getrow('SELECT * FROM assetfolders WHERE id=?', [newInternalId]))
   })
 }
 
 export async function renameAssetFolder (folderId: string, name: string) {
-  return await db.update('UPDATE assetfolders SET name = ? WHERE guid = ?', [name, folderId])
+  return await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [name, folderId])
 }
 
 export async function deleteAssetFolder (id: number, userInternalId: number) {

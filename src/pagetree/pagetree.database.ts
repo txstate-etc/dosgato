@@ -129,7 +129,7 @@ export async function createPagetree (versionedService: VersionedService, user: 
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId, siteId, title, templateKey)
       VALUES (?,?,?,?,?,?,?,?,?)`, [pagetreeName, '/', 1, pagetreeId, dataId, extra?.linkId ?? nanoid(10), site.id, data.title, data.templateKey])
     // create the root asset folder for the pagetree
-    await db.insert('INSERT INTO assetfolders (siteId, pagetreeId, path, name, guid) VALUES (?,?,?,?,?)', [site.id, pagetreeId, '/', pagetreeName, nanoid(10)])
+    await db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?,?,?,?,?)', [site.id, pagetreeId, extra?.linkId ?? nanoid(10), '/', pagetreeName])
     await createSiteComment(site.id, `Added sandbox ${pagetreeName}.`, user.internalId, db)
     return new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE id=?', [pagetreeId]))
   })

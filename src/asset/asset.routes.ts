@@ -110,7 +110,7 @@ export async function handleUpload (req: FastifyRequest, maxFiles = 200) {
 
 export async function createAssetRoutes (app: FastifyInstance) {
   await app.register(multipart, { limits: { fileSize: 2 * 1024 * 1024 * 1024 } })
-  app.post<{ Params: { folderId: string }, Body?: { url: string, legacyId?: string, auth?: string, modifiedBy?: string, modifiedAt?: string, createdBy?: string, createdAt?: string } }>(
+  app.post<{ Params: { folderId: string }, Body?: { url: string, legacyId?: string, auth?: string, modifiedBy?: string, modifiedAt?: string, createdBy?: string, createdAt?: string, linkId?: string } }>(
     '/assets/:folderId', async (req, res) => {
     const ctx = new Context(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
@@ -140,7 +140,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
           createdBy: data.createdBy,
           createdAt: data.createdAt,
           modifiedBy: data.modifiedBy,
-          modifiedAt: data.modifiedAt
+          modifiedAt: data.modifiedAt,
+          linkId: data.linkId
         })
         ids.push(asset.id)
         resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)
@@ -154,7 +155,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
         createdBy: req.body.createdBy,
         createdAt: req.body.createdAt,
         modifiedBy: req.body.modifiedBy,
-        modifiedAt: req.body.modifiedAt
+        modifiedAt: req.body.modifiedAt,
+        linkId: req.body.linkId
       })
       ids.push(asset.id)
       resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)

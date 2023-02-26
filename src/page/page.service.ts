@@ -175,9 +175,13 @@ export class PageServiceInternal extends BaseService {
     }
     if (filter.links?.length) {
       const pagetreeSvc = this.svc(PagetreeServiceInternal)
+      const siteSvc = this.svc(SiteServiceInternal)
       const pages = await Promise.all(filter.links.map(async l => {
         const lookups: Promise<Page[]>[] = []
-        const contextPagetree = l.context && await pagetreeSvc.findById(l.context.pagetreeId)
+        const [contextPagetree, targetSite] = await Promise.all([
+          l.context ? pagetreeSvc.findById(l.context.pagetreeId) : undefined,
+          siteSvc.findById(l.siteId)
+        ])
         if (contextPagetree?.siteId === l.siteId) {
           // the link is targeting the same site as the context, so we need to look for the link in
           // the same pagetree as the context
@@ -195,9 +199,12 @@ export class PageServiceInternal extends BaseService {
           // ignoring the link's siteId leads to madness because we could have multiple sites that all have
           // pages with the same linkId, and now I have to try to pick: do I prefer launched sites? published
           // pages? etc
+          const resolvedTargetSite = targetSite ?? await siteSvc.findByName(l.path.split('/')[1])
+          if (!resolvedTargetSite || resolvedTargetSite.deleted) return undefined
+          const lookuppath = l.path.replace(/^\/[^/]+/, `/${resolvedTargetSite?.name}`)
           lookups.push(
             this.loaders.get(pagesByLinkIdLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.linkId),
-            this.loaders.get(pagesByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.path)
+            this.loaders.get(pagesByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(lookuppath)
           )
         }
         const pages = await Promise.all(lookups)

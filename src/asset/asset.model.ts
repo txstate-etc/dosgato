@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 import { extension } from 'mime-types'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
-import { DeleteState, DeleteStateInput, JsonData, UrlSafePath, UrlSafeString } from '../internal.js'
+import { DeleteState, DeleteStateInput, JsonData, LinkInputContext, PagetreeType, UrlSafePath, UrlSafeString } from '../internal.js'
 
 const resizeMimeToExt: Record<string, string> = {
   'image/jpg': 'jpg',
@@ -41,6 +41,9 @@ export class Asset {
 
   @Field({ description: 'Name of the asset, not including extension. May be different than the filename of the original upload.' })
   name: UrlSafeString
+
+  @Field({ description: 'An identifier that uniquely identifies the asset in its pagetree. This is not globally unique as it may be copied along with the asset into a new pagetree.' })
+  linkId: string
 
   @Field({ description: 'Filename that will be used when downloading the asset. Includes the extension.' })
   filename: string
@@ -81,6 +84,7 @@ export class Asset {
     this.internalId = row.id
     this.id = row.dataId
     this.name = row.name
+    this.linkId = row.linkId
     this.size = row.filesize
     this.mime = row.mime // should be detected upon upload
     this.extension = extension(this.mime) || ''
@@ -111,7 +115,7 @@ export class AssetFilter {
   @Field(type => [ID], { nullable: true })
   siteIds?: string[]
 
-  @Field(type => [AssetLinkInput], { nullable: true, description: 'Resolve asset links preferring id and falling back to path or checksum.' })
+  @Field(type => [AssetLinkInput], { nullable: true, description: 'Resolve asset links preferring linkId and falling back to path or checksum.' })
   links?: AssetLinkInput[]
 
   @Field(type => [String], { nullable: true })
@@ -119,6 +123,12 @@ export class AssetFilter {
 
   @Field(type => [ID], { nullable: true })
   folderIds?: string[]
+
+  @Field(type => [ID], { nullable: true })
+  pagetreeIds?: string[]
+
+  @Field(type => [PagetreeType], { nullable: true, description: 'Only return assets in the pagetrees of their site with the types specified.' })
+  pagetreeTypes?: PagetreeType[]
 
   folderInternalIds?: number[]
   names?: string[]
@@ -140,6 +150,8 @@ export class AssetFilter {
 
   @Field(type => [DeleteStateInput], { nullable: true, description: 'Return based on deleted status. If you do not specify this filter it will still hide deleted and orphaned by default but show those that are marked for deletion. Orphaned refers to the situation where an object is effectively deleted because it belongs to a site, pagetree, or parent that has been deleted.' })
   deleteStates?: DeleteStateInput[]
+
+  linkIds?: string[]
 }
 
 export enum DownloadsResolution {
@@ -277,8 +289,8 @@ export class AssetResize {
 
 @InputType()
 export class AssetLinkInput {
-  @Field(type => ID)
-  id!: string
+  @Field()
+  linkId!: string
 
   @Field(type => ID)
   siteId!: string
@@ -288,4 +300,7 @@ export class AssetLinkInput {
 
   @Field()
   checksum!: string
+
+  @Field(type => LinkInputContext, { nullable: true, description: 'Context information for where this link was placed. If the link is on a sandbox page, for instance, we would want to look up this link in the sandbox pagetree instead of the main pagetree. If no context is specified, links will only be found in the PRIMARY pagetree.' })
+  context?: LinkInputContext
 }

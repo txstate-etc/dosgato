@@ -35,21 +35,23 @@ async function convertPathsToIDPaths (pathstrings: string[]) {
   const names = new Set<string>(paths.flat())
   const binds: string[] = []
   const rows = await db.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM pages WHERE name IN (${db.in(binds, Array.from(names))})`, binds)
-  const rowsByNameAndIDPath: Record<string, Record<string, typeof rows[number][]>> = {}
+  const rowsByNameAndIDPath: Record<string, Record<string, typeof rows[number]>> = {}
   for (const row of rows) {
     rowsByNameAndIDPath[row.name] ??= {}
-    rowsByNameAndIDPath[row.name][row.path] ??= []
-    rowsByNameAndIDPath[row.name][row.path].push(row)
+    rowsByNameAndIDPath[row.name][row.path] = row
   }
   const idpaths: string[] = []
-  for (const pt of paths) {
-    let searchpaths = ['/']
-    for (const segment of pt) {
-      const pages = searchpaths.flatMap(sp => rowsByNameAndIDPath[segment]?.[sp]).filter(isNotNull)
-      searchpaths = pages.map(pg => `${pg.path}${pg.path === '/' ? '' : '/'}${pg.id}`)
-      if (!searchpaths.length) break
+  for (const entry of paths) {
+    let lastpath = '/'
+    let finished = false
+    for (let i = 0; i < entry.length; i++) {
+      const segment = entry[i]
+      const page = rowsByNameAndIDPath[segment]?.[lastpath]
+      if (!page) break
+      lastpath = `${page.path}${page.path === '/' ? '' : '/'}${page.id}`
+      finished = (i === entry.length - 1)
     }
-    idpaths.push(...searchpaths)
+    if (finished && lastpath !== '/') idpaths.push(lastpath)
   }
   return idpaths
 }
@@ -168,26 +170,32 @@ async function processFilters (filter?: PageFilter) {
     where.push(`pagetrees.siteId IN (${db.in(binds, filter.siteIds)})`)
   }
 
-  // named paths e.g. /site1/about
-  if (filter.paths?.length) {
-    const idpaths = await convertPathsToIDPaths(filter.paths)
-    const ids = ['-1', ...idpaths.map(p => p.split(/\//).slice(-1)[0])]
-    where.push(`pages.id IN (${db.in(binds, ids)})`)
-  }
-
-  // beneath a named path e.g. /site1/about
-  if (filter.beneath?.length) {
-    const idpaths = await convertPathsToIDPaths(filter.beneath)
-    const ors = idpaths.flatMap(p => ['pages.path LIKE ?', 'pages.path = ?'])
-    binds.push(...idpaths.flatMap(p => [`${p}/%`, p]))
-    where.push(ors.join(' OR '))
-  }
-
-  // direct children of a named path e.g. /site1/about
-  if (filter.parentPaths?.length) {
-    const idpaths = await convertPathsToIDPaths(filter.parentPaths)
-    where.push(`pages.path IN (${db.in(binds, idpaths)})`)
-  }
+  await Promise.all([
+    (async () => {
+      // named paths e.g. /site1/about
+      if (filter.paths?.length) {
+        const idpaths = await convertPathsToIDPaths(filter.paths)
+        const ids = ['-1', ...idpaths.map(p => p.split(/\//).slice(-1)[0])]
+        where.push(`pages.id IN (${db.in(binds, ids)})`)
+      }
+    })(),
+    (async () => {
+      // beneath a named path e.g. /site1/about
+      if (filter.beneath?.length) {
+        const idpaths = await convertPathsToIDPaths(filter.beneath)
+        const ors = idpaths.flatMap(p => ['pages.path LIKE ?', 'pages.path = ?'])
+        binds.push(...idpaths.flatMap(p => [`${p}/%`, p]))
+        where.push(ors.join(' OR '))
+      }
+    })(),
+    (async () => {
+      // direct children of a named path e.g. /site1/about
+      if (filter.parentPaths?.length) {
+        const idpaths = await convertPathsToIDPaths(filter.parentPaths)
+        where.push(`pages.path IN (${db.in(binds, idpaths)})`)
+      }
+    })()
+  ])
 
   if (filter.maxDepth === 0) {
     where.push('pages.path = "/"')
