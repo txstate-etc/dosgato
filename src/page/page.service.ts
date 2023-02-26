@@ -334,15 +334,15 @@ export class PageService extends DosGatoService<Page> {
     return pagetree!.deleted || site!.deleted
   }
 
-  async isOrphanedOrDeleted (page: Page) {
-    if (page.deleteState !== DeleteState.NOTDELETED) return true
+  async isOrphanedOrDeleted (page: Page, acceptPendingDelete?: boolean) {
+    if (page.deleteState !== DeleteState.NOTDELETED && (page.deleteState !== DeleteState.MARKEDFORDELETE || !acceptPendingDelete)) return true
     return await this.isOrphaned(page)
   }
 
-  async checkPerm (page: Page, perm: keyof PageRuleGrants) {
+  async checkPerm (page: Page, perm: keyof PageRuleGrants, acceptPendingDelete: boolean) {
     const [isInArchive, isOrphanedOrDeleted, havePagePerm] = await Promise.all([
       this.isInArchive(page),
-      this.isOrphanedOrDeleted(page),
+      this.isOrphanedOrDeleted(page, acceptPendingDelete),
       this.havePagePerm(page, perm)
     ])
     return !isInArchive && !isOrphanedOrDeleted && havePagePerm
@@ -350,15 +350,15 @@ export class PageService extends DosGatoService<Page> {
 
   // authenticated user may create pages underneath given page
   async mayCreate (page: Page) {
-    return await this.checkPerm(page, 'create')
+    return await this.checkPerm(page, 'create', false)
   }
 
   async mayUpdate (page: Page) {
-    return await this.checkPerm(page, 'update')
+    return await this.checkPerm(page, 'update', false)
   }
 
   async mayPublish (page: Page, parentBeingPublished?: boolean) {
-    if (!await this.checkPerm(page, 'publish')) return false
+    if (!await this.checkPerm(page, 'publish', false)) return false
     if (page.parentInternalId && !parentBeingPublished) {
       const parent = await this.raw.findByInternalId(page.parentInternalId)
       if (!await this.isPublished(parent!)) return false
@@ -369,7 +369,7 @@ export class PageService extends DosGatoService<Page> {
   async mayUnpublish (page: Page) {
     if (!page.parentInternalId) return false // root page of a site/pagetree cannot be unpublished - the site launch should be disabled instead
     const [checkPerm, isPublished] = await Promise.all([
-      this.checkPerm(page, 'unpublish'),
+      this.checkPerm(page, 'unpublish', false),
       this.isPublished(page)
     ])
     return checkPerm && isPublished
@@ -377,12 +377,12 @@ export class PageService extends DosGatoService<Page> {
 
   async mayMove (page: Page) {
     if (!page.parentInternalId) return false // root page of a site/pagetree cannot be moved
-    return await this.checkPerm(page, 'move')
+    return await this.checkPerm(page, 'move', false)
   }
 
   async mayDelete (page: Page) {
     if (!page.parentInternalId) return false // root page of a site/pagetree cannot be deleted
-    return await this.checkPerm(page, 'delete')
+    return await this.checkPerm(page, 'delete', true)
   }
 
   async mayUndelete (page: Page) {
@@ -392,7 +392,7 @@ export class PageService extends DosGatoService<Page> {
       this.isOrphaned(page),
       this.havePagePerm(page, 'undelete')
     ])
-    return !isInArchive && havePagePerm
+    return !isOrphaned && !isInArchive && havePagePerm
   }
 
   /**
