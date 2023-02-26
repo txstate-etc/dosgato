@@ -1,5 +1,6 @@
 import multipart from '@fastify/multipart'
 import { Context } from '@txstate-mws/graphql-server'
+import archiver from 'archiver'
 import { createHash } from 'crypto'
 import type { FastifyInstance } from 'fastify'
 import { FastifyRequest } from 'fastify'
@@ -11,9 +12,10 @@ import db from 'mysql2-async/db'
 import probe from 'probe-image-size'
 import { PassThrough, Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
-import { keyby, pLimit, randomid } from 'txstate-utils'
+import { groupby, keyby, pLimit, randomid } from 'txstate-utils'
 import {
   Asset,
+  AssetFolder,
   AssetFolderService, AssetFolderServiceInternal, AssetResize, AssetService, AssetServiceInternal, createAsset, fileHandler,
   getEnabledUser, GlobalRuleService, recordDownload, replaceAsset, VersionedService
 } from '../internal.js'
@@ -106,6 +108,11 @@ export async function handleUpload (req: FastifyRequest, maxFiles = 200) {
     }
   }
   return { files, data }
+}
+
+function getFolderPath (folder: AssetFolder, foldersByInternalId: Record<string, AssetFolder>): string {
+  const parent = foldersByInternalId[folder.parentInternalId!]
+  return (parent ? getFolderPath(parent, foldersByInternalId) : '') + '/' + folder.name
 }
 
 export async function createAssetRoutes (app: FastifyInstance) {
@@ -287,5 +294,27 @@ export async function createAssetRoutes (app: FastifyInstance) {
     void res.header('Content-Length', asset.size)
 
     return await res.status(200).send(fileHandler.get(asset.checksum))
+  })
+  app.get<{ Params: { folderId: string, folderName: string } }>('/assets/zip/:folderId/:folderName.zip', async (req, res) => {
+    const ctx = new Context(req)
+    const folder = await ctx.svc(AssetFolderServiceInternal).findById(req.params.folderId)
+    if (!folder) throw new HttpError(404)
+
+    const [folders, folderPath] = await Promise.all([
+      ctx.svc(AssetFolderServiceInternal).getChildFolders(folder, true),
+      ctx.svc(AssetFolderServiceInternal).getPath(folder)
+    ])
+    const foldersByInternalId = keyby([folder, ...folders], 'internalId')
+    const assets = await ctx.svc(AssetServiceInternal).findByFolders([...folders, folder])
+
+    const archive = archiver('zip')
+    void res.header('Content-Type', 'application/zip')
+    void res.header('Content-Disposition', 'attachment;filename=' + folderPath.substring(1).replace(/\//g, '.') + '.zip')
+    void res.send(archive)
+    const prefix = folderPath.substring(1).split('/').slice(0, -1).join('.')
+    for (const asset of assets) {
+      archive.append(fileHandler.get(asset.checksum), { name: (prefix ? prefix + '.' : '') + getFolderPath(foldersByInternalId[asset.folderInternalId], foldersByInternalId).substring(1) + '/' + asset.filename })
+    }
+    await archive.finalize()
   })
 }
