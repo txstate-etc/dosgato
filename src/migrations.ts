@@ -181,6 +181,28 @@ const dgMigrations: DBMigration[] = [
       await db.execute('ALTER TABLE assets ALTER linkId DROP DEFAULT, ADD INDEX (linkId)')
       await db.execute('ALTER TABLE assetfolders ALTER linkId DROP DEFAULT, DROP COLUMN guid, ADD UNIQUE INDEX linkId_unique_in_pagetree (pagetreeId, linkId), ADD INDEX (linkId), ADD FOREIGN KEY FK_assetfolders_pagetrees (pagetreeId) REFERENCES pagetrees(id)')
     }
+  },
+  {
+    id: 202302261190000,
+    description: 'add table to keep track of resizes we have already created in a previous migration',
+    run: async db => {
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS migratedresizeinfo (
+          originalChecksum CHAR(43) CHARACTER SET "ascii" COLLATE "ascii_bin" NOT NULL,
+          resizedChecksum CHAR(43) CHARACTER SET "ascii" COLLATE "ascii_bin" NOT NULL,
+          mime VARCHAR(255) CHARACTER SET "ascii" COLLATE "ascii_bin" NOT NULL,
+          size INT UNSIGNED NOT NULL,
+          quality INT UNSIGNED NOT NULL,
+          lossless TINYINT UNSIGNED NOT NULL,
+          width SMALLINT UNSIGNED,
+          height SMALLINT UNSIGNED,
+          PRIMARY KEY (originalChecksum, width, mime)
+        )
+        ENGINE = InnoDB
+        DEFAULT CHARACTER SET = utf8mb4
+        DEFAULT COLLATE = utf8mb4_general_ci;
+      `)
+      }
   }
 ]
 

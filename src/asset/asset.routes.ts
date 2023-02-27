@@ -17,7 +17,7 @@ import {
   Asset,
   AssetFolder,
   AssetFolderService, AssetFolderServiceInternal, AssetResize, AssetService, AssetServiceInternal, createAsset, fileHandler,
-  getEnabledUser, GlobalRuleService, logMutation, recordDownload, replaceAsset, VersionedService
+  getEnabledUser, GlobalRuleService, logMutation, recordDownload, registerResize, replaceAsset, VersionedService
 } from '../internal.js'
 
 export const resizeLimiter = pLimit(2)
@@ -167,7 +167,20 @@ export async function createAssetRoutes (app: FastifyInstance) {
         linkId: req.body.linkId
       })
       ids.push(asset.id)
-      resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)
+      const resizes = await db.getall<{ originalChecksum: string, resizedChecksum: string, mime: string, size: number, quality: number, lossless: boolean, width: number, height: number }>('SELECT * FROM migratedresizeinfo WHERE originalChecksum = ?', [file.checksum])
+      if (resizes.length) {
+        await Promise.all(resizes.map(async resize => await registerResize(asset, resize.width, resize.resizedChecksum, resize.mime, resize.quality, resize.size, resize.lossless)))
+      } else {
+        await resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)
+        await db.execute(`
+          INSERT INTO migratedresizeinfo (originalChecksum, resizedChecksum, mime, size, quality, lossless, width, height)
+          SELECT ob.shasum, b.shasum, b.mime, b.bytes, r.quality, CAST(JSON_EXTRACT(b.meta, '$.lossless') AS UNSIGNED INT), r.width, r.height
+          FROM resizes r
+          INNER JOIN binaries b ON b.id=r.binaryId
+          INNER JOIN binaries ob ON ob.id=r.originalBinaryId
+          WHERE ob.shasum = ?
+        `, [asset.checksum])
+      }
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }
