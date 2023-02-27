@@ -17,7 +17,7 @@ import {
   Asset,
   AssetFolder,
   AssetFolderService, AssetFolderServiceInternal, AssetResize, AssetService, AssetServiceInternal, createAsset, fileHandler,
-  getEnabledUser, GlobalRuleService, recordDownload, replaceAsset, VersionedService
+  getEnabledUser, GlobalRuleService, logMutation, recordDownload, replaceAsset, VersionedService
 } from '../internal.js'
 
 export const resizeLimiter = pLimit(2)
@@ -119,6 +119,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
   await app.register(multipart, { limits: { fileSize: 2 * 1024 * 1024 * 1024 } })
   app.post<{ Params: { folderId: string }, Body?: { url: string, legacyId?: string, auth?: string, modifiedBy?: string, modifiedAt?: string, createdBy?: string, createdAt?: string, linkId?: string } }>(
     '/assets/:folderId', async (req, res) => {
+    const startTime = new Date()
     const ctx = new Context(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
     const folder = await ctx.svc(AssetFolderServiceInternal).findById(req.params.folderId)
@@ -170,10 +171,12 @@ export async function createAssetRoutes (app: FastifyInstance) {
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }
+    logMutation(new Date().getTime() - startTime.getTime(), 'createAsset', 'mutation uploadCreateAsset (RESTful)', user.id, { folderId: folder.id }, { success: true, ids }, []).catch(console.error)
     return { success: true, ids }
   })
   app.post<{ Params: { assetid: string }, Body?: { url: string, auth?: string, modifiedBy?: string, modifiedAt?: string } }>(
     '/assets/replace/:assetid', async (req, res) => {
+    const startTime = new Date()
     const ctx = new Context(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
     const asset = await ctx.svc(AssetServiceInternal).findById(req.params.assetid)
@@ -211,6 +214,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }
+    logMutation(new Date().getTime() - startTime.getTime(), 'replaceAsset', 'mutation uploadReplaceAsset (RESTful)', user.id, { assetid: asset.id }, { success: true }, []).catch(console.error)
     return { success: true }
   })
   app.get<{ Params: { resizeid: string, filename: string }, Querystring: { admin?: 1 } }>(

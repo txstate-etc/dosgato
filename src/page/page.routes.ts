@@ -6,6 +6,7 @@ import db from 'mysql2-async/db'
 import { isNotBlank, pick } from 'txstate-utils'
 import {
   createPage, CreatePageInput, createPagetree, createSite, getEnabledUser, getPageIndexes, GlobalRuleService,
+  logMutation,
   makeSafe, numerate, PageService, PageServiceInternal, PagetreeServiceInternal,
   SiteService, SiteServiceInternal, VersionedService
 } from '../internal.js'
@@ -125,7 +126,7 @@ export async function createPageRoutes (app: FastifyInstance) {
 
   app.post<{ Params: { parentPageId: string }, Body?: CreatePageInput }>('/pages/:parentPageId', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Page import must be multipart.')
-
+    const startTime = new Date()
     const ctx = new Context(req)
     const svcPageInternal = ctx.svc(PageServiceInternal)
     const svcPage = ctx.svc(PageService)
@@ -169,7 +170,8 @@ export async function createPageRoutes (app: FastifyInstance) {
       ...body,
       ...pick(pageRecord, 'createdBy', 'createdAt', 'modifiedBy', 'modifiedAt', 'linkId')
     })
-    return { id: page.id, linkId: page.linkId, messages: response.messages }
+    logMutation(new Date().getTime() - startTime.getTime(), 'importPage', 'mutation uploadImportPage (RESTful)', user.id, { parentId: parent.id, name: newPageName }, { success: true, id: page.id }, []).catch(console.error)
+    return { success: true, id: page.id, linkId: page.linkId, messages: response.messages }
   })
 
   app.get<{ Params: { id: string } }>('/pages/:id', async (req, res) => {
