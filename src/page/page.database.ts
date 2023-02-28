@@ -34,7 +34,7 @@ async function convertPathsToIDPaths (pathstrings: string[]) {
   const paths = pathstrings.map(normalizePath).map(p => p.split(/\//).filter(isNotBlank))
   const names = new Set<string>(paths.flat())
   const binds: string[] = []
-  const rows = await db.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM pages WHERE name IN (${db.in(binds, Array.from(names))})`, binds)
+  const rows = names.size ? await db.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM pages WHERE name IN (${db.in(binds, Array.from(names))})`, binds) : []
   const rowsByNameAndIDPath: Record<string, Record<string, typeof rows[number]>> = {}
   for (const row of rows) {
     rowsByNameAndIDPath[row.name] ??= {}
@@ -51,7 +51,7 @@ async function convertPathsToIDPaths (pathstrings: string[]) {
       lastpath = `${page.path}${page.path === '/' ? '' : '/'}${page.id}`
       finished = (i === entry.length - 1)
     }
-    if (finished && lastpath !== '/') idpaths.push(lastpath)
+    if ((finished && lastpath !== '/') || entry.length === 0) idpaths.push(lastpath)
   }
   return idpaths
 }
