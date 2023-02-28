@@ -146,22 +146,22 @@ export async function fixtures () {
   ])
   const site1Images = await db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?, ?, ?, ?, ?)', [site1, pagetree1, nanoid(10), `/${site1AssetRoot}`, 'images'])
   const [assetFolderA, assetFolderB, assetFolderC, assetFolderD, assetFolderE] = await Promise.all([
-    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}`, 'folderA']),
-    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}`, 'folderB']),
-    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}`, 'folderC']),
-    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name, deletedAt, deletedBy, deleteState) VALUES(?, ?, ?, ?, ?, NOW(), ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}`, 'folderD', su03, 2]),
-    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}`, 'folderE'])
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}`, 'folder-a']),
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}`, 'folder-b']),
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}`, 'folder-c']),
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name, deletedAt, deletedBy, deleteState) VALUES(?, ?, ?, ?, ?, NOW(), ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}`, 'folder-d', su03, 2]),
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}`, 'folder-e'])
   ])
   const [assetFolderF, assetFolderG, assetFolderH, assetFolderI, assetFolderJ] = await Promise.all([
-    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderA}`, 'folderF']),
-    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderA}`, 'folderG']),
-    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderC}`, 'folderH']),
-    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderE}`, 'folderI']),
-    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderE}`, 'folderJ'])
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderA}`, 'folder-f']),
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderA}`, 'folder-g']),
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderC}`, 'folder-h']),
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderE}`, 'folder-i']),
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderE}`, 'folder-j'])
   ])
   const [assetFolderK, assetFolderL] = await Promise.all([
-    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderA}/${assetFolderG}`, 'folderK']),
-    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderA}/${assetFolderG}`, 'folderL'])
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderA}/${assetFolderG}`, 'folder-k']),
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES(?, ?, ?, ?, ?)', [site8, pagetree8, nanoid(10), `/${site8AssetRoot}/${assetFolderA}/${assetFolderG}`, 'folder-l'])
   ])
 
   await Promise.all([

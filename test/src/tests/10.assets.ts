@@ -14,30 +14,30 @@ describe('assetfolders', () => {
   })
   it('should retrieve asset folders recursively', async () => {
     const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id folders(recursive: true, filter: { deleteStates: [ALL] }) { name } } } }`)
-    expect(sites[0].rootAssetFolder.folders).to.deep.include.members([{ name: 'folderA' }, { name: 'folderD' }, { name: 'folderF' }, { name: 'folderH' }, { name: 'folderJ' }, { name: 'folderL' }])
+    expect(sites[0].rootAssetFolder.folders).to.deep.include.members([{ name: 'folder-a' }, { name: 'folder-d' }, { name: 'folder-f' }, { name: 'folder-h' }, { name: 'folder-j' }, { name: 'folder-l' }])
   })
   it('should retrieve asset folders by id', async () => {
-    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id folders(filter: { ids: ["${folderhash.folderA.id}","${folderhash.folderB.id}"]}) { id name } } } }`)
+    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id folders(filter: { ids: ["${folderhash['folder-a'].id}","${folderhash['folder-b'].id}"]}) { id name } } } }`)
     expect(sites[0].rootAssetFolder.folders).to.have.lengthOf(2)
-    expect(sites[0].rootAssetFolder.folders).to.have.deep.members([folderhash.folderA, folderhash.folderB])
+    expect(sites[0].rootAssetFolder.folders).to.have.deep.members([folderhash['folder-a'], folderhash['folder-b']])
   })
   it('should retrieve deleted asset folders', async () => {
     const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id folders(filter: { deleteStates: [DELETED, ORPHAN_NOTDELETED, ORPHAN_MARKEDFORDELETE, ORPHAN_DELETED] }) { name } } } }`)
-    expect(sites[0].rootAssetFolder.folders).to.deep.equal([{ name: 'folderD' }])
+    expect(sites[0].rootAssetFolder.folders).to.deep.equal([{ name: 'folder-d' }])
   })
   it('should retrieve asset folders\' parent folders', async () => {
-    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id name folders(filter: { parentOfFolderIds: ["${folderhash.folderF.id}","${folderhash.folderH.id}","${folderhash.folderJ.id}"] }) { id name } } } }`)
+    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id name folders(filter: { parentOfFolderIds: ["${folderhash['folder-f'].id}","${folderhash['folder-h'].id}","${folderhash['folder-j'].id}"] }) { id name } } } }`)
     expect(sites[0].rootAssetFolder.folders).to.have.lengthOf(3)
-    expect(sites[0].rootAssetFolder.folders).to.have.deep.members([folderhash.folderA, folderhash.folderC, folderhash.folderE])
+    expect(sites[0].rootAssetFolder.folders).to.have.deep.members([folderhash['folder-a'], folderhash['folder-c'], folderhash['folder-e']])
   })
   it('should retrieve asset folders by child id', async () => {
-    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id name folders(recursive: true, filter: { childOfFolderIds: ["${folderhash.folderA.id}","${folderhash.folderE.id}"] }) { id name } } } }`)
+    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id name folders(recursive: true, filter: { childOfFolderIds: ["${folderhash['folder-a'].id}","${folderhash['folder-e'].id}"] }) { id name } } } }`)
     expect(sites[0].rootAssetFolder.folders).to.have.lengthOf(4)
-    expect(sites[0].rootAssetFolder.folders).to.have.deep.members([folderhash.folderF, folderhash.folderG, folderhash.folderI, folderhash.folderJ])
+    expect(sites[0].rootAssetFolder.folders).to.have.deep.members([folderhash['folder-f'], folderhash['folder-g'], folderhash['folder-i'], folderhash['folder-j']])
   })
   it('should retrieve asset folders by site id', async () => {
     const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id name folders(filter: { siteIds: [${testSiteId}], deleteStates: [ALL] }) { id name } } } }`)
-    expect(sites[0].rootAssetFolder.folders).to.deep.include.members([folderhash.folderA, folderhash.folderB, folderhash.folderC, folderhash.folderD, folderhash.folderE])
+    expect(sites[0].rootAssetFolder.folders).to.deep.include.members([folderhash['folder-a'], folderhash['folder-b'], folderhash['folder-c'], folderhash['folder-d'], folderhash['folder-e']])
   })
 })
 

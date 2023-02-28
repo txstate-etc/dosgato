@@ -52,8 +52,8 @@ async function convertPathsToIDPaths (pathstrings: string[]) {
   const folderBinds: string[] = []
   const assetBinds: string[] = []
   const [folderRows, assetRows] = await Promise.all([
-    db.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM assetfolders WHERE name IN (${db.in(folderBinds, Array.from(potentialFolderNames))})`, folderBinds),
-    db.getall<{ id: number, name: string, folderId: number }>(`SELECT id, name, folderId FROM assets WHERE name IN (${db.in(assetBinds, Array.from(potentialAssetNames))})`, assetBinds)
+    potentialFolderNames.size ? db.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM assetfolders WHERE name IN (${db.in(folderBinds, Array.from(potentialFolderNames))})`, folderBinds) : [],
+    potentialAssetNames.size ? db.getall<{ id: number, name: string, folderId: number }>(`SELECT id, name, folderId FROM assets WHERE name IN (${db.in(assetBinds, Array.from(potentialAssetNames))})`, assetBinds) : []
   ])
   const foldersByNameAndIDPath: Record<string, Record<string, typeof folderRows[number]>> = {}
   for (const row of folderRows) {
@@ -84,7 +84,7 @@ async function convertPathsToIDPaths (pathstrings: string[]) {
       lastpath = `${folder.path}${folder.path === '/' ? '' : '/'}${folder.id}`
       finished = (i === entry.length - 1)
     }
-    if (finished && lastpath !== '/') ret.push({ folderIdPath: lastpath, assetId })
+    if ((finished && lastpath !== '/') || entry.length === 0) ret.push({ folderIdPath: lastpath, assetId })
   }
   return ret
 }
