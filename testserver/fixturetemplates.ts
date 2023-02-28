@@ -188,6 +188,7 @@ export const ColorData: APIDataTemplate = {
 export const BuildingData: APIDataTemplate = {
   type: 'data',
   templateKey: 'keyd2',
+  global: true,
   name: 'Buildings',
   migrations: [],
   getLinks: (data: any) => {

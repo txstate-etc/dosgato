@@ -37,6 +37,9 @@ export class Template {
   @Field(type => TemplateType)
   type: TemplateType
 
+  @Field({ nullable: true, description: 'If type is `data` then when true data of this type may only be added at the global leve. When false data may be added to each site. If type is not `data` this will be null.' })
+  global?: boolean
+
   @Field({ description: 'This template may be used on any site. It does not require site-by-site permission.' })
   universal: boolean
 
@@ -65,6 +68,7 @@ export class Template {
     this.displayCategory = tmpl.displayCategory
     this.areas = Object.entries(tmpl.hydratedAreas).map(([key, area]) => new TemplateArea(key, area.availableComponents))
     this._areasByName = keyby(this.areas, 'name')
+    this.global = tmpl.type === 'data' ? tmpl.global : undefined
     if (tmpl.type === 'page') this.templateProperties = tmpl.templateProperties
   }
 }
