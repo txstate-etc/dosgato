@@ -12,7 +12,7 @@ import db from 'mysql2-async/db'
 import probe from 'probe-image-size'
 import { PassThrough, Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
-import { groupby, keyby, pLimit, randomid } from 'txstate-utils'
+import { isNotBlank, keyby, pLimit, randomid, someAsync } from 'txstate-utils'
 import {
   Asset,
   AssetFolder,
@@ -20,7 +20,7 @@ import {
   getEnabledUser, GlobalRuleService, logMutation, recordDownload, registerResize, replaceAsset, VersionedService
 } from '../internal.js'
 
-export const resizeLimiter = pLimit(2)
+export const resizeLimiter = pLimit(isNotBlank(process.env.RESIZE_LIMIT) ? parseInt(process.env.RESIZE_LIMIT) : 2)
 
 export function makeSafeFilename (str: string) {
   return str.normalize('NFKD').replace(/[^. _a-z0-9-]/ig, '').replace(/\s+/g, ' ').trim()
@@ -168,9 +168,10 @@ export async function createAssetRoutes (app: FastifyInstance) {
       })
       ids.push(asset.id)
       const resizes = await db.getall<{ originalChecksum: string, resizedChecksum: string, mime: string, size: number, quality: number, lossless: boolean, width: number, height: number }>('SELECT * FROM migratedresizeinfo WHERE originalChecksum = ?', [file.checksum])
-      if (resizes.length) {
+      if (resizes.length && !await someAsync(resizes, async r => !await fileHandler.exists(r.resizedChecksum))) {
         await Promise.all(resizes.map(async resize => await registerResize(asset, resize.width, resize.resizedChecksum, resize.mime, resize.quality, resize.size, resize.lossless)))
       } else {
+        await db.execute('DELETE r FROM resizes r INNER JOIN binaries b ON b.id=r.originalBinaryId WHERE b.shasum = ?', [asset.checksum])
         await resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)
         await db.execute(`
           INSERT INTO migratedresizeinfo (originalChecksum, resizedChecksum, mime, size, quality, lossless, width, height)
