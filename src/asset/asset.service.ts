@@ -466,7 +466,7 @@ export class AssetService extends DosGatoService<Asset> {
           // we made a resize that's bigger than the original and no more compatible, abort!
           await cleanupBinaries([checksum])
         } else {
-          await registerResize(asset, w, checksum, outputmime, outputformat === 'jpg' ? 65 : 0, outputinfo.size, outputformat === 'gif' || outputformat === 'jpg')
+          await registerResize(asset, w, checksum, outputmime, outputformat === 'jpg' ? 65 : 0, outputinfo.size, outputformat !== 'jpg')
         }
       }
     }
