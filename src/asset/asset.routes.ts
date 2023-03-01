@@ -174,7 +174,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
         await resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)
         await db.execute(`
           INSERT INTO migratedresizeinfo (originalChecksum, resizedChecksum, mime, size, quality, lossless, width, height)
-          SELECT ob.shasum, b.shasum, b.mime, b.bytes, r.quality, CAST(JSON_EXTRACT(b.meta, '$.lossless') AS UNSIGNED INT), r.width, r.height
+          SELECT ob.shasum, b.shasum, b.mime, b.bytes, r.quality, IFNULL(JSON_EXTRACT(b.meta, '$.lossless') + 0, 0), r.width, r.height
           FROM resizes r
           INNER JOIN binaries b ON b.id=r.binaryId
           INNER JOIN binaries ob ON ob.id=r.originalBinaryId
