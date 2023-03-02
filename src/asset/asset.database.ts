@@ -1,9 +1,12 @@
 import { Context } from '@txstate-mws/graphql-server'
+import { randomInt } from 'crypto'
 import { DateTime } from 'luxon'
+import { lookup } from 'mime-types'
 import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { intersect, isNotBlank, isNotNull, keyby, pick, stringify } from 'txstate-utils'
+import sharp from 'sharp'
+import { intersect, isNotBlank, isNotNull, keyby, pick, roundTo, sleep, someAsync, stringify } from 'txstate-utils'
 import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution, AssetFolderRow, DeleteState, processDeletedFilters, normalizePath, AssetServiceInternal } from '../internal.js'
 
 export interface AssetInput {
@@ -448,18 +451,19 @@ export async function renameAsset (assetId: string, name: string, folderInternal
   if (affectedRows === 0) throw new Error('Rename failed, likely the name became unavailable.')
 }
 
-export async function registerResize (asset: Asset, width: number, shasum: string, mime: string, quality: number, size: number, lossless: boolean) {
-  const height = asset.box!.height * width / asset.box!.width
-  return await db.transaction(async db => {
+export async function registerResize (originalChecksum: string, width: number, height: number, shasum: string, mime: string, quality: number, size: number, lossless: boolean, tdb?: Queryable) {
+  const action = async (db: Queryable) => {
+    const origBinaryId = await db.getval<number>('SELECT id FROM binaries WHERE shasum=?', [originalChecksum])
     const binaryId = await db.insert(`
       INSERT INTO binaries (shasum, mime, meta, bytes) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)
-    `, [shasum, mime, stringify({ width, height, lossless }), size])
-    const origBinaryId = await db.getval<number>('SELECT id FROM binaries WHERE shasum=?', [asset.checksum])
+    `, [shasum, mime, stringify({ width, height }), size])
     await db.insert(`
-      INSERT INTO resizes (binaryId, originalBinaryId, width, height, quality, othersettings) VALUES (?, ?, ?, ?, ?, ?)
-    `, [binaryId, origBinaryId!, width, height, quality, stringify({})])
+      INSERT INTO resizes (binaryId, originalBinaryId, width, height, quality, othersettings) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE binaryId=binaryId
+    `, [binaryId, origBinaryId!, width, height, quality, stringify({ lossless })])
     return binaryId
-  })
+  }
+  if (tdb) await action(tdb)
+  else await action(db)
 }
 
 export async function moveAssets (targetFolder: AssetFolder, assets: Asset[], folders: AssetFolder[]) {
@@ -593,6 +597,7 @@ export async function copyAssets (targetFolder: AssetFolder, assets: Asset[], fo
 }
 
 export async function cleanupBinaries (checksums: string[]) {
+  if (!checksums.length) return
   const binds: string[] = []
   const binaries = await db.getall<{ shasum: string }>(`SELECT shasum FROM binaries WHERE shasum IN (${db.in(binds, checksums)})`, binds)
   const hash = keyby(binaries, 'shasum')
@@ -611,4 +616,180 @@ export async function finalizeAssetDeletion (id: number, userInternalId: number)
 
 export async function undeleteAsset (id: number) {
   return await db.update('UPDATE assets SET deletedBy = null, deletedAt = null, deleteState = ? WHERE id = ?', [DeleteState.NOTDELETED, id])
+}
+
+export async function requestResizes (asset: Asset, force?: boolean) {
+  if (!force) {
+    const [resizes, migratedResizes] = await Promise.all([
+      getResizes([asset.internalId]),
+      db.getall<{ originalChecksum: string, resizedChecksum: string, mime: string, size: number, quality: number, lossless: boolean, width: number, height: number }>('SELECT * FROM migratedresizeinfo WHERE originalChecksum = ?', [asset.checksum])
+    ])
+    if (resizes.length) return
+    if (migratedResizes.length && !await someAsync(migratedResizes, async r => !await fileHandler.exists(r.resizedChecksum))) {
+      await Promise.all(migratedResizes.map(async r => await registerResize(asset.checksum, r.width, r.height, r.resizedChecksum, r.mime, r.quality, r.size, r.lossless)))
+      return
+    }
+  } else {
+    await db.delete('DELETE rr FROM requestedresizes rr INNER JOIN binaries b ON b.id=rr.binaryId WHERE b.shasum=? AND (rr.completed IS NOT NULL OR rr.withError=1)', [asset.checksum])
+  }
+  await db.delete('DELETE FROM requestedresizes WHERE completed < NOW() - INTERVAL 1 HOUR')
+  await db.insert(`
+    INSERT INTO requestedresizes (binaryId)
+    SELECT id FROM binaries WHERE shasum=?
+    ON DUPLICATE KEY UPDATE binaryId=binaryId
+  `, [asset.checksum])
+}
+
+export const resizeLimit = process.env.RESIZE_LIMIT ? parseInt(process.env.RESIZE_LIMIT) : 2
+async function processResizesLoop () {
+  while (true) {
+    let found = false
+    try {
+      const row = await db.getrow<{ binaryId: number, shasum: string }>('SELECT rr.binaryId, b.shasum FROM requestedresizes rr INNER JOIN binaries b ON b.id=rr.binaryId WHERE rr.withError=0 AND rr.completed IS NULL AND (rr.started IS NULL OR rr.started < NOW() - INTERVAL 20 MINUTE) ORDER BY rr.binaryId LIMIT 1')
+      if (row) {
+        found = true
+        const claimed = await db.update('UPDATE requestedresizes SET started=NOW() WHERE withError=0 AND binaryId=? AND (started IS NULL OR started < NOW() - INTERVAL 20 MINUTE)', [row.binaryId])
+        if (claimed) {
+          try {
+            await createResizes(row.shasum)
+            await db.update('UPDATE requestedresizes SET completed=NOW() WHERE binaryId=?', [row.binaryId])
+          } catch (e: any) {
+            await db.update('UPDATE requestedresizes SET withError=1 WHERE binaryId=?', [row.binaryId])
+            throw e
+          }
+        }
+      }
+    } catch (e: any) {
+      console.error(e)
+    }
+    if (!found) await sleep(resizeLimit * 4 * 1000)
+  }
+}
+
+export async function beginProcessingResizes () {
+  for (let i = 0; i < resizeLimit; i++) {
+    processResizesLoop().catch(console.error)
+    await sleep(400 + randomInt(400))
+  }
+}
+
+const exifToRotation: Record<number, number> = {
+  1: 0,
+  2: 0,
+  3: 180,
+  4: 0,
+  5: 270,
+  6: 90,
+  7: 270,
+  8: 270
+}
+
+const exifToFlip: Record<number, boolean> = {
+  1: false,
+  2: false,
+  3: false,
+  4: true,
+  5: false,
+  6: false,
+  7: true,
+  8: false
+}
+
+const exifToFlop: Record<number, boolean> = {
+  1: false,
+  2: true,
+  3: false,
+  4: false,
+  5: true,
+  6: false,
+  7: false,
+  8: false
+}
+
+export async function createResizes (shasum: string, fromMigration?: boolean) {
+  const binary = await db.getrow<{ id: number, shasum: string, mime: string, meta: string, bytes: number }>('SELECT * from binaries WHERE shasum=?', [shasum])
+  if (!binary) return
+  const meta = JSON.parse(binary.meta) as { width: number, height: number }
+  if (!meta.width || binary.mime === 'image/svg+xml') return
+
+  const resizes: { width: number, height: number, shasum: string, mime: string, quality: number, size: number, lossless: boolean }[] = []
+  try {
+    const info = await fileHandler.sharp(shasum).metadata()
+    const orientation = info.orientation ?? 1
+    const animated = (info.pages ?? 0) > 0 && info.format !== 'heif'
+    const img = fileHandler.sharp(shasum, { animated })
+
+    let uselossless: boolean | undefined
+    for (let w = meta.width; w >= 100; w = roundTo(w / 2)) {
+      const resized = img.clone().resize(w, null, { kernel: 'mitchell' })
+      // theoretically one call to .rotate() is supposed to fix orientation, but
+      // there seems to be a bug in sharpjs where the rotation doesn't take
+      // if there is a later resize to a sufficiently small size
+      // this is a workaround to make sure the exif rotation is applied in all cases
+      .flip(exifToFlip[orientation])
+      .flop(exifToFlop[orientation])
+      .rotate(exifToRotation[orientation])
+      let webp: sharp.Sharp | undefined, webpsum: string | undefined, webpinfo: sharp.OutputInfo | undefined
+
+      if (uselossless !== true) {
+        webp = resized.clone().webp({ quality: 75, effort: 6, loop: info.loop ?? 0 })
+        ;({ checksum: webpsum, info: webpinfo } = await fileHandler.sharpWrite(webp))
+      }
+
+      if (uselossless !== false) {
+        // try making a near-lossless version and see whether it's acceptably small
+        const lossless = resized.clone().webp({ quality: 75, effort: 6, loop: info.loop ?? 0, nearLossless: true })
+        const { checksum: losslesssum, info: losslessinfo } = await fileHandler.sharpWrite(lossless)
+        if (uselossless === true || losslessinfo.size < webpinfo!.size * 1.2) {
+          if (webpsum) await cleanupBinaries([webpsum])
+          webp = lossless
+          webpsum = losslesssum
+          webpinfo = losslessinfo
+          uselossless = true
+        } else {
+          uselossless = false
+          await cleanupBinaries([losslesssum])
+        }
+      }
+
+      resizes.push({ width: w, height: w * meta.height / meta.width, shasum: webpsum!, mime: 'image/webp', quality: 75, size: webpinfo!.size, lossless: uselossless })
+
+      const outputformat = uselossless
+        ? (animated ? 'gif' : 'png')
+        : 'jpg'
+      const outputmime = lookup(outputformat) as string
+
+      const formatted = outputformat === 'jpg'
+        ? resized.clone().jpeg({ quality: 65 })
+        : outputformat === 'png'
+          ? resized.clone().png({ compressionLevel: 9, progressive: true })
+          : resized.clone().gif({ effort: 10, reoptimize: true, loop: info.loop ?? 0 } as any)
+      const { checksum, info: outputinfo } = await fileHandler.sharpWrite(formatted)
+      if (outputinfo.size > binary.bytes && ['image/jpeg', 'image/png', 'image/gif'].includes(binary.mime)) {
+        // we made a resize that's bigger than the original and no more compatible, abort!
+        await cleanupBinaries([checksum])
+      } else {
+        resizes.push({ width: w, height: w * meta.height / meta.width, shasum: checksum, mime: outputmime, quality: outputformat === 'jpg' ? 65 : 0, size: outputinfo.size, lossless: outputformat !== 'jpg' })
+      }
+    }
+    await db.transaction(async db => {
+      await db.delete('DELETE r FROM resizes r INNER JOIN binaries b ON r.originalBinaryId=b.id WHERE b.shasum=?', [shasum])
+      for (const r of resizes) {
+        await registerResize(shasum, r.width, r.height, r.shasum, r.mime, r.quality, r.size, r.lossless, db)
+      }
+      if (fromMigration) {
+        await db.insert(`
+          INSERT INTO migratedresizeinfo (originalChecksum, resizedChecksum, mime, size, quality, lossless, width, height)
+            SELECT ob.shasum, b.shasum, b.mime, b.bytes, r.quality, IFNULL(JSON_EXTRACT(r.othersettings, '$.lossless') + 0, 0), r.width, r.height
+            FROM resizes r
+            INNER JOIN binaries b ON b.id=r.binaryId
+            INNER JOIN binaries ob ON ob.id=r.originalBinaryId
+            WHERE ob.shasum = ?
+        `, [shasum])
+      }
+    })
+  } catch (e: any) {
+    await cleanupBinaries(resizes.map(r => r.shasum))
+    throw e
+  }
 }

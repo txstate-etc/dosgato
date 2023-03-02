@@ -253,21 +253,37 @@ export class AssetResize {
   @Field(type => Int, { description: 'Filesize in bytes.' })
   size: number
 
-  @Field(type => JsonData)
-  settings: any
-
-  @Field({ description: 'The last time the file was downloaded from the API service. Upstream caches could serve the file without updating this value.' })
-  lastDownload: DateTime
+  @Field({ nullable: true, description: 'The last time the file was downloaded from the API service. Upstream caches could serve the file without updating this value.' })
+  lastDownload?: DateTime
 
   binaryId: number
   originalBinaryId: number
-  meta: string
-  get lossless (): boolean | undefined {
+
+  stringMeta: string
+  parsedMeta: any
+  get meta (): any | undefined {
     try {
-      return JSON.parse(this.meta).lossless
+      this.parsedMeta ??= JSON.parse(this.stringMeta)
     } catch {
-      return undefined
+      // stays undefined
     }
+    return this.parsedMeta
+  }
+
+  stringSettings: string
+  parsedSettings: any
+  @Field(type => JsonData)
+  get settings (): any | undefined {
+    try {
+      this.parsedSettings ??= JSON.parse(this.stringSettings)
+    } catch {
+      // stays undefined
+    }
+    return this.parsedSettings
+  }
+
+  get lossless (): boolean | undefined {
+    return this.settings?.lossless
   }
 
   constructor (row: any) {
@@ -279,11 +295,11 @@ export class AssetResize {
     this.width = row.width
     this.height = row.height
     this.quality = row.quality
-    this.settings = row.settings
-    this.lastDownload = DateTime.fromJSDate(row.lastdownload)
+    this.stringSettings = row.othersettings
+    this.lastDownload = row.lastdownload ? DateTime.fromJSDate(row.lastdownload) : undefined
     this.binaryId = row.binaryId
     this.originalBinaryId = row.originalBinaryId
-    this.meta = row.meta
+    this.stringMeta = row.meta
   }
 }
 

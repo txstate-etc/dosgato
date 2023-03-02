@@ -1,15 +1,13 @@
 import { BaseService, Context, MutationMessageType, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { lookup } from 'mime-types'
-import sharp from 'sharp'
-import { intersect, isBlank, isNotNull, roundTo, sortby } from 'txstate-utils'
+import { intersect, isBlank, isNotNull, sortby } from 'txstate-utils'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
-  fileHandler, deleteAsset, undeleteAsset, registerResize,
-  getResizesById, VersionedService, cleanupBinaries, getDownloads, DownloadsFilter, getResizeDownloads,
-  AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion, renameAsset,
-  updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal, DeleteStateAll, getAssetsByPath, PagetreeType
+  deleteAsset, undeleteAsset, getResizesById, VersionedService, getDownloads, DownloadsFilter,
+  getResizeDownloads, AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion,
+  renameAsset, updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal, DeleteStateAll,
+  getAssetsByPath, PagetreeType
 } from '../internal.js'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
@@ -71,39 +69,6 @@ const downloadsByResizeIdLoader = new OneToManyLoader({
   fetch: async (resizeIds: string[], filter: DownloadsFilter) => await getResizeDownloads(resizeIds, filter),
   extractKey: dr => dr.relatedId
 })
-
-const exifToRotation: Record<number, number> = {
-  1: 0,
-  2: 0,
-  3: 180,
-  4: 0,
-  5: 270,
-  6: 90,
-  7: 270,
-  8: 270
-}
-
-const exifToFlip: Record<number, boolean> = {
-  1: false,
-  2: false,
-  3: false,
-  4: true,
-  5: false,
-  6: false,
-  7: true,
-  8: false
-}
-
-const exifToFlop: Record<number, boolean> = {
-  1: false,
-  2: true,
-  3: false,
-  4: false,
-  5: true,
-  6: false,
-  7: false,
-  8: false
-}
 
 export class AssetServiceInternal extends BaseService {
   async find (filter: AssetFilter) {
@@ -394,81 +359,6 @@ export class AssetService extends DosGatoService<Asset> {
     } catch (err: any) {
       console.error(err)
       throw new Error('Could not restore asset folder')
-    }
-  }
-
-  async createResizes (asset: Asset) {
-    if (!asset.box || asset.mime === 'image/svg+xml') return
-    const resizes = await this.getResizes(asset)
-    let missingresize = false
-    for (let w = asset.box.width; w >= 100; w = roundTo(w / 2)) {
-      if (!resizes.find(r => r.mime === 'image/webp' && r.width === w)) missingresize = true
-    }
-    if (!missingresize) return
-
-    const info = await fileHandler.sharp(asset.checksum).metadata()
-    const orientation = info.orientation ?? 1
-    const animated = (info.pages ?? 0) > 0 && info.format !== 'heif'
-    const img = fileHandler.sharp(asset.checksum, { animated })
-
-    // make the lossless vs lossy decision only once, at the biggest size
-    const biggestwebpresize = resizes.find(r => r.mime === 'image/webp' && r.width === asset.box!.width)
-    let uselossless: boolean | undefined = biggestwebpresize?.lossless
-
-    for (let w = asset.box.width; w >= 100; w = roundTo(w / 2)) {
-      const webpresize = resizes.find(r => r.mime === 'image/webp' && r.width === w)
-      if (!webpresize) {
-        const resized = img.clone().resize(w, null, { kernel: 'mitchell' })
-        // theoretically one call to .rotate() is supposed to fix orientation, but
-        // there seems to be a bug in sharpjs where the rotation doesn't take
-        // if there is a later resize to a sufficiently small size
-        // this is a workaround to make sure the exif rotation is applied in all cases
-        .flip(exifToFlip[orientation])
-        .flop(exifToFlop[orientation])
-        .rotate(exifToRotation[orientation])
-        let webp: sharp.Sharp | undefined, webpsum: string | undefined, webpinfo: sharp.OutputInfo | undefined
-
-        if (uselossless !== true) {
-          webp = resized.clone().webp({ quality: 75, effort: 6, loop: info.loop ?? 0 })
-          ;({ checksum: webpsum, info: webpinfo } = await fileHandler.sharpWrite(webp))
-        }
-
-        if (uselossless !== false) {
-          // try making a near-lossless version and see whether it's acceptably small
-          const lossless = resized.clone().webp({ quality: 75, effort: 6, loop: info.loop ?? 0, nearLossless: true })
-          const { checksum: losslesssum, info: losslessinfo } = await fileHandler.sharpWrite(lossless)
-          if (uselossless === true || losslessinfo.size < webpinfo!.size * 1.2) {
-            if (webpsum) await cleanupBinaries([webpsum])
-            webp = lossless
-            webpsum = losslesssum
-            webpinfo = losslessinfo
-            uselossless = true
-          } else {
-            uselossless = false
-            await cleanupBinaries([losslesssum])
-          }
-        }
-
-        await registerResize(asset, w, webpsum!, 'image/webp', 75, webpinfo!.size, uselossless)
-
-        const outputformat = uselossless
-          ? (animated ? 'gif' : 'png')
-          : 'jpg'
-        const outputmime = lookup(outputformat) as string
-
-        const formatted = outputformat === 'jpg'
-          ? resized.clone().jpeg({ quality: 65 })
-          : outputformat === 'png'
-            ? resized.clone().png({ compressionLevel: 9, progressive: true })
-            : resized.clone().gif({ effort: 10, reoptimize: true, loop: info.loop ?? 0 } as any)
-        const { checksum, info: outputinfo } = await fileHandler.sharpWrite(formatted)
-        if (outputinfo.size > asset.size && ['image/jpeg', 'image/png', 'image/gif'].includes(asset.mime)) {
-          // we made a resize that's bigger than the original and no more compatible, abort!
-          await cleanupBinaries([checksum])
-        } else {
-          await registerResize(asset, w, checksum, outputmime, outputformat === 'jpg' ? 65 : 0, outputinfo.size, outputformat !== 'jpg')
-        }
-      }
     }
   }
 

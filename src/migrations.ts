@@ -203,6 +203,25 @@ const dgMigrations: DBMigration[] = [
         DEFAULT COLLATE = utf8mb4_general_ci;
       `)
       }
+  },
+  {
+    id: 20230301150000,
+    description: 'add table for scheduling the creation of resizes',
+    run: async db => {
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS requestedresizes (
+          binaryId INT UNSIGNED NOT NULL,
+          started DATETIME,
+          completed DATETIME,
+          withError TINYINT UNSIGNED NOT NULL DEFAULT 0,
+          PRIMARY KEY (binaryId),
+          INDEX(started)
+        )
+        ENGINE = InnoDB
+        DEFAULT CHARACTER SET = utf8mb4
+        DEFAULT COLLATE = utf8mb4_general_ci;
+      `)
+    }
   }
 ]
 
@@ -249,6 +268,7 @@ export async function resetdb () {
       db.execute('DROP TABLE IF EXISTS pagerules'),
       db.execute('DROP TABLE IF EXISTS sites_templates'),
       db.execute('DROP TABLE IF EXISTS resizes'),
+      db.execute('DROP TABLE IF EXISTS requestedresizes'),
       db.execute('DROP TABLE IF EXISTS users_roles'),
       db.execute('DROP TABLE IF EXISTS groups_roles'),
       db.execute('DROP TABLE IF EXISTS users_groups'),

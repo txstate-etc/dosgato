@@ -12,15 +12,13 @@ import db from 'mysql2-async/db'
 import probe from 'probe-image-size'
 import { PassThrough, Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
-import { isNotBlank, keyby, pLimit, randomid, someAsync } from 'txstate-utils'
+import { keyby, randomid } from 'txstate-utils'
 import {
   Asset,
   AssetFolder,
   AssetFolderService, AssetFolderServiceInternal, AssetResize, AssetService, AssetServiceInternal, createAsset, fileHandler,
-  getEnabledUser, GlobalRuleService, logMutation, recordDownload, registerResize, replaceAsset, VersionedService
+  getEnabledUser, GlobalRuleService, logMutation, recordDownload, replaceAsset, requestResizes, VersionedService
 } from '../internal.js'
-
-export const resizeLimiter = pLimit(isNotBlank(process.env.RESIZE_LIMIT) ? parseInt(process.env.RESIZE_LIMIT) : 2)
 
 export function makeSafeFilename (str: string) {
   return str.normalize('NFKD').replace(/[^. _a-z0-9-]/ig, '').replace(/\s+/g, ' ').trim()
@@ -152,7 +150,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
           linkId: data.linkId
         })
         ids.push(asset.id)
-        resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)
+        await requestResizes(asset)
       }
     } else if (req.body?.url) {
       const file = await handleURLUpload(req.body.url, req.body.modifiedAt, req.body.auth)
@@ -167,21 +165,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
         linkId: req.body.linkId
       })
       ids.push(asset.id)
-      const resizes = await db.getall<{ originalChecksum: string, resizedChecksum: string, mime: string, size: number, quality: number, lossless: boolean, width: number, height: number }>('SELECT * FROM migratedresizeinfo WHERE originalChecksum = ?', [file.checksum])
-      if (resizes.length && !await someAsync(resizes, async r => !await fileHandler.exists(r.resizedChecksum))) {
-        await Promise.all(resizes.map(async resize => await registerResize(asset, resize.width, resize.resizedChecksum, resize.mime, resize.quality, resize.size, resize.lossless)))
-      } else {
-        await db.execute('DELETE r FROM resizes r INNER JOIN binaries b ON b.id=r.originalBinaryId WHERE b.shasum = ?', [asset.checksum])
-        await resizeLimiter(async () => await assetService.createResizes(asset)).catch(console.error)
-        await db.execute(`
-          INSERT INTO migratedresizeinfo (originalChecksum, resizedChecksum, mime, size, quality, lossless, width, height)
-          SELECT ob.shasum, b.shasum, b.mime, b.bytes, r.quality, IFNULL(JSON_EXTRACT(b.meta, '$.lossless') + 0, 0), r.width, r.height
-          FROM resizes r
-          INNER JOIN binaries b ON b.id=r.binaryId
-          INNER JOIN binaries ob ON ob.id=r.originalBinaryId
-          WHERE ob.shasum = ?
-        `, [asset.checksum])
-      }
+      await requestResizes(asset, true)
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }
@@ -214,7 +198,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
           modifiedAt: req.body?.modifiedAt
         })
         ctx.loaders.clear()
-        resizeLimiter(async () => await assetService.createResizes(newAsset)).catch(console.error)
+        await requestResizes(newAsset)
       }
     } else if (req.body?.url) {
       const file = await handleURLUpload(req.body.url, req.body.modifiedAt, req.body.auth)
@@ -224,7 +208,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
         modifiedBy: req.body.modifiedBy,
         modifiedAt: req.body.modifiedAt
       })
-      resizeLimiter(async () => await assetService.createResizes(newAsset)).catch(console.error)
+      await requestResizes(newAsset)
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }

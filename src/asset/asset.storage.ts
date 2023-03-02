@@ -59,7 +59,7 @@ class FileSystemHandler implements FileHandler {
       await this.#moveToPerm(tmp, checksum)
       return { checksum, size }
     } catch (e: any) {
-      await unlink(tmp)
+      await rescue(unlink(tmp))
       throw e
     }
   }
@@ -72,11 +72,16 @@ class FileSystemHandler implements FileHandler {
   async sharpWrite (img: sharp.Sharp) {
     const tmp = this.#getTmpLocation()
     const hash = createHash('sha256', { encoding: 'base64url' })
-    await pipeline(img.clone(), hash)
-    const checksum = hash.read()
-    const info = await img.toFile(tmp)
-    await this.#moveToPerm(tmp, checksum)
-    return { checksum, info }
+    try {
+      await pipeline(img.clone(), hash)
+      const checksum = hash.read()
+      const info = await img.toFile(tmp)
+      await this.#moveToPerm(tmp, checksum)
+      return { checksum, info }
+    } catch (e: any) {
+      await rescue(unlink(tmp))
+      throw e
+    }
   }
 
   async remove (checksum: string) {

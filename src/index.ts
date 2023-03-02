@@ -20,7 +20,7 @@ import {
   AccessResolver, DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
   DataRootPermissionsResolver, updateLastLogin, createAssetRoutes, UrlSafePath, UrlSafePathScalar,
-  AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler
+  AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler, beginProcessingResizes
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -142,7 +142,7 @@ export class DGServer {
 
     await scheduler.schedule('compressDownloads', compressDownloads, { duringHour: 5, duringDayOfWeek: DayOfWeek.TUESDAY })
 
-    return await this.gqlServer.start({
+    await this.gqlServer.start({
       ...opts,
       send401: true,
       send403: async (ctx: Context) => {
@@ -154,6 +154,7 @@ export class DGServer {
       scalarsMap,
       after
     })
+    beginProcessingResizes().catch(console.error)
   }
 }
 

@@ -2,7 +2,7 @@ import { MockContext } from '@txstate-mws/graphql-server'
 import { readdir, readFile } from 'fs/promises'
 import { createReadStream } from 'fs'
 import { rescue, sortby } from 'txstate-utils'
-import { SiteService, PageExport, PageService, PageServiceInternal, createAsset, placeFile, resizeLimiter, AssetService, VersionedService, AssetFolderServiceInternal, fileHandler } from '../internal.js'
+import { SiteService, PageExport, PageService, PageServiceInternal, createAsset, placeFile, VersionedService, AssetFolderServiceInternal, requestResizes } from '../internal.js'
 import { lookup } from 'mime-types'
 
 async function gatherFiles (path: string) {
@@ -52,7 +52,7 @@ export async function bootstrap () {
           folderId: folder.id
         })
         if (!asset) throw new Error(`Unable to bootstrap asset ${file.name}.`)
-        resizeLimiter(async () => await ctx.svc(AssetService).createResizes(asset)).catch(console.error)
+        await requestResizes(asset)
       }
     } catch (e: any) {
       console.error(e)
