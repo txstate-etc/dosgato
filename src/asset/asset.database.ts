@@ -777,17 +777,18 @@ export async function createResizes (shasum: string, fromMigration?: boolean) {
       for (const r of resizes) {
         await registerResize(shasum, r.width, r.height, r.shasum, r.mime, r.quality, r.size, r.lossless, db)
       }
-      if (fromMigration) {
-        await db.insert(`
-          INSERT INTO migratedresizeinfo (originalChecksum, resizedChecksum, mime, size, quality, lossless, width, height)
-            SELECT ob.shasum, b.shasum, b.mime, b.bytes, r.quality, IFNULL(JSON_EXTRACT(r.othersettings, '$.lossless') + 0, 0), r.width, r.height
-            FROM resizes r
-            INNER JOIN binaries b ON b.id=r.binaryId
-            INNER JOIN binaries ob ON ob.id=r.originalBinaryId
-            WHERE ob.shasum = ?
-        `, [shasum])
-      }
-    })
+    }, { retries: 2 })
+    if (fromMigration) {
+      await db.insert(`
+        INSERT INTO migratedresizeinfo (originalChecksum, resizedChecksum, mime, size, quality, lossless, width, height)
+          SELECT ob.shasum, b.shasum, b.mime, b.bytes, r.quality, IFNULL(JSON_EXTRACT(r.othersettings, '$.lossless') + 0, 0), r.width, r.height
+          FROM resizes r
+          INNER JOIN binaries b ON b.id=r.binaryId
+          INNER JOIN binaries ob ON ob.id=r.originalBinaryId
+          WHERE ob.shasum = ?
+          ON DUPLICATE KEY UPDATE originalChecksum=originalChecksum
+      `, [shasum])
+    }
   } catch (e: any) {
     await cleanupBinaries(resizes.map(r => r.shasum))
     throw e
