@@ -721,6 +721,7 @@ export async function createResizes (shasum: string, fromMigration?: boolean) {
 
     let uselossless: boolean | undefined
     for (let w = meta.width; w >= 100; w = roundTo(w / 2)) {
+      if (w > 16000) continue // sanity check for huge images, webp can't even save something greater than 16000x16000
       const resized = img.clone().resize(w, null, { kernel: 'mitchell' })
       // theoretically one call to .rotate() is supposed to fix orientation, but
       // there seems to be a bug in sharpjs where the rotation doesn't take
