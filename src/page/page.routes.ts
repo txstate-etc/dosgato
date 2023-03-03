@@ -59,7 +59,8 @@ export async function createPageRoutes (app: FastifyInstance) {
     if (existingPage) throw new HttpError(400, `Another page has the legacy id ${pageRecord.data.legacyId}. Use /pages/update/:id instead.`)
 
     const site = await createSite(ctx.svc(VersionedService), user.id, makeSafe(pageRecord.name), pageRecord.data, { ...pick(pageRecord, 'linkId', 'createdAt', 'createdBy', 'modifiedAt', 'modifiedBy'), publishedAt: body?.publishedAt, publishedBy: body?.publishedBy })
-    return { id: site.id }
+    const pagetree = (await ctx.svc(PagetreeServiceInternal).findBySiteId(site.id))[0]
+    return { id: site.id, name: site.name, pagetree: { id: pagetree.id, name: pagetree.name } }
   })
 
   app.post<{ Params: { siteId: string } }>('/pages/pagetree/:siteId', async (req, res) => {
@@ -76,7 +77,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     const [existingPage] = await ctx.svc(PageServiceInternal).find({ legacyIds: [pageRecord.data.legacyId] })
     if (existingPage) throw new HttpError(400, 'Another page has that legacy id. Use /pages/update/:id instead.')
     const pagetree = await createPagetree(ctx.svc(VersionedService), user, site, pageRecord.data, { ...pick(pageRecord, 'linkId', 'createdAt', 'createdBy', 'modifiedAt', 'modifiedBy'), publishedAt: body?.publishedAt, publishedBy: body?.publishedBy })
-    return { id: pagetree.id }
+    return { id: pagetree.id, name: pagetree.name }
   })
 
   app.post<{ Params: { pageid: string } }>('/pages/update/:pageid', async (req, res) => {
