@@ -130,7 +130,7 @@ async function processFilters (filter?: AssetFilter) {
       if (filter.beneath?.length) {
         const idpaths = await convertPathsToIDPaths(filter.beneath)
         const mybinds: any[] = []
-        const ors = idpaths.flatMap(p => ['assetfolder.path LIKE ?', 'assetfolder.path = ?'])
+        const ors = idpaths.flatMap(p => ['assetfolders.path LIKE ?', 'assetfolders.path = ?'])
         mybinds.push(...idpaths.flatMap(p => [`${p.folderIdPath}/%`, p.folderIdPath]))
         const subFolderIds = await db.getvals<number>(`SELECT id FROM assetfolders WHERE ${ors.join(' OR ')}`, mybinds)
         filter.folderIds = intersect({ skipEmpty: true }, ['-1', ...idpaths.map(p => p.folderIdPath.split(/\//).slice(-1)[0]), ...subFolderIds.map(String)], filter.folderIds)
