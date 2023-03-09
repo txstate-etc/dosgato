@@ -45,9 +45,9 @@ export async function fixtures () {
   ])
 
   const [artCollegeOrg, mathDeptOrg, officeOrg] = await Promise.all([
-    db.insert('INSERT INTO organizations (name) VALUES ("College of Arts and Crafts")'),
-    db.insert('INSERT INTO organizations (name) VALUES ("Department of Mathematics")'),
-    db.insert('INSERT INTO organizations (name) VALUES ("The Office")')
+    db.insert('INSERT INTO organizations (name, externalId) VALUES ("College of Arts and Crafts", ?)', [nanoid(10)]),
+    db.insert('INSERT INTO organizations (name, externalId) VALUES ("Department of Mathematics", ?)', [nanoid(10)]),
+    db.insert('INSERT INTO organizations (name, externalId) VALUES ("The Office", ?)', [nanoid(10)])
   ])
 
   const [site1, site2, site3, site4, site5, site6, site7, site8, deletedsite] = await Promise.all([

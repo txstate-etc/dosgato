@@ -80,9 +80,7 @@ export class SiteResolver {
 
   @FieldResolver(returns => Organization, { nullable: true })
   async organization (@Ctx() ctx: Context, @Root() site: Site) {
-    if (isNotNull(site.organizationId)) {
-      return await ctx.svc(OrganizationService).findById(String(site.organizationId))
-    }
+      return await ctx.svc(OrganizationService).findByInternalId(site.organizationId)
   }
 
   @FieldResolver(returns => [User])

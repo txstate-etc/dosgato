@@ -222,6 +222,17 @@ const dgMigrations: DBMigration[] = [
         DEFAULT COLLATE = utf8mb4_general_ci;
       `)
     }
+  },
+  {
+    id: 20230308210000,
+    description: 'add external id column to organizations to help stay in sync with an external system',
+    run: async db => {
+      await db.execute(`
+        ALTER TABLE organizations
+        ADD COLUMN externalId VARCHAR(255) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+        ADD UNIQUE (externalId)
+      `)
+    }
   }
 ]
 

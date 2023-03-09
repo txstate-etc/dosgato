@@ -61,8 +61,8 @@ async function processFilters (filter?: SiteFilter) {
   } else {
     where.push('sites.deletedAt IS NULL')
   }
-  if (filter?.organizationIds) {
-    where.push(`sites.organizationId IN (${db.in(binds, filter.organizationIds)})`)
+  if (filter?.organizationInternalIds) {
+    where.push(`sites.organizationId IN (${db.in(binds, filter.organizationInternalIds)})`)
   }
   if (filter?.ownerInternalIds) {
     where.push(`sites.ownerId IN (${db.in(binds, filter.ownerInternalIds)})`)
@@ -77,17 +77,6 @@ export async function getSites (filter?: SiteFilter) {
     query += ` WHERE (${where.join(') AND (')})`
   }
   const sites = await db.getall(query + ' ORDER BY sites.name', binds)
-  return sites.map(s => new Site(s))
-}
-
-export async function getSitesByOrganization (orgIds: string[]) {
-  const binds: string[] = []
-  const where: string[] = []
-
-  where.push(`sites.organizationId IN (${db.in(binds, orgIds)})`)
-
-  const sites = await db.getall(`SELECT ${columnsjoined} FROM sites
-                                 WHERE (${where.join(') AND (')})`, binds)
   return sites.map(s => new Site(s))
 }
 
@@ -211,16 +200,18 @@ export async function updateSiteManagement (site: Site, args: UpdateSiteManageme
   const auditComments: string[] = []
   return await db.transaction(async db => {
     // Handle organization updates
-    const formerOrganization = site.organizationId ? await db.getval<string>('SELECT name FROM organizations WHERE id = ?', [site.organizationId]) : undefined
     updates.push('organizationId = ?')
-    const orgId = args.organizationId ?? null
-    binds.push(orgId)
+    let newOrganization: { id: number, name: string } | undefined
+    if (args.organizationId) {
+      newOrganization = await db.getrow<{ id: number, name: string }>('SELECT id, name FROM organizations WHERE externalId = ?', [args.organizationId])
+    }
+    binds.push(newOrganization?.id ?? null)
     if (site.organizationId !== args.organizationId) {
-      if (formerOrganization) auditComments.push(`Removed organization ${formerOrganization}.`)
-      if (args.organizationId) {
-        const newOrganizationName = await db.getval<string>('SELECT name FROM organizations WHERE id = ?', [args.organizationId])
-        auditComments.push(`Added organization ${newOrganizationName!}.`)
+      if (site.organizationId) {
+        const formerOrganization = await db.getval<string>('SELECT name FROM organizations WHERE id = ?', [site.organizationId])
+        auditComments.push(`Removed organization ${formerOrganization!}.`)
       }
+      if (args.organizationId) auditComments.push(`Added organization ${newOrganization!.name}.`)
     }
     // Handle owner updates
     const formerOwnerId = site.ownerId ? await db.getval<string>('SELECT login FROM users WHERE id = ?', [site.ownerId]) : undefined

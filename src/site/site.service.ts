@@ -7,7 +7,7 @@ import {
   Site, SiteFilter, getSites, getSitesByTemplate, undeleteSite,
   PagetreeService, DosGatoService, createSite, VersionedService, SiteResponse,
   deleteSite, PageService, getSitesByManagerInternalId, siteNameIsUnique,
-  renameSite, setLaunchURL, UpdateSiteManagementInput, updateSiteManagement, DeletedFilter, CreatePageExtras, getSiteIdByLaunchUrl
+  renameSite, setLaunchURL, UpdateSiteManagementInput, updateSiteManagement, DeletedFilter, CreatePageExtras, getSiteIdByLaunchUrl, Organization
 } from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({
@@ -26,8 +26,8 @@ const sitesByNameLoader = new PrimaryKeyLoader({
 sitesByIdLoader.addIdLoader(sitesByNameLoader)
 
 const siteByOrganizationIdLoader = new OneToManyLoader({
-  fetch: async (orgIds: string[], filter?: SiteFilter) => {
-    return await getSites({ ...filter, organizationIds: orgIds })
+  fetch: async (organizationInternalIds: number[], filter?: SiteFilter) => {
+    return await getSites({ ...filter, organizationInternalIds })
   },
   extractKey: (item: Site) => item.organizationId!,
   idLoader: [sitesByIdLoader, sitesByNameLoader]
@@ -74,8 +74,8 @@ export class SiteServiceInternal extends BaseService {
     return await this.loaders.get(sitesByNameLoader).load(siteName)
   }
 
-  async findByOrganization (orgId: string, filter?: SiteFilter) {
-    return await this.loaders.get(siteByOrganizationIdLoader, filter).load(orgId)
+  async findByOrganization (org: Organization, filter?: SiteFilter) {
+    return await this.loaders.get(siteByOrganizationIdLoader, filter).load(org.internalId)
   }
 
   async findByTemplateId (templateId: number, atLeastOneTree?: boolean) {
@@ -113,8 +113,8 @@ export class SiteService extends DosGatoService<Site> {
     return await this.removeUnauthorized(await this.raw.findById(siteId))
   }
 
-  async findByOrganization (orgId: string, filter?: SiteFilter) {
-    return await this.removeUnauthorized(await this.raw.findByOrganization(orgId, filter))
+  async findByOrganization (org: Organization, filter?: SiteFilter) {
+    return await this.removeUnauthorized(await this.raw.findByOrganization(org, filter))
   }
 
   async findByTemplateId (templateId: number, atLeastOneTree?: boolean) {

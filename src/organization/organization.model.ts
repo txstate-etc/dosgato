@@ -7,14 +7,17 @@ parties for any site. Each site also has an owner (an individual person), but pe
 around and we need a way to both identify that has happened and put the situation back together.`
 })
 export class Organization {
-  @Field(type => ID)
+  @Field(type => ID, { description: 'This may match the unique id from an external system if it was set during creation.' })
   id: string
 
   @Field()
   name: string
 
+  internalId: number
+
   constructor (row: any) {
-    this.id = String(row.id)
+    this.internalId = row.id
+    this.id = row.externalId
     this.name = row.name
   }
 }
