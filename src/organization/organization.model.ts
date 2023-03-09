@@ -1,4 +1,5 @@
-import { Field, ID, ObjectType } from 'type-graphql'
+import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
+import { Field, ID, InputType, ObjectType } from 'type-graphql'
 
 @ObjectType({
   description: `An organization is an entity that owns some sites. It is here mainly
@@ -19,5 +20,24 @@ export class Organization {
     this.internalId = row.id
     this.id = row.externalId
     this.name = row.name
+  }
+}
+
+@InputType()
+export class OrganizationFilter {
+  @Field(type => [ID], { nullable: true })
+  ids?: string[]
+
+  internalIds?: number[]
+}
+
+@ObjectType()
+export class OrganizationResponse extends ValidatedResponse {
+  @Field({ nullable: true })
+  organization?: Organization
+
+  constructor (config: ValidatedResponseArgs & { organization?: Organization }) {
+    super(config)
+    this.organization = config.organization
   }
 }

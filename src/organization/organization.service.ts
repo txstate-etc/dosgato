@@ -1,6 +1,6 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { PrimaryKeyLoader } from 'dataloader-factory'
-import { createOrganization, DosGatoService, getOrganizations, Organization, SiteService } from '../internal.js'
+import { createOrganization, DosGatoService, getOrganizations, Organization, OrganizationFilter, OrganizationResponse, SiteService } from '../internal.js'
 
 const organizationsByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {
@@ -19,9 +19,14 @@ const organizationsByInternalIdLoader = new PrimaryKeyLoader({
 organizationsByIdLoader.addIdLoader(organizationsByInternalIdLoader)
 
 export class OrganizationServiceInternal extends BaseService {
-  async find (ids?: string[]) {
-    const orgs = await getOrganizations({ ids })
-    for (const org of orgs) this.loaders.get(organizationsByIdLoader).prime(org.id, org)
+  async find (filter?: OrganizationFilter) {
+    const orgs = await getOrganizations(filter)
+    const orgByIdLoader = this.loaders.get(organizationsByIdLoader)
+    const orgByInternalIdLoader = this.loaders.get(organizationsByInternalIdLoader)
+    for (const org of orgs) {
+      orgByIdLoader.prime(org.id, org)
+      orgByInternalIdLoader.prime(org.internalId, org)
+    }
     return orgs
   }
 
@@ -38,8 +43,8 @@ export class OrganizationServiceInternal extends BaseService {
 export class OrganizationService extends DosGatoService<Organization> {
   raw = this.svc(OrganizationServiceInternal)
 
-  async find (ids?: string[]) {
-    return await this.removeUnauthorized(await this.raw.find(ids))
+  async find (filter?: OrganizationFilter) {
+    return await this.removeUnauthorized(await this.raw.find(filter))
   }
 
   async findById (id: string) {
@@ -59,7 +64,8 @@ export class OrganizationService extends DosGatoService<Organization> {
   }
 
   async create (name: string, id?: string) {
+    if (!await this.mayCreate()) throw new Error('You are not permitted to create organizations.')
     const internalId = await createOrganization(name, id)
-    return await this.raw.findByInternalId(internalId)
+    return new OrganizationResponse({ success: true, organization: await this.raw.findByInternalId(internalId) })
   }
 }
