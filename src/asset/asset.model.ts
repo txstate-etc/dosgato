@@ -22,13 +22,13 @@ export class BoxAttributes {
   @Field(type => Int)
   height: number
 
-  constructor (row: any) {
-    this.width = row.meta.width
-    this.height = row.meta.height
+  constructor (meta: any) {
+    this.width = meta.width
+    this.height = meta.height
   }
 
-  static hasBox (row: any) {
-    return !!row.meta?.width
+  static hasBox (meta: any) {
+    return !!meta.width
   }
 }
 
@@ -57,9 +57,6 @@ export class Asset {
   @Field({ description: 'The preferred extension for the mime type of the asset. May be different than the extension of the original upload since we use file inspection to identify file types.' })
   extension: string
 
-  @Field({ nullable: true })
-  box?: BoxAttributes
-
   @Field({ description: 'This is only the current checksum, old versions could have another checksum.' })
   checksum: string
 
@@ -79,8 +76,24 @@ export class Asset {
   folderInternalId: number
   dataId: string
 
+  stringMeta: string
+  parsedMeta: any
+  get meta (): any | undefined {
+    try {
+      this.parsedMeta ??= JSON.parse(this.stringMeta)
+    } catch {
+      this.parsedMeta = {}
+    }
+    return this.parsedMeta
+  }
+
+  @Field(type => BoxAttributes, { nullable: true })
+  get box (): BoxAttributes | undefined {
+    return BoxAttributes.hasBox(this.meta) ? new BoxAttributes(this.meta) : undefined
+  }
+
   constructor (row: any) {
-    if (typeof row.meta === 'string') row.meta = JSON.parse(row.meta)
+    this.stringMeta = row.meta
     this.internalId = row.id
     this.id = row.dataId
     this.name = row.name
@@ -90,7 +103,6 @@ export class Asset {
     this.extension = extension(this.mime) || ''
     if (this.extension === 'jpeg') this.extension = 'jpg'
     this.filename = [this.name as string, this.extension].filter(isNotBlank).join('.')
-    this.box = BoxAttributes.hasBox(row) ? new BoxAttributes(row) : undefined
     this.folderInternalId = row.folderId
     this.dataId = row.dataId
     this.checksum = row.shasum
@@ -261,11 +273,11 @@ export class AssetResize {
 
   stringMeta: string
   parsedMeta: any
-  get meta (): any | undefined {
+  get meta (): any {
     try {
       this.parsedMeta ??= JSON.parse(this.stringMeta)
     } catch {
-      // stays undefined
+      this.parsedMeta = {}
     }
     return this.parsedMeta
   }
@@ -273,17 +285,17 @@ export class AssetResize {
   stringSettings: string
   parsedSettings: any
   @Field(type => JsonData)
-  get settings (): any | undefined {
+  get settings (): any {
     try {
       this.parsedSettings ??= JSON.parse(this.stringSettings)
     } catch {
-      // stays undefined
+      this.parsedSettings = {}
     }
     return this.parsedSettings
   }
 
   get lossless (): boolean | undefined {
-    return this.settings?.lossless
+    return this.settings.lossless
   }
 
   constructor (row: any) {
