@@ -195,10 +195,11 @@ export async function setLaunchURL (site: Site, host: string | undefined, path: 
 }
 
 export async function updateSiteManagement (site: Site, args: UpdateSiteManagementInput, currentUserInternalId: number) {
-  const updates: string[] = []
-  const binds: (string | number | null)[] = []
-  const auditComments: string[] = []
   return await db.transaction(async db => {
+    const updates: string[] = []
+    const binds: (string | number | null)[] = []
+    const auditComments: string[] = []
+
     // Handle organization updates
     let newOrganization: { id: number, name: string } | undefined
     if (args.organizationId) {
@@ -206,12 +207,12 @@ export async function updateSiteManagement (site: Site, args: UpdateSiteManageme
     }
     updates.push('organizationId = ?')
     binds.push(newOrganization?.id ?? null)
-    if (site.organizationId !== args.organizationId) {
+    if (site.organizationId !== newOrganization?.id) {
       if (site.organizationId) {
         const formerOrganization = await db.getval<string>('SELECT name FROM organizations WHERE id = ?', [site.organizationId])
         auditComments.push(`Removed organization ${formerOrganization!}.`)
       }
-      if (args.organizationId) auditComments.push(`Added organization ${newOrganization!.name}.`)
+      if (newOrganization) auditComments.push(`Added organization ${newOrganization.name}.`)
     }
     // Handle owner updates
     const formerOwnerId = site.ownerId ? await db.getval<string>('SELECT login FROM users WHERE id = ?', [site.ownerId]) : undefined
@@ -225,8 +226,8 @@ export async function updateSiteManagement (site: Site, args: UpdateSiteManageme
     if (updates.length) {
       binds.push(site.id)
       await db.update(`UPDATE sites
-                       SET ${updates.join(', ')}
-                       WHERE id = ?`, binds)
+                      SET ${updates.join(', ')}
+                      WHERE id = ?`, binds)
     }
     // Handle manager updates
     const formerManagerInternalIds = await db.getvals<number>('SELECT userId FROM sites_managers WHERE siteId = ?', [site.id])
