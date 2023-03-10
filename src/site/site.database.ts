@@ -200,11 +200,11 @@ export async function updateSiteManagement (site: Site, args: UpdateSiteManageme
   const auditComments: string[] = []
   return await db.transaction(async db => {
     // Handle organization updates
-    updates.push('organizationId = ?')
     let newOrganization: { id: number, name: string } | undefined
     if (args.organizationId) {
       newOrganization = await db.getrow<{ id: number, name: string }>('SELECT id, name FROM organizations WHERE externalId = ?', [args.organizationId])
     }
+    updates.push('organizationId = ?')
     binds.push(newOrganization?.id ?? null)
     if (site.organizationId !== args.organizationId) {
       if (site.organizationId) {
@@ -248,10 +248,10 @@ export async function updateSiteManagement (site: Site, args: UpdateSiteManageme
       auditComments.push(...managersRemoved.map(m => `Removed manager ${managers[m].login}.`))
       auditComments.push(...managersAdded.map(m => `Added manager ${managers[m].login}.`))
     }
-    await eachConcurrent(auditComments, async (comment) => {
+    for (const comment of auditComments) {
       await createSiteComment(site.id, comment, currentUserInternalId, db)
-    })
-  })
+    }
+  }, { retries: 5 })
 }
 
 export async function deleteSite (site: Site, currentUserInternalId: number) {

@@ -135,7 +135,7 @@ export class SiteResolver {
     @Arg('siteId', type => ID) siteId: string,
     @Arg('host', { nullable: true }) host: string,
     @Arg('path', { nullable: true }) path: string,
-    @Arg('enabled', { nullable: true }) enabled: boolean,
+    @Arg('enabled', { nullable: true, description: 'Default is true.', defaultValue: true }) enabled: boolean,
     @Arg('validateOnly', { nullable: true }) validateOnly?: boolean
   ) {
     return await ctx.svc(SiteService).setLaunchURL(siteId, host, path, enabled, validateOnly)
