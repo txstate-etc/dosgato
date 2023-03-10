@@ -1,6 +1,6 @@
 import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import { isNotBlank, isNotNull } from 'txstate-utils'
+import { isBlank, isNotBlank, isNotNull, titleCase } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString, PagetreeType, UrlSafePath } from '../internal.js'
 
@@ -79,8 +79,13 @@ export class Page {
   @Field({ description: 'Indicates whether this page is undeleted, marked for deletion, or deleted.' })
   deleteState: DeleteState
 
-  @Field({ nullable: true })
+  @Field({ nullable: true, description: '`title` is how the editor titled the page, and is allowed to be null. Use `fallbackTitle` instead to guarantee a value (if the user did not enter a title, one will be generated based on the page name).' })
   title: string
+
+  @Field({ description: '`title` is how the editor titled the page, and is allowed to be null. Use `fallbackTitle` instead to guarantee a value (if the user did not enter a title, one will be generated based on the page name).' })
+  get fallbackTitle () {
+    return isBlank(this.title) ? titleCase(this.name) : this.title
+  }
 
   deletedBy?: number
   pagetreeId: string

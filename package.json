@@ -1,6 +1,6 @@
 {
   "name": "@dosgato/api",
-  "version": "0.0.80",
+  "version": "0.0.81",
   "description": "A CMS designed for large institutions with thousands of editors and hundreds of subsites.",
   "type": "module",
   "exports": {
@@ -18,7 +18,7 @@
     "file-type": "^18.0.0",
     "luxon": "^3.0.3",
     "mime-types": "^2.1.35",
-    "mysql2-async": "^1.1.4",
+    "mysql2-async": "^1.1.5",
     "nanoid": "^4.0.0",
     "probe-image-size": "^7.2.3",
     "sharp": ">=0.31.0",
