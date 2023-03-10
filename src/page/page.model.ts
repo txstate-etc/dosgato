@@ -82,7 +82,7 @@ export class Page {
   @Field({ nullable: true, description: '`title` is how the editor titled the page, and is allowed to be null. Use `fallbackTitle` instead to guarantee a value (if the user did not enter a title, one will be generated based on the page name).' })
   title: string
 
-  @Field({ description: '`title` is how the editor titled the page, and is allowed to be null. Use `fallbackTitle` instead to guarantee a value (if the user did not enter a title, one will be generated based on the page name).' })
+  @Field(type => String, { description: '`title` is how the editor titled the page, and is allowed to be null. Use `fallbackTitle` instead to guarantee a value (if the user did not enter a title, one will be generated based on the page name).' })
   get fallbackTitle () {
     return isBlank(this.title) ? titleCase(this.name) : this.title
   }
