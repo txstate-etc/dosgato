@@ -165,7 +165,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
         linkId: req.body.linkId
       })
       ids.push(asset.id)
-      await requestResizes(asset, true)
+      await requestResizes(asset)
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }
