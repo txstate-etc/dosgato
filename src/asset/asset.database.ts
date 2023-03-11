@@ -451,19 +451,15 @@ export async function renameAsset (assetId: string, name: string, folderInternal
   if (affectedRows === 0) throw new Error('Rename failed, likely the name became unavailable.')
 }
 
-export async function registerResize (originalChecksum: string, width: number, height: number, shasum: string, mime: string, quality: number, size: number, lossless: boolean, tdb?: Queryable) {
-  const action = async (db: Queryable) => {
-    const origBinaryId = await db.getval<number>('SELECT id FROM binaries WHERE shasum=?', [originalChecksum])
-    const binaryId = await db.insert(`
-      INSERT INTO binaries (shasum, mime, meta, bytes) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)
-    `, [shasum, mime, stringify({ width, height }), size])
-    await db.insert(`
-      INSERT INTO resizes (binaryId, originalBinaryId, width, height, quality, othersettings) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE binaryId=binaryId
-    `, [binaryId, origBinaryId!, width, height, quality, stringify({ lossless })])
-    return binaryId
-  }
-  if (tdb) await action(tdb)
-  else await action(db)
+export async function registerResize (originalChecksum: string, width: number, height: number, shasum: string, mime: string, quality: number, size: number, lossless: boolean, tdb: Queryable = db) {
+  const origBinaryId = await tdb.getval<number>('SELECT id FROM binaries WHERE shasum=?', [originalChecksum])
+  const binaryId = await tdb.insert(`
+    INSERT INTO binaries (shasum, mime, meta, bytes) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)
+  `, [shasum, mime, stringify({ width, height }), size])
+  await tdb.insert(`
+    INSERT INTO resizes (binaryId, originalBinaryId, width, height, quality, othersettings) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE binaryId=binaryId
+  `, [binaryId, origBinaryId!, width, height, quality, stringify({ lossless })])
+  return binaryId
 }
 
 export async function moveAssets (targetFolder: AssetFolder, assets: Asset[], folders: AssetFolder[]) {
@@ -654,7 +650,11 @@ async function processResizesLoop () {
             await createResizes(row.shasum)
             await db.update('UPDATE requestedresizes SET completed=NOW() WHERE binaryId=?', [row.binaryId])
           } catch (e: any) {
-            await db.update('UPDATE requestedresizes SET withError=1 WHERE binaryId=?', [row.binaryId])
+            if (e.errno !== 1213) {
+              // if it was a deadlock we'll allow it to retry in 20 minutes, otherwise we'll set withError=1
+              // which will prevent further processing without human intervention
+              await db.update('UPDATE requestedresizes SET withError=1 WHERE binaryId=?', [row.binaryId])
+            }
             throw e
           }
         }
@@ -719,7 +719,7 @@ export async function createResizes (shasum: string) {
     const info = await fileHandler.sharp(shasum, { limitInputPixels: 50000 * 50000 }).metadata()
     const orientation = info.orientation ?? 1
     const animated = (info.pages ?? 0) > 0 && info.format !== 'heif'
-    const img = fileHandler.sharp(shasum, { animated })
+    const img = fileHandler.sharp(shasum, { animated, limitInputPixels: 50000 * 50000 })
 
     let uselossless: boolean | undefined
     for (let w = meta.width; w >= 50; w = roundTo(w / 2)) {
@@ -759,7 +759,8 @@ export async function createResizes (shasum: string) {
         // we already have a larger (in pixels) resize that somehow is smaller in file size than this - we should skip this
         await cleanupBinaries([webpsum!])
       } else {
-        resizes.push({ width: webpinfo!.width, height: webpinfo!.height, shasum: webpsum!, mime: 'image/webp', quality: 75, size: webpinfo!.size, lossless: uselossless })
+        // can't use webpinfo!.height here because animations return the combined height of all the frames
+        resizes.push({ width: webpinfo!.width, height: webpinfo!.width * (meta.height / meta.width), shasum: webpsum!, mime: 'image/webp', quality: 75, size: webpinfo!.size, lossless: uselossless })
       }
 
       const outputformat = uselossless || animated
@@ -781,7 +782,8 @@ export async function createResizes (shasum: string) {
       ) {
         await cleanupBinaries([checksum])
       } else {
-        resizes.push({ width: outputinfo.width, height: outputinfo.height, shasum: checksum, mime: outputmime, quality: outputformat === 'jpg' ? 65 : 0, size: outputinfo.size, lossless: outputformat !== 'jpg' })
+        // can't use outputinfo.height here because animations return the combined height of all the frames
+        resizes.push({ width: outputinfo.width, height: outputinfo.width * (meta.height / meta.width), shasum: checksum, mime: outputmime, quality: outputformat === 'jpg' ? 65 : 0, size: outputinfo.size, lossless: outputformat !== 'jpg' })
       }
     }
     await db.transaction(async db => {
@@ -789,7 +791,7 @@ export async function createResizes (shasum: string) {
       for (const r of resizes) {
         await registerResize(shasum, r.width, r.height, r.shasum, r.mime, r.quality, r.size, r.lossless, db)
       }
-    }, { retries: 2 })
+    }, { retries: 3 })
     await db.insert(`
       INSERT INTO migratedresizeinfo (originalChecksum, resizedChecksum, mime, size, quality, lossless, width, height)
         SELECT ob.shasum, b.shasum, b.mime, b.bytes, r.quality, IFNULL(JSON_EXTRACT(r.othersettings, '$.lossless') + 0, 0), r.width, r.height
