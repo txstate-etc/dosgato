@@ -710,19 +710,21 @@ export async function createResizes (shasum: string) {
   const binary = await db.getrow<{ id: number, shasum: string, mime: string, meta: string, bytes: number }>('SELECT * from binaries WHERE shasum=?', [shasum])
   if (!binary) return
   const meta = JSON.parse(binary.meta) as { width: number, height: number }
-  if (!meta.width || binary.mime === 'image/svg+xml') return
+
+  // only process images, excluding SVG and PSD (maybe PSD support could be added in future but sharpjs can't read it)
+  if (!meta.width || !binary.mime.startsWith('image/') || ['image/svg+xml', 'image/vnd.adobe.photoshop'].includes(binary.mime)) return
 
   const resizes: { width: number, height: number, shasum: string, mime: string, quality: number, size: number, lossless: boolean }[] = []
   try {
-    const info = await fileHandler.sharp(shasum).metadata()
+    const info = await fileHandler.sharp(shasum, { limitInputPixels: 50000 * 50000 }).metadata()
     const orientation = info.orientation ?? 1
     const animated = (info.pages ?? 0) > 0 && info.format !== 'heif'
     const img = fileHandler.sharp(shasum, { animated })
 
     let uselossless: boolean | undefined
-    for (let w = meta.width; w >= 100; w = roundTo(w / 2)) {
-      if (w > 16000) continue // sanity check for huge images, webp can't even save something greater than 16000x16000
-      const resized = img.clone().resize(w, null, { kernel: 'mitchell' })
+    for (let w = meta.width; w >= 50; w = roundTo(w / 2)) {
+      if (w > 10000) continue // sanity check for huge images, note: webp can't save something greater than 16000x16000
+      const resized = img.clone().resize(Math.min(6000, w), null, { kernel: 'mitchell' })
       // theoretically one call to .rotate() is supposed to fix orientation, but
       // there seems to be a bug in sharpjs where the rotation doesn't take
       // if there is a later resize to a sufficiently small size
@@ -753,9 +755,14 @@ export async function createResizes (shasum: string) {
         }
       }
 
-      resizes.push({ width: w, height: w * meta.height / meta.width, shasum: webpsum!, mime: 'image/webp', quality: 75, size: webpinfo!.size, lossless: uselossless })
+      if (resizes.some(r => webpinfo!.size > r.size && webpinfo!.width < r.width)) {
+        // we already have a larger (in pixels) resize that somehow is smaller in file size than this - we should skip this
+        await cleanupBinaries([webpsum!])
+      } else {
+        resizes.push({ width: webpinfo!.width, height: webpinfo!.height, shasum: webpsum!, mime: 'image/webp', quality: 75, size: webpinfo!.size, lossless: uselossless })
+      }
 
-      const outputformat = uselossless
+      const outputformat = uselossless || animated
         ? (animated ? 'gif' : 'png')
         : 'jpg'
       const outputmime = lookup(outputformat) as string
@@ -766,11 +773,15 @@ export async function createResizes (shasum: string) {
           ? resized.clone().png({ compressionLevel: 9, progressive: true })
           : resized.clone().gif({ effort: 10, reoptimize: true, loop: info.loop ?? 0 } as any)
       const { checksum, info: outputinfo } = await fileHandler.sharpWrite(formatted)
-      if (outputinfo.size > binary.bytes && ['image/jpeg', 'image/png', 'image/gif'].includes(binary.mime)) {
-        // we made a resize that's bigger than the original and no more compatible, abort!
+      if (
+        // this resize is bigger and no more compatible than the original, abort!
+        (outputinfo.size > binary.bytes && ['image/jpeg', 'image/png', 'image/gif'].includes(binary.mime)) ||
+        // this resize is somehow larger than one of the greater-width resizes we've already made - skip it
+        resizes.some(r => outputinfo.size > r.size && outputmime === r.mime)
+      ) {
         await cleanupBinaries([checksum])
       } else {
-        resizes.push({ width: w, height: w * meta.height / meta.width, shasum: checksum, mime: outputmime, quality: outputformat === 'jpg' ? 65 : 0, size: outputinfo.size, lossless: outputformat !== 'jpg' })
+        resizes.push({ width: outputinfo.width, height: outputinfo.height, shasum: checksum, mime: outputmime, quality: outputformat === 'jpg' ? 65 : 0, size: outputinfo.size, lossless: outputformat !== 'jpg' })
       }
     }
     await db.transaction(async db => {
