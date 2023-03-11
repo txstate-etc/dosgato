@@ -234,7 +234,11 @@ export class PageService extends DosGatoService<Page> {
   raw = this.svc(PageServiceInternal)
 
   async find (filter: PageFilter) {
-    return await this.removeUnauthorized(await this.raw.find(filter))
+    const [ret] = await Promise.all([
+      this.raw.find(filter),
+      this.currentPageRules()
+    ])
+    return await this.removeUnauthorized(ret)
   }
 
   async findById (id: string) {
@@ -250,7 +254,11 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async findByPagetreeId (id: string, filter?: PageFilter) {
-    return await this.removeUnauthorized(await this.raw.findByPagetreeId(id, filter))
+    const [ret] = await Promise.all([
+      this.raw.findByPagetreeId(id, filter),
+      this.currentPageRules()
+    ])
+    return await this.removeUnauthorized(ret)
   }
 
   async findByTemplate (key: string, filter?: PageFilter) {

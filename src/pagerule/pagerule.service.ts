@@ -152,11 +152,13 @@ export class PageRuleService extends DosGatoService<PageRule> {
   }
 
   async applies (rule: PageRule, page: Page) {
-    const pagetree = await this.svc(PagetreeServiceInternal).findById(page.pagetreeId)
+    const [pagetree, pagePath] = await Promise.all([
+      this.svc(PagetreeServiceInternal).findById(page.pagetreeId),
+      this.svc(PageServiceInternal).getPath(page)
+    ])
     if (!pagetree) return false
-    if (rule.siteId && rule.siteId !== pagetree.siteId) return false
+    if (rule.siteId && rule.siteId !== String(page.siteInternalId)) return false
     if (rule.pagetreeType && rule.pagetreeType !== pagetree.type) return false
-    const pagePath = await this.svc(PageServiceInternal).getPath(page)
     if (rule.mode === RulePathMode.SELF && rule.path !== pagePath) return false
     if (rule.mode === RulePathMode.SELFANDSUB && !pagePath.startsWith(rule.path)) return false
     if (rule.mode === RulePathMode.SUB && (rule.path === pagePath || !pagePath.startsWith(rule.path))) return false
