@@ -706,7 +706,7 @@ const exifToFlop: Record<number, boolean> = {
   8: false
 }
 
-export async function createResizes (shasum: string, fromMigration?: boolean) {
+export async function createResizes (shasum: string) {
   const binary = await db.getrow<{ id: number, shasum: string, mime: string, meta: string, bytes: number }>('SELECT * from binaries WHERE shasum=?', [shasum])
   if (!binary) return
   const meta = JSON.parse(binary.meta) as { width: number, height: number }
@@ -779,17 +779,15 @@ export async function createResizes (shasum: string, fromMigration?: boolean) {
         await registerResize(shasum, r.width, r.height, r.shasum, r.mime, r.quality, r.size, r.lossless, db)
       }
     }, { retries: 2 })
-    if (fromMigration) {
-      await db.insert(`
-        INSERT INTO migratedresizeinfo (originalChecksum, resizedChecksum, mime, size, quality, lossless, width, height)
-          SELECT ob.shasum, b.shasum, b.mime, b.bytes, r.quality, IFNULL(JSON_EXTRACT(r.othersettings, '$.lossless') + 0, 0), r.width, r.height
-          FROM resizes r
-          INNER JOIN binaries b ON b.id=r.binaryId
-          INNER JOIN binaries ob ON ob.id=r.originalBinaryId
-          WHERE ob.shasum = ?
-          ON DUPLICATE KEY UPDATE originalChecksum=originalChecksum
-      `, [shasum])
-    }
+    await db.insert(`
+      INSERT INTO migratedresizeinfo (originalChecksum, resizedChecksum, mime, size, quality, lossless, width, height)
+        SELECT ob.shasum, b.shasum, b.mime, b.bytes, r.quality, IFNULL(JSON_EXTRACT(r.othersettings, '$.lossless') + 0, 0), r.width, r.height
+        FROM resizes r
+        INNER JOIN binaries b ON b.id=r.binaryId
+        INNER JOIN binaries ob ON ob.id=r.originalBinaryId
+        WHERE ob.shasum = ?
+        ON DUPLICATE KEY UPDATE originalChecksum=originalChecksum
+    `, [shasum])
   } catch (e: any) {
     await cleanupBinaries(resizes.map(r => r.shasum))
     throw e
