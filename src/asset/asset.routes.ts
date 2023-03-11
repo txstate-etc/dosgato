@@ -21,6 +21,8 @@ import {
 } from '../internal.js'
 
 export function makeSafeFilename (str: string) {
+  const extFromFileName = str.match(/\.(\w+)$/)?.[1]
+  if (extFromFileName && lookup(extFromFileName)) str = str.replace(new RegExp('\\.' + extFromFileName + '$'), '')
   return str.normalize('NFKD').replace(/[^. _a-z0-9-]/ig, '').replace(/\s+/g, ' ').trim()
 }
 
@@ -37,10 +39,7 @@ export async function placeFile (readStream: Readable, filename: string, mimeGue
   let { mime } = fileTypePassthru.fileType ?? { mime: mimeGuess }
   if (mime === 'application/x-cfb' || mime.startsWith('plain/text')) mime = mimeGuess // npm file-type library not good at distinguishing old MS Office formats
 
-  let name = filename
-  const extFromFileName = name.match(/\.(\w+)$/)?.[1]
-  if (extFromFileName && lookup(extFromFileName)) name = name.replace(new RegExp('\\.' + extFromFileName + '$'), '')
-  name = makeSafeFilename(name)
+  const name = makeSafeFilename(filename)
 
   let metadata: probe.ProbeResult
   let width: number | undefined
@@ -132,7 +131,6 @@ export async function createAssetRoutes (app: FastifyInstance) {
       if (!await ctx.svc(GlobalRuleService).mayOverrideStamps()) throw new HttpError(403, 'You are not allowed to set created/modified stamps on new assets.')
     }
 
-    const assetService = ctx.svc(AssetService)
     const versionedService = ctx.svc(VersionedService)
 
     const ids: string[] = []
