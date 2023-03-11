@@ -236,7 +236,7 @@ export class PageService extends DosGatoService<Page> {
   async find (filter: PageFilter) {
     const [ret] = await Promise.all([
       this.raw.find(filter),
-      this.currentPageRules()
+      this.currentPageRules() // pre-load and cache page rules so they're ready for removeUnauthorized
     ])
     return await this.removeUnauthorized(ret)
   }
@@ -256,7 +256,7 @@ export class PageService extends DosGatoService<Page> {
   async findByPagetreeId (id: string, filter?: PageFilter) {
     const [ret] = await Promise.all([
       this.raw.findByPagetreeId(id, filter),
-      this.currentPageRules()
+      this.currentPageRules() // pre-load and cache page rules so they're ready for removeUnauthorized
     ])
     return await this.removeUnauthorized(ret)
   }

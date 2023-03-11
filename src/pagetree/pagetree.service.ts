@@ -54,11 +54,19 @@ export class PagetreeService extends DosGatoService<Pagetree> {
   raw = this.svc(PagetreeServiceInternal)
 
   async find (filter?: PagetreeFilter) {
-    return await this.removeUnauthorized(await this.raw.find(filter))
+    const [ret] = await Promise.all([
+      this.raw.find(filter),
+      this.currentSiteRules() // pre-load and cache site rules so they're ready for removeUnauthorized
+    ])
+    return await this.removeUnauthorized(ret)
   }
 
   async findById (id: string) {
-    return await this.removeUnauthorized(await this.raw.findById(id))
+    const [ret] = await Promise.all([
+      this.raw.findById(id),
+      this.currentSiteRules() // pre-load and cache site rules so they're ready for removeUnauthorized
+    ])
+    return await this.removeUnauthorized(ret)
   }
 
   async findBySiteId (siteId: string, filter?: PagetreeFilter) {
