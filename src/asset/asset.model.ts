@@ -282,12 +282,12 @@ export class AssetResize {
     return this.parsedMeta
   }
 
-  stringSettings: string
+  stringSettings: string | object
   parsedSettings: any
   @Field(type => JsonData)
   get settings (): any {
     try {
-      this.parsedSettings ??= JSON.parse(this.stringSettings)
+      this.parsedSettings ??= typeof this.stringSettings === 'string' ? JSON.parse(this.stringSettings) : this.stringSettings
     } catch {
       this.parsedSettings = {}
     }

@@ -709,7 +709,7 @@ const exifToFlop: Record<number, boolean> = {
 export async function createResizes (shasum: string) {
   const binary = await db.getrow<{ id: number, shasum: string, mime: string, meta: string, bytes: number }>('SELECT * from binaries WHERE shasum=?', [shasum])
   if (!binary) return
-  const meta = JSON.parse(binary.meta) as { width: number, height: number }
+  const meta = (typeof binary.meta === 'string' ? JSON.parse(binary.meta) : binary.meta) as { width: number, height: number }
 
   // only process images, excluding SVG and PSD (maybe PSD support could be added in future but sharpjs can't read it)
   if (!meta.width || !binary.mime.startsWith('image/') || ['image/svg+xml', 'image/vnd.adobe.photoshop'].includes(binary.mime)) return
