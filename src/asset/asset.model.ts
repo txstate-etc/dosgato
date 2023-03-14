@@ -76,11 +76,11 @@ export class Asset {
   folderInternalId: number
   dataId: string
 
-  stringMeta: string
+  stringMeta: string | object // mysql returns object, mariadb returns string
   parsedMeta: any
   get meta (): any | undefined {
     try {
-      this.parsedMeta ??= JSON.parse(this.stringMeta)
+      this.parsedMeta ??= typeof this.stringMeta === 'string' ? JSON.parse(this.stringMeta) : this.stringMeta
     } catch {
       this.parsedMeta = {}
     }
@@ -271,11 +271,11 @@ export class AssetResize {
   binaryId: number
   originalBinaryId: number
 
-  stringMeta: string
+  stringMeta: string | object // mysql returns object, mariadb returns string
   parsedMeta: any
   get meta (): any {
     try {
-      this.parsedMeta ??= JSON.parse(this.stringMeta)
+      this.parsedMeta ??= typeof this.stringMeta === 'string' ? JSON.parse(this.stringMeta) : this.stringMeta
     } catch {
       this.parsedMeta = {}
     }

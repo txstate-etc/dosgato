@@ -12,8 +12,8 @@ import {
 @Resolver(of => Asset)
 export class AssetResolver {
   @Query(returns => [Asset])
-  async assets (@Ctx() ctx: Context, @Arg('filter') filter: AssetFilter) {
-    return await ctx.svc(AssetService).find({ ...filter, deleteStates: filter.deleteStates ?? DeleteStateRootDefault })
+  async assets (@Ctx() ctx: Context, @Arg('filter', { nullable: true }) filter?: AssetFilter) {
+    return await ctx.svc(AssetService).find({ ...filter, deleteStates: filter?.deleteStates ?? DeleteStateRootDefault })
   }
 
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the asset is not in the soft-deleted state.' })

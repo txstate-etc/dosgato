@@ -41,12 +41,64 @@ describe('assetfolders', () => {
   })
 })
 
+interface Asset {
+  id: string
+  mime: string
+  name: string
+  filename: string
+  checksum: string
+  box?: {
+    width: number
+    height: number
+  }
+  resizes: {
+    width: number
+    height: number
+    mime: string
+  }
+  folder: {
+    id: string
+  }
+  site: {
+    id: string
+  }
+}
 describe('assets', () => {
-  it.skip('should retrieve an asset by ID', async () => {})
-  it.skip('should retrieve assets by site ID', async () => {})
+  let allAssets: Asset[]
+  before(async () => {
+    const { assets } = await query<{ assets: Asset[] }>('{ assets { id mime name filename checksum box { width height } resizes { width height mime } folder { id } site { id } } }')
+    allAssets = assets
+  })
+  it('should have width and height for images', async () => {
+    for (const a of allAssets) {
+      if (a.mime.startsWith('image/')) expect(a.box?.width).to.be.greaterThan(0)
+    }
+  })
+  it('should retrieve an asset by ID', async () => {
+    const assetId = allAssets[0].id
+    const { assets } = await query<{ assets: [Asset] }>('query getAssetById ($assetId: ID!) { assets (filter: { ids: [$assetId] }) { id name } }', { assetId })
+    expect(assets).to.have.lengthOf(1)
+    expect(assets[0].id).to.equal(assetId)
+  })
+  it('should retrieve assets by site ID', async () => {
+    const siteId = allAssets[0].site.id
+    const { assets } = await query<{ assets: Asset[] }>('query getAssetById ($siteId: ID!) { assets (filter: { siteIds: [$siteId] }) { id name site { id } } }', { siteId })
+    expect(assets.length).to.be.greaterThan(0)
+    for (const a of assets) expect(a.site.id).to.equal(siteId)
+  })
   it.skip('should retrieve assets by link', async () => {})
-  it.skip('should retrieve assets by checksum', async () => {})
-  it.skip('should retrieve assets by folder ID', async () => {})
+  it('should retrieve assets by checksum', async () => {
+    const checksum = allAssets[0].checksum
+    const { assets } = await query<{ assets: [Asset] }>('query getAssetById ($checksum: String!) { assets (filter: { checksums: [$checksum] }) { id name checksum } }', { checksum })
+    expect(assets.length).to.be.greaterThan(0)
+    for (const a of assets) expect(a.checksum).to.equal(checksum)
+  })
+  it('should retrieve assets by folder ID', async () => {
+    const folderId = allAssets[0].folder.id
+    const { assets } = await query<{ assets: Asset[] }>('query getAssetById ($folderId: ID!) { assets (filter: { folderIds: [$folderId] }) { id name folder { id } } }', { folderId })
+    expect(assets.length).to.be.greaterThan(0)
+    for (const a of assets) expect(a.folder.id).to.equal(folderId)
+  })
   it.skip('should retrieve assets by name', async () => {})
   it.skip('should retrieve assets by path', async () => {})
   it.skip('should retrieve assets by ancestor path (beneath filter)', async () => {})
