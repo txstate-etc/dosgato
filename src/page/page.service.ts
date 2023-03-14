@@ -501,10 +501,11 @@ export class PageService extends DosGatoService<Page> {
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const response = await this.validatePageData(data, site, pagetree, parent, name)
-    const pages = await this.raw.getPageChildren(parent, false)
-    if (pages.some(p => p.name === name)) {
-      response.addMessage('A page with this name already exists', 'name')
-    }
+    const siblings = await this.raw.getPageChildren(parent, false)
+    if (isBlank(name)) response.addMessage('Page name is required.', 'name')
+    else if (siblings.some(p => p.name === name)) {
+      response.addMessage(`Page name: ${name} already exists in this location.`, 'name')
+    } else response.addMessage(`Page name: ${name} is available.`, 'name', MutationMessageType.success)
     if (!validateOnly && response.success) {
       response.page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data, extra)
       this.loaders.clear()
@@ -850,9 +851,10 @@ export class PageService extends DosGatoService<Page> {
     if (isNotNull(page.parentInternalId)) {
       const parent = await this.raw.findByInternalId(page.parentInternalId)
       const siblings = await this.raw.getPageChildren(parent!, false)
-      if (name !== page.name && siblings.some(p => p.name === name)) {
-        response.addMessage('A page with this name already exists in this location', 'name')
-      }
+      if (isBlank(name)) response.addMessage('Page name is required.', 'name')
+      else if (siblings.some(p => p.name === name) && name !== page.name) {
+        response.addMessage(`Page name: ${name} already exists in this location.`, 'name')
+      } else if (name !== page.name) response.addMessage(`Page name: ${name} is available.`, 'name', MutationMessageType.success)
     } else {
       throw new Error('Cannot rename the root page')
     }

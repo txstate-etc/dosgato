@@ -46,6 +46,14 @@ describe('pages mutations', () => {
     ])
     expect(responses.map(r => r.success)).to.deep.equal((Array(10) as boolean[]).fill(true))
   })
+  it('should not create a page with blank name or only special characters', async () => {
+    const responses = await Promise.all([
+      createPage('', testSite6PageRootId, 'keyp3', undefined),
+      createPage('   ', testSite6PageRootId, 'keyp3', undefined),
+      createPage('$#&*', testSite6PageRootId, 'keyp3', undefined)
+    ])
+    for (const resp of responses) expect(resp.success).to.be.false
+  })
   it('should not allow an unauthorized user to create a page', async () => {
     await expect(createPage('testpage2', testSite6PageRootId, 'keyp3', 'ed07')).to.be.rejected
   })
@@ -57,6 +65,11 @@ describe('pages mutations', () => {
   })
   it('should not allow the root page to be renamed', async () => {
     await expect(query('mutation UpdatePage ($name: UrlSafeString!, $pageId: ID!) {renamePage (name: $name, pageId: $pageId) { success page { id name } } }', { name: 'renamingrootpage', pageId: testSite6PageRootId })).to.be.rejected
+  })
+  it('should not allow a page to be renamed to blank', async () => {
+    const { page: testpage } = await createPage('testpage38', testSite6PageRootId, 'keyp3')
+    const { renamePage: { success } } = await query('mutation UpdatePage ($name: UrlSafeString!, $pageId: ID!) {renamePage (name: $name, pageId: $pageId) { success } }', { name: '  ', pageId: testpage.id })
+    expect(success).to.be.false
   })
   it('should not allow an unauthorized user to rename a page', async () => {
     const { page: testpage } = await createPage('testpage4', testSite6PageRootId, 'keyp3')
