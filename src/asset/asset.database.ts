@@ -775,10 +775,10 @@ export async function createResizes (shasum: string) {
           : resized.clone().gif({ effort: 10, reoptimize: true, loop: info.loop ?? 0 } as any)
       const { checksum, info: outputinfo } = await fileHandler.sharpWrite(formatted)
       if (
-        // this resize is bigger and no more compatible than the original, abort!
-        (outputinfo.size > binary.bytes && ['image/jpeg', 'image/png', 'image/gif'].includes(binary.mime)) ||
-        // this resize is somehow larger than one of the greater-width resizes we've already made - skip it
-        resizes.some(r => outputinfo.size > r.size && outputmime === r.mime)
+        // this resize is too big and no more compatible than the original, abort!
+        (outputinfo.size > (0.9 * binary.bytes) && ['image/jpeg', 'image/png', 'image/gif'].includes(binary.mime)) ||
+        // this resize is somehow nearly as or larger than one of the greater-width resizes we've already made - skip it
+        resizes.some(r => outputinfo.size > (0.9 * r.size) && outputmime === r.mime)
       ) {
         await cleanupBinaries([checksum])
       } else {
