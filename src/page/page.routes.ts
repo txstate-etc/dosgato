@@ -155,16 +155,17 @@ export async function createPageRoutes (app: FastifyInstance) {
     let newPageName = makeSafe(pageRecord.name)
     while (nameSet.has(newPageName)) newPageName = numerate(newPageName)
 
+    const pagetree = (await ctx.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
+    const site = (await ctx.svc(SiteServiceInternal).findById(pagetree.siteId))!
+    const response = await svcPage.validatePageData(pageRecord.data, site, pagetree, parent, newPageName)
     // at the time of writing this comment, template usage is approved for an entire pagetree, so
     // it should be safe to simply check if the targeted parent/sibling is allowed to use this template
     try {
       await svcPage.validatePageTemplates(pageRecord.data, { parent })
     } catch (e: any) {
-      throw new HttpError(403, e.message)
+      if (pageRecord.data.legacyId) response.addMessage(e.message)
+      else throw new HttpError(403, e.message)
     }
-    const pagetree = (await ctx.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
-    const site = (await ctx.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const response = await svcPage.validatePageData(pageRecord.data, site, pagetree, parent, newPageName)
     if (!response.success && !pageRecord.data.legacyId) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
 
     const page = await createPage(ctx.svc(VersionedService), user.id, parent, above, newPageName, pageRecord.data, {
