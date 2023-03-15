@@ -163,6 +163,9 @@ export class AssetFilter {
   @Field(type => [DeleteStateInput], { nullable: true, description: 'Return based on deleted status. If you do not specify this filter it will still hide deleted and orphaned by default but show those that are marked for deletion. Orphaned refers to the situation where an object is effectively deleted because it belongs to a site, pagetree, or parent that has been deleted.' })
   deleteStates?: DeleteStateInput[]
 
+  @Field(type => Boolean, { nullable: true, description: 'Return assets that the user should see in the editing interface, rather than all assets they are technically permitted to see because they are public.' })
+  viewForEdit?: boolean
+
   linkIds?: string[]
 }
 

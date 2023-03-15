@@ -238,7 +238,7 @@ describe('page rules', () => {
   it('should get the page rules for a role', async () => {
     const { roles } = await query('{ roles(filter: { users: ["ed12"] }) { name pageRules { site { name } pagetreeType path mode grants { view viewlatest viewForEdit update move create publish unpublish delete undelete } } } }')
     const pageruletest1 = roles.find((r: any) => r.name === 'pagerulestest1')
-    expect(pageruletest1.pageRules).to.deep.include({ site: { name: 'site5' }, pagetreeType: 'PRIMARY', path: '/site5', mode: 'SELFANDSUB', grants: { view: true, viewlatest: true, viewForEdit: true, update: true, move: true, create: true, publish: true, unpublish: true, delete: false, undelete: false } })
+    expect(pageruletest1.pageRules).to.deep.include({ site: { name: 'site5' }, pagetreeType: 'PRIMARY', path: '/', mode: 'SELFANDSUB', grants: { view: true, viewlatest: true, viewForEdit: true, update: true, move: true, create: true, publish: true, unpublish: true, delete: false, undelete: false } })
   })
   it('should get the role attached to a page rule', async () => {
     const { roles } = await query('{ roles(filter: { users: ["ed12"] }) { name pageRules { id role { name } } } }')

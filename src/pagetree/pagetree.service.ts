@@ -196,9 +196,15 @@ export class PagetreeService extends DosGatoService<Pagetree> {
 
   async mayView (pagetree: Pagetree) {
     if (pagetree.type === PagetreeType.PRIMARY && this.isRenderServer()) return true
-    if (pagetree.type === PagetreeType.PRIMARY) return true
-    const site = await this.svc(SiteServiceInternal).findById(pagetree.siteId)
-    return await this.haveSitePerm(site!, 'viewForEdit')
+    const [site, pages] = await Promise.all([
+      this.svc(SiteServiceInternal).findById(pagetree.siteId),
+      this.svc(PageServiceInternal).findByPagetreeId(pagetree.id, { maxDepth: 0 })
+    ])
+    const [sitePass, pagePass] = await Promise.all([
+      this.haveSitePerm(site!, 'viewForEdit'),
+      this.havePagePerm(pages[0]!, 'viewForEdit')
+    ])
+    return sitePass || pagePass
   }
 
   async mayRename (pagetree: Pagetree) {

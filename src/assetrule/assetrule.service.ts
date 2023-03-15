@@ -182,9 +182,10 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
     if (rule.siteId && rule.siteId !== site.id) return false
     if (rule.pagetreeType && rule.pagetreeType !== pagetree.type) return false
     const assetPath = await this.svc(AssetServiceInternal).getPath(asset)
-    if (rule.mode === RulePathMode.SELF && rule.path !== assetPath) return false
-    if (rule.mode === RulePathMode.SELFANDSUB && !assetPath.startsWith(rule.path)) return false
-    if (rule.mode === RulePathMode.SUB && (rule.path === assetPath || !assetPath.startsWith(rule.path))) return false
+    const assetPathWithoutSite = '/' + assetPath.split('/').slice(2).join('/')
+    if (rule.mode === RulePathMode.SELF && rule.path !== assetPathWithoutSite) return false
+    if (rule.mode === RulePathMode.SELFANDSUB && !assetPathWithoutSite.startsWith(rule.path)) return false
+    if (rule.mode === RulePathMode.SUB && (rule.path === assetPathWithoutSite || !assetPathWithoutSite.startsWith(rule.path))) return false
     return true
   }
 
@@ -194,10 +195,11 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
       this.svc(AssetFolderServiceInternal).getPath(folder),
       this.svc(PagetreeServiceInternal).findById(folder.pagetreeId)
     ])
+    const folderPathWithoutSite = '/' + folderPath.split('/').slice(2).join('/')
     if (rule.pagetreeType && rule.pagetreeType !== pagetree?.type) return false
-    if (rule.mode === RulePathMode.SELF && rule.path !== folderPath) return false
-    if (rule.mode === RulePathMode.SELFANDSUB && !folderPath.startsWith(rule.path)) return false
-    if (rule.mode === RulePathMode.SUB && (rule.path === folderPath || !folderPath.startsWith(rule.path))) return false
+    if (rule.mode === RulePathMode.SELF && rule.path !== folderPathWithoutSite) return false
+    if (rule.mode === RulePathMode.SELFANDSUB && !folderPathWithoutSite.startsWith(rule.path)) return false
+    if (rule.mode === RulePathMode.SUB && (rule.path === folderPathWithoutSite || !folderPathWithoutSite.startsWith(rule.path))) return false
     return true
   }
 

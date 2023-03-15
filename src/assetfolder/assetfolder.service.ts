@@ -1,6 +1,6 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { isNull, isNotNull, unique, mapConcurrent, intersect, isBlank } from 'txstate-utils'
+import { isNull, isNotNull, unique, mapConcurrent, intersect, isBlank, someAsync, filterAsync } from 'txstate-utils'
 import {
   AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
   CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
@@ -199,8 +199,16 @@ export class AssetFolderServiceInternal extends BaseService {
 export class AssetFolderService extends DosGatoService<AssetFolder> {
   raw = this.svc(AssetFolderServiceInternal)
 
+  async postFilter (folders: AssetFolder[], filter?: AssetFolderFilter) {
+    return filter?.viewForEdit ? await filterAsync(folders, async f => await this.mayViewForEdit(f)) : folders
+  }
+
   async find (filter?: AssetFolderFilter) {
-    return await this.removeUnauthorized(await this.raw.find(filter))
+    const [folders] = await Promise.all([
+      this.postFilter(await this.removeUnauthorized(await this.raw.find(filter)), filter),
+      this.currentAssetRules()
+    ])
+    return folders
   }
 
   async findByInternalId (internalId: number) {
@@ -212,7 +220,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   }
 
   async findByPagetreeId (id: string, filter?: AssetFolderFilter) {
-    return await this.removeUnauthorized(await this.raw.findByPagetreeId(id, filter))
+    return await this.postFilter(await this.removeUnauthorized(await this.raw.findByPagetreeId(id, filter)), filter)
   }
 
   async getAncestors (folder: AssetFolder) {
@@ -224,11 +232,11 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   }
 
   async getChildFolders (folder: AssetFolder, recursive?: boolean, filter?: AssetFolderFilter) {
-    return await this.removeUnauthorized(await this.raw.getChildFolders(folder, recursive, filter))
+    return await this.postFilter(await this.removeUnauthorized(await this.raw.getChildFolders(folder, recursive, filter)), filter)
   }
 
   async getChildAssets (folder: AssetFolder, recursive?: boolean, filter?: AssetFilter) {
-    return await this.svc(AssetService).removeUnauthorized(await this.raw.getChildAssets(folder, recursive, filter))
+    return await this.svc(AssetService).postFilter(await this.svc(AssetService).removeUnauthorized(await this.raw.getChildAssets(folder, recursive, filter)), filter)
   }
 
   async getPath (folder: AssetFolder) {
@@ -316,34 +324,34 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
 
   async mayView (folder: AssetFolder) {
     if (await this.haveAssetFolderPerm(folder, 'view')) return true
-    // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
+    // if we are able to view any child folders, we have to be able to view the ancestors so that we can draw the tree
+    const rules = await this.currentAssetRules()
+    if (!rules.some(r => r.path !== '/' && (!r.siteId || r.siteId === folder.siteId))) return false
     const [folders, assets] = await Promise.all([
       this.raw.getChildFolders(folder, true),
       this.raw.getChildAssets(folder, true)
     ])
-    for (const f of folders) {
-      if (await this.haveAssetFolderPerm(f, 'view')) return true
-    }
-    for (const a of assets) {
-      if (await this.haveAssetPerm(a, 'view')) return true
-    }
-    return false
+    const [folderPass, assetPass] = await Promise.all([
+      someAsync(folders, async f => await this.haveAssetFolderPerm(f, 'view')),
+      someAsync(assets, async a => await this.haveAssetPerm(a, 'view'))
+    ])
+    return folderPass || assetPass
   }
 
   async mayViewForEdit (folder: AssetFolder) {
     if (await this.haveAssetFolderPerm(folder, 'viewForEdit')) return true
-    // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
+    // if we are able to view any child folders, we have to be able to view the ancestors so that we can draw the tree
+    const rules = await this.currentAssetRules()
+    if (!rules.some(r => r.path !== '/' && (!r.siteId || r.siteId === folder.siteId))) return false
     const [folders, assets] = await Promise.all([
       this.raw.getChildFolders(folder, true),
       this.raw.getChildAssets(folder, true)
     ])
-    for (const f of folders) {
-      if (await this.haveAssetFolderPerm(f, 'viewForEdit')) return true
-    }
-    for (const a of assets) {
-      if (await this.haveAssetPerm(a, 'viewForEdit')) return true
-    }
-    return false
+    const [folderPass, assetPass] = await Promise.all([
+      someAsync(folders, async f => await this.haveAssetFolderPerm(f, 'viewForEdit')),
+      someAsync(assets, async a => await this.haveAssetPerm(a, 'viewForEdit'))
+    ])
+    return folderPass || assetPass
   }
 
   async mayCreate (folder: AssetFolder) {

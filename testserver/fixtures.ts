@@ -284,20 +284,20 @@ export async function fixtures () {
     db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `create`, `update`) VALUES (?,?,?,?)', [assetrulestest4, site1, 1, 1]),
     db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `delete`, `undelete`) VALUES (?,?,?,?)', [assetrulestest5, site2, 1, 1]),
     db.insert('INSERT INTO assetrules (`roleId`, `move`) VALUES (?,?)', [assetrulestest5, 1]),
-    db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `path`, `mode`, `create`, `update`, `move`) VALUES (?,?,?,?,?,?,?)', [assetrulestest5, site1, '/site1/images', 'self', 1, 1, 1]),
+    db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `path`, `mode`, `create`, `update`, `move`) VALUES (?,?,?,?,?,?,?)', [assetrulestest5, site1, '/images', 'self', 1, 1, 1]),
     db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `create`, `update`, `move`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?)', [siterolestest1, site6, 1, 1, 1, 1, 1]),
     db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `update`) VALUES (?,?,?)', [siterolestest2, site6, 1])
   ])
   await Promise.all([
-    db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `path`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?,?)', [site1editorRole, site1, '/site1', 1, 1, 1, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO pagerules (`roleId`, `siteId`,`pagetreeType`, `path`, `create`, `update`, `move`, `publish`, `unpublish`) VALUES (?,?,?,?,?,?,?,?,?)', [pagerulestest1, site5, 'primary', '/site5', 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO pagerules (`roleId`, `pagetreeType`, `path`, `create`, `update`, `move`, `publish`, `unpublish`) VALUES (?,?,?,?,?,?,?,?)', [pagerulestest2, 'primary', '/site4', 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `path`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?,?)', [site1editorRole, site1, '/', 1, 1, 1, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO pagerules (`roleId`, `siteId`,`pagetreeType`, `path`, `create`, `update`, `move`, `publish`, `unpublish`) VALUES (?,?,?,?,?,?,?,?,?)', [pagerulestest1, site5, 'primary', '/', 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO pagerules (`roleId`, `pagetreeType`, `path`, `create`, `update`, `move`, `publish`, `unpublish`) VALUES (?,?,?,?,?,?,?,?)', [pagerulestest2, 'primary', '/', 1, 1, 1, 1, 1]),
     db.insert('INSERT INTO pagerules (`roleId`, `create`) VALUES (?,?)', [pagerulestest3, 1]),
     db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?)', [siterolestest1, site6, 1, 1, 1, 1, 1, 1, 1]),
     db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `create`, `update`, `move`) VALUES (?,?,?,?,?)', [siterolestest2, site6, 1, 1, 1]),
     db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?)', [pagerolestest1, site7, 1, 1, 1, 1, 1, 1, 1]),
     db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `create`, `update`, `move`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?)', [pagerolestest2, site7, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `path`, `create`, `update`, `move`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?)', [site3editorRole, site3, '/site3', 1, 1, 1, 1, 1])
+    db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `path`, `create`, `update`, `move`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?)', [site3editorRole, site3, '/', 1, 1, 1, 1, 1])
   ])
   await Promise.all([
     db.insert('INSERT INTO datarules (`roleId`, `create`, `update`, `move`) VALUES (?,?,?,?)', [datarulestest1, 1, 1, 1]),

@@ -293,27 +293,35 @@ export class PageService extends DosGatoService<Page> {
     return await this.raw.getData(page, version, published, toSchemaVersion)
   }
 
+  async hasPathBasedRulesForSite (siteId: string) {
+    const rules = await this.currentPageRules()
+    return rules.some(r => r.path !== '/' && (!r.siteId || r.siteId === siteId))
+  }
+
   async mayView (page: Page) {
     if (await this.havePagePerm(page, 'view')) return true
     // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
+    if (!await this.hasPathBasedRulesForSite(String(page.siteInternalId))) return false
     const children = await this.raw.getPageChildren(page, true)
-    for (const c of children) {
-      if (await this.havePagePerm(c, 'view')) return true
-    }
-    return false
+    return await someAsync(children, async c => await this.havePagePerm(c, 'view'))
   }
 
   async mayViewForEdit (page: Page) {
-    // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
-    const children = await this.raw.getPageChildren(page, true)
-    for (const c of children) {
-      if (await this.havePagePerm(c, 'viewForEdit')) return true
-    }
-    // if we have some sort of permission on a single page, we should be able to see its children
-    // since it might be important
-    const parent = page.parentInternalId ? await this.raw.findByInternalId(page.parentInternalId) : undefined
-    if (parent && await this.havePagePerm(parent, 'viewForEdit')) return true
-    return await this.havePagePerm(page, 'viewForEdit')
+    const [viewForEdit, children, parent] = await Promise.all([
+      this.havePagePerm(page, 'viewForEdit'),
+      this.raw.getPageChildren(page, true),
+      page.parentInternalId ? await this.raw.findByInternalId(page.parentInternalId) : undefined
+    ])
+    if (viewForEdit) return true
+    if (!await this.hasPathBasedRulesForSite(String(page.siteInternalId))) return false
+    const [childrenPass, parentPass] = await Promise.all([
+      // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
+      someAsync(children, async c => await this.havePagePerm(c, 'viewForEdit')),
+      // if we have some sort of permission on a single page, we should be able to see its children
+      // since it might be important
+      parent && await this.havePagePerm(parent, 'viewForEdit')
+    ])
+    return childrenPass || parentPass
   }
 
   async mayViewLatest (page: Page) {

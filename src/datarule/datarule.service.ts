@@ -172,7 +172,8 @@ export class DataRuleService extends DosGatoService<DataRule> {
     if (!item.siteId && rule.siteId) return false
     if (rule.siteId && rule.siteId !== item.siteId) return false
     const dataPath = await this.svc(DataServiceInternal).getPath(item)
-    return dataPath.startsWith(rule.path)
+    const dataPathWithoutSite = '/' + dataPath.split('/').slice(2).join('/')
+    return dataPathWithoutSite.startsWith(rule.path)
   }
 
   async appliesToFolder (rule: DataRule, folder: DataFolder) {

@@ -159,9 +159,10 @@ export class PageRuleService extends DosGatoService<PageRule> {
     if (!pagetree) return false
     if (rule.siteId && rule.siteId !== String(page.siteInternalId)) return false
     if (rule.pagetreeType && rule.pagetreeType !== pagetree.type) return false
-    if (rule.mode === RulePathMode.SELF && rule.path !== pagePath) return false
-    if (rule.mode === RulePathMode.SELFANDSUB && !pagePath.startsWith(rule.path)) return false
-    if (rule.mode === RulePathMode.SUB && (rule.path === pagePath || !pagePath.startsWith(rule.path))) return false
+    const pagePathWithoutSite = '/' + pagePath.split('/').slice(2).join('/')
+    if (rule.mode === RulePathMode.SELF && rule.path !== pagePathWithoutSite) return false
+    if (rule.mode === RulePathMode.SELFANDSUB && !pagePathWithoutSite.startsWith(rule.path)) return false
+    if (rule.mode === RulePathMode.SUB && (rule.path === pagePathWithoutSite || !pagePathWithoutSite.startsWith(rule.path))) return false
     return true
   }
 

@@ -1,6 +1,6 @@
 import { BaseService, Context, MutationMessageType, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { intersect, isBlank, isNotNull, sortby } from 'txstate-utils'
+import { filterAsync, intersect, isBlank, isNotNull, sortby } from 'txstate-utils'
 import {
   Asset, AssetFilter, getAssets, AssetFolder, AssetFolderService, appendPath, getResizes,
   SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
@@ -192,8 +192,12 @@ export class AssetServiceInternal extends BaseService {
 export class AssetService extends DosGatoService<Asset> {
   raw = this.svc(AssetServiceInternal)
 
+  async postFilter (assets: Asset[], filter?: AssetFilter) {
+    return filter?.viewForEdit ? await filterAsync(assets, async a => await this.mayViewForEdit(a)) : assets
+  }
+
   async find (filter: AssetFilter) {
-    return await this.removeUnauthorized(await this.raw.find(filter))
+    return await this.postFilter(await this.removeUnauthorized(await this.raw.find(filter)), filter)
   }
 
   async findByFolder (folder: AssetFolder) {

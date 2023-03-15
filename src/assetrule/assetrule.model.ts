@@ -18,7 +18,7 @@ interface AssetRuleRow {
 }
 
 @ObjectType()
-@InputType()
+@InputType('AssetRuleGrantsInput')
 export class AssetRuleGrantsBase {
   @Field({ description: 'Grants ability to create or move assets and folders into folders impacted by this rule.' })
   create!: boolean
@@ -47,7 +47,6 @@ export class AssetRuleGrantsBase {
 }
 
 @ObjectType()
-@InputType('AssetRuleGrantsInput')
 export class AssetRuleGrants extends AssetRuleGrantsBase {
   @Field({ description: 'Grants ability to view assets and folders. Always true on every rule since having any other grant implies this one. Do not try to set this in mutations.' })
   view!: boolean
