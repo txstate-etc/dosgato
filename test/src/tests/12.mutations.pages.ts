@@ -13,7 +13,7 @@ async function createPage (name: string, parentId: string, templateKey: string, 
 }
 async function createPageReturnData (name: string, parentId: string, templateKey: string, username?: string, extra?: any) {
   const data = { savedAtVersion: '20220710120000', templateKey, title: 'Test Title', ...extra }
-  const { createPage: { success, page, messages } } = await queryAs((username ?? 'su01'), 'mutation CreatePage ($name: UrlSafeString!, $data: JsonData!, $targetId: ID!) { createPage (name: $name, data: $data, targetId: $targetId) { success messages { message } page { id name data version { version } } } }', { name, targetId: parentId, data })
+  const { createPage: { success, page, messages } } = await queryAs<{ createPage: { success: boolean, messages: { message: string }[], page: { id: string, name: string, data: any, version: { version: number } } } }>((username ?? 'su01'), 'mutation CreatePage ($name: UrlSafeString!, $data: JsonData!, $targetId: ID!) { createPage (name: $name, data: $data, targetId: $targetId) { success messages { message } page { id name data version { version } } } }', { name, targetId: parentId, data })
   return { success, page, messages }
 }
 
@@ -665,5 +665,64 @@ describe('pages mutations', () => {
     expect(success).to.be.true
     expect(page.data).to.not.deep.equal(oldPage.data)
     expect(page.version.version - 1 === oldPage.version.version)
+  })
+  it('should allow moving a component between sibling containers', async () => {
+    const p = await createPageReturnData('move-component-test', testSite6PageRootId, 'keyp1', 'su01', {
+      areas: {
+        main: [
+          {
+            templateKey: 'keyc2',
+            title: 'first panel',
+            areas: {
+              content: [
+                {
+                  templateKey: 'keyc3',
+                  quote: 'this is a quote',
+                  author: 'famous author'
+                }
+              ]
+            }
+          }, {
+            templateKey: 'keyc2'
+          }
+        ]
+      }
+    })
+    const { movePageComponent: { success, page } } = await query<{ movePageComponent: { success: true, page: { version: { version: number }, data: any } } }>(`
+      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $fromPath: String!, $toPath: String!) {
+        movePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, fromPath: $fromPath, toPath: $toPath) {
+          success
+          page {
+            data
+            version { version }
+          }
+        }
+      }
+    `, {
+      pageId: p.page.id,
+      dataVersion: p.page.version.version,
+      schemaversion: p.page.data.savedAtVersion,
+      fromPath: 'areas.main.0.areas.content.0',
+      toPath: 'areas.main.1.areas.content'
+    })
+    expect(success).to.be.true
+    const { movePageComponent: { success: success2, page: page2 } } = await query<{ movePageComponent: { success: true, page: { version: { version: number }, data: any } } }>(`
+      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $fromPath: String!, $toPath: String!) {
+        movePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, fromPath: $fromPath, toPath: $toPath) {
+          success
+          page {
+            data
+            version { version }
+          }
+        }
+      }
+    `, {
+      pageId: p.page.id,
+      dataVersion: p.page.version.version + 1,
+      schemaversion: p.page.data.savedAtVersion,
+      fromPath: 'areas.main.1.areas.content.0',
+      toPath: 'areas.main.0.areas.content.0'
+    })
+    expect(success2).to.be.true
   })
 })

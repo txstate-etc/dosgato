@@ -3,7 +3,7 @@ import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mw
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
-import { filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set, someAsync, stringify, unique } from 'txstate-utils'
+import { equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set, someAsync, stringify, unique } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, Page, PageFilter, PageResponse, PagesResponse,
   createPage, getPages, movePages, deletePages, renamePage, TemplateService, TemplateFilter,
@@ -762,7 +762,7 @@ export class PageService extends DosGatoService<Page> {
       // moving from shallow to deep or down in the same list -> add then delete
       add()
       remove()
-      if (fromParentParts.length === toParentParts.length) finalIdx--
+      if (equal(fromParentParts, toParentParts)) finalIdx--
       else if (toParentPath.startsWith(fromParentPath) && fromIdx < Number(toParentParts[fromParentParts.length])) {
         toParentParts[fromParentParts.length] = String(Number(toParentParts[fromParentParts.length]) - 1)
         toParentComponentParts[fromParentParts.length] = String(Number(toParentComponentParts[fromParentParts.length]) - 1)
