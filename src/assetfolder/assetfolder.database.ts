@@ -146,6 +146,7 @@ export async function getAssetFolders (filter?: AssetFolderFilter) {
     FROM assetfolders
     ${Array.from(joins.values()).join('\n')}
     ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
+    ORDER BY assetfolders.name
   `, binds)).map(r => new AssetFolder(r))
 }
 

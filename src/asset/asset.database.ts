@@ -184,7 +184,9 @@ export async function getAssets (filter?: AssetFilter, tdb: Queryable = db) {
     SELECT assets.id, assets.dataId, assets.name, assets.folderId, assets.deletedAt, assets.deletedBy, assets.deleteState, binaries.bytes AS filesize, binaries.mime, binaries.shasum, binaries.meta FROM assets
     INNER JOIN binaries on assets.shasum = binaries.shasum
     ${joins.size ? Array.from(joins.values()).join('\n') : ''}
-    ${where.length ? `WHERE (${where.join(') AND (')})` : ''}`, binds)
+    ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
+    ORDER BY assets.name
+  `, binds)
   return assets.map(a => new Asset(a))
 }
 

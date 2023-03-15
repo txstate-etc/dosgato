@@ -233,6 +233,13 @@ const dgMigrations: DBMigration[] = [
         ADD UNIQUE (externalId)
       `)
     }
+  },
+  {
+    id: 20230315080000,
+    description: 'add index for sorting asset folders by name',
+    run: async db => {
+      await db.execute('ALTER TABLE assetfolders ADD INDEX (`name`)')
+    }
   }
 ]
 
