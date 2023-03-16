@@ -210,6 +210,7 @@ export class TemplateService extends DosGatoService<Template> {
       const pageTemplate = templateRegistry.getPageTemplate(pageTemplateKey ?? page.templateKey)
       if (pageTemplate.disallowSet.has(template.key)) return false
     }
+    if (template.universal) return true
     if (await this.haveTemplatePerm(template, 'use')) return true
     return !!(await this.loaders.get(mayUseTemplateInPagetreeLoader).load({ pagetreeId: page.pagetreeId, templateKey: template.key }))
   }
