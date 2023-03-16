@@ -7,7 +7,7 @@ import {
   Site, SiteFilter, getSites, getSitesByTemplate, undeleteSite,
   PagetreeService, DosGatoService, createSite, VersionedService, SiteResponse,
   deleteSite, PageService, getSitesByManagerInternalId, siteNameIsUnique,
-  renameSite, setLaunchURL, UpdateSiteManagementInput, updateSiteManagement, DeletedFilter, CreatePageExtras, getSiteIdByLaunchUrl, Organization
+  renameSite, setLaunchURL, UpdateSiteManagementInput, updateSiteManagement, DeletedFilter, CreatePageExtras, getSiteIdByLaunchUrl, Organization, PageServiceInternal
 } from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({
@@ -248,10 +248,18 @@ export class SiteService extends DosGatoService<Site> {
   }
 
   async mayView (site: Site) {
-    if (await this.mayViewSiteList()) return true
-    // if site is launched then any authenticated user may view it, along with anonymous renders
-    if (site.url != null) return this.isRenderServer() || await this.svc(PageService).mayViewManagerUI() || await this.haveSitePerm(site, 'viewForEdit')
-    return await this.haveSitePerm(site, 'viewForEdit')
+    if (site.url != null && this.isRenderServer()) return true
+    const [pages, viewManagerUI, viewSiteList] = await Promise.all([
+      this.svc(PageServiceInternal).findByPagetreeId(site.primaryPagetreeId, { maxDepth: 0 }),
+      this.mayViewManagerUI(),
+      this.mayViewSiteList()
+    ])
+    if (viewSiteList || (site.url != null && viewManagerUI)) return true
+    const [sitePass, pagePass] = await Promise.all([
+      this.haveSitePerm(site, 'viewForEdit'),
+      this.havePagePerm(pages[0]!, 'viewForEdit')
+    ])
+    return sitePass || pagePass
   }
 
   async mayViewManagerUI () {

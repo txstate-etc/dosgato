@@ -293,16 +293,24 @@ export class PageService extends DosGatoService<Page> {
     return await this.raw.getData(page, version, published, toSchemaVersion)
   }
 
-  async hasPathBasedRulesForSite (siteId: string) {
-    const rules = await this.currentPageRules()
-    return rules.some(r => r.path !== '/' && (!r.siteId || r.siteId === siteId))
+  async hasPathBasedPageRulesForSite (siteId: string) {
+    if (!(this.ctx as any).hasPathBasedPageRulesForSite[siteId]) {
+      const rules = await this.currentPageRules()
+      ;(this.ctx as any).hasPathBasedPageRulesForSite[siteId] = rules.some(r => r.path !== '/' && (!r.siteId || r.siteId === siteId))
+    }
+    return (this.ctx as any).hasPathBasedPageRulesForSite[siteId]
   }
 
   async mayView (page: Page) {
-    if (await this.havePagePerm(page, 'view')) return true
+    const [published, haveView] = await Promise.all([
+      this.isPublished(page),
+      this.havePagePerm(page, 'view')
+    ])
+    if (published || haveView) return true
     // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
-    if (!await this.hasPathBasedRulesForSite(String(page.siteInternalId))) return false
+    if (!await this.hasPathBasedPageRulesForSite(String(page.siteInternalId))) return false
     const children = await this.raw.getPageChildren(page, true)
+    // no need to check whether children are published because it's impossible for published pages to have unpublished ancestors
     return await someAsync(children, async c => await this.havePagePerm(c, 'view'))
   }
 
@@ -313,7 +321,7 @@ export class PageService extends DosGatoService<Page> {
       page.parentInternalId ? await this.raw.findByInternalId(page.parentInternalId) : undefined
     ])
     if (viewForEdit) return true
-    if (!await this.hasPathBasedRulesForSite(String(page.siteInternalId))) return false
+    if (!await this.hasPathBasedPageRulesForSite(String(page.siteInternalId))) return false
     const [childrenPass, parentPass] = await Promise.all([
       // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
       someAsync(children, async c => await this.havePagePerm(c, 'viewForEdit')),
