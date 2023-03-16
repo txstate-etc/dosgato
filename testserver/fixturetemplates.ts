@@ -30,7 +30,7 @@ export const PageTemplate2: APIPageTemplate = {
   templateKey: 'keyp2',
   name: 'pagetemplate2',
   areas: {
-    content: ['keyc1', 'keyc2', 'keyc3', 'richtext', 'horizontalrule']
+    main: ['keyc1', 'keyc2', 'keyc3', 'richtext', 'horizontalrule']
   },
   migrations: [],
   getLinks: (data: any) => {
@@ -56,7 +56,7 @@ export const PageTemplate3: APIPageTemplate = {
   templateKey: 'keyp3',
   name: 'pagetemplate3',
   areas: {
-    content: ['keyc1', 'keyc2', 'keyc3', 'richtext', 'horizontalrule']
+    main: ['keyc1', 'keyc2', 'keyc3', 'richtext', 'horizontalrule']
   },
   migrations: [],
   getLinks: (data: any) => [],
@@ -70,7 +70,7 @@ export const PageTemplate4: APIPageTemplate = {
   templateKey: 'keyp4',
   name: 'pagetemplate4',
   areas: {
-    content: ['keyc3', 'richtext', 'horizontalrule']
+    main: ['keyc3', 'richtext', 'horizontalrule']
   },
   migrations: [],
   getLinks: (data: any) => [],

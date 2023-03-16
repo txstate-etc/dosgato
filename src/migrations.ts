@@ -304,6 +304,7 @@ export async function resetdb () {
       db.execute('DROP TABLE IF EXISTS pagetrees'),
       db.execute('DROP TABLE IF EXISTS assetfolders'),
       db.execute('DROP TABLE IF EXISTS organizations'),
+      db.execute('DROP TABLE IF EXISTS templates'),
       db.execute('DROP TABLE IF EXISTS indexes'),
       db.execute('DROP TABLE IF EXISTS tags'),
       db.execute('DROP TABLE IF EXISTS versions'),
