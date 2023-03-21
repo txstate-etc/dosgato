@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 import { extension } from 'mime-types'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
-import { DeleteState, DeleteStateInput, JsonData, LinkInputContext, PagetreeType, UrlSafePath, UrlSafeString } from '../internal.js'
+import { DeleteState, DeleteStateInput, FilenameSafePath, FilenameSafeString, JsonData, LinkInputContext, PagetreeType, UrlSafePath } from '../internal.js'
 
 const resizeMimeToExt: Record<string, string> = {
   'image/jpg': 'jpg',
@@ -40,7 +40,7 @@ export class Asset {
   id: string
 
   @Field({ description: 'Name of the asset, not including extension. May be different than the filename of the original upload.' })
-  name: UrlSafeString
+  name: FilenameSafeString
 
   @Field({ description: 'An identifier that uniquely identifies the asset in its pagetree. This is not globally unique as it may be copied along with the asset into a new pagetree.' })
   linkId: string
@@ -145,7 +145,7 @@ export class AssetFilter {
   folderInternalIds?: number[]
   names?: string[]
 
-  @Field(type => [UrlSafePath], { nullable: true, description: 'Return assets with the given paths.' })
+  @Field(type => [FilenameSafePath], { nullable: true, description: 'Return assets with the given paths.' })
   paths?: string[]
 
   @Field(type => [UrlSafePath], { nullable: true, description: 'Return assets that descend from any of the given paths.' })
@@ -204,17 +204,6 @@ export class DownloadRecord {
     this.date = DateTime.fromFormat(datestr, 'yyyyMMdd')
     this.count = downloads
   }
-}
-
-@InputType()
-export class UpdateAssetInput {
-  @Field()
-  name!: string
-
-  @Field()
-  checksum!: string
-
-  // TODO: Other fields? Fields for binaries table?
 }
 
 @ObjectType()

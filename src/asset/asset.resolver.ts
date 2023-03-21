@@ -6,7 +6,7 @@ import {
   AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
   RoleService, AssetResponse, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site, SiteService,
-  UrlSafeString, Pagetree, AssetFolderServiceInternal, PagetreeService, DeleteStateRootDefault
+  Pagetree, AssetFolderServiceInternal, PagetreeService, DeleteStateRootDefault, FilenameSafeString
 } from '../internal.js'
 
 @Resolver(of => Asset)
@@ -134,7 +134,7 @@ export class AssetResolver {
   @Mutation(returns => AssetResponse, { description: 'Rename an asset.' })
   async renameAsset (@Ctx() ctx: Context,
     @Arg('assetId', type => ID) assetId: string,
-    @Arg('name', type => UrlSafeString) name: string,
+    @Arg('name', type => FilenameSafeString) name: string,
     @Arg('validateOnly', type => Boolean, { nullable: true }) validateOnly?: boolean
   ) {
     return await ctx.svc(AssetService).rename(assetId, name, validateOnly)

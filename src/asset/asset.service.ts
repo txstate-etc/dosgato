@@ -126,7 +126,7 @@ export class AssetServiceInternal extends BaseService {
   async getPath (asset: Asset) {
     const folder = await this.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
     if (!folder) return '/'
-    return appendPath(await this.svc(AssetFolderServiceInternal).getPath(folder), asset.name as string)
+    return appendPath(await this.svc(AssetFolderServiceInternal).getPath(folder), encodeURIComponent(asset.name as string))
   }
 
   async getData (asset: Asset, version?: number) {

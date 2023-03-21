@@ -20,7 +20,7 @@ import {
   AccessResolver, DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
   DataRootPermissionsResolver, updateLastLogin, createAssetRoutes, UrlSafePath, UrlSafePathScalar,
-  AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler, beginProcessingResizes
+  AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler, beginProcessingResizes, FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -126,6 +126,8 @@ export class DGServer {
     (resolvers as any[]).push(...(opts.resolvers ?? []))
 
     const scalarsMap: { type: Function, scalar: GraphQLScalarType }[] = [
+      { type: FilenameSafePath, scalar: FilenameSafePathScalar },
+      { type: FilenameSafeString, scalar: FilenameSafeStringScalar },
       { type: UrlSafePath, scalar: UrlSafePathScalar },
       { type: UrlSafeString, scalar: UrlSafeStringScalar },
       { type: DateTime, scalar: DateTimeScalar }
