@@ -17,14 +17,8 @@ import {
   Asset,
   AssetFolder,
   AssetFolderService, AssetFolderServiceInternal, AssetResize, AssetService, AssetServiceInternal, createAsset, fileHandler,
-  getEnabledUser, GlobalRuleService, logMutation, recordDownload, replaceAsset, requestResizes, VersionedService
+  getEnabledUser, GlobalRuleService, logMutation, makeSafeFilename, recordDownload, replaceAsset, requestResizes, VersionedService
 } from '../internal.js'
-
-export function makeSafeFilename (str: string) {
-  const extFromFileName = str.match(/\.(\w+)$/)?.[1]
-  if (extFromFileName && lookup(extFromFileName)) str = str.replace(new RegExp('\\.' + extFromFileName + '$'), '')
-  return str.normalize('NFKD').replace(/[^. _a-z0-9-]/ig, '').replace(/\s+/g, ' ').trim()
-}
 
 export async function placeFile (readStream: Readable, filename: string, mimeGuess: string) {
   const fileTypePassthru = await fileTypeStream(readStream)
