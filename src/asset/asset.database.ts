@@ -624,11 +624,11 @@ export async function undeleteAsset (id: number) {
   return await db.update('UPDATE assets SET deletedBy = null, deletedAt = null, deleteState = ? WHERE id = ?', [DeleteState.NOTDELETED, id])
 }
 
-export async function requestResizes (asset: Asset, force?: boolean) {
-  if (!force) {
+export async function requestResizes (asset: Asset, opts?: { force?: boolean, isMigration?: boolean }) {
+  if (!opts?.force) {
     const [resizes, migratedResizes] = await Promise.all([
       getResizes([asset.internalId]),
-      db.getall<{ originalChecksum: string, resizedChecksum: string, mime: string, size: number, quality: number, lossless: boolean, width: number, height: number }>('SELECT * FROM migratedresizeinfo WHERE originalChecksum = ?', [asset.checksum])
+      opts?.isMigration ? db.getall<{ originalChecksum: string, resizedChecksum: string, mime: string, size: number, quality: number, lossless: boolean, width: number, height: number }>('SELECT * FROM migratedresizeinfo WHERE originalChecksum = ?', [asset.checksum]) : []
     ])
     if (resizes.length) return
     if (migratedResizes.length && !await someAsync(migratedResizes, async r => !await fileHandler.exists(r.resizedChecksum))) {
@@ -765,21 +765,13 @@ export async function createResizes (shasum: string) {
         }
       }
 
-      if (resizes.some(r => webpinfo!.size > r.size && webpinfo!.width < r.width)) {
-        // we already have a larger (in pixels) resize that somehow is smaller in file size than this - we should skip this
-        await cleanupBinaries([webpsum!])
-      } else {
-        // can't use webpinfo!.height here because animations return the combined height of all the frames
-        resizes.push({ width: webpinfo!.width, height: webpinfo!.width * (meta.height / meta.width), shasum: webpsum!, mime: 'image/webp', quality: 75, size: webpinfo!.size, lossless: uselossless })
-      }
-
       const outputformat = uselossless || animated
         ? (animated ? 'gif' : 'png')
         : 'jpg'
       const outputmime = lookup(outputformat) as string
 
       const formatted = outputformat === 'jpg'
-        ? resized.clone().jpeg({ quality: 65 })
+        ? resized.clone().jpeg({ quality: 70 })
         : outputformat === 'png'
           ? resized.clone().png({ compressionLevel: 9, progressive: true })
           : resized.clone().gif({ effort: 10, reoptimize: true, loop: info.loop ?? 0 } as any)
@@ -793,7 +785,15 @@ export async function createResizes (shasum: string) {
         await cleanupBinaries([checksum])
       } else {
         // can't use outputinfo.height here because animations return the combined height of all the frames
-        resizes.push({ width: outputinfo.width, height: outputinfo.width * (meta.height / meta.width), shasum: checksum, mime: outputmime, quality: outputformat === 'jpg' ? 65 : 0, size: outputinfo.size, lossless: outputformat !== 'jpg' })
+        resizes.push({ width: outputinfo.width, height: outputinfo.width * (meta.height / meta.width), shasum: checksum, mime: outputmime, quality: outputformat === 'jpg' ? 70 : 0, size: outputinfo.size, lossless: outputformat !== 'jpg' })
+      }
+
+      if (resizes.some(r => webpinfo!.size > (0.9 * r.size) && webpinfo!.width <= r.width)) {
+        // we already have a larger (in pixels) resize that somehow is smaller in file size than this - we should skip this
+        await cleanupBinaries([webpsum!])
+      } else {
+        // can't use webpinfo!.height here because animations return the combined height of all the frames
+        resizes.push({ width: webpinfo!.width, height: webpinfo!.width * (meta.height / meta.width), shasum: webpsum!, mime: 'image/webp', quality: 75, size: webpinfo!.size, lossless: uselossless })
       }
     }
     await db.transaction(async db => {
