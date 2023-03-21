@@ -217,7 +217,7 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db) {
   const pages = await tdb.getall(`SELECT pages.* FROM pages
                            ${joins.size ? Array.from(joins.values()).join('\n') : ''}
                            ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
-                           ORDER BY \`path\`, displayOrder`, binds)
+                           ORDER BY pages.\`path\`, pages.displayOrder, pages.name`, binds)
   return pages.map(p => new Page(p))
 }
 
