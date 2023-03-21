@@ -286,7 +286,7 @@ export class AssetService extends DosGatoService<Asset> {
     ])
     const response = new AssetResponse({ asset })
     if (siblings.some(s => s.name === name) || siblingFolders.some(f => f.name === name)) response.addMessage('That name is already taken.', 'name')
-    else response.addMessage('Name is available.', 'name', MutationMessageType.success)
+    else response.addMessage(`Name: ${name} is available.`, 'name', MutationMessageType.success)
     if (response.hasErrors() || validateOnly) return response
     await renameAsset(assetId, name, folder!.path)
     this.loaders.clear()
@@ -355,15 +355,10 @@ export class AssetService extends DosGatoService<Asset> {
     const asset = await this.loaders.get(assetsByIdLoader).load(dataId)
     if (!asset) throw new Error('Asset to be restored does not exist')
     if (!(await this.haveAssetPerm(asset, 'undelete'))) throw new Error(`Current user is not permitted to restore asset ${String(asset.name)}.${asset.extension}.`)
-    try {
-      await undeleteAsset(asset.internalId)
-      this.loaders.clear()
-      const restoredAsset = await this.loaders.get(assetsByIdLoader).load(dataId)
-      return new AssetResponse({ asset: restoredAsset, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Could not restore asset folder')
-    }
+    await undeleteAsset(asset.internalId)
+    this.loaders.clear()
+    const restoredAsset = await this.loaders.get(assetsByIdLoader).load(dataId)
+    return new AssetResponse({ asset: restoredAsset, success: true })
   }
 
   async mayViewManagerUI () {

@@ -130,33 +130,22 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     const pagetree = await this.raw.findById(pagetreeId)
     if (!pagetree) throw new Error('Pagetree to be deleted does not exist.')
     if (!(await this.mayDelete(pagetree))) throw new Error('Current user is not permitted to delete this pagetree.')
-    if (pagetree.type === PagetreeType.PRIMARY) throw new Error('Cannot delete primary pagetree')
     const currentUser = await this.currentUser()
-    try {
-      await deletePagetree(pagetreeId, currentUser!)
-      this.loaders.clear()
-      const deletedPagetree = await this.raw.findById(pagetreeId)
-      return new PagetreeResponse({ success: true, pagetree: deletedPagetree })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error occurred while deleting the pagetree.')
-    }
+    await deletePagetree(pagetreeId, currentUser!)
+    this.loaders.clear()
+    const deletedPagetree = await this.raw.findById(pagetreeId)
+    return new PagetreeResponse({ success: true, pagetree: deletedPagetree })
   }
 
   async undelete (pagetreeId: string) {
     const pagetree = await this.raw.findById(pagetreeId)
     if (!pagetree) throw new Error('Pagetree to be restored does not exist.')
     if (!(await this.mayUndelete(pagetree))) throw new Error('Current user is not permitted to restore this pagetree.')
-    try {
-      const currentUser = await this.currentUser()
-      await undeletePagetree(pagetreeId, currentUser!)
-      this.loaders.clear()
-      const restoredPagetree = await this.raw.findById(pagetreeId)
-      return new PagetreeResponse({ success: true, pagetree: restoredPagetree })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An error occurred while restoring the pagetree')
-    }
+    const currentUser = await this.currentUser()
+    await undeletePagetree(pagetreeId, currentUser!)
+    this.loaders.clear()
+    const restoredPagetree = await this.raw.findById(pagetreeId)
+    return new PagetreeResponse({ success: true, pagetree: restoredPagetree })
   }
 
   async promote (pagetreeId: string) {

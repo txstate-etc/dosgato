@@ -187,6 +187,7 @@ export async function archivePagetree (pagetreeId: string, user: User) {
 export async function deletePagetree (pagetreeId: string, user: User) {
   return await db.transaction(async db => {
     const pagetree = new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE ID=?', [pagetreeId]))
+    if (pagetree.type === PagetreeType.PRIMARY) throw new Error('May not delete the primary pagetree.')
     await db.update('UPDATE pagetrees SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [user.internalId, pagetreeId])
     await createSiteComment(pagetree.siteId, `Deleted pagetree ${pagetree.name}.`, user.internalId, db)
   })

@@ -355,6 +355,17 @@ export class PageService extends DosGatoService<Page> {
     return !!tag
   }
 
+  async isLive (page: Page) {
+    const [published, pagetree, site] = await Promise.all([
+      this.isPublished(page),
+      this.svc(PagetreeServiceInternal).findById(page.pagetreeId),
+      this.svc(SiteServiceInternal).findById(String(page.siteInternalId))
+    ])
+    if (!(published && pagetree!.type === PagetreeType.PRIMARY)) return false
+    if (site!.url == null || !site!.url.enabled) return false
+    return true
+  }
+
   async isOrphaned (page: Page) {
     const [pagetree, site] = await Promise.all([
       this.svc(PagetreeServiceInternal).findById(page.pagetreeId),

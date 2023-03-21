@@ -13,7 +13,7 @@ import {
 @Resolver(of => Page)
 export class PageResolver {
   @Query(returns => [Page])
-  async pages (@Ctx() ctx: Context, @Arg('filter') filter: PageFilter) {
+  async pages (@Ctx() ctx: Context, @Arg('filter', { nullable: true }) filter?: PageFilter) {
     return await ctx.svc(PageService).find({ ...filter, deleteStates: filter?.deleteStates ?? [DeleteStateInput.NOTDELETED, DeleteStateInput.MARKEDFORDELETE] })
   }
 
@@ -131,14 +131,7 @@ export class PageResolver {
 
   @FieldResolver(returns => Boolean, { description: 'True if the page is published, part of the active pagetree, and on a site that is currently launched.' })
   async live (@Ctx() ctx: Context, @Root() page: Page) {
-    const [published, pagetree] = await Promise.all([
-      this.published(ctx, page),
-      ctx.svc(PagetreeService).findById(page.pagetreeId)
-    ])
-    if (!(published && pagetree!.type === PagetreeType.PRIMARY)) return false
-    const site = await ctx.svc(SiteService).findByPagetreeId(pagetree!.id)
-    if (isNull(site!.url)) return false
-    return true
+    return await ctx.svc(PageService).isLive(page)
   }
 
   @FieldResolver(returns => DateTime, { nullable: true, description: 'Null if the page has never been published, but could have a value. ' })
