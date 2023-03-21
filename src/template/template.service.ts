@@ -71,16 +71,7 @@ export class TemplateServiceInternal extends BaseService {
   }
 
   async findBySiteId (siteId: string, filter?: TemplateFilter) {
-    const siteSpecificTemplates = await this.loaders.get(templatesBySiteIdLoader, filter).load(siteId)
-    if (isNull(filter?.universal) || filter?.universal) {
-      let universalTemplates = (await universalTemplateCache.get()).all
-      if (filter?.types?.length) {
-        universalTemplates = universalTemplates.filter(t => filter.types?.includes(t.type))
-      }
-      return unique([...siteSpecificTemplates, ...universalTemplates], 'key')
-    } else {
-      return siteSpecificTemplates
-    }
+    return await this.loaders.get(templatesBySiteIdLoader, filter).load(siteId)
   }
 
   async findByPagetreeId (pagetreeId: string, filter?: TemplateFilter) {

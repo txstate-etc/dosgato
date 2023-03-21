@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { Cache, keyby, eachConcurrent, isNotNull } from 'txstate-utils'
+import { Cache, keyby, eachConcurrent, isNotNull, unique } from 'txstate-utils'
 import { TemplateFilter, Template, templateRegistry, Pagetree, createSiteComment, Site } from '../internal.js'
 
 const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted', 'templates.universal']
@@ -48,22 +48,32 @@ export async function getTemplates (filter?: TemplateFilter) {
 
 export async function getTemplatesBySite (siteIds: string[], filter?: TemplateFilter) {
   const { where, binds } = processFilters(filter)
-  where.push(`sites_templates.siteId IN (${db.in(binds, siteIds)})`)
+  where.push(`sites_templates.siteId IN (${db.in(binds, siteIds)}) OR templates.universal=1`)
+  where.push('templates.type IN ("page", "component")')
   const templates = await db.getall(`SELECT ${columnsjoined}, sites_templates.siteId as siteId FROM templates
-                           INNER JOIN sites_templates ON templates.id = sites_templates.templateId
+                           LEFT JOIN sites_templates ON templates.id = sites_templates.templateId
                            WHERE (${where.join(') AND (')})
                            ORDER BY name`, binds)
-  return templates.map(row => ({ key: String(row.siteId), value: new Template(row) }))
+  return unique(templates.flatMap(row => {
+    const t = new Template(row)
+    if (row.universal) return siteIds.map(sId => ({ key: sId, value: t }))
+    else return [{ key: String(row.siteId), value: new Template(row) }]
+  }), entry => entry.key + '-' + entry.value.key)
 }
 
 export async function getTemplatesByPagetree (pagetreeIds: string[], filter?: TemplateFilter) {
   const { where, binds } = processFilters(filter)
-  where.push(`pagetrees_templates.pagetreeId IN (${db.in(binds, pagetreeIds)})`)
+  where.push(`pagetrees_templates.pagetreeId IN (${db.in(binds, pagetreeIds)}) OR templates.universal=1`)
+  where.push('templates.type IN ("page", "component")')
   const rows = await db.getall(`SELECT ${columnsjoined}, pagetrees_templates.pagetreeId as pagetreeId FROM templates
-                                INNER JOIN pagetrees_templates ON templates.id = pagetrees_templates.templateId
+                                LEFT JOIN pagetrees_templates ON templates.id = pagetrees_templates.templateId
                                 WHERE (${where.join(') AND (')})
                                 ORDER BY name`, binds)
-  return rows.map(row => ({ key: String(row.pagetreeId), value: new Template(row) }))
+  return unique(rows.flatMap(row => {
+    const t = new Template(row)
+    if (row.universal) return pagetreeIds.map(pId => ({ key: pId, value: t }))
+    else return [{ key: String(row.pagetreeId), value: new Template(row) }]
+  }), entry => entry.key + '-' + entry.value.key)
 }
 
 export async function getTemplatePagetreePairs (pairs: { pagetreeId: string, templateKey: string }[]) {
