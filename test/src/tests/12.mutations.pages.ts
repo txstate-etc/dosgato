@@ -467,14 +467,14 @@ describe('pages mutations', () => {
       pageId: oldPage.id,
       dataVersion: oldPage.version.version,
       schemaversion: oldPage.data.savedAtVersion,
-      path: 'areas.content',
+      path: 'areas.main',
       data: { templateKey: 'keyc1', text: 'Added Link', link: '{ "type": "raw", "url": "https://bing.com" }' }
     })
     expect(success).to.be.true
     expect(messages.length).to.equal(0)
     expect(page.data).to.not.deep.equal(oldPage.data)
-    expect(page.data.areas.content.length).to.equal(2)
-    expect(page.data.areas.content[1].text).to.equal('Added Link')
+    expect(page.data.areas.main.length).to.equal(2)
+    expect(page.data.areas.main[1].text).to.equal('Added Link')
     expect(page.version.version + 1 === oldPage.version.version)
   })
   it('should reject adding a single component that has validation errors', async () => {
@@ -484,7 +484,7 @@ describe('pages mutations', () => {
       pageId: oldPage.id,
       dataVersion: oldPage.version.version,
       schemaversion: oldPage.data.savedAtVersion,
-      path: 'areas.content',
+      path: 'areas.main',
       data: { templateKey: 'keyc1' }
     })
     expect(success).to.be.false
@@ -500,7 +500,7 @@ describe('pages mutations', () => {
         pageId: oldPage.id,
         dataVersion: oldPage.version.version,
         schemaversion: oldPage.data.savedAtVersion,
-        path: 'areas.content',
+        path: 'areas.main',
         data: { templateKey: 'textimage', title: 'Text Image', text: 'Not allowed.' }
       })
       expect.fail('Adding a text & image to the validation page should throw.')
@@ -528,14 +528,14 @@ describe('pages mutations', () => {
       pageId: oldPage.id,
       dataVersion: oldPage.version.version,
       schemaversion: oldPage.data.savedAtVersion,
-      path: 'areas.content.1',
+      path: 'areas.main.1',
       data: { templateKey: 'keyc1', text: 'Added Link Edited', link: '{ "type": "raw", "url": "https://bing.com" }' }
     })
     expect(success).to.be.true
     expect(messages.length).to.equal(0)
     expect(page.data).to.not.deep.equal(oldPage.data)
-    expect(page.data.areas.content.length).to.equal(2)
-    expect(page.data.areas.content[1].text).to.equal('Added Link Edited')
+    expect(page.data.areas.main.length).to.equal(2)
+    expect(page.data.areas.main[1].text).to.equal('Added Link Edited')
     expect(page.version.version + 1 === oldPage.version.version)
   })
   it('should reject updating a component that has validation errors.', async () => {
@@ -558,14 +558,14 @@ describe('pages mutations', () => {
       pageId: oldPage.id,
       dataVersion: oldPage.version.version,
       schemaversion: oldPage.data.savedAtVersion,
-      path: 'areas.content.1',
+      path: 'areas.main.1',
       data: { templateKey: 'keyc1', text: 'Removed HREF' }
     })
     expect(success).to.be.false
     expect(messages.length).to.be.greaterThan(0)
     expect(page.data).to.deep.equal(oldPage.data)
-    expect(page.data.areas.content.length).to.equal(2)
-    expect(page.data.areas.content[1].text).to.equal('Added Link Edited')
+    expect(page.data.areas.main.length).to.equal(2)
+    expect(page.data.areas.main[1].text).to.equal('Added Link Edited')
     expect(page.version.version === oldPage.version.version)
   })
   it('should allow moving a component down in its own area, on a page that has validation errors.', async () => {
@@ -585,12 +585,12 @@ describe('pages mutations', () => {
       pageId: oldPage.id,
       dataVersion: oldPage.version.version,
       schemaversion: oldPage.data.savedAtVersion,
-      fromPath: 'areas.content.0',
-      toPath: 'areas.content.1'
+      fromPath: 'areas.main.0',
+      toPath: 'areas.main.1'
     })
     expect(success).to.be.true
     expect(page.data).to.not.deep.equal(oldPage.data)
-    expect(page.data.areas.content[0].text).to.equal('Added Link Edited')
+    expect(page.data.areas.main[0].text).to.equal('Added Link Edited')
     expect(page.version.version - 1 === oldPage.version.version)
   })
   it('should allow moving a component up in its own area, on a page that has validation errors.', async () => {
@@ -610,12 +610,12 @@ describe('pages mutations', () => {
       pageId: oldPage.id,
       dataVersion: oldPage.version.version,
       schemaversion: oldPage.data.savedAtVersion,
-      fromPath: 'areas.content.1',
-      toPath: 'areas.content.0'
+      fromPath: 'areas.main.1',
+      toPath: 'areas.main.0'
     })
     expect(success).to.be.true
     expect(page.data).to.not.deep.equal(oldPage.data)
-    expect(page.data.areas.content[1].text).to.equal('Added Link Edited')
+    expect(page.data.areas.main[1].text).to.equal('Added Link Edited')
     expect(page.version.version - 1 === oldPage.version.version)
   })
   it('should allow moving a component to the bottom of an area, on a page that has validation errors.', async () => {
@@ -635,12 +635,12 @@ describe('pages mutations', () => {
       pageId: oldPage.id,
       dataVersion: oldPage.version.version,
       schemaversion: oldPage.data.savedAtVersion,
-      fromPath: 'areas.content.0',
-      toPath: 'areas.content'
+      fromPath: 'areas.main.0',
+      toPath: 'areas.main'
     })
     expect(success).to.be.true
     expect(page.data).to.not.deep.equal(oldPage.data)
-    expect(page.data.areas.content[0].text).to.equal('Added Link Edited')
+    expect(page.data.areas.main[0].text).to.equal('Added Link Edited')
     expect(page.version.version - 1 === oldPage.version.version)
   })
   it('should allow deleting a component from a page that has validation errors.', async () => {
@@ -660,7 +660,7 @@ describe('pages mutations', () => {
       pageId: oldPage.id,
       dataVersion: oldPage.version.version,
       schemaversion: oldPage.data.savedAtVersion,
-      path: 'areas.content.0'
+      path: 'areas.main.0'
     })
     expect(success).to.be.true
     expect(page.data).to.not.deep.equal(oldPage.data)

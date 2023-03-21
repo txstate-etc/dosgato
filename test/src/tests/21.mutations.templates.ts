@@ -129,7 +129,7 @@ describe('templates mutations', () => {
   })
   it('should deauthorize a template for a site and its pagetrees', async () => {
     const { site, sandbox1Id, sandbox2Id } = await createTestSiteAndPagetrees('templatetest9', 'keyp1')
-    await authorizeTemplateForSite('keyc1', site.id)
+    await authorizeTemplateForSite('keyp3', site.id)
     const { deauthorizeTemplate: { success: siteSuccess } } = await query(`
       mutation deauthorizeTemplate($templateKey: ID!, $siteId: ID!) {
         deauthorizeTemplate (templateKey: $templateKey, siteId: $siteId) {
@@ -138,11 +138,11 @@ describe('templates mutations', () => {
             message
           }
         }
-      }`, { templateKey: 'keyc1', siteId: site.id })
+      }`, { templateKey: 'keyp3', siteId: site.id })
     expect(siteSuccess).to.be.true
     const { sites: sites1 } = await query(`{ sites (filter: { ids: [${site.id}]}) { templates { key } } }`)
-    expect(sites1[0].templates.map(t => t.key)).to.not.include('keyc1')
-    await authorizeTemplateForPagetrees('keyc1', [sandbox1Id, sandbox2Id])
+    expect(sites1[0].templates.map(t => t.key)).to.not.include('keyp3')
+    await authorizeTemplateForPagetrees('keyp3', [sandbox1Id, sandbox2Id])
     const { deauthorizeTemplate: { success: pagetreesSuccess } } = await query(`
       mutation deauthorizeTemplate($templateKey: ID!, $siteId: ID!) {
         deauthorizeTemplate (templateKey: $templateKey, siteId: $siteId) {
@@ -151,11 +151,11 @@ describe('templates mutations', () => {
             message
           }
         }
-      }`, { templateKey: 'keyc1', siteId: site.id })
+      }`, { templateKey: 'keyp3', siteId: site.id })
     expect(pagetreesSuccess).to.be.true
     const { sites: sites2 } = await query(`{ sites (filter: { ids: [${site.id}]}) { templates { key } pagetrees(filter: { ids: [${sandbox1Id},${sandbox2Id}]}) { id name templates { key} } } }`)
     for (const p of sites2[0].pagetrees) {
-      expect(p.templates.map(t => t.key)).to.not.include('keyc1')
+      expect(p.templates.map(t => t.key)).to.not.include('keyp3')
     }
   })
   it('should make a template universal', async () => {
@@ -164,9 +164,9 @@ describe('templates mutations', () => {
         setTemplateUniversal (templateId: $templateKey, universal: $universal) {
           success
         }
-      }`, { templateKey: 'keyc3', universal: true })
+      }`, { templateKey: 'keyp4', universal: true })
     expect(success).to.be.true
-    const { templates } = await query('{ templates(filter: { keys: ["keyc3"] }) { universal } }')
+    const { templates } = await query('{ templates(filter: { keys: ["keyp4"] }) { universal } }')
     expect(templates[0].universal).to.be.true
     // setting it back to false so it doesn't interfere with other tests
     await query(`
@@ -174,7 +174,7 @@ describe('templates mutations', () => {
         setTemplateUniversal (templateId: $templateKey, universal: $universal) {
           success
         }
-      }`, { templateKey: 'keyc3', universal: false })
+      }`, { templateKey: 'keyp4', universal: false })
   })
   it('should not allow an unauthorized user to make a template universal', async () => {
     await expect(queryAs('ed07', `

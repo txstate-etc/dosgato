@@ -332,7 +332,7 @@ describe('pages', () => {
     }
   })
   it('should only return pages the current user is allowed to edit', async () => {
-    const { pages } = await queryAs('ed17', '{ pages(filter: {deleteStates: [NOTDELETED, MARKEDFORDELETE]}) { id name } }')
+    const { pages } = await queryAs('ed17', '{ pages(filter: { viewForEdit: true }) { id name } }')
     const pageNames = pages.map((p: any) => p.name)
     expect(pageNames).to.have.lengthOf(1)
     expect(pageNames[0]).to.equal('site7')
