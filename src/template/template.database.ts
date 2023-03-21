@@ -92,7 +92,7 @@ export async function authorizeForSite (template: Template, site: Site, userInte
                      WHERE templateId = ? AND pagetreeId IN (${db.in(binds, sitePagetreeIds)})`, binds)
     await db.insert('INSERT INTO sites_templates (templateId, siteId) VALUES(?,?)', [template.id, site.id])
     await createSiteComment(site.id, `Authorized ${template.name} for all pagetrees`, userInternalId, db)
-  })
+  }, { retries: 2 })
 }
 
 export async function authorizeForPagetrees (template: Template, pagetrees: Pagetree[], userInternalId: number) {
@@ -109,8 +109,8 @@ export async function authorizeForPagetrees (template: Template, pagetrees: Page
     }
     await db.insert(`INSERT INTO pagetrees_templates (templateId, pagetreeId) VALUES ${pagetrees.map(p => '(?,?)').join(', ')}`, binds)
     const auditMessage = `Authorized ${template.name} for pagetrees ${pagetrees.map(p => p.name).join(', ')}`
-    await createSiteComment(pagetrees[0].siteId, auditMessage, userInternalId)
-  })
+    await createSiteComment(pagetrees[0].siteId, auditMessage, userInternalId, db)
+  }, { retries: 2 })
 }
 
 export async function deauthorizeTemplate (template: Template, site: Site, userInternalId: number) {
@@ -120,8 +120,8 @@ export async function deauthorizeTemplate (template: Template, site: Site, userI
     if (pagetreeIds.length) {
       await db.delete(`DELETE FROM pagetrees_templates WHERE templateId = ? AND pagetreeId IN (${db.in([], pagetreeIds)})`, [template.id, ...pagetreeIds])
     }
-    await createSiteComment(site.id, `Deauthorized ${template.name} for all pagetrees`, userInternalId)
-  })
+    await createSiteComment(site.id, `Deauthorized ${template.name} for all pagetrees`, userInternalId, db)
+  }, { retries: 2 })
 }
 
 export async function setUniversal (templateId: number, universal: boolean) {
