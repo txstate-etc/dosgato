@@ -5,7 +5,7 @@ import {
   AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
   CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
   deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter,
-  finalizeAssetFolderDeletion, DeleteStateAll, PagetreeServiceInternal, PagetreeType, SiteServiceInternal, getAssetFoldersByPath
+  finalizeAssetFolderDeletion, DeleteStateAll, PagetreeServiceInternal, PagetreeType, SiteServiceInternal, getAssetFoldersByPath, NameConflictError
 } from '../internal.js'
 
 const assetFolderByIdLoader = new PrimaryKeyLoader({
@@ -254,9 +254,18 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     if (folders.length || assets.length) resp.addMessage('That name is already in use.', 'args.name')
     if (validateOnly || resp.hasErrors()) return resp
 
-    const assetfolder = await createAssetFolder(args)
-    this.loaders.clear()
-    return new AssetFolderResponse({ assetFolder: assetfolder, success: true })
+    try {
+      const assetfolder = await createAssetFolder(args)
+      this.loaders.clear()
+      resp.assetFolder = assetfolder
+      return resp
+    } catch (e: any) {
+      if (e instanceof NameConflictError) {
+        resp.addMessage('That name is already in use.', 'args.name')
+        return resp
+      }
+      throw e
+    }
   }
 
   async rename (folderId: string, name: string, validateOnly?: boolean) {
@@ -273,10 +282,18 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     if (folders.some(f => f.internalId !== folder.internalId) || assets.length) resp.addMessage('That name is already in use.', 'name')
     if (validateOnly || resp.hasErrors()) return resp
 
-    await renameAssetFolder(folderId, name)
-    this.loaders.clear()
-    const updatedFolder = await this.raw.findById(folderId)
-    return new AssetFolderResponse({ assetFolder: updatedFolder, success: true })
+    try {
+      await renameAssetFolder(folderId, name)
+      this.loaders.clear()
+      const updatedFolder = await this.raw.findById(folderId)
+      resp.assetFolder = updatedFolder
+      return resp
+    } catch (e: any) {
+      if (e instanceof NameConflictError) {
+        resp.addMessage('That name is already in use.', 'name')
+      }
+      throw e
+    }
   }
 
   async delete (folderId: string) {

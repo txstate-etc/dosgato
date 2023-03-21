@@ -1,3 +1,4 @@
+import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { isNotBlank, keyby } from 'txstate-utils'
@@ -13,6 +14,12 @@ export interface AssetFolderRow {
   deleteState: DeleteState
   deletedBy?: string
   pagetreeId: number
+}
+
+export class NameConflictError extends Error {
+  constructor (message?: string) {
+    super(message ?? 'Name is not available.')
+  }
 }
 
 async function convertPathsToIDPaths (pathstrings: string[]) {
@@ -158,9 +165,17 @@ export async function getAssetFoldersByPath (paths: string[], filter: AssetFolde
   return ret
 }
 
+async function checkForNameConflict (folderId: string, name: string, db: Queryable) {
+  const parent = new AssetFolder(await db.getrow('SELECT * from assetfolders WHERE id = ? FOR UPDATE', [folderId]))
+  const siblings = await db.getall('SELECT * FROM assetfolders WHERE path=?', [parent.path + '/' + parent.id])
+  const assets = await db.getall('SELECT * FROM assets WHERE folderId=?', [parent.id])
+  if (siblings.some(s => s.name === name) || assets.some(a => a.name === name)) throw new NameConflictError()
+  return parent
+}
+
 export async function createAssetFolder (args: CreateAssetFolderInput) {
   return await db.transaction(async db => {
-    const parent = new AssetFolder(await db.getrow('SELECT * from assetfolders WHERE id = ?', [args.parentId]))
+    const parent = await checkForNameConflict(args.parentId, args.name, db)
     const newInternalId = await db.insert(`
       INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name)
       VALUES (?, ?, ?, ?, ?)`, [parent.siteId, parent.pagetreeId, nanoid(10), `/${[...parent.pathSplit, parent.internalId].join('/')}`, args.name])
@@ -169,7 +184,11 @@ export async function createAssetFolder (args: CreateAssetFolderInput) {
 }
 
 export async function renameAssetFolder (folderId: string, name: string) {
-  return await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [name, folderId])
+  return await db.transaction(async db => {
+    const folder = new AssetFolder(await db.getrow('SELECT * FROM assetfolders WHERE id=? LOCK IN SHARE MODE', [folderId]))
+    await checkForNameConflict(String(folder.parentInternalId), name, db)
+    return await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [name, folderId])
+  })
 }
 
 export async function deleteAssetFolder (id: number, userInternalId: number) {

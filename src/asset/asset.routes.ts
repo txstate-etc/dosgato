@@ -12,7 +12,7 @@ import db from 'mysql2-async/db'
 import probe from 'probe-image-size'
 import { PassThrough, Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
-import { keyby, randomid } from 'txstate-utils'
+import { isNotBlank, keyby, randomid } from 'txstate-utils'
 import {
   Asset,
   AssetFolder,
@@ -140,9 +140,9 @@ export async function createAssetRoutes (app: FastifyInstance) {
           modifiedBy: data.modifiedBy,
           modifiedAt: data.modifiedAt,
           linkId: data.linkId
-        })
+        }, { numerate: true })
         ids.push(asset.id)
-        await requestResizes(asset)
+        await requestResizes(asset, { isMigration: isNotBlank(data[file.fieldname + '_legacyId']) })
       }
     } else if (req.body?.url) {
       const file = await handleURLUpload(req.body.url, req.body.modifiedAt, req.body.auth)
@@ -155,9 +155,9 @@ export async function createAssetRoutes (app: FastifyInstance) {
         modifiedBy: req.body.modifiedBy,
         modifiedAt: req.body.modifiedAt,
         linkId: req.body.linkId
-      })
+      }, { numerate: true })
       ids.push(asset.id)
-      await requestResizes(asset)
+      await requestResizes(asset, { isMigration: isNotBlank(req.body.legacyId) })
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }

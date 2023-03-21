@@ -6,8 +6,8 @@ import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import sharp from 'sharp'
-import { intersect, isNotBlank, isNotNull, keyby, pick, roundTo, sleep, someAsync, stringify } from 'txstate-utils'
-import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution, AssetFolderRow, DeleteState, processDeletedFilters, normalizePath, AssetServiceInternal } from '../internal.js'
+import { intersect, isBlank, isNotBlank, isNotNull, keyby, pick, roundTo, sleep, someAsync, stringify } from 'txstate-utils'
+import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution, AssetFolderRow, DeleteState, processDeletedFilters, normalizePath, AssetServiceInternal, numerate, NameConflictError } from '../internal.js'
 
 export interface AssetInput {
   name: string
@@ -384,7 +384,7 @@ export function getIndexes (data: any) {
   return indexes
 }
 
-export async function createAsset (versionedService: VersionedService, userId: string, args: CreateAssetInput) {
+export async function createAsset (versionedService: VersionedService, userId: string, args: CreateAssetInput, opts?: { numerate?: boolean }) {
   let linkId = args.linkId ?? nanoid(10)
   return await db.transaction(async db => {
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
@@ -396,8 +396,16 @@ export async function createAsset (versionedService: VersionedService, userId: s
     const data = { legacyId: args.legacyId, shasum: args.checksum, uploadedFilename: args.filename, meta: args.meta }
     const dataId = await versionedService.create('asset', data, getIndexes(data), createdBy, db)
     await versionedService.setStamps(dataId, { createdAt: createdAt ? new Date(createdAt) : undefined, modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
-    const folder = await db.getrow<{ id: number, pagetreeId: number }>('SELECT id, pagetreeId FROM assetfolders WHERE id = ?', [args.folderId])
+    const folder = await db.getrow<{ id: number, pagetreeId: number, path: string }>('SELECT id, pagetreeId, path FROM assetfolders WHERE id = ? FOR UPDATE', [args.folderId])
     if (!folder) throw new Error('Folder to place asset in does not exist.')
+
+    const siblingFolders = await db.getall('SELECT * FROM assetfolders WHERE path=?', [folder.path + '/' + String(folder.id), args.name])
+    const siblingAssets = await db.getall('SELECT * FROM assets WHERE folderId=?', [folder.id, args.name])
+
+    let name = args.name
+    if (opts?.numerate) {
+      while (isBlank(name) || siblingFolders.some(f => f.name === name) || siblingAssets.some(a => a.name === name)) name = numerate(name)
+    } else if (isBlank(name) || siblingFolders.some(f => f.name === name) || siblingAssets.some(a => a.name === name)) throw new NameConflictError()
 
     // we can't use a UNIQUE index to enforce linkId uniqueness because we don't have the pagetreeId without joining it in
     // so we'll just do it here and expect low probability of collision within microseconds
@@ -406,7 +414,7 @@ export async function createAsset (versionedService: VersionedService, userId: s
     ) linkId = nanoid(10)
     await db.insert(`
       INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)
-      VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify(pick(args, 'width', 'height')), args.size])
+      VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify({ width: args.width ?? undefined, height: args.height ?? undefined }), args.size])
     const newInternalId = await db.insert(`
       INSERT INTO assets (name, folderId, linkId, dataId, shasum)
       VALUES(?, ?, ?, ?, ?)`, [args.name, folder.id, linkId, dataId, args.checksum])
