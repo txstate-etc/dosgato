@@ -23,7 +23,7 @@ describe('pages', () => {
   it('should get deleted and orphaned pages', async () => {
     const resp = await query('{ pages(filter: {deleteStates: [DELETED, ORPHAN_NOTDELETED, ORPHAN_MARKEDFORDELETE, ORPHAN_DELETED]}) { id name } }')
     const pageNames = resp.pages.map((p: any) => p.name)
-    expect(pageNames).to.have.members(['events', 'site4', 'deletedsite'])
+    expect(pageNames).to.have.members(['events', 'site4-archive-1', 'deletedsite'])
   })
   it('should get undeleted pages', async () => {
     const resp = await query('{ pages(filter: {deleteStates: [NOTDELETED, MARKEDFORDELETE]}) { id name } }')
@@ -339,7 +339,7 @@ describe('pages', () => {
   })
   it('should consider undeleted pages in a deleted pagetree deleted', async () => {
     const { pages } = await query('{ pages(filter: {deleteStates: [DELETED, ORPHAN_NOTDELETED, ORPHAN_MARKEDFORDELETE, ORPHAN_DELETED] }) {id name deleted pagetree { id name deleted } } }')
-    const pageInDeletedPagetree = pages.find(p => p.name === 'site4')
+    const pageInDeletedPagetree = pages.find(p => p.name === 'site4-archive-1')
     expect(pageInDeletedPagetree).to.not.be.undefined
     expect(pageInDeletedPagetree.deleted).to.be.false
     expect(pageInDeletedPagetree.pagetree.deleted).to.be.true

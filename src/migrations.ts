@@ -240,6 +240,13 @@ const dgMigrations: DBMigration[] = [
     run: async db => {
       await db.execute('ALTER TABLE assetfolders ADD INDEX (`name`)')
     }
+  },
+  {
+    id: 20230318170000,
+    description: 'rework indexes for pages',
+    run: async db => {
+      await db.execute('ALTER TABLE pages DROP INDEX nameinpath, ADD UNIQUE nameinpath (`path`, `name`), DROP INDEX path_idx, ADD INDEX path_idx (`path`, `displayOrder`, `name`)')
+    }
   }
 ]
 

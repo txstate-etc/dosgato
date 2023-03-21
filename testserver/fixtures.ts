@@ -612,7 +612,7 @@ export async function fixtures () {
   /* Site 4 */
   await createPage('site4', nanoid(10), pagetree4, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
   await createPage('site4-archive', nanoid(10), pagetree4archive, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
-  await createPage('site4', nanoid(10), pagetree4deleted, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
+  await createPage('site4-archive-1', nanoid(10), pagetree4deleted, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
 
   /* Site 5 */
   await createPage('site5', nanoid(10), pagetree5, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 5 Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
