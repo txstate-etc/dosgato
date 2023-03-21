@@ -79,6 +79,9 @@ export class SiteFilter {
   @Field(type => DeletedFilter, { nullable: true })
   deleted?: DeletedFilter
 
+  @Field(type => Boolean, { nullable: true, description: 'Only return sites the current user should see as an admin in the site management UI.' })
+  viewForEdit?: boolean
+
   ownerInternalIds?: number[]
 
   managerInternalIds?: number[]

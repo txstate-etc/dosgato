@@ -41,10 +41,6 @@ export async function createGlobalRule (args: CreateGlobalRuleInput) {
       columns.push('manageGlobalData')
       binds.push(args.grants.manageGlobalData)
     }
-    if (args.grants.viewSiteList) {
-      columns.push('viewSiteList')
-      binds.push(args.grants.viewSiteList)
-    }
     if (args.grants.manageTemplates) {
       columns.push('manageTemplates')
       binds.push(args.grants.manageTemplates)
@@ -72,10 +68,6 @@ export async function updateGlobalRule (args: UpdateGlobalRuleInput) {
     if (isNotNull(args.grants.manageGlobalData)) {
       updates.push('`manageGlobalData` = ?')
       binds.push(args.grants.manageGlobalData)
-    }
-    if (isNotNull(args.grants.viewSiteList)) {
-      updates.push('`viewSiteList` = ?')
-      binds.push(args.grants.viewSiteList)
     }
     if (isNotNull(args.grants.manageTemplates)) {
       updates.push('`manageTemplates` = ?')

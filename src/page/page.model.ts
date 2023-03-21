@@ -186,6 +186,9 @@ export class PageFilter {
 
   @Field(type => [ID], { nullable: true, description: 'Only return pages matching one of the given legacy IDs. Legacy IDs are set when migrating content from another system and may be used to help determine if the content has been previously moved.' })
   legacyIds?: string[]
+
+  @Field(type => Boolean, { nullable: true, description: 'Only return pages the current user should see as an editor in the page list UI.' })
+  viewForEdit?: boolean
 }
 
 @ObjectType()

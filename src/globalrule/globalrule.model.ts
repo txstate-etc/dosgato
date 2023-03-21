@@ -17,9 +17,6 @@ export class GlobalRuleGrants {
   @Field({ description: 'Grants ability to edit global data. Site-related data is governed by datarules instead.' })
   manageGlobalData!: boolean
 
-  @Field({ description: 'Grants ability to view the entire site list and details like launch url, owner, managers, comments.' })
-  viewSiteList!: boolean
-
   @Field({ description: 'Grants ability to assign templates to sites and pagetrees and set templates as universal' })
   manageTemplates!: boolean
 
@@ -29,7 +26,6 @@ export class GlobalRuleGrants {
       this.manageParentRoles = !!row.manageParentRoles
       this.createSites = !!row.createSites
       this.manageGlobalData = !!row.manageGlobalData
-      this.viewSiteList = !!row.viewSiteList
       this.manageTemplates = !!row.manageTemplates
     }
   }

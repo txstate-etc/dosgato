@@ -340,19 +340,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   }
 
   async mayView (folder: AssetFolder) {
-    if (await this.haveAssetFolderPerm(folder, 'view')) return true
-    // if we are able to view any child folders, we have to be able to view the ancestors so that we can draw the tree
-    const rules = await this.currentAssetRules()
-    if (!rules.some(r => r.path !== '/' && (!r.siteId || r.siteId === folder.siteId))) return false
-    const [folders, assets] = await Promise.all([
-      this.raw.getChildFolders(folder, true),
-      this.raw.getChildAssets(folder, true)
-    ])
-    const [folderPass, assetPass] = await Promise.all([
-      someAsync(folders, async f => await this.haveAssetFolderPerm(f, 'view')),
-      someAsync(assets, async a => await this.haveAssetPerm(a, 'view'))
-    ])
-    return folderPass || assetPass
+    return true
   }
 
   async mayViewForEdit (folder: AssetFolder) {

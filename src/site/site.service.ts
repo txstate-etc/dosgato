@@ -2,7 +2,7 @@ import { PageData } from '@dosgato/templating'
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import { nanoid } from 'nanoid'
-import { isBlank, isNotBlank } from 'txstate-utils'
+import { filterAsync, isBlank, isNotBlank } from 'txstate-utils'
 import {
   Site, SiteFilter, getSites, getSitesByTemplate, undeleteSite,
   PagetreeService, DosGatoService, createSite, VersionedService, SiteResponse,
@@ -105,8 +105,12 @@ export class SiteServiceInternal extends BaseService {
 export class SiteService extends DosGatoService<Site> {
   raw = this.svc(SiteServiceInternal)
 
+  async postFilter (sites: Site[], filter?: SiteFilter) {
+    return filter?.viewForEdit ? await filterAsync(sites, async s => await this.mayViewForEdit(s)) : sites
+  }
+
   async find (filter?: SiteFilter) {
-    return await this.removeUnauthorized(await this.raw.find(filter))
+    return await this.postFilter(await this.removeUnauthorized(await this.raw.find(filter)), filter)
   }
 
   async findById (siteId: string) {
@@ -114,7 +118,7 @@ export class SiteService extends DosGatoService<Site> {
   }
 
   async findByOrganization (org: Organization, filter?: SiteFilter) {
-    return await this.removeUnauthorized(await this.raw.findByOrganization(org, filter))
+    return await this.postFilter(await this.removeUnauthorized(await this.raw.findByOrganization(org, filter)), filter)
   }
 
   async findByTemplateId (templateId: number, atLeastOneTree?: boolean) {
@@ -126,11 +130,11 @@ export class SiteService extends DosGatoService<Site> {
   }
 
   async findByOwnerInternalId (ownerInternalId: number, filter?: SiteFilter) {
-    return await this.removeUnauthorized(await this.raw.findByOwnerInternalId(ownerInternalId, filter))
+    return await this.postFilter(await this.removeUnauthorized(await this.raw.findByOwnerInternalId(ownerInternalId, filter)), filter)
   }
 
   async findByManagerInternalId (managerInternalId: number, filter?: SiteFilter) {
-    return await this.removeUnauthorized(await this.raw.findByManagerInternalId(managerInternalId, filter))
+    return await this.postFilter(await this.removeUnauthorized(await this.raw.findByManagerInternalId(managerInternalId, filter)), filter)
   }
 
   async create (name: string, data: PageData, validateOnly?: boolean, extra?: CreatePageExtras) {
@@ -249,26 +253,21 @@ export class SiteService extends DosGatoService<Site> {
 
   async mayView (site: Site) {
     if (site.url != null && this.isRenderServer()) return true
-    const [pages, viewManagerUI, viewSiteList] = await Promise.all([
-      this.svc(PageServiceInternal).findByPagetreeId(site.primaryPagetreeId, { maxDepth: 0 }),
-      this.mayViewManagerUI(),
-      this.mayViewSiteList()
+    const [viewForEdit, pages] = await Promise.all([
+      this.mayViewForEdit(site),
+      this.svc(PageServiceInternal).findByPagetreeId(site.primaryPagetreeId, { maxDepth: 0 })
     ])
-    if (viewSiteList || (site.url != null && viewManagerUI)) return true
-    const [sitePass, pagePass] = await Promise.all([
-      this.haveSitePerm(site, 'viewForEdit'),
-      this.havePagePerm(pages[0]!, 'viewForEdit')
-    ])
-    return sitePass || pagePass
+    if (viewForEdit) return true
+    return await this.havePagePerm(pages[0]!, 'viewForEdit')
+  }
+
+  async mayViewForEdit (site: Site) {
+    return await this.haveSitePerm(site, 'viewForEdit')
   }
 
   async mayViewManagerUI () {
-    if ((await this.currentGlobalRules()).some(r => r.grants.viewSiteList || r.grants.createSites)) return true
+    if ((await this.currentGlobalRules()).some(r => r.grants.createSites)) return true
     return (await this.currentSiteRules()).some(r => r.grants.viewForEdit)
-  }
-
-  async mayViewSiteList () {
-    return await this.haveGlobalPerm('viewSiteList')
   }
 
   async mayCreate () {

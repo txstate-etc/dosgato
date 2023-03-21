@@ -159,6 +159,11 @@ export class SiteResolver {
 
 @Resolver(of => SitePermissions)
 export class SitePermissionsResolver {
+  @FieldResolver(returns => Boolean, { description: 'Current user should see this site in the site management UI.' })
+  async viewForEdit (@Ctx() ctx: Context, @Root() site: Site) {
+    return await ctx.svc(SiteService).mayViewForEdit(site)
+  }
+
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to set or update the public URL for this site.' })
   async launch (@Ctx() ctx: Context, @Root() site: Site) {
     return await ctx.svc(SiteService).mayLaunch(site)

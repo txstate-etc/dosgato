@@ -1,5 +1,5 @@
 import { BaseService } from '@txstate-mws/graphql-server'
-import { DosGatoService, SiteComment, SiteCommentFilter, getSiteComments, SiteServiceInternal, createSiteComment, SiteCommentResponse } from '../internal.js'
+import { DosGatoService, SiteComment, SiteCommentFilter, getSiteComments, SiteServiceInternal, createSiteComment, SiteCommentResponse, SiteService } from '../internal.js'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 
 const CommentsByIdLoader = new PrimaryKeyLoader({
@@ -34,10 +34,9 @@ export class SiteCommentService extends DosGatoService<SiteComment> {
   raw = this.svc(SiteCommentServiceInternal)
 
   async mayView (siteComment: SiteComment) {
-    if (await this.haveGlobalPerm('viewSiteList')) return true
     const site = await this.svc(SiteServiceInternal).findById(siteComment.siteId)
     if (!site) return false
-    return await this.haveSitePerm(site, 'viewForEdit')
+    return await this.svc(SiteService).mayViewForEdit(site)
   }
 
   async find (filter?: SiteCommentFilter) {

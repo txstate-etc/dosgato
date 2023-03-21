@@ -233,12 +233,16 @@ export class PageServiceInternal extends BaseService {
 export class PageService extends DosGatoService<Page> {
   raw = this.svc(PageServiceInternal)
 
+  async postFilter (pages: Page[], filter?: PageFilter) {
+    return filter?.viewForEdit ? await filterAsync(pages, async p => await this.mayViewForEdit(p)) : pages
+  }
+
   async find (filter: PageFilter) {
     const [ret] = await Promise.all([
       this.raw.find(filter),
       this.currentPageRules() // pre-load and cache page rules so they're ready for removeUnauthorized
     ])
-    return await this.removeUnauthorized(ret)
+    return await this.postFilter(await this.removeUnauthorized(ret), filter)
   }
 
   async findById (id: string) {
@@ -258,17 +262,17 @@ export class PageService extends DosGatoService<Page> {
       this.raw.findByPagetreeId(id, filter),
       this.currentPageRules() // pre-load and cache page rules so they're ready for removeUnauthorized
     ])
-    return await this.removeUnauthorized(ret)
+    return await this.postFilter(await this.removeUnauthorized(ret), filter)
   }
 
   async findByTemplate (key: string, filter?: PageFilter) {
-    return await this.removeUnauthorized(await this.raw.findByTemplate(key, filter))
+    return await this.postFilter(await this.removeUnauthorized(await this.raw.findByTemplate(key, filter)), filter)
   }
 
   async getPageChildren (page: Page, recursive?: boolean, filter?: PageFilter) {
-    return await this.removeUnauthorized(
+    return await this.postFilter(await this.removeUnauthorized(
       await this.raw.getPageChildren(page, recursive, filter)
-    )
+    ), filter)
   }
 
   async getPageAncestors (page: Page) {
@@ -294,6 +298,7 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async hasPathBasedPageRulesForSite (siteId: string) {
+    ;(this.ctx as any).hasPathBasedPageRulesForSite ??= {}
     if (!(this.ctx as any).hasPathBasedPageRulesForSite[siteId]) {
       const rules = await this.currentPageRules()
       ;(this.ctx as any).hasPathBasedPageRulesForSite[siteId] = rules.some(r => r.path !== '/' && (!r.siteId || r.siteId === siteId))
@@ -329,7 +334,7 @@ export class PageService extends DosGatoService<Page> {
       // since it might be important
       parent && await this.havePagePerm(parent, 'viewForEdit')
     ])
-    return childrenPass || parentPass
+    return childrenPass || !!parentPass
   }
 
   async mayViewLatest (page: Page) {

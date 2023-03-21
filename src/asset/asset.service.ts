@@ -370,10 +370,21 @@ export class AssetService extends DosGatoService<Asset> {
     return (await this.currentAssetRules()).some(r => r.grants.viewForEdit)
   }
 
+  /**
+  * assets must be viewable by any editor in case another editor with greater permissions linked to an asset in a chooser -
+  * we don't want the dialog to appear broken
+  *
+  * mayViewForEdit will control whether the selected asset is still available to be selected in the chooser, so if they
+  * can't see the currently selected asset they will just get a list of folders and will have to cancel the chooser to keep it
+  */
   async mayView (asset: Asset) {
-    return await this.haveAssetPerm(asset, 'view')
+    return true
   }
 
+  /**
+   * All assets in the system are viewable by any editor, but we don't want every editor to have to browse the entire system when
+   * managing/choosing assets. So this can be used to filter the selection for an editor's convenience.
+   */
   async mayViewForEdit (asset: Asset) {
     return await this.haveAssetPerm(asset, 'viewForEdit')
   }

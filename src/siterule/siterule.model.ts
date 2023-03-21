@@ -34,7 +34,7 @@ export class SiteRuleGrantsInput {
 
 @ObjectType()
 export class SiteRuleGrants extends SiteRuleGrantsInput {
-  @Field({ description: 'Grants ability to view site in the site manager UI. Any siterule automatically grants this as it is implied by the other grants.' })
+  @Field({ description: 'Grants ability to view site in the site manager UI. Any siterule automatically grants this.' })
   viewForEdit!: boolean
 
   constructor (row?: any) {
