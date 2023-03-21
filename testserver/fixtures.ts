@@ -535,7 +535,7 @@ export async function fixtures () {
       values: ['keyp2', 'keyc3']
     }
   ]
-  const site2rootpageid = await createPage('site2', site2RootLinkId, pagetree2, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 2 Home', areas: { content: [] } }, indexes)
+  const site2rootpageid = await createPage('site2', site2RootLinkId, pagetree2, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 2 Home', areas: { main: [] } }, indexes)
   const dataIdSite2Root = await db.getval<string>('SELECT dataId FROM pages WHERE id = ?', [site2rootpageid])
   await tagData(dataIdSite2Root!, 'published', 1, 'su01')
 
@@ -561,7 +561,7 @@ export async function fixtures () {
       values: ['keyp3', 'keyc1', 'keyc2']
     }
   ]
-  const site3pagetree3Root = await createPage('site3', site3RootLinkId, pagetree3, null, 1, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Site 3 Home', areas: { content: [] } }, indexes)
+  const site3pagetree3Root = await createPage('site3', site3RootLinkId, pagetree3, null, 1, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Site 3 Home', areas: { main: [] } }, indexes)
   // about
   indexes = [
     {
@@ -569,7 +569,7 @@ export async function fixtures () {
       values: ['keyp3', 'keyc2', 'keyc3']
     }
   ]
-  await createPage('about', site3AboutLinkId, pagetree3, site3pagetree3Root, 1, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'About Us', areas: { content: [] } }, indexes)
+  await createPage('about', site3AboutLinkId, pagetree3, site3pagetree3Root, 1, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'About Us', areas: { main: [] } }, indexes)
   // site map
   indexes = [
     {
@@ -577,7 +577,7 @@ export async function fixtures () {
       values: ['keyp3']
     }
   ]
-  await createPage('sitemap', site3SiteMapLinkId, pagetree3, site3pagetree3Root, 2, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Site Map', areas: { content: [] } }, indexes)
+  await createPage('sitemap', site3SiteMapLinkId, pagetree3, site3pagetree3Root, 2, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Site Map', areas: { main: [] } }, indexes)
 
   /* Site 3, Sandbox Pages */
   const site3SandboxRootLinkId = nanoid(10)
@@ -599,7 +599,7 @@ export async function fixtures () {
       values: ['keyp2', 'keyc1', 'keyc2']
     }
   ]
-  const site3SandboxRoot = await createPage('site3-sandbox', site3SandboxRootLinkId, pagetree3sandbox, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 3 Home', areas: { content: [] } }, indexes)
+  const site3SandboxRoot = await createPage('site3-sandbox', site3SandboxRootLinkId, pagetree3sandbox, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 3 Home', areas: { main: [] } }, indexes)
 
   indexes = [
     {
@@ -607,7 +607,7 @@ export async function fixtures () {
       values: ['keyp2']
     }
   ]
-  await createPage('about', site3AboutPageLinkId, pagetree3sandbox, site3SandboxRoot, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'About Site 3', areas: { content: [] } }, indexes)
+  await createPage('about', site3AboutPageLinkId, pagetree3sandbox, site3SandboxRoot, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'About Site 3', areas: { main: [] } }, indexes)
 
   /* Site 4 */
   await createPage('site4', nanoid(10), pagetree4, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
@@ -618,14 +618,14 @@ export async function fixtures () {
   await createPage('site5', nanoid(10), pagetree5, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 5 Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
 
   /* Site 6 */
-  await createPage('site6', nanoid(10), pagetree6, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 6 Home', areas: { content: [] } }, [{ name: 'templateKey', values: ['keyp2'] }])
+  await createPage('site6', nanoid(10), pagetree6, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 6 Home', areas: { main: [] } }, [{ name: 'templateKey', values: ['keyp2'] }])
 
   /* Site 7 */
   await createPage('site7', nanoid(10), pagetree7, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 7 Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
 
   /* Site 8 */
   const page8id = await createPage('site8', nanoid(10), pagetree8, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Asset Test Site Home', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
-  await createPage('validation-error-page', nanoid(10), pagetree8, page8id, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Validation Error Page', areas: { content: [{ templateKey: 'keyc1', text: 'Link with no target' }] } }, [{ name: 'templateKey', values: ['keyp2'] }])
+  await createPage('validation-error-page', nanoid(10), pagetree8, page8id, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Validation Error Page', areas: { main: [{ templateKey: 'keyc1', text: 'Link with no target' }] } }, [{ name: 'templateKey', values: ['keyp2'] }])
 
   /* Deleted Site */
   await createPage('deletedsite', nanoid(10), deletedSitePrimary, null, 1, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Page in Deleted Site', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp3'] }])
