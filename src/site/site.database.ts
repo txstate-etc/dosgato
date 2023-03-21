@@ -1,4 +1,6 @@
 import type { PageData } from '@dosgato/templating'
+import { DateTime } from 'luxon'
+import { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { unique, keyby, eachConcurrent, isNotNull, Cache, isNotBlank, intersect } from 'txstate-utils'
@@ -163,15 +165,19 @@ export async function createSite (versionedService: VersionedService, userId: st
   })
 }
 
+async function renameSiteInsideTransaction (site: Site, name: string, currentUserInternalId: number, db: Queryable) {
+  await db.update('UPDATE sites SET name = ? WHERE id = ?', [name, site.id])
+  // if the site is renamed, the root assetfolders and root pages for all the pagetrees in the site need to be renamed too
+  // update the pagetree names
+  await db.update(`UPDATE pagetrees SET name = REPLACE(name, '${site.name}', ?) WHERE siteId = ?`, [name, site.id])
+  await db.update('UPDATE assetfolders f INNER JOIN pagetrees pt ON pt.id=f.pagetreeId SET f.name = pt.name WHERE pt.siteId = ? AND f.path="/"', [site.id])
+  await db.update('UPDATE pages p INNER JOIN pagetrees pt ON pt.id=p.pagetreeId SET p.name = pt.name WHERE pt.siteId = ? AND p.path="/"', [site.id])
+  await createSiteComment(site.id, `Site renamed. Former name: ${site.name} New name: ${name}`, currentUserInternalId, db)
+}
+
 export async function renameSite (site: Site, name: string, currentUserInternalId: number) {
   return await db.transaction(async db => {
-    await db.update('UPDATE sites SET name = ? WHERE id = ?', [name, site.id])
-    // if the site is renamed, the root assetfolders and root pages for all the pagetrees in the site need to be renamed too
-    // update the pagetree names
-    await db.update(`UPDATE pagetrees SET name = REPLACE(name, '${site.name}', ?) WHERE siteId = ?`, [name, site.id])
-    await db.update('UPDATE assetfolders f INNER JOIN pagetrees pt ON pt.id=f.pagetreeId SET f.name = pt.name WHERE pt.siteId = ? AND f.path="/"', [site.id])
-    await db.update('UPDATE pages p INNER JOIN pagetrees pt ON pt.id=p.pagetreeId SET p.name = pt.name WHERE pt.siteId = ? AND p.path="/"', [site.id])
-    await createSiteComment(site.id, `Site renamed. Former name: ${site.name} New name: ${name}`, currentUserInternalId, db)
+    return await renameSiteInsideTransaction(site, name, currentUserInternalId, db)
   })
 }
 
@@ -256,7 +262,10 @@ export async function updateSiteManagement (site: Site, args: UpdateSiteManageme
 }
 
 export async function deleteSite (site: Site, currentUserInternalId: number) {
-  return await db.update('UPDATE sites SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [currentUserInternalId, site.id])
+  await db.transaction(async db => {
+    await renameSiteInsideTransaction(site, site.name + DateTime.local().toFormat('yyyyMMddHHmmss'), currentUserInternalId, db)
+    return await db.update('UPDATE sites SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [currentUserInternalId, site.id])
+  })
 }
 
 export async function undeleteSite (site: Site) {
