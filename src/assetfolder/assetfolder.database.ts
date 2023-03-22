@@ -94,7 +94,7 @@ async function processFilters (filter?: AssetFolderFilter) {
   }
 
   if (filter.linkIds?.length) {
-    where.push(`assetfolders.linkId IN (${db.in(binds, [filter.linkIds])})`)
+    where.push(`assetfolders.linkId IN (${db.in(binds, filter.linkIds)})`)
   }
 
   // internalIdPaths for getting direct descendants of an asset folder
