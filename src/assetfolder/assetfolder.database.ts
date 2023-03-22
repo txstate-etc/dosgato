@@ -118,7 +118,7 @@ async function processFilters (filter?: AssetFolderFilter) {
   }
 
   if (filter.pagetreeTypes?.length) {
-    joins.set('pagetrees', 'INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id')
+    joins.set('pagetrees', 'INNER JOIN pagetrees ON assetfolders.pagetreeId = pagetrees.id')
     where.push(`pagetrees.type IN (${db.in(binds, filter.pagetreeTypes)})`)
   }
 
