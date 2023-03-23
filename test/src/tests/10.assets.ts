@@ -103,9 +103,11 @@ describe('assets', () => {
   it.skip('should retrieve assets by name', async () => {})
   it.skip('should retrieve assets by path', async () => {})
   it('should retrieve assets by path', async () => {
-    // const folderPath = allAssets[0].
     const { assets } = await query<{ assets: Asset[] }>('query getAssetByPath ($path: FilenameSafePath!) { assets(filter: { paths: [$path] }) { id name extension }}', { path: '/site1/bobcat' })
-    console.log(`assets = ${JSON.stringify(assets)}`)
+    expect(assets[0].name).to.equal('bobcat')
+  })
+  it('should retrieve assets by path (case insensitive)', async () => {
+    const { assets } = await query<{ assets: Asset[] }>('query getAssetByPath ($path: FilenameSafePath!) { assets(filter: { paths: [$path] }) { id name extension }}', { path: '/site1/BOBCAT' })
     expect(assets[0].name).to.equal('bobcat')
   })
   it.skip('should retrieve assets by ancestor path (beneath filter)', async () => {})
