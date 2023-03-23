@@ -755,7 +755,7 @@ export async function createResizes (shasum: string) {
         // try making a near-lossless version and see whether it's acceptably small
         const lossless = resized.clone().webp({ quality: 75, effort: 6, loop: info.loop ?? 0, nearLossless: true })
         const { checksum: losslesssum, info: losslessinfo } = await fileHandler.sharpWrite(lossless)
-        if (losslessinfo.size < webpinfo!.size * 1.2) {
+        if (uselossless === true || losslessinfo.size < webpinfo!.size * 1.2) {
           if (webpsum) await cleanupBinaries([webpsum])
           webp = lossless
           webpsum = losslesssum
