@@ -1,4 +1,5 @@
 import { expect } from 'chai'
+import { assert } from 'console'
 import { keyby } from 'txstate-utils'
 import { query } from '../common.js'
 
@@ -62,12 +63,13 @@ interface Asset {
   }
   site: {
     id: string
+    name: string
   }
 }
 describe('assets', () => {
   let allAssets: Asset[]
   before(async () => {
-    const { assets } = await query<{ assets: Asset[] }>('{ assets { id mime name filename path checksum box { width height } resizes { width height mime } folder { id } site { id } } }')
+    const { assets } = await query<{ assets: Asset[] }>('{ assets { id mime name filename path checksum box { width height } resizes { width height mime } folder { id } site { id, name } } }')
     allAssets = assets
   })
   it('should have width and height for images', async () => {
@@ -111,7 +113,15 @@ describe('assets', () => {
     expect(assets[0].name).to.equal('bobcat')
   })
   it.skip('should retrieve assets by ancestor path (beneath filter)', async () => {})
-  it.skip('should retrieve assets by parent path', async () => {})
+  it('should retrieve assets by parent path', async () => {
+    const site1Filenames = allAssets.filter(a => a.site.name === 'site1').map(a => a.filename)
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsByPath ($path: UrlSafePath!) { assets(filter: { parentPaths: [$path] }) { id name extension filename }}', { path: '/site1' })
+    // { "id": "In_iLDmeSv", "name": "blankpdf", "extension": "pdf" }, { "id": "jg3-gl2HdR", "name": "bobcat", "extension": "jpg" }
+    expect(assets.length).to.equal(site1Filenames.length)
+    for (const filename of assets.map(a => a.filename)) {
+      expect(site1Filenames).to.contains(filename)
+    }
+  })
   it.skip('should retrieve assets by bytes (greater than)', async () => {})
   it.skip('should retrieve assets by byes (less than)', async () => {})
   it.skip('should retrieve only deleted assets', async () => {})
