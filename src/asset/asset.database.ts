@@ -83,6 +83,8 @@ async function convertPathsToIDPaths (pathstrings: string[]) {
           finished = true
         }
         break
+      } else {
+        lastFolderId = folder.id
       }
       lastpath = `${folder.path}${folder.path === '/' ? '' : '/'}${folder.id}`
       finished = (i === entry.length - 1)
