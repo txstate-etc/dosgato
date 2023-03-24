@@ -458,7 +458,7 @@ export async function renameAsset (assetId: string, name: string, folderInternal
     LEFT JOIN assets adupe ON a.id != adupe.id AND a.folderId=adupe.folderId AND adupe.name=?
     LEFT JOIN assetfolders fdupe ON fdupe.path=? AND fdupe.name=?
     SET a.name=?
-    WHERE a.id=? AND adupe.id IS NULL AND fdupe.id IS NULL
+    WHERE a.dataId=? AND adupe.id IS NULL AND fdupe.id IS NULL
   `, [name, folderInternalIdPath, name, name, assetId])
   if (affectedRows === 0) throw new Error('Rename failed, likely the name became unavailable.')
 }
