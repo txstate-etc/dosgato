@@ -138,6 +138,10 @@ describe('assets', () => {
     const site1Filenames = assets.filter(a => a.site.name === 'site1').map(a => a.filename)
     expect(site1Filenames).to.contain('blankpdf.pdf')
   })
-  it.skip('should retrieve only deleted assets', async () => {})
+  it.skip('should retrieve only deleted assets', async () => {
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIDeletedAssets ($deleteStates: [DeleteStateInput!]!) { assets(filter: { deleteStates: $deleteStates }) { id name extension filename, size, checksum site { id, name } }}', { deleteStates: ['DELETED'] })
+    const filenames = assets.map(a => a.filename)
+    expect(filenames).to.contain('anotherbobcat.jpg')
+  })
   it.skip('should retrieve assets that are not fully deleted', async () => {})
 })
