@@ -104,7 +104,6 @@ describe('assets', () => {
     for (const a of assets) expect(a.folder.id).to.equal(folderId)
   })
   it.skip('should retrieve assets by name', async () => {})
-  it.skip('should retrieve assets by path', async () => {})
   it('should retrieve assets by path', async () => {
     const { assets } = await query<{ assets: Asset[] }>('query getAssetByPath ($path: FilenameSafePath!) { assets(filter: { paths: [$path] }) { id name extension }}', { path: '/site1/bobcat' })
     expect(assets[0].name).to.equal('bobcat')
