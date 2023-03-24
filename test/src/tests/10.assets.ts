@@ -46,6 +46,7 @@ interface Asset {
   id: string
   mime: string
   name: string
+  extension: string
   path: string
   filename: string
   checksum: string
@@ -119,11 +120,24 @@ describe('assets', () => {
     // { "id": "In_iLDmeSv", "name": "blankpdf", "extension": "pdf" }, { "id": "jg3-gl2HdR", "name": "bobcat", "extension": "jpg" }
     expect(assets.length).to.equal(site1Filenames.length)
     for (const filename of assets.map(a => a.filename)) {
-      expect(site1Filenames).to.contains(filename)
+      expect(site1Filenames).to.contain(filename)
     }
   })
-  it.skip('should retrieve assets by bytes (greater than)', async () => {})
-  it.skip('should retrieve assets by byes (less than)', async () => {})
+  it('should retrieve assets by bytes (greater than)', async () => {
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsBySize ($size: Int!) { assets(filter: { bytes: $size }) { id name extension filename, size, checksum site { id, name } }}', { size: 1265 })
+    // { "id": "FNliuvzd-U", "filename": "bobcat.jpg", "size": 3793056, "site": { "id": "7", "name": "site1"}}
+    expect(assets.length).to.be.greaterThan(0)
+    const site1Filenames = assets.filter(a => a.site.name === 'site1').map(a => a.filename)
+    expect(site1Filenames).to.contain('bobcat.jpg')
+  })
+  it('should retrieve assets by bytes (less than)', async () => {
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsBySize ($size: Int!) { assets(filter: { bytes: $size }) { id name extension filename, size, checksum site { id, name } }}', { size: -1265 })
+    // { "id": "3fg2JqZ2Kv", "filename": "blankpdf.pdf", "size": 1264, "site": { "id": "7", "name": "site1"}},
+    // { "id": "zgc7eUI06H", "filename": "blankpdf.pdf", "size": 1264, "site": { "id": "2", "name": "site8"}}
+    expect(assets.length).to.be.greaterThan(1)
+    const site1Filenames = assets.filter(a => a.site.name === 'site1').map(a => a.filename)
+    expect(site1Filenames).to.contain('blankpdf.pdf')
+  })
   it.skip('should retrieve only deleted assets', async () => {})
   it.skip('should retrieve assets that are not fully deleted', async () => {})
 })
