@@ -1,5 +1,4 @@
 import { expect } from 'chai'
-import { assert } from 'console'
 import { keyby } from 'txstate-utils'
 import { query } from '../common.js'
 
@@ -70,6 +69,14 @@ interface Asset {
 describe('assets', () => {
   let allAssets: Asset[]
   before(async () => {
+    const aList = await query<{ assets: Asset[] }>('{ assets { id mime name filename path checksum box { width height } resizes { width height mime } folder { id } site { id, name } } }')
+    // Rename bobcat.jpg asset to bobCAT.jpg
+    const asset = aList.assets.filter(a => a.site.name === 'site1').filter(a => a.filename === 'bobcat.jpg')[0]
+    console.log(`bobcat asset: ${JSON.stringify(asset)}`)
+    const resp = await query('mutation renameAsset ($id: ID!, $name: FilenameSafeString!) { renameAsset (assetId: $id, name: $name) { asset { id name } } }', {
+      id: asset.id,
+      name: 'BobCAT'
+    })
     const { assets } = await query<{ assets: Asset[] }>('{ assets { id mime name filename path checksum box { width height } resizes { width height mime } folder { id } site { id, name } } }')
     allAssets = assets
   })
@@ -106,11 +113,11 @@ describe('assets', () => {
   it.skip('should retrieve assets by name', async () => {})
   it('should retrieve assets by path', async () => {
     const { assets } = await query<{ assets: Asset[] }>('query getAssetByPath ($path: FilenameSafePath!) { assets(filter: { paths: [$path] }) { id name extension }}', { path: '/site1/bobcat' })
-    expect(assets[0].name).to.equal('bobcat')
+    expect(assets[0].name).to.equal('bobCAT')
   })
   it('should retrieve assets by path (case insensitive)', async () => {
     const { assets } = await query<{ assets: Asset[] }>('query getAssetByPath ($path: FilenameSafePath!) { assets(filter: { paths: [$path] }) { id name extension }}', { path: '/site1/BOBCAT' })
-    expect(assets[0].name).to.equal('bobcat')
+    expect(assets[0].name).to.equal('bobCAT')
   })
   it('should retrieve asset by link', async () => {
     const asset = allAssets.filter(a => a.site.name === 'site1').filter(a => a.filename === 'blankpdf.pdf')[0]
@@ -137,7 +144,7 @@ describe('assets', () => {
     // { "id": "FNliuvzd-U", "filename": "bobcat.jpg", "size": 3793056, "site": { "id": "7", "name": "site1"}}
     expect(assets.length).to.be.greaterThan(0)
     const site1Filenames = assets.filter(a => a.site.name === 'site1').map(a => a.filename)
-    expect(site1Filenames).to.contain('bobcat.jpg')
+    expect(site1Filenames).to.contain('BobCAT.jpg')
   })
   it('should retrieve assets by bytes (less than)', async () => {
     const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsBySize ($size: Int!) { assets(filter: { bytes: $size }) { id name extension filename size checksum site { id name }}}', { size: -1265 })
