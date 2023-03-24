@@ -112,6 +112,16 @@ describe('assets', () => {
     const { assets } = await query<{ assets: Asset[] }>('query getAssetByPath ($path: FilenameSafePath!) { assets(filter: { paths: [$path] }) { id name extension }}', { path: '/site1/BOBCAT' })
     expect(assets[0].name).to.equal('bobcat')
   })
+  it('should retrieve asset by link', async () => {
+    const asset = allAssets.filter(a => a.site.name === 'site1').filter(a => a.filename === 'blankpdf.pdf')[0]
+    const { assets } = await query<{ assets: Asset[] }>('query getAssetByLink ($links: [AssetLinkInput!]!) { assets(filter: { links: $links }) { id name extension filename size checksum site { id name }}}', { links: [{ linkId: asset.id, path: '/site1/blankpdf', siteId: asset.site.id, checksum: '' }] })
+    expect(assets[0].checksum).to.equal('PKBUoghpogATqmK14ry1wqKsP-e-S8GVqHKuCxH7k1k')
+  })
+  it('should retrieve asset by link (with broken id - should default to path)', async () => {
+    const asset = allAssets.filter(a => a.site.name === 'site1').filter(a => a.filename === 'blankpdf.pdf')[0]
+    const { assets } = await query<{ assets: Asset[] }>('query getAssetByLink ($links: [AssetLinkInput!]!) { assets(filter: { links: $links }) { id name extension filename size checksum site { id name }}}', { links: [{ linkId: asset.id + 'a', path: '/site1/blankpdf', siteId: asset.site.id, checksum: '' }] })
+    expect(assets[0].checksum).to.equal('PKBUoghpogATqmK14ry1wqKsP-e-S8GVqHKuCxH7k1k')
+  })
   it.skip('should retrieve assets by ancestor path (beneath filter)', async () => {})
   it('should retrieve assets by parent path', async () => {
     const site1Filenames = allAssets.filter(a => a.site.name === 'site1').map(a => a.filename)
@@ -123,14 +133,14 @@ describe('assets', () => {
     }
   })
   it('should retrieve assets by bytes (greater than)', async () => {
-    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsBySize ($size: Int!) { assets(filter: { bytes: $size }) { id name extension filename, size, checksum site { id, name } }}', { size: 1265 })
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsBySize ($size: Int!) { assets(filter: { bytes: $size }) { id name extension filename size checksum site { id name }}}', { size: 1265 })
     // { "id": "FNliuvzd-U", "filename": "bobcat.jpg", "size": 3793056, "site": { "id": "7", "name": "site1"}}
     expect(assets.length).to.be.greaterThan(0)
     const site1Filenames = assets.filter(a => a.site.name === 'site1').map(a => a.filename)
     expect(site1Filenames).to.contain('bobcat.jpg')
   })
   it('should retrieve assets by bytes (less than)', async () => {
-    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsBySize ($size: Int!) { assets(filter: { bytes: $size }) { id name extension filename, size, checksum site { id, name } }}', { size: -1265 })
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsBySize ($size: Int!) { assets(filter: { bytes: $size }) { id name extension filename size checksum site { id name }}}', { size: -1265 })
     // { "id": "3fg2JqZ2Kv", "filename": "blankpdf.pdf", "size": 1264, "site": { "id": "7", "name": "site1"}},
     // { "id": "zgc7eUI06H", "filename": "blankpdf.pdf", "size": 1264, "site": { "id": "2", "name": "site8"}}
     expect(assets.length).to.be.greaterThan(1)
@@ -138,7 +148,7 @@ describe('assets', () => {
     expect(site1Filenames).to.contain('blankpdf.pdf')
   })
   it.skip('should retrieve only deleted assets', async () => {
-    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIDeletedAssets ($deleteStates: [DeleteStateInput!]!) { assets(filter: { deleteStates: $deleteStates }) { id name extension filename, size, checksum site { id, name } }}', { deleteStates: ['DELETED'] })
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIDeletedAssets ($deleteStates: [DeleteStateInput!]!) { assets(filter: { deleteStates: $deleteStates }) { id name extension filename size checksum site { id name }}}', { deleteStates: ['DELETED'] })
     const filenames = assets.map(a => a.filename)
     expect(filenames).to.contain('anotherbobcat.jpg')
   })
