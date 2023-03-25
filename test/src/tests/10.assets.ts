@@ -113,11 +113,11 @@ describe('assets', () => {
   it.skip('should retrieve assets by name', async () => {})
   it('should retrieve assets by path', async () => {
     const { assets } = await query<{ assets: Asset[] }>('query getAssetByPath ($path: FilenameSafePath!) { assets(filter: { paths: [$path] }) { id name extension }}', { path: '/site1/bobcat' })
-    expect(assets[0].name).to.equal('bobCAT')
+    expect(assets[0].name).to.equal('BobCAT')
   })
   it('should retrieve assets by path (case insensitive)', async () => {
     const { assets } = await query<{ assets: Asset[] }>('query getAssetByPath ($path: FilenameSafePath!) { assets(filter: { paths: [$path] }) { id name extension }}', { path: '/site1/BOBCAT' })
-    expect(assets[0].name).to.equal('bobCAT')
+    expect(assets[0].name).to.equal('BobCAT')
   })
   it('should retrieve asset by link', async () => {
     const asset = allAssets.filter(a => a.site.name === 'site1').filter(a => a.filename === 'blankpdf.pdf')[0]

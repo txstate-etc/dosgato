@@ -65,7 +65,7 @@ async function convertPathsToIDPaths (pathstrings: string[]) {
   }
   const assetsByNameAndFolderId: Record<string, Record<string, typeof assetRows[number]>> = {}
   for (const row of assetRows) {
-    assetsByNameAndFolderId[row.name] ??= {}
+    assetsByNameAndFolderId[row.name.toLowerCase()] ??= {}
     assetsByNameAndFolderId[row.name.toLowerCase()][row.folderId] = row
   }
   const ret: { folderIdPath: string, assetId?: number }[] = []
