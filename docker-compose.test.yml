@@ -21,6 +21,7 @@ services:
       MYSQL_DATABASE: dosgatotest
       MYSQL_HOST: mysql
       JWT_SECRET: secret
+      SKIP_BOOTSTRAP: 'true'
       RESET_DB_ON_STARTUP: 'true'
   mysql:
     image: mariadb
