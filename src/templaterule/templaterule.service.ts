@@ -2,9 +2,9 @@ import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Cache, isNull, someAsync } from 'txstate-utils'
 import {
-  Template, DosGatoService, tooPowerfulHelper, getTemplateRules, TemplateRule, TemplateRuleFilter,
-  CreateTemplateRuleInput, RoleService, createTemplateRule, TemplateRuleResponse, updateTemplateRule,
-  UpdateTemplateRuleInput, deleteTemplateRule, RoleServiceInternal, TemplateServiceInternal
+  type Template, DosGatoService, tooPowerfulHelper, getTemplateRules, TemplateRule, type TemplateRuleFilter,
+  type CreateTemplateRuleInput, RoleService, createTemplateRule, TemplateRuleResponse, updateTemplateRule,
+  type UpdateTemplateRuleInput, deleteTemplateRule, RoleServiceInternal, TemplateServiceInternal
 } from '../internal.js'
 
 const templateRulesByIdLoader = new PrimaryKeyLoader({

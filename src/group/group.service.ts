@@ -2,7 +2,7 @@ import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { unique, isNotNull, someAsync, mapConcurrent } from 'txstate-utils'
 import {
-  Group, GroupFilter, GroupResponse, getGroups, getGroupsWithUser, getGroupsWithRole,
+  type Group, type GroupFilter, GroupResponse, getGroups, getGroupsWithUser, getGroupsWithRole,
   groupHierarchyCache, createGroup, updateGroup, deleteGroup,
   addUserToGroups, removeUserFromGroups, removeSubgroup, addSubgroup, groupNameIsUnique,
   UserService, DosGatoService, setUserGroups, setGroupUsers
@@ -189,7 +189,7 @@ export class GroupService extends DosGatoService<Group> {
   }
 
   async addUserToGroups (groupIds: string[], userId: string) {
-    const groups = (await (await Promise.all(groupIds.map(async id => await this.raw.findById(id)))).filter(isNotNull))
+    const groups = (await Promise.all(groupIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (await someAsync(groups, async (g: Group) => !(await this.mayManageUsers(g)))) {
       throw new Error('Current user is not permitted to add user to one or more groups.')
     }
@@ -205,7 +205,7 @@ export class GroupService extends DosGatoService<Group> {
   }
 
   async removeUserFromGroup (groupIds: string[], userId: string) {
-    const groups = (await (await Promise.all(groupIds.map(async id => await this.raw.findById(id)))).filter(isNotNull))
+    const groups = (await Promise.all(groupIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (await someAsync(groups, async (g: Group) => !(await this.mayManageUsers(g)))) {
       throw new Error('Current user is not permitted to remove user from one or more groups.')
     }
@@ -221,7 +221,7 @@ export class GroupService extends DosGatoService<Group> {
   }
 
   async setUserGroups (userId: string, groupIds: string[]) {
-    const groups = (await (await Promise.all(groupIds.map(async id => await this.raw.findById(id)))).filter(isNotNull))
+    const groups = (await Promise.all(groupIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (await someAsync(groups, async (g: Group) => !(await this.mayManageUsers(g)))) {
       throw new Error('Current user is not permitted to manage users for one or more groups.')
     }

@@ -4,7 +4,7 @@ import { access, constants, mkdir, rename, unlink } from 'fs/promises'
 import { nanoid } from 'nanoid'
 import { dirname } from 'path'
 import sharp from 'sharp'
-import { Readable } from 'stream'
+import { type Readable } from 'stream'
 import { pipeline } from 'stream/promises'
 import { rescue } from 'txstate-utils'
 
@@ -87,7 +87,7 @@ class FileSystemHandler implements FileHandler {
   async remove (checksum: string) {
     const filepath = this.#getFileLocation(checksum)
     try {
-      return await unlink(filepath)
+      await unlink(filepath); return
     } catch (e: any) {
       if (e.code === 'ENOENT') console.warn('Tried to delete file with checksum', checksum, 'but it did not exist.')
       else console.warn(e)

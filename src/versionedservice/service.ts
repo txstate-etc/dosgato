@@ -2,12 +2,12 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import jsonPatch from 'fast-json-patch'
-import { Queryable } from 'mysql2-async'
+import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { createHash } from 'node:crypto'
 import { clone, intersect } from 'txstate-utils'
-import { Index, IndexJoinedStorage, IndexStorage, IndexStringified, NotFoundError, SearchRule, Tag, UpdateConflictError, Version, Versioned, VersionedCommon, VersionedStorage, VersionStorage } from '../internal.js'
+import { type Index, type IndexJoinedStorage, type IndexStorage, type IndexStringified, NotFoundError, type SearchRule, type Tag, UpdateConflictError, type Version, type Versioned, type VersionedCommon, type VersionedStorage, type VersionStorage } from '../internal.js'
 const { applyPatch, compare } = jsonPatch
 
 const storageLoader = new PrimaryKeyLoader({
@@ -431,7 +431,7 @@ export class VersionedService extends BaseService {
       await db.execute('DELETE FROM versions WHERE id=?', [id])
       await db.execute('DELETE FROM storage WHERE id=?', [id])
     })
-    VersionedService.cleanIndexValues().catch((e: Error) => console.error(e))
+    VersionedService.cleanIndexValues().catch((e: Error) => { console.error(e) })
     this.loaders.get(storageLoader).clear(id)
   }
 

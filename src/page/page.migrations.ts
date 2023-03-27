@@ -1,4 +1,4 @@
-import { ComponentData, PageData, PageMigration, ComponentMigration, PageExtras, ComponentExtras } from '@dosgato/templating'
+import { type ComponentData, type PageData, type PageMigration, type ComponentMigration, type PageExtras, type ComponentExtras } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 import { clone } from 'txstate-utils'
 import { templateRegistry } from '../internal.js'

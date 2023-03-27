@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { isNotNull } from 'txstate-utils'
-import { PageRule, PageRuleFilter, CreatePageRuleInput, UpdatePageRuleInput, RulePathMode } from '../internal.js'
+import { PageRule, type PageRuleFilter, type CreatePageRuleInput, type UpdatePageRuleInput, RulePathMode } from '../internal.js'
 
 function processFilters (filter: PageRuleFilter) {
   const binds: string[] = []

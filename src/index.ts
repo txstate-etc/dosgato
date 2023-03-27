@@ -1,11 +1,11 @@
-import { APIAnyTemplate, FulltextGatheringFn, LinkGatheringFn, Migration, ValidationFeedback } from '@dosgato/templating'
-import { Context, GQLServer, GQLStartOpts } from '@txstate-mws/graphql-server'
-import { FastifyInstance } from 'fastify'
-import { FastifyTxStateOptions, devLogger } from 'fastify-txstate'
-import { GraphQLError, GraphQLScalarType } from 'graphql'
+import { type APIAnyTemplate, type FulltextGatheringFn, type LinkGatheringFn, type Migration, type ValidationFeedback } from '@dosgato/templating'
+import { type Context, GQLServer, type GQLStartOpts } from '@txstate-mws/graphql-server'
+import { type FastifyInstance } from 'fastify'
+import { type FastifyTxStateOptions, devLogger } from 'fastify-txstate'
+import { type GraphQLError, type GraphQLScalarType } from 'graphql'
 import { DateTime } from 'luxon'
 import { Cache } from 'txstate-utils'
-import { NonEmptyArray } from 'type-graphql'
+import { type NonEmptyArray } from 'type-graphql'
 import { migrations, resetdb } from './migrations.js'
 import {
   DateTimeScalar, UrlSafeString, UrlSafeStringScalar, AssetPermissionsResolver, AssetResolver,
@@ -17,7 +17,7 @@ import {
   TemplateAreaResolver, TemplatePermissionsResolver, TemplateResolver, UserPermissionsResolver, UserResolver,
   DataFolderPermissionsResolver, DataFolderResolver, GroupPermissionsResolver, GroupResolver,
   GlobalRulePermissionsResolver, GlobalRuleResolver, VersionResolver, OrganizationResolver,
-  AccessResolver, DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
+  AccessResolver, type DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
   DataRootPermissionsResolver, updateLastLogin, createAssetRoutes, UrlSafePath, UrlSafePathScalar,
   AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler, beginProcessingResizes, FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar
@@ -42,7 +42,7 @@ export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
   templates: APIAnyTemplate[]
   fixtures?: () => Promise<void>
   migrations?: DBMigration[]
-  resolvers?: Function[]
+  resolvers?: any[]
   assetMeta?: AssetMeta
 }
 
@@ -79,7 +79,7 @@ export class DGServer {
     await createAssetRoutes(this.app)
     await createPageRoutes(this.app)
 
-    const resolvers: NonEmptyArray<Function> = [
+    const resolvers: NonEmptyArray<any> = [
       AccessResolver,
       AssetResolver,
       AssetPermissionsResolver,
@@ -125,7 +125,7 @@ export class DGServer {
     ];
     (resolvers as any[]).push(...(opts.resolvers ?? []))
 
-    const scalarsMap: { type: Function, scalar: GraphQLScalarType }[] = [
+    const scalarsMap: { type: any, scalar: GraphQLScalarType }[] = [
       { type: FilenameSafePath, scalar: FilenameSafePathScalar },
       { type: FilenameSafeString, scalar: FilenameSafeStringScalar },
       { type: UrlSafePath, scalar: UrlSafePathScalar },

@@ -1,14 +1,14 @@
-import { PageData } from '@dosgato/templating'
+import { type PageData } from '@dosgato/templating'
 import { Context } from '@txstate-mws/graphql-server'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { HttpError } from 'fastify-txstate'
 import db from 'mysql2-async/db'
 import { groupby, isNotBlank, pick } from 'txstate-utils'
 import {
-  createPage, CreatePageInput, createPagetree, createSite, DeleteState, getEnabledUser, getPageIndexes, getPages, GlobalRuleService,
+  createPage, type CreatePageInput, createPagetree, createSite, DeleteState, getEnabledUser, getPageIndexes, getPages, GlobalRuleService,
   logMutation,
-  makeSafe, numerate, Page, PageRule, PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal,
-  PagetreeType, SiteService, SiteServiceInternal, templateRegistry, VersionedService
+  makeSafe, numerate, Page, type PageRule, PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal,
+  type PagetreeType, SiteService, SiteServiceInternal, templateRegistry, VersionedService
 } from '../internal.js'
 
 export interface PageExport {

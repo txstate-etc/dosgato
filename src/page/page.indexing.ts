@@ -1,6 +1,6 @@
-import { extractLinksFromText, getKeywords, PageData } from '@dosgato/templating'
+import { extractLinksFromText, getKeywords, type PageData } from '@dosgato/templating'
 import { isNotBlank } from 'txstate-utils'
-import { processLink, templateRegistry, Index, collectComponents } from '../internal.js'
+import { processLink, templateRegistry, type Index, collectComponents } from '../internal.js'
 
 export function getPageIndexes (page: PageData): Index[] {
   const storage: Record<string, Set<string>> = {}

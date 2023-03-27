@@ -1,4 +1,4 @@
-import { APITemplateType, APIAnyTemplate, APIPageTemplate, APIComponentTemplate, APIDataTemplate, ComponentData, LinkDefinition, Migration } from '@dosgato/templating'
+import { type APITemplateType, type APIAnyTemplate, type APIPageTemplate, type APIComponentTemplate, type APIDataTemplate, type ComponentData, type LinkDefinition, type Migration } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 import { isNotEmpty, sortby } from 'txstate-utils'
 import { TemplateArea } from '../internal.js'

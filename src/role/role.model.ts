@@ -1,5 +1,5 @@
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
-import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
+import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { optionalString } from 'txstate-utils'
 import { UrlSafeString } from '../internal.js'
 

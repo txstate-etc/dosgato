@@ -2,11 +2,11 @@ import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mw
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Cache, filterAsync, isNotNull } from 'txstate-utils'
 import {
-  Asset, AssetRule, AssetRuleResponse, AssetRuleFilter, AssetFolder,
-  comparePathsWithMode, createAssetRule, CreateAssetRuleInput, DosGatoService,
-  getAssetRules, RulePathMode, RoleService, tooPowerfulHelper, UpdateAssetRuleInput,
+  type Asset, AssetRule, AssetRuleResponse, type AssetRuleFilter, type AssetFolder,
+  comparePathsWithMode, createAssetRule, type CreateAssetRuleInput, DosGatoService,
+  getAssetRules, RulePathMode, RoleService, tooPowerfulHelper, type UpdateAssetRuleInput,
   updateAssetRule, deleteAssetRule, AssetServiceInternal, AssetFolderServiceInternal,
-  RoleServiceInternal, PagetreeServiceInternal, PagetreeType
+  RoleServiceInternal, PagetreeServiceInternal, type PagetreeType
 } from '../internal.js'
 
 const assetRulesByIdLoader = new PrimaryKeyLoader({

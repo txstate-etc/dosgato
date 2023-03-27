@@ -2,9 +2,9 @@ import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { isNotNull, isNull, stringify, unique, mapConcurrent } from 'txstate-utils'
 import {
-  Template, TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
+  type Template, type TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
   DosGatoService, authorizeForPagetrees, authorizeForSite, setUniversal, PagetreeServiceInternal,
-  SiteServiceInternal, Page, collectTemplates, PageServiceInternal, universalTemplateCache,
+  SiteServiceInternal, type Page, collectTemplates, PageServiceInternal, universalTemplateCache,
   deauthorizeTemplate, getTemplatePagetreePairs, templateRegistry
 } from '../internal.js'
 

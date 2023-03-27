@@ -2,8 +2,7 @@ import multipart from '@fastify/multipart'
 import { Context } from '@txstate-mws/graphql-server'
 import archiver from 'archiver'
 import { createHash } from 'crypto'
-import type { FastifyInstance } from 'fastify'
-import { FastifyRequest } from 'fastify'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { HttpError } from 'fastify-txstate'
 import { fileTypeStream } from 'file-type'
 import { DateTime } from 'luxon'
@@ -11,13 +10,13 @@ import { lookup } from 'mime-types'
 import db from 'mysql2-async/db'
 import probe from 'probe-image-size'
 import { PassThrough, Readable } from 'stream'
-import { ReadableStream } from 'stream/web'
+import { type ReadableStream } from 'stream/web'
 import { groupby, isNotBlank, keyby, randomid } from 'txstate-utils'
 import {
-  Asset,
+  type Asset,
   AssetFolder,
-  AssetFolderService, AssetFolderServiceInternal, AssetResize, AssetRule, AssetRuleService, AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler,
-  getEnabledUser, GlobalRuleService, logMutation, makeSafeFilename, PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService
+  AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService, AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler,
+  getEnabledUser, GlobalRuleService, logMutation, makeSafeFilename, type PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService
 } from '../internal.js'
 
 interface RootAssetFolder {

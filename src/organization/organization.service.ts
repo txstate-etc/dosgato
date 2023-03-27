@@ -1,6 +1,6 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { PrimaryKeyLoader } from 'dataloader-factory'
-import { createOrganization, DosGatoService, getOrganizations, Organization, OrganizationFilter, OrganizationResponse, SiteService } from '../internal.js'
+import { createOrganization, DosGatoService, getOrganizations, type Organization, type OrganizationFilter, OrganizationResponse, SiteService } from '../internal.js'
 
 const organizationsByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => {

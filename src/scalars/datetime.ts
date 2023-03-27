@@ -1,4 +1,4 @@
-import { GraphQLScalarType, Kind, ValueNode } from 'graphql'
+import { GraphQLScalarType, Kind, type ValueNode } from 'graphql'
 import { DateTime } from 'luxon'
 
 export const DateTimeScalar = new GraphQLScalarType({

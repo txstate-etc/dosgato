@@ -1,13 +1,13 @@
-import { PageData } from '@dosgato/templating'
+import { type PageData } from '@dosgato/templating'
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import { nanoid } from 'nanoid'
 import { filterAsync, isBlank, isNotBlank } from 'txstate-utils'
 import {
-  Site, SiteFilter, getSites, getSitesByTemplate, undeleteSite,
+  type Site, type SiteFilter, getSites, getSitesByTemplate, undeleteSite,
   PagetreeService, DosGatoService, createSite, VersionedService, SiteResponse,
   deleteSite, PageService, getSitesByManagerInternalId, siteNameIsUnique,
-  renameSite, setLaunchURL, UpdateSiteManagementInput, updateSiteManagement, DeletedFilter, CreatePageExtras, getSiteIdByLaunchUrl, Organization, PageServiceInternal
+  renameSite, setLaunchURL, type UpdateSiteManagementInput, updateSiteManagement, DeletedFilter, type CreatePageExtras, getSiteIdByLaunchUrl, type Organization, PageServiceInternal
 } from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({

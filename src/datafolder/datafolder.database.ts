@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { DataFolder, DataFolderFilter, Site, DeleteState, VersionedService, processDeletedFilters } from '../internal.js'
+import { DataFolder, type DataFolderFilter, Site, DeleteState, type VersionedService, processDeletedFilters } from '../internal.js'
 
 export async function getDataFolders (filter?: DataFolderFilter) {
   const { binds, where, joins } = processDeletedFilters(
@@ -75,7 +75,7 @@ export async function renameDataFolder (folderId: string, name: string) {
 }
 
 export async function moveDataFolders (folderIds: string[], siteId?: string) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const binds: string[] = []
     const dataFolders = (await db.getall(`SELECT * FROM datafolders WHERE guid IN (${db.in(binds, folderIds)})`, binds)).map((row) => new DataFolder(row))
     const site = siteId ? new Site(await db.getrow('SELECT * FROM sites WHERE id = ?', [siteId])) : undefined
@@ -104,7 +104,7 @@ export async function deleteDataFolder (versionedService: VersionedService, fold
 }
 
 export async function finalizeDataFolderDeletion (guids: string[], userInternalId: number) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const folderInternalIds = await db.getvals<number>(`SELECT id FROM datafolders WHERE guid IN (${db.in([], guids)})`, guids)
     const binds: number[] = [userInternalId, DeleteState.DELETED]
     await db.update(`UPDATE datafolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE id IN (${db.in(binds, folderInternalIds)})`, binds)
@@ -113,7 +113,7 @@ export async function finalizeDataFolderDeletion (guids: string[], userInternalI
 }
 
 export async function undeleteDataFolders (guids: string[]) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const folderInternalIds = await db.getvals<number>(`SELECT id FROM datafolders WHERE guid IN (${db.in([], guids)})`, guids)
     const binds: number[] = [DeleteState.NOTDELETED]
     await db.update(`UPDATE datafolders SET deletedBy = null, deletedAt = null, deleteState = ? WHERE id IN (${db.in(binds, folderInternalIds)})`, binds)

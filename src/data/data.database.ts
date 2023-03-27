@@ -1,7 +1,7 @@
 import db from 'mysql2-async/db'
 import { isNotNull, unique, sortby } from 'txstate-utils'
-import { Queryable } from 'mysql2-async'
-import { Data, DataFilter, VersionedService, CreateDataInput, getDataIndexes, DataFolder, Site, MoveDataTarget, DeleteState, processDeletedFilters } from '../internal.js'
+import { type Queryable } from 'mysql2-async'
+import { Data, type DataFilter, type VersionedService, type CreateDataInput, getDataIndexes, DataFolder, Site, type MoveDataTarget, DeleteState, processDeletedFilters } from '../internal.js'
 import { DateTime } from 'luxon'
 
 async function processFilters (filter?: DataFilter) {
@@ -188,7 +188,7 @@ export async function createDataEntry (versionedService: VersionedService, userI
     const data = args.data
     const templateId = await db.getval<number>('SELECT id FROM templates WHERE `key`=?', [data.templateKey])
     if (!templateId) throw new Error('templateKey does not exist.')
-    const indexes = await getDataIndexes(data)
+    const indexes = getDataIndexes(data)
     const dataId = await versionedService.create('data', data, indexes, userId, db)
     const columns = ['templateId', 'dataId', 'name', 'displayOrder']
     const binds = [templateId, dataId, args.name, displayOrder]

@@ -1,4 +1,4 @@
-import { ComponentData, ComponentExtras, PageData, PageExtras } from '@dosgato/templating'
+import { type ComponentData, type ComponentExtras, type PageData, type PageExtras } from '@dosgato/templating'
 import { templateRegistry } from '../internal.js'
 
 export async function validateRecurse (extras: ComponentExtras, data: ComponentData, path: string[]) {

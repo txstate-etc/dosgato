@@ -1,12 +1,12 @@
 import type { PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
-import { Queryable } from 'mysql2-async'
+import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { unique, keyby, eachConcurrent, isNotNull, Cache, isNotBlank, intersect } from 'txstate-utils'
 import {
-  Site, SiteFilter, PagetreeType, VersionedService, createSiteComment, UpdateSiteManagementInput,
-  DeletedFilter, normalizeHost, parsePath, CreatePageExtras, createVersionedPage
+  Site, type SiteFilter, PagetreeType, type VersionedService, createSiteComment, type UpdateSiteManagementInput,
+  DeletedFilter, normalizeHost, parsePath, type CreatePageExtras, createVersionedPage
 } from '../internal.js'
 
 const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.launchEnabled', 'sites.primaryPagetreeId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
@@ -176,13 +176,13 @@ async function renameSiteInsideTransaction (site: Site, name: string, currentUse
 }
 
 export async function renameSite (site: Site, name: string, currentUserInternalId: number) {
-  return await db.transaction(async db => {
-    return await renameSiteInsideTransaction(site, name, currentUserInternalId, db)
+  await db.transaction(async db => {
+    await renameSiteInsideTransaction(site, name, currentUserInternalId, db)
   })
 }
 
 export async function setLaunchURL (site: Site, host: string | undefined, path: string | undefined, enabled: boolean, currentUserInternalId: number) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const fetchedSite = new Site(await db.getrow('SELECT * FROM sites WHERE id = ?', [site.id]))
     await db.update('UPDATE sites SET launchHost = ?, launchPath = ?, launchEnabled = ? WHERE id = ?', [host ?? null, path ?? null, enabled && !!host, site.id])
     if (isNotNull(fetchedSite.url)) {
@@ -201,7 +201,7 @@ export async function setLaunchURL (site: Site, host: string | undefined, path: 
 }
 
 export async function updateSiteManagement (site: Site, args: UpdateSiteManagementInput, currentUserInternalId: number) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const updates: string[] = []
     const binds: (string | number | null)[] = []
     const auditComments: string[] = []

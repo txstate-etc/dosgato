@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { Cache, keyby } from 'txstate-utils'
-import { Group, GroupFilter } from '../internal.js'
+import { Group, type GroupFilter } from '../internal.js'
 
 class HierarchyGroup extends Group {
   children: HierarchyGroup[]
@@ -123,7 +123,7 @@ export async function updateGroup (id: string, name: string) {
 }
 
 export async function deleteGroup (id: string) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     await Promise.all([
       db.delete('DELETE FROM groups_roles WHERE groupId = ?', [id]),
       db.delete('DELETE FROM groups_groups WHERE parentId = ? OR childId = ?', [id, id]),

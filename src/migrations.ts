@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { Queryable } from 'mysql2-async'
+import { type Queryable } from 'mysql2-async'
 import { sortby } from 'txstate-utils'
 import { init } from './createdb.js'
 import { type DBMigration, VersionedService } from './internal.js'

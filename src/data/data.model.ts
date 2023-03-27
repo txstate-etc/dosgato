@@ -1,4 +1,4 @@
-import type { DataData } from '@dosgato/templating'
+import { DataData } from '@dosgato/templating'
 import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { optionalString } from 'txstate-utils'

@@ -1,8 +1,8 @@
-import { Queryable } from 'mysql2-async'
+import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { isNotBlank, keyby } from 'txstate-utils'
-import { AssetFolder, AssetFolderFilter, CreateAssetFolderInput, DeleteState, normalizePath, processDeletedFilters } from '../internal.js'
+import { AssetFolder, type AssetFolderFilter, type CreateAssetFolderInput, DeleteState, normalizePath, processDeletedFilters } from '../internal.js'
 
 export interface AssetFolderRow {
   id: number
@@ -192,7 +192,7 @@ export async function renameAssetFolder (folderId: string, name: string) {
 }
 
 export async function deleteAssetFolder (id: number, userInternalId: number) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const folderIds = await db.getvals<number>('SELECT id FROM assetfolders WHERE id = ? OR path like ?', [id, `%/${id}%`])
     const binds: number[] = [userInternalId, DeleteState.MARKEDFORDELETE]
     await db.update(`UPDATE assetfolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE id IN (${db.in(binds, folderIds)})`, binds)
@@ -201,7 +201,7 @@ export async function deleteAssetFolder (id: number, userInternalId: number) {
 }
 
 export async function finalizeAssetFolderDeletion (id: number, userInternalId: number) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const folderIds = await db.getvals<number>('SELECT id FROM assetfolders WHERE id = ? OR path like ?', [id, `%/${id}%`])
     const binds: number[] = [userInternalId, DeleteState.DELETED]
     await db.update(`UPDATE assetfolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE id IN (${db.in(binds, folderIds)})`, binds)
@@ -210,7 +210,7 @@ export async function finalizeAssetFolderDeletion (id: number, userInternalId: n
 }
 
 export async function undeleteAssetFolder (id: number) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const folderIds = await db.getvals<number>('SELECT id FROM assetfolders WHERE id = ? OR path like ?', [id, `%/${id}%`])
     const binds: number[] = [DeleteState.NOTDELETED]
     await db.update(`UPDATE assetfolders SET deletedBy = null, deletedAt = null, deleteState = ? WHERE id IN (${db.in(binds, folderIds)})`, binds)

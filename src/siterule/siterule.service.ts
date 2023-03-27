@@ -2,9 +2,9 @@ import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Cache } from 'txstate-utils'
 import {
-  Site, DosGatoService, tooPowerfulHelper, getSiteRules, SiteRule, SiteRuleFilter,
-  CreateSiteRuleInput, RoleService, createSiteRule, SiteRuleResponse, UpdateSiteRuleInput,
-  deleteSiteRule, updateSiteRule, Pagetree, RoleServiceInternal
+  type Site, DosGatoService, tooPowerfulHelper, getSiteRules, SiteRule, type SiteRuleFilter,
+  type CreateSiteRuleInput, RoleService, createSiteRule, SiteRuleResponse, type UpdateSiteRuleInput,
+  deleteSiteRule, updateSiteRule, type Pagetree, RoleServiceInternal
 } from '../internal.js'
 
 const siteRulesByIdLoader = new PrimaryKeyLoader({

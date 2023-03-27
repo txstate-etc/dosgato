@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { Queryable } from 'mysql2-async'
+import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { sleep } from 'txstate-utils'
 

@@ -1,4 +1,4 @@
-import { LinkDefinition } from '@dosgato/templating'
+import { type LinkDefinition } from '@dosgato/templating'
 import { stringify } from 'txstate-utils'
 
 export function getHostname (urlString: string) {

@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { Role, RoleFilter } from '../internal.js'
+import { Role, type RoleFilter } from '../internal.js'
 
 export async function getRoles (filter?: RoleFilter) {
   const binds: string[] = []
@@ -87,7 +87,7 @@ export async function updateRole (id: string, name: string) {
 }
 
 export async function deleteRole (id: string) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     await Promise.all([
       db.delete('DELETE FROM groups_roles WHERE roleId = ?', [id]),
       db.delete('DELETE FROM users_roles WHERE roleId = ?', [id]),

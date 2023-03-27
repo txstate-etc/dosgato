@@ -2,7 +2,7 @@ import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { isNotNull, unique } from 'txstate-utils'
 import {
-  DosGatoService, GroupService, UserService, Role, RoleFilter, RoleResponse,
+  DosGatoService, GroupService, UserService, type Role, type RoleFilter, RoleResponse,
   addRolesToUser, createRole, deleteRole, getRoles, getRolesWithGroup, getRolesWithManager,
   getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup,
   GroupServiceInternal, GlobalRuleServiceInternal, SiteRuleServiceInternal, AssetRuleServiceInternal,

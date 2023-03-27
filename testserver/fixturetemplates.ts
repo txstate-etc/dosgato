@@ -1,4 +1,4 @@
-import { WebLink, extractLinksFromText, getKeywords, ValidationFeedback, APIComponentTemplate, APIPageTemplate, APIDataTemplate } from '@dosgato/templating'
+import { type WebLink, extractLinksFromText, getKeywords, type ValidationFeedback, type APIComponentTemplate, type APIPageTemplate, type APIDataTemplate } from '@dosgato/templating'
 import { isBlank } from 'txstate-utils'
 
 export const PageTemplate1: APIPageTemplate = {

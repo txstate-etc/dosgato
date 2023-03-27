@@ -2,9 +2,9 @@ import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { isNull, isNotNull, unique, mapConcurrent, intersect, isBlank, someAsync, filterAsync } from 'txstate-utils'
 import {
-  AssetService, DosGatoService, getAssetFolders, AssetFolder, AssetServiceInternal,
-  CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
-  deleteAssetFolder, undeleteAssetFolder, AssetFilter, AssetFolderFilter,
+  AssetService, DosGatoService, getAssetFolders, type AssetFolder, AssetServiceInternal,
+  type CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
+  deleteAssetFolder, undeleteAssetFolder, type AssetFilter, type AssetFolderFilter,
   finalizeAssetFolderDeletion, DeleteStateAll, PagetreeServiceInternal, PagetreeType, SiteServiceInternal, getAssetFoldersByPath, NameConflictError
 } from '../internal.js'
 
@@ -120,7 +120,7 @@ export class AssetFolderServiceInternal extends BaseService {
     }
     if (filter.childOfFolderIds?.length) {
       const folders = await this.loaders.loadMany(assetFolderByIdLoader, filter.childOfFolderIds)
-      const childFolders = await (await mapConcurrent(folders, async (folder) => await this.getChildFolders(folder, false))).flat()
+      const childFolders = (await mapConcurrent(folders, async (folder) => await this.getChildFolders(folder, false))).flat()
       if (filter.internalIds?.length) {
         filter.internalIds.push(...childFolders.map(f => f.internalId))
       } else filter.internalIds = childFolders.map(f => f.internalId)

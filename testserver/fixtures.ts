@@ -1,4 +1,4 @@
-import { DataData } from '@dosgato/templating'
+import { type DataData } from '@dosgato/templating'
 import { Context } from '@txstate-mws/graphql-server'
 import { existsSync } from 'fs'
 import { DateTime } from 'luxon'
@@ -6,7 +6,7 @@ import { extension } from 'mime-types'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { stringify } from 'txstate-utils'
-import { VersionedService, Index } from '../src/internal.js'
+import { VersionedService, type Index } from '../src/internal.js'
 
 export async function fixtures () {
   console.info('running fixtures()')
@@ -738,7 +738,7 @@ export async function fixtures () {
     const id = await db.transaction(async db => {
       const dataId = await versionedService.create('asset', { shasum: b64urlchecksum, uploadedFilename: name + '.' + (extension(mime) || '') }, indexes, creator, db)
       await db.insert('INSERT IGNORE INTO binaries (shasum, mime, meta, bytes) VALUES (?,?,?,?)', [b64urlchecksum, mime, stringify(width && height ? { width, height } : {}), size])
-      await db.insert('INSERT INTO assets (name, folderId, linkId, dataId, shasum) VALUES (?,?,?,?,?)', [name, folder, nanoid(10), dataId, b64urlchecksum])
+      return await db.insert('INSERT INTO assets (name, folderId, linkId, dataId, shasum) VALUES (?,?,?,?,?)', [name, folder, nanoid(10), dataId, b64urlchecksum])
     })
     return id
   }

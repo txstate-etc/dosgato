@@ -1,16 +1,16 @@
-import { ComponentData, PageData, PageExtras, PageLink } from '@dosgato/templating'
+import { type ComponentData, type PageData, type PageExtras, type PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { DateTime } from 'luxon'
+import { type DateTime } from 'luxon'
 import db from 'mysql2-async/db'
 import { equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set, someAsync, stringify, unique } from 'txstate-utils'
 import {
-  VersionedService, templateRegistry, DosGatoService, Page, PageFilter, PageResponse, PagesResponse,
-  createPage, getPages, movePages, deletePages, renamePage, TemplateService, TemplateFilter,
+  VersionedService, templateRegistry, DosGatoService, type Page, type PageFilter, PageResponse, PagesResponse,
+  createPage, getPages, movePages, deletePages, renamePage, TemplateService, type TemplateFilter,
   getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage,
-  Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
-  Site, PagetreeType, DeleteState, publishPageDeletions, CreatePageExtras, getPagesByPath, parsePath,
-  normalizePath, validateRecurse, Template, PageRuleGrants, DeleteStateAll, PageRuleService
+  type Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
+  type Site, PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, getPagesByPath, parsePath,
+  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -460,7 +460,7 @@ export class PageService extends DosGatoService<Page> {
     }
     // Is this page allowed to be copied here?
     const pageData = await Promise.all(pages.map(async page => await this.raw.getData(page)))
-    await Promise.all(pageData.map(async d => await this.validatePageTemplates(d, { parent })))
+    await Promise.all(pageData.map(async d => { await this.validatePageTemplates(d, { parent }) }))
     const newPage = await copyPages(this.svc(VersionedService), this.login, pages, parent, aboveTarget, includeChildren)
     return new PageResponse({ success: true, page: newPage })
   }

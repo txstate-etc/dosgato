@@ -1,12 +1,12 @@
-import { AuthError, AuthorizedService, Context } from '@txstate-mws/graphql-server'
+import { AuthError, AuthorizedService, type Context } from '@txstate-mws/graphql-server'
 import { filterAsync, keyby } from 'txstate-utils'
 import {
-  Asset, AssetFolder, Data, DataFolder, Page, Site, Template,
-  AssetRuleService, AssetRuleGrants, DataRuleService, DataRuleGrants, GlobalRuleService,
-  GlobalRuleGrants, PageRuleService, PageRuleGrants, SiteRuleGrants, SiteRuleService,
-  TemplateRuleService, TemplateRuleGrants, RoleServiceInternal,
+  type Asset, type AssetFolder, type Data, type DataFolder, type Page, type Site, type Template,
+  AssetRuleService, type AssetRuleGrants, DataRuleService, type DataRuleGrants, GlobalRuleService,
+  type GlobalRuleGrants, PageRuleService, type PageRuleGrants, type SiteRuleGrants, SiteRuleService,
+  TemplateRuleService, type TemplateRuleGrants, RoleServiceInternal,
   SiteRuleServiceInternal, PageRuleServiceInternal, AssetRuleServiceInternal, DataRuleServiceInternal,
-  GlobalRuleServiceInternal, GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal, SiteService, DataRoot, Group
+  GlobalRuleServiceInternal, GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal, SiteService, type DataRoot, type Group
 } from '../internal.js'
 
 export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ sub: string }, ObjType, RedactedType> {

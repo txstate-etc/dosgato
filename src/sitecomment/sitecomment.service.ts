@@ -1,5 +1,5 @@
 import { BaseService } from '@txstate-mws/graphql-server'
-import { DosGatoService, SiteComment, SiteCommentFilter, getSiteComments, SiteServiceInternal, createSiteComment, SiteCommentResponse, SiteService } from '../internal.js'
+import { DosGatoService, type SiteComment, type SiteCommentFilter, getSiteComments, SiteServiceInternal, createSiteComment, SiteCommentResponse, SiteService } from '../internal.js'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 
 const CommentsByIdLoader = new PrimaryKeyLoader({

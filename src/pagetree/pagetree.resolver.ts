@@ -1,4 +1,4 @@
-import type { PageData } from '@dosgato/templating'
+import { PageData } from '@dosgato/templating'
 import { Context } from '@txstate-mws/graphql-server'
 import { unique } from 'txstate-utils'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'type-graphql'

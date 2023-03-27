@@ -1,10 +1,10 @@
-import { PageData } from '@dosgato/templating'
+import { type PageData } from '@dosgato/templating'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { unique, isNotBlank } from 'txstate-utils'
 import {
-  Pagetree, PagetreeFilter, PagetreeType, VersionedService, Site, createSiteComment, User,
-  numerate, createVersionedPage, CreatePageExtras, DeleteStateNoFinalizeDefault, DeleteStateInputNoFinalize, DeleteStateNoFinalizeAll
+  Pagetree, type PagetreeFilter, PagetreeType, type VersionedService, type Site, createSiteComment, type User,
+  numerate, createVersionedPage, type CreatePageExtras, DeleteStateNoFinalizeDefault, DeleteStateInputNoFinalize, DeleteStateNoFinalizeAll
 } from '../internal.js'
 
 export function processDeletedFiltersNoFinalize (filter: any, tableName: string, orphansJoins: Map<string, string>, excludeOrphansClause: string, onlyOrphansClause: string) {
@@ -136,7 +136,7 @@ export async function createPagetree (versionedService: VersionedService, user: 
 }
 
 export async function renamePagetree (pagetreeId: string, name: string, user: User) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const pagetree = new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE ID=?', [pagetreeId]))
     await db.update('UPDATE pagetrees SET name = ? WHERE id = ?', [name, pagetreeId])
     await db.update('UPDATE pages SET name = ? WHERE pagetreeId = ? AND path = "/"', [name, pagetreeId])
@@ -146,7 +146,7 @@ export async function renamePagetree (pagetreeId: string, name: string, user: Us
 }
 
 export async function promotePagetree (oldPrimaryId: string, newPrimaryId: string, site: Site, user: User) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const [oldPrimaryPagetreeRow, newPrimaryPagetreeRow] = await Promise.all([
       db.getrow('SELECT * FROM pagetrees WHERE ID=?', [oldPrimaryId]),
       db.getrow('SELECT * FROM pagetrees WHERE ID=?', [newPrimaryId])
@@ -170,7 +170,7 @@ export async function promotePagetree (oldPrimaryId: string, newPrimaryId: strin
 }
 
 export async function archivePagetree (pagetreeId: string, user: User) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const pagetree = new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE ID=?', [pagetreeId]))
     const siteName = await db.getval<string>('SELECT name FROM sites WHERE id = ?', [pagetree.siteId])
 
@@ -185,7 +185,7 @@ export async function archivePagetree (pagetreeId: string, user: User) {
 }
 
 export async function deletePagetree (pagetreeId: string, user: User) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const pagetree = new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE ID=?', [pagetreeId]))
     if (pagetree.type === PagetreeType.PRIMARY) throw new Error('May not delete the primary pagetree.')
     await db.update('UPDATE pagetrees SET deletedAt = NOW(), deletedBy = ? WHERE id = ?', [user.internalId, pagetreeId])
@@ -194,7 +194,7 @@ export async function deletePagetree (pagetreeId: string, user: User) {
 }
 
 export async function undeletePagetree (pagetreeId: string, user: User) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const pagetree = new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE ID=?', [pagetreeId]))
     await db.update('UPDATE pagetrees SET deletedAt = NULL, deletedBy = NULL WHERE id = ?', [pagetreeId])
     await createSiteComment(pagetree.siteId, `Restored pagetree ${pagetree.name}.`, user.internalId, db)

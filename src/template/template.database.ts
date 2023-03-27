@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { Cache, keyby, eachConcurrent, isNotNull, unique } from 'txstate-utils'
-import { TemplateFilter, Template, templateRegistry, Pagetree, createSiteComment, Site } from '../internal.js'
+import { type TemplateFilter, Template, templateRegistry, type Pagetree, createSiteComment, type Site } from '../internal.js'
 
 const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted', 'templates.universal']
 const columnsjoined = columns.join(', ')

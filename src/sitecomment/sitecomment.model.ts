@@ -1,6 +1,6 @@
 import { Field, ID, ObjectType, InputType } from 'type-graphql'
 import { DateTime } from 'luxon'
-import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
+import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 
 @ObjectType()
 export class SiteComment {

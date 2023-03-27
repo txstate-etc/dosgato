@@ -1,5 +1,5 @@
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
-import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
+import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 
 @ObjectType({ description: 'Groups of users so that groups can be assigned roles instead of individual users. Groups may also be synced to an external system like Active Directory.' })
 export class Group {

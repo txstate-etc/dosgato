@@ -3,9 +3,9 @@ import { BaseService, MutationMessageType } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { isNotBlank, isNotNull, someAsync, unique, isBlank } from 'txstate-utils'
 import {
-  DosGatoService, GroupService, User, UserFilter, UserResponse, getUsers, createUser,
-  getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId, RedactedUser, UsersResponse,
-  UpdateUserInput, updateUser, disableUsers, enableUsers, getUsersManagingGroups
+  DosGatoService, GroupService, type User, type UserFilter, UserResponse, getUsers, createUser,
+  getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId, type RedactedUser, UsersResponse,
+  type UpdateUserInput, updateUser, disableUsers, enableUsers, getUsersManagingGroups
 } from '../internal.js'
 
 const usersByInternalIdLoader = new PrimaryKeyLoader({
@@ -89,7 +89,7 @@ export class UserServiceInternal extends BaseService {
           return await this.findByGroupId(g.id, undefined, filter)
         })
       )
-      const usersFromGroups = await unique(result.flat())
+      const usersFromGroups = unique(result.flat())
       if (typeof direct === 'undefined') {
         users = unique([...users, ...usersFromGroups])
       } else {

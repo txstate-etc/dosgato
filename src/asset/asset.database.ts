@@ -1,13 +1,13 @@
-import { Context } from '@txstate-mws/graphql-server'
+import { type Context } from '@txstate-mws/graphql-server'
 import { randomInt } from 'crypto'
 import { DateTime } from 'luxon'
 import { lookup } from 'mime-types'
-import { Queryable } from 'mysql2-async'
+import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import sharp from 'sharp'
+import type sharp from 'sharp'
 import { intersect, isBlank, isNotBlank, isNotNull, keyby, pick, roundTo, sleep, someAsync, stringify } from 'txstate-utils'
-import { Asset, AssetFilter, AssetResize, VersionedService, AssetFolder, fileHandler, DownloadRecord, DownloadsFilter, DownloadsResolution, AssetFolderRow, DeleteState, processDeletedFilters, normalizePath, AssetServiceInternal, numerate, NameConflictError } from '../internal.js'
+import { Asset, type AssetFilter, AssetResize, type VersionedService, AssetFolder, fileHandler, DownloadRecord, type DownloadsFilter, DownloadsResolution, type AssetFolderRow, DeleteState, processDeletedFilters, normalizePath, AssetServiceInternal, numerate, NameConflictError } from '../internal.js'
 
 export interface AssetInput {
   name: string
@@ -475,7 +475,7 @@ export async function registerResize (originalChecksum: string, width: number, h
 }
 
 export async function moveAssets (targetFolder: AssetFolder, assets: Asset[], folders: AssetFolder[]) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     // re-pull everything inside the transaction
     const targetrow = await db.getrow<AssetFolderRow>('SELECT * FROM assetfolders WHERE id=?', [targetFolder.internalId])
     if (!targetrow) throw new Error('Target folder disappeared since the mutation began.')
@@ -554,7 +554,7 @@ async function copyFolder (f: AssetFolderRow, targetrow: AssetFolderRow, user: s
 }
 
 export async function copyAssets (targetFolder: AssetFolder, assets: Asset[], folders: AssetFolder[], user: string, versionedService: VersionedService) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     // re-pull everything inside the transaction
     const [targetrow, targetassetchildren, targetfolderchildren] = await Promise.all([
       db.getrow<AssetFolderRow>('SELECT * FROM assetfolders WHERE id=?', [targetFolder.internalId]),

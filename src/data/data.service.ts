@@ -1,13 +1,13 @@
 /* eslint-disable no-trailing-spaces */
-import { BaseService, ValidatedResponse, MutationMessageType, Context } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse, type MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { unique, isNotNull, someAsync, eachConcurrent, mapConcurrent, intersect, isNull, keyby, isNotBlank } from 'txstate-utils'
 import {
-  Data, DataFilter, getData, VersionedService, appendPath, DosGatoService,
-  DataFolderServiceInternal, DataFolderService, CreateDataInput, SiteServiceInternal,
-  createDataEntry, DataResponse, DataMultResponse, templateRegistry, UpdateDataInput, getDataIndexes,
-  renameDataEntry, deleteDataEntries, undeleteDataEntries, MoveDataTarget, moveDataEntries,
-  DataFolder, Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions,
+  type Data, type DataFilter, getData, VersionedService, appendPath, DosGatoService,
+  DataFolderServiceInternal, DataFolderService, type CreateDataInput, SiteServiceInternal,
+  createDataEntry, DataResponse, DataMultResponse, templateRegistry, type UpdateDataInput, getDataIndexes,
+  renameDataEntry, deleteDataEntries, undeleteDataEntries, type MoveDataTarget, moveDataEntries,
+  type DataFolder, type Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions,
   DeleteState, popPath, DeleteStateAll
 } from '../internal.js'
 
@@ -241,7 +241,7 @@ export class DataService extends DosGatoService<Data> {
       if (!site) throw new Error('Data cannot be created in a site that does not exist.')
       dataroot = new DataRoot(site, template)
       if (!await this.svc(DataRootService).mayCreate(dataroot)) throw new Error(`Current user is not permitted to create data in site ${String(site.name)}.`)
-      const dataEntries = await (await this.raw.findByDataRoot(dataroot, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId))
+      const dataEntries = (await this.raw.findByDataRoot(dataroot, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId))
       if (dataEntries.some(d => d.name === args.name)) {
         response.addMessage('A data entry with this name already exists', 'args.name')
       }
@@ -249,7 +249,7 @@ export class DataService extends DosGatoService<Data> {
       // global data
       if (!(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to create global data entries.')
       dataroot = new DataRoot(undefined, template)
-      const dataEntries = await (await this.raw.findByDataRoot(dataroot, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId) && isNull(d.siteId))
+      const dataEntries = (await this.raw.findByDataRoot(dataroot, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId) && isNull(d.siteId))
       if (dataEntries.some(d => d.name === args.name)) {
         response.addMessage('A data entry with this name already exists', 'args.name')
       }
@@ -372,7 +372,7 @@ export class DataService extends DosGatoService<Data> {
     }
     data = data.filter(d => !d.deleted)
     try {
-      await eachConcurrent(data.map(d => d.dataId), async (dataId) => await this.svc(VersionedService).tag(dataId, 'published', undefined, this.login))
+      await eachConcurrent(data.map(d => d.dataId), async (dataId) => { await this.svc(VersionedService).tag(dataId, 'published', undefined, this.login) })
       this.loaders.clear()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {

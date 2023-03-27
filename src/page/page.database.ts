@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 import db from 'mysql2-async/db'
-import { Queryable } from 'mysql2-async'
+import { type Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, unique, sortby } from 'txstate-utils'
-import { Page, PageFilter, VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault } from '../internal.js'
-import { PageData } from '@dosgato/templating'
+import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault } from '../internal.js'
+import { type PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 
 export interface CreatePageInput extends UpdatePageInput {
@@ -405,7 +405,7 @@ export async function copyPages (versionedService: VersionedService, userId: str
 }
 
 export async function deletePages (versionedService: VersionedService, pages: Page[], userInternalId: number) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const binds: (string | number)[] = [userInternalId, DeleteState.MARKEDFORDELETE]
     const refetchedPages = await refetch(db, ...pages)
     const pageInternalIds = refetchedPages.map(p => p.internalId)
@@ -419,7 +419,7 @@ export async function deletePages (versionedService: VersionedService, pages: Pa
 
 export async function publishPageDeletions (pages: Page[], userInternalId: number) {
   const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     const binds: (string | number)[] = [userInternalId, DeleteState.DELETED]
     const refetchedPages = await refetch(db, ...pages)
     const pageInternalIds = refetchedPages.map(p => p.internalId)
@@ -430,7 +430,7 @@ export async function publishPageDeletions (pages: Page[], userInternalId: numbe
 }
 
 export async function undeletePages (pages: Page[]) {
-  return await db.transaction(async db => {
+  await db.transaction(async db => {
     let binds: (string | number)[] = []
     const refetchedPages = await refetch(db, ...pages)
     const deletedParents = await db.getall(`SELECT id FROM pages WHERE deleteState != ${DeleteState.NOTDELETED} AND id NOT IN (${db.in(binds, refetchedPages.map(rp => rp.internalId))}) AND id IN (${db.in(binds, refetchedPages.map(rp => rp.parentInternalId).filter(isNotNull))})`, binds)

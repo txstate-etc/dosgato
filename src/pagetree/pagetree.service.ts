@@ -1,8 +1,8 @@
-import { PageData } from '@dosgato/templating'
+import { type PageData } from '@dosgato/templating'
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
-  Pagetree, PagetreeFilter, getPagetreesById, getPagetreesBySite, renamePagetree,
+  type Pagetree, type PagetreeFilter, getPagetreesById, getPagetreesBySite, renamePagetree,
   getPagetreesByTemplate, SiteService, DosGatoService, PagetreeType, PagetreeResponse,
   promotePagetree, createPagetree, VersionedService, deletePagetree,
   undeletePagetree, archivePagetree, SiteServiceInternal, PageService, PageServiceInternal, getPagetrees

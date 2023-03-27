@@ -2,7 +2,7 @@ import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   getGlobalRules, GlobalRule, DosGatoService, tooPowerfulHelper, RoleService,
-  CreateGlobalRuleInput, createGlobalRule, GlobalRuleResponse, UpdateGlobalRuleInput,
+  type CreateGlobalRuleInput, createGlobalRule, GlobalRuleResponse, type UpdateGlobalRuleInput,
   updateGlobalRule, deleteGlobalRule, RoleServiceInternal
 } from '../internal.js'
 

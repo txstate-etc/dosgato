@@ -1,4 +1,4 @@
-import { GraphQLError } from 'graphql'
+import { type GraphQLError } from 'graphql'
 import db from 'mysql2-async/db'
 import { stringify } from 'txstate-utils'
 

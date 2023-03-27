@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { Queryable } from 'mysql2-async'
-import { SiteComment, SiteCommentFilter } from '../internal.js'
+import { type Queryable } from 'mysql2-async'
+import { SiteComment, type SiteCommentFilter } from '../internal.js'
 
 export async function getSiteComments (filter?: SiteCommentFilter) {
   const binds: string[] = []

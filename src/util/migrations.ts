@@ -1,4 +1,4 @@
-import { Queryable } from 'mysql2-async'
+import { type Queryable } from 'mysql2-async'
 
 export interface DBMigration {
   /**

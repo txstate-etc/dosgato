@@ -31,10 +31,10 @@
     "@types/mime-types": "^2.1.1",
     "@types/node": "^18.7.14",
     "@types/probe-image-size": "^7.2.0",
-    "eslint-config-standard-with-typescript": "^23.0.0",
+    "eslint-config-standard-with-typescript": "^34.0.0",
     "nodemon": "^2.0.12",
     "ts-node": "^10.1.0",
-    "typescript": "^4.7.3"
+    "typescript": "^5.0.2"
   },
   "scripts": {
     "prepublishOnly": "npm run build",

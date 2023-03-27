@@ -2,8 +2,8 @@ import { BaseService } from '@txstate-mws/graphql-server'
 import { PrimaryKeyLoader, OneToManyLoader } from 'dataloader-factory'
 import { intersect, isNotBlank, isNotNull, keyby, someAsync } from 'txstate-utils'
 import {
-  DataFolder, DataFolderFilter, DosGatoService, getDataFolders,
-  DataServiceInternal, CreateDataFolderInput, createDataFolder, DataFolderResponse,
+  type DataFolder, type DataFolderFilter, DosGatoService, getDataFolders,
+  DataServiceInternal, type CreateDataFolderInput, createDataFolder, DataFolderResponse,
   renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
   SiteService, DataFoldersResponse, moveDataFolders, DataRoot, DataRootService,
   folderNameUniqueInDataRoot, TemplateServiceInternal, VersionedService, SiteServiceInternal, DeleteStateAll, finalizeDataFolderDeletion
@@ -173,7 +173,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
     if (validateOnly || response.hasErrors()) return response
     await renameDataFolder(folder.id, name)
     this.loaders.clear()
-    response.dataFolder = await await this.raw.findById(folderId)
+    response.dataFolder = await this.raw.findById(folderId)
     return response
   }
 

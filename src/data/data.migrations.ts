@@ -1,5 +1,5 @@
-import { DataData } from '@dosgato/templating'
-import { Context } from '@txstate-mws/graphql-server'
+import { type DataData } from '@dosgato/templating'
+import { type Context } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { clone, sortby } from 'txstate-utils'
 import { templateRegistry } from '../internal.js'

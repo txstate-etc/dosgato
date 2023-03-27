@@ -1,4 +1,4 @@
-import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
+import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
@@ -67,7 +67,7 @@ export class DataFolderFilter {
   @Field(type => [UrlSafePath], { nullable: true, description: 'Return folders with the given paths.' })
   paths?: string[]
 
-  names?: String[]
+  names?: string[]
 }
 
 @InputType()

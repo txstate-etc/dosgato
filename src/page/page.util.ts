@@ -1,4 +1,4 @@
-import { ComponentData } from '@dosgato/templating'
+import { type ComponentData } from '@dosgato/templating'
 import { isNotNull } from 'txstate-utils'
 
 // array of templateKey strings in use on the page

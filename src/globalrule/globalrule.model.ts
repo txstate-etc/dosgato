@@ -1,4 +1,4 @@
-import { ValidatedResponse, ValidatedResponseArgs } from '@txstate-mws/graphql-server'
+import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleType } from '../internal.js'
 
