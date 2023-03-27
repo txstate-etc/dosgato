@@ -13,10 +13,9 @@ import { PassThrough, Readable } from 'stream'
 import { type ReadableStream } from 'stream/web'
 import { groupby, isNotBlank, keyby, randomid } from 'txstate-utils'
 import {
-  type Asset,
-  AssetFolder,
-  AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService, AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler,
-  getEnabledUser, GlobalRuleService, logMutation, makeSafeFilename, type PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService
+  type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
+  AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler, getEnabledUser, GlobalRuleService, logMutation,
+  makeSafeFilename, type PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService
 } from '../internal.js'
 
 interface RootAssetFolder {
@@ -360,7 +359,6 @@ export async function createAssetRoutes (app: FastifyInstance) {
       (folderSvc as any).currentAssetRules() as AssetRule[]
     ])
 
-    const binds: any[] = []
     const permsByInternalId: Record<number, RootAssetFolder['permissions'] & { viewForEdit: boolean }> = {}
     function hasPerm (rules: AssetRule[], perm: keyof AssetRule['grants']) {
       for (const r of rules) {
@@ -392,9 +390,11 @@ export async function createAssetRoutes (app: FastifyInstance) {
       }
     }
 
+    const binds1: any[] = []
+    const binds2: any[] = []
     const [childFolders, childAssets] = await Promise.all([
-      db.getall<{ id: number, path: string }>(`SELECT id, path FROM assetfolders WHERE path IN (${db.in(binds, foldersToKeep.map(f => '/' + String(f.id)))})`, binds),
-      db.getall<{ dataId: string, folderId: number }>(`SELECT dataId, folderId FROM assets WHERE folderId IN (${db.in(binds, foldersToKeep.map(f => f.id))})`, binds)
+      db.getall<{ id: number, path: string }>(`SELECT id, path FROM assetfolders WHERE path IN (${db.in(binds1, foldersToKeep.map(f => '/' + String(f.id)))})`, binds1),
+      db.getall<{ dataId: string, folderId: number }>(`SELECT dataId, folderId FROM assets WHERE folderId IN (${db.in(binds2, foldersToKeep.map(f => f.id))})`, binds2)
     ])
     const childFoldersByPath = groupby(childFolders, 'path')
     const childAssetsById = groupby(childAssets, 'folderId')
@@ -416,7 +416,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
         name: f.siteName
       },
       folders: childFoldersByPath['/' + String(f.id)]?.map(f => ({ id: String(f.id) })) ?? [],
-      assets: childAssetsById[f.id]?.map(a => ({ id: String(a.folderId) })) ?? [],
+      assets: childAssetsById[f.id]?.map(a => ({ id: String(a.dataId) })) ?? [],
       permissions: permsByInternalId[f.id]
     }))
     return ret
