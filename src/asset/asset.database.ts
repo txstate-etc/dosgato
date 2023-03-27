@@ -388,7 +388,7 @@ export function getIndexes (data: any) {
 
 export async function createAsset (versionedService: VersionedService, userId: string, args: CreateAssetInput, opts?: { numerate?: boolean }) {
   let linkId = args.linkId ?? nanoid(10)
-  return await db.transaction(async db => {
+  const newInternalId = await db.transaction(async db => {
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const createdBy = args.legacyId ? (args.createdBy || args.modifiedBy || userId) : userId // || is intended - to catch blanks
     const createdAt = args.legacyId ? (args.createdAt ?? args.modifiedAt ?? undefined) : undefined
@@ -417,11 +417,11 @@ export async function createAsset (versionedService: VersionedService, userId: s
     await db.insert(`
       INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)
       VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify({ width: args.width ?? undefined, height: args.height ?? undefined }), args.size])
-    const newInternalId = await db.insert(`
+    return await db.insert(`
       INSERT INTO assets (name, folderId, linkId, dataId, shasum)
       VALUES(?, ?, ?, ?, ?)`, [args.name, folder.id, linkId, dataId, args.checksum])
-    return (await getAssets({ internalIds: [newInternalId] }, db))[0]
   })
+  return (await getAssets({ internalIds: [newInternalId] }))[0]
 }
 
 export async function replaceAsset (versionedService: VersionedService, userId: string, args: ReplaceAssetInput) {
