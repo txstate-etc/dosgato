@@ -4,10 +4,12 @@ import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-
 import { nanoid } from 'nanoid'
 import { filterAsync, isBlank, isNotBlank } from 'txstate-utils'
 import {
-  type Site, type SiteFilter, getSites, getSitesByTemplate, undeleteSite,
-  PagetreeService, DosGatoService, createSite, VersionedService, SiteResponse,
-  deleteSite, PageService, getSitesByManagerInternalId, siteNameIsUnique,
-  renameSite, setLaunchURL, type UpdateSiteManagementInput, updateSiteManagement, DeletedFilter, type CreatePageExtras, getSiteIdByLaunchUrl, type Organization, PageServiceInternal
+  type Site, type SiteFilter, getSites, getSitesByTemplate, undeleteSite, DosGatoService,
+  createSite, VersionedService, SiteResponse, deleteSite, PageService,
+  getSitesByManagerInternalId, siteNameIsUnique, renameSite, setLaunchURL,
+  type UpdateSiteManagementInput, updateSiteManagement, DeletedFilter,
+  type CreatePageExtras, getSiteIdByLaunchUrl, type Organization, PageServiceInternal,
+  PagetreeServiceInternal
 } from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({
@@ -83,7 +85,7 @@ export class SiteServiceInternal extends BaseService {
   }
 
   async findByPagetreeId (pagetreeId: string) {
-    const pagetree = await this.svc(PagetreeService).findById(pagetreeId)
+    const pagetree = await this.svc(PagetreeServiceInternal).findById(pagetreeId)
     if (!pagetree) return undefined
     return await this.findById(pagetree.siteId)
   }

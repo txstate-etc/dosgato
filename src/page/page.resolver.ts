@@ -4,10 +4,10 @@ import { DateTime } from 'luxon'
 import { get, isNull } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import {
-  Pagetree, PagetreeService, Role, JsonData, Site, SiteService, Template, TemplateFilter,
+  Pagetree, Role, JsonData, Site, SiteService, Template, TemplateFilter,
   User, UserService, ObjectVersion, VersionedService, Page, PageFilter, PagePermission, PagePermissions,
-  PageResponse, PagesResponse, PageService, PageRuleService, RoleService, TemplateService, UrlSafeString,
-  DeleteStateInput
+  PageResponse, PagesResponse, PageService, RoleService, TemplateService, UrlSafeString,
+  DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal
 } from '../internal.js'
 
 @Resolver(of => Page)
@@ -59,14 +59,13 @@ export class PageResolver {
 
   @FieldResolver(returns => Pagetree)
   async pagetree (@Ctx() ctx: Context, @Root() page: Page) {
-    return await ctx.svc(PagetreeService).findById(page.pagetreeId)
+    // intentionally skip authz for performance - if you can see a page you can see its pagetree
+    return await ctx.svc(PagetreeServiceInternal).findById(page.pagetreeId)
   }
 
   @FieldResolver(returns => Site)
   async site (@Ctx() ctx: Context, @Root() page: Page) {
-    const pagetree = await ctx.svc(PagetreeService).findById(page.pagetreeId)
-    if (pagetree) return await ctx.svc(SiteService).findById(pagetree.siteId)
-    else throw new Error(`Could not get site for page ${String(page.name)}. Pagetree does not exist.`)
+    return await ctx.svc(SiteService).findById(String(page.siteInternalId))
   }
 
   @FieldResolver(returns => JsonData, { description: 'This is a JSON object that represents everything the editor has created on this page. It is up to the rendering code of the page template and all the component templates to turn this data into an HTML page.' })
@@ -150,7 +149,7 @@ export class PageResolver {
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this page, or any permission if null.' })
   async roles (@Ctx() ctx: Context, @Root() page: Page, @Arg('withPermission', type => [PagePermission], { nullable: true }) withPermission?: PagePermission[]) {
-    let rules = await ctx.svc(PageRuleService).findByPage(page)
+    let rules = await ctx.svc(PageRuleServiceInternal).findByPage(page)
     if (withPermission) rules = rules.filter(r => withPermission.some(p => r.grants[p]))
     return await ctx.svc(RoleService).findByIds(rules.map(r => r.roleId))
   }

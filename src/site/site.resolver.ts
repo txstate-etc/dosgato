@@ -4,11 +4,11 @@ import { isNotNull, unique } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
   AssetPermission, AssetFolder, AssetFolderService, DataPermission, Organization, OrganizationService, Page,
-  PagePermission, PageService, Pagetree, PagetreeFilter, PagetreeService, Role, Template,
+  PagePermission, PageService, Pagetree, PagetreeFilter, Role, Template,
   TemplateFilter, TemplateService, User, UserService, Site, SiteFilter, SitePermission, SitePermissions,
   SiteResponse, UpdateSiteManagementInput, SiteService, AssetRuleService, PageRuleService, SiteRuleService,
   DataRuleService, RoleService, DataRoot, DataRootService, DataRootFilter, SiteComment, SiteCommentService,
-  JsonData, UrlSafeString
+  JsonData, UrlSafeString, PagetreeServiceInternal
 } from '../internal.js'
 
 @Resolver(of => Site)
@@ -20,12 +20,14 @@ export class SiteResolver {
 
   @FieldResolver(returns => [Pagetree])
   async pagetrees (@Ctx() ctx: Context, @Root() site: Site, @Arg('filter', { nullable: true }) filter?: PagetreeFilter) {
-    return await ctx.svc(PagetreeService).findBySiteId(site.id, filter)
+    // intentionally skip authz for performance - if you can see the site you can see its pagetrees
+    return await ctx.svc(PagetreeServiceInternal).findBySiteId(site.id, filter)
   }
 
   @FieldResolver(returns => Pagetree)
   async primaryPagetree (@Ctx() ctx: Context, @Root() site: Site) {
-    return await ctx.svc(PagetreeService).findById(site.primaryPagetreeId)
+    // intentionally skip authz for performance - if you can see the site you can see its pagetrees
+    return await ctx.svc(PagetreeServiceInternal).findById(site.primaryPagetreeId)
   }
 
   @FieldResolver(returns => Page)

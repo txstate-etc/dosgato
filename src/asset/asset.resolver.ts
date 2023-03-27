@@ -6,7 +6,7 @@ import {
   AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
   RoleService, AssetResponse, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site, SiteService,
-  Pagetree, AssetFolderServiceInternal, PagetreeService, DeleteStateRootDefault, FilenameSafeString
+  Pagetree, AssetFolderServiceInternal, PagetreeService, DeleteStateRootDefault, FilenameSafeString, PagetreeServiceInternal
 } from '../internal.js'
 
 @Resolver(of => Asset)
@@ -41,7 +41,8 @@ export class AssetResolver {
   @FieldResolver(returns => Pagetree)
   async pagetree (@Ctx() ctx: Context, @Root() asset: Asset) {
     const folder = await ctx.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
-    return await ctx.svc(PagetreeService).findById(folder!.pagetreeId)
+    // intentionally skip authz for performance - if you can see an asset you can see its pagetree
+    return await ctx.svc(PagetreeServiceInternal).findById(folder!.pagetreeId)
   }
 
   @FieldResolver(returns => String)
