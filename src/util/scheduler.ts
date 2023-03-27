@@ -80,10 +80,10 @@ class Scheduler {
       const currentDOW = now.weekday
       const currentDOM = now.day
       await Promise.all(Array.from(this.jobs.entries()).map(async ([jobname, config]) => {
+        if (config.duringHour && currentHour !== config.duringHour) return
+        if (config.duringDayOfWeek && currentDOW !== config.duringDayOfWeek) return
+        if (config.duringDayOfMonth && currentDOM !== config.duringDayOfMonth) return
         try {
-          if (config.duringHour && currentHour !== config.duringHour) return
-          if (config.duringDayOfWeek && currentDOW !== config.duringDayOfWeek) return
-          if (config.duringDayOfMonth && currentDOM !== config.duringDayOfMonth) return
           const claimed = await db.update('UPDATE tasks SET lastBegin=NOW(), inProgress=1 WHERE name=:name AND lastBegin < NOW() - INTERVAL :minutes MINUTE AND (inProgress=0 OR lastBegin < NOW - INTERVAL (:minutes * 2) MINUTE)', { name: jobname, minutes: config.minutesBetween })
           if (claimed) await this.jobs.get(jobname)!.job()
         } catch (e: any) {

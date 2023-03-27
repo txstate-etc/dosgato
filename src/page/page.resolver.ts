@@ -5,9 +5,9 @@ import { get, isNull } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import {
   Pagetree, PagetreeService, Role, JsonData, Site, SiteService, Template, TemplateFilter,
-  User, UserService, ObjectVersion, VersionedService, Page, PageFilter,
-  PagePermission, PagePermissions, PageResponse, PagesResponse, PageService, PageRuleService, RoleService,
-  PagetreeType, TemplateService, UrlSafeString, DeleteStateInput
+  User, UserService, ObjectVersion, VersionedService, Page, PageFilter, PagePermission, PagePermissions,
+  PageResponse, PagesResponse, PageService, PageRuleService, RoleService, TemplateService, UrlSafeString,
+  DeleteStateInput
 } from '../internal.js'
 
 @Resolver(of => Page)
