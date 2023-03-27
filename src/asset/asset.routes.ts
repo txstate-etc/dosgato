@@ -12,14 +12,44 @@ import db from 'mysql2-async/db'
 import probe from 'probe-image-size'
 import { PassThrough, Readable } from 'stream'
 import { ReadableStream } from 'stream/web'
-import { isNotBlank, keyby, randomid } from 'txstate-utils'
+import { groupby, isNotBlank, keyby, randomid } from 'txstate-utils'
 import {
   Asset,
   AssetFolder,
-  AssetFolderService, AssetFolderServiceInternal, AssetResize, AssetService, AssetServiceInternal, createAsset, fileHandler,
-  getEnabledUser, GlobalRuleService, logMutation, makeSafeFilename, recordDownload, replaceAsset, requestResizes, VersionedService
+  AssetFolderService, AssetFolderServiceInternal, AssetResize, AssetRule, AssetRuleService, AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler,
+  getEnabledUser, GlobalRuleService, logMutation, makeSafeFilename, PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService
 } from '../internal.js'
 
+interface RootAssetFolder {
+  id: string
+  linkId: string
+  path: string
+  name: string
+  deleted: boolean
+  deleteState: number
+  folders: {
+    id: string
+  }[]
+  assets: {
+    id: string
+  }[]
+  pagetree: {
+    id: string
+    name: string
+    type: string
+  }
+  site: {
+    id: string
+    name: string
+  }
+  permissions: {
+    create: boolean
+    update: boolean
+    move: boolean
+    delete: boolean
+    undelete: boolean
+  }
+}
 export async function placeFile (readStream: Readable, filename: string, mimeGuess: string) {
   const fileTypePassthru = await fileTypeStream(readStream)
   const probePassthru = new PassThrough()
@@ -310,5 +340,85 @@ export async function createAssetRoutes (app: FastifyInstance) {
       archive.append(fileHandler.get(asset.checksum), { name: (prefix ? prefix + '.' : '') + getFolderPath(foldersByInternalId[asset.folderInternalId], foldersByInternalId).substring(1) + '/' + asset.filename })
     }
     await archive.finalize()
+  })
+  app.get('/assetfolders/list', async (req, res) => {
+    const ctx = new Context(req)
+    await getEnabledUser(ctx)
+    const folderSvc = ctx.svc(AssetFolderService)
+    const assetRuleSvc = ctx.svc(AssetRuleService)
+    const [folders, assetRules] = await Promise.all([
+      db.getall<{ id: number, linkId: string, name: string, path: string, deleteState: DeleteState, siteId: number, siteName: string, pagetreeId: number, pagetreeName: string, pagetreeType: PagetreeType }>(`
+        SELECT f.*, pt.name AS pagetreeName, pt.type as pagetreeType, s.name as siteName
+        FROM assetfolders f
+        INNER JOIN sites s ON f.siteId = s.id
+        INNER JOIN pagetrees pt ON f.pagetreeId = pt.id
+        WHERE f.path='/'
+          AND f.deleteState IN (0, 1)
+          AND s.deletedAt IS NULL
+          AND pt.deletedAt IS NULL
+      `),
+      (folderSvc as any).currentAssetRules() as AssetRule[]
+    ])
+
+    const binds: any[] = []
+    const permsByInternalId: Record<number, RootAssetFolder['permissions'] & { viewForEdit: boolean }> = {}
+    function hasPerm (rules: AssetRule[], perm: keyof AssetRule['grants']) {
+      for (const r of rules) {
+        if (r.grants[perm]) return true
+      }
+      return false
+    }
+    const foldersToKeep: typeof folders = []
+    for (const f of folders) {
+      const page = new AssetFolder(f)
+      const applicableRules = assetRules.filter(r => assetRuleSvc.appliesToFolderSync(r, page, '/' + f.name, f.pagetreeType))
+      const applicableToChildRules = assetRules.filter(r => assetRuleSvc.appliesToChildSync(r, page, f.pagetreeType, '/' + f.name))
+      const [create, update, mayDelete, move, undelete, viewForEdit] = [
+        hasPerm(applicableRules, 'create'),
+        hasPerm(applicableRules, 'update'),
+        false,
+        false,
+        false,
+        hasPerm([...applicableRules, ...applicableToChildRules], 'viewForEdit')
+      ]
+      if (viewForEdit) foldersToKeep.push(f)
+      permsByInternalId[f.id] = {
+        create,
+        update,
+        delete: mayDelete,
+        move,
+        undelete,
+        viewForEdit
+      }
+    }
+
+    const [childFolders, childAssets] = await Promise.all([
+      db.getall<{ id: number, path: string }>(`SELECT id, path FROM assetfolders WHERE path IN (${db.in(binds, foldersToKeep.map(f => '/' + String(f.id)))})`, binds),
+      db.getall<{ dataId: string, folderId: number }>(`SELECT dataId, folderId FROM assets WHERE folderId IN (${db.in(binds, foldersToKeep.map(f => f.id))})`, binds)
+    ])
+    const childFoldersByPath = groupby(childFolders, 'path')
+    const childAssetsById = groupby(childAssets, 'folderId')
+
+    const ret: RootAssetFolder[] = foldersToKeep.map(f => ({
+      id: String(f.id),
+      linkId: f.linkId,
+      name: f.name,
+      path: '/' + f.name,
+      deleted: f.deleteState !== DeleteState.NOTDELETED,
+      deleteState: f.deleteState,
+      pagetree: {
+        id: String(f.pagetreeId),
+        name: f.pagetreeName,
+        type: f.pagetreeType.toLocaleUpperCase()
+      },
+      site: {
+        id: String(f.siteId),
+        name: f.siteName
+      },
+      folders: childFoldersByPath['/' + String(f.id)]?.map(f => ({ id: String(f.id) })) ?? [],
+      assets: childAssetsById[f.id]?.map(a => ({ id: String(a.folderId) })) ?? [],
+      permissions: permsByInternalId[f.id]
+    }))
+    return ret
   })
 }

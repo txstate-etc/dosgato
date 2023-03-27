@@ -5,7 +5,8 @@ import {
   Asset, AssetRule, AssetRuleResponse, AssetRuleFilter, AssetFolder,
   comparePathsWithMode, createAssetRule, CreateAssetRuleInput, DosGatoService,
   getAssetRules, RulePathMode, RoleService, tooPowerfulHelper, UpdateAssetRuleInput,
-  updateAssetRule, deleteAssetRule, AssetServiceInternal, AssetFolderServiceInternal, RoleServiceInternal, PagetreeServiceInternal
+  updateAssetRule, deleteAssetRule, AssetServiceInternal, AssetFolderServiceInternal,
+  RoleServiceInternal, PagetreeServiceInternal, PagetreeType
 } from '../internal.js'
 
 const assetRulesByIdLoader = new PrimaryKeyLoader({
@@ -195,12 +196,26 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
       this.svc(AssetFolderServiceInternal).getPath(folder),
       this.svc(PagetreeServiceInternal).findById(folder.pagetreeId)
     ])
+    return this.appliesToFolderSync(rule, folder, folderPath, pagetree!.type)
+  }
+
+  appliesToFolderSync (rule: AssetRule, folder: AssetFolder, folderPath: string, pagetreeType: PagetreeType) {
+    if (rule.siteId && rule.siteId !== folder.siteId) return false
+    if (rule.pagetreeType && rule.pagetreeType !== pagetreeType) return false
     const folderPathWithoutSite = '/' + folderPath.split('/').slice(2).join('/')
-    if (rule.pagetreeType && rule.pagetreeType !== pagetree?.type) return false
     if (rule.mode === RulePathMode.SELF && rule.path !== folderPathWithoutSite) return false
     if (rule.mode === RulePathMode.SELFANDSUB && !folderPathWithoutSite.startsWith(rule.path)) return false
     if (rule.mode === RulePathMode.SUB && (rule.path === folderPathWithoutSite || !folderPathWithoutSite.startsWith(rule.path))) return false
     return true
+  }
+
+  appliesToChildSync (rule: AssetRule, folder: AssetFolder, pagetreeType: PagetreeType, folderPath: string) {
+    if (rule.siteId && rule.siteId !== folder.siteId) return false
+    if (rule.pagetreeType && rule.pagetreeType !== pagetreeType) return false
+    const folderPathWithoutSite = '/' + folderPath.split('/').slice(2).join('/')
+    if (rule.path.startsWith(folderPathWithoutSite + '/')) return true
+    if (rule.mode === RulePathMode.SELFANDSUB && rule.path === folderPathWithoutSite) return true
+    return false
   }
 
   asOrMorePowerful (ruleA: AssetRule, ruleB: AssetRule) { // is ruleA equal or more powerful than ruleB?

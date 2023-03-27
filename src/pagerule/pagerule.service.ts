@@ -5,7 +5,7 @@ import {
   Page, PageRuleFilter, DosGatoService, comparePathsWithMode, tooPowerfulHelper, getPageRules,
   PageRule, RulePathMode, SiteService, CreatePageRuleInput, RoleService, createPageRule, PageRuleResponse,
   UpdatePageRuleInput, updatePageRule, deletePageRule, RoleServiceInternal, PagetreeServiceInternal,
-  PageServiceInternal
+  PageServiceInternal, Pagetree, PagetreeType
 } from '../internal.js'
 
 const pageRulesByIdLoader = new PrimaryKeyLoader({
@@ -157,13 +157,35 @@ export class PageRuleService extends DosGatoService<PageRule> {
       this.svc(PageServiceInternal).getPath(page)
     ])
     if (!pagetree) return false
+    return this.appliesSync(rule, page, pagetree.type, pagePath)
+  }
+
+  appliesSync (rule: PageRule, page: Page, pagetreeType: PagetreeType, pagePath: string) {
     if (rule.siteId && rule.siteId !== String(page.siteInternalId)) return false
-    if (rule.pagetreeType && rule.pagetreeType !== pagetree.type) return false
+    if (rule.pagetreeType && rule.pagetreeType !== pagetreeType) return false
     const pagePathWithoutSite = '/' + pagePath.split('/').slice(2).join('/')
     if (rule.mode === RulePathMode.SELF && rule.path !== pagePathWithoutSite) return false
     if (rule.mode === RulePathMode.SELFANDSUB && !pagePathWithoutSite.startsWith(rule.path)) return false
     if (rule.mode === RulePathMode.SUB && (rule.path === pagePathWithoutSite || !pagePathWithoutSite.startsWith(rule.path))) return false
     return true
+  }
+
+  async appliesToChild (rule: PageRule, page: Page, pagetree?: Pagetree, pagePath?: string) {
+    const [fetchedPagetree, fetchedPagePath] = await Promise.all([
+      pagetree ?? this.svc(PagetreeServiceInternal).findById(page.pagetreeId),
+      pagePath ?? this.svc(PageServiceInternal).getPath(page)
+    ])
+    if (!fetchedPagetree || !pagePath) return false
+    return this.appliesToChildSync(rule, page, fetchedPagetree.type, pagePath)
+  }
+
+  appliesToChildSync (rule: PageRule, page: Page, pagetreeType: PagetreeType, pagePath: string) {
+    if (rule.siteId && rule.siteId !== String(page.siteInternalId)) return false
+    if (rule.pagetreeType && rule.pagetreeType !== pagetreeType) return false
+    const pagePathWithoutSite = '/' + pagePath.split('/').slice(2).join('/')
+    if (rule.path.startsWith(pagePathWithoutSite + '/')) return true
+    if (rule.mode === RulePathMode.SELFANDSUB && rule.path === pagePathWithoutSite) return true
+    return false
   }
 
   async mayView (rule: PageRule) {

@@ -3,12 +3,12 @@ import { Context } from '@txstate-mws/graphql-server'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { HttpError } from 'fastify-txstate'
 import db from 'mysql2-async/db'
-import { isNotBlank, pick } from 'txstate-utils'
+import { groupby, isNotBlank, pick } from 'txstate-utils'
 import {
-  createPage, CreatePageInput, createPagetree, createSite, getEnabledUser, getPageIndexes, GlobalRuleService,
+  createPage, CreatePageInput, createPagetree, createSite, DeleteState, getEnabledUser, getPageIndexes, getPages, GlobalRuleService,
   logMutation,
-  makeSafe, numerate, PageService, PageServiceInternal, PagetreeServiceInternal,
-  SiteService, SiteServiceInternal, VersionedService
+  makeSafe, numerate, Page, PageRule, PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal,
+  PagetreeType, SiteService, SiteServiceInternal, templateRegistry, VersionedService
 } from '../internal.js'
 
 export interface PageExport {
@@ -20,6 +20,47 @@ export interface PageExport {
   createdAt?: string
   modifiedBy?: string
   modifiedAt?: string
+}
+
+interface RootPage {
+  id: string
+  linkId: string
+  path: string
+  name: string
+  title?: string
+  template?: {
+    key: string
+    name: string
+  }
+  modifiedAt: string
+  modifiedBy: {
+    id: string
+  }
+  published: boolean
+  publishedAt?: string
+  hasUnpublishedChanges: boolean
+  deleteState: number
+  children: {
+    id: string
+  }[]
+  pagetree: {
+    id: string
+    name: string
+    type: string
+  }
+  site: {
+    id: string
+    name: string
+  }
+  permissions: {
+    create: boolean
+    update: boolean
+    publish: boolean
+    move: boolean
+    delete: boolean
+    undelete: boolean
+    unpublish: boolean
+  }
 }
 
 async function handleUpload (req: FastifyRequest) {
@@ -202,5 +243,99 @@ export async function createPageRoutes (app: FastifyInstance) {
       modifiedBy: data.modifiedBy,
       modifiedAt: data.modified
     }
+  })
+  app.get('/pages/list', async (req, res) => {
+    const ctx = new Context(req)
+    await getEnabledUser(ctx)
+    const pageSvc = ctx.svc(PageService)
+    const pageRuleSvc = ctx.svc(PageRuleService)
+    const [pages, pageRules] = await Promise.all([
+      db.getall<{ id: number, linkId: string, dataId: string, name: string, path: string, title: string, templateKey: string, siteId: number, siteName: string, pagetreeId: number, deleteState: DeleteState, pagetreeName: string, pagetreeType: PagetreeType, modifiedBy: string, modified: Date, version: number, published: 0 | 1, publishedAt?: Date, hasUnpublishedChanges: boolean }>(`
+        SELECT p.*, pt.name AS pagetreeName, pt.type as pagetreeType, st.modifiedBy, st.modified, st.version,
+          t.id IS NOT NULL as published, t.date as publishedAt, (t.version IS NULL OR t.version != st.version) as hasUnpublishedChanges,
+          s.name as siteName
+        FROM pages p
+        INNER JOIN sites s ON p.siteId = s.id
+        INNER JOIN pagetrees pt ON p.pagetreeId = pt.id
+        INNER JOIN storage st ON p.dataId = st.id
+        LEFT JOIN tags t ON st.id=t.id AND t.tag='published'
+        WHERE p.path='/'
+          AND p.deleteState IN (0, 1)
+          AND s.deletedAt IS NULL
+          AND pt.deletedAt IS NULL
+      `),
+      (pageSvc as any).currentPageRules() as PageRule[]
+    ])
+
+    const binds: any[] = []
+    const permsByPageInternalId: Record<number, RootPage['permissions'] & { viewForEdit: boolean }> = {}
+    function hasPerm (rules: PageRule[], perm: keyof PageRule['grants']) {
+      for (const r of rules) {
+        if (r.grants[perm]) return true
+      }
+      return false
+    }
+    const pagesToKeep: typeof pages = []
+    for (const p of pages) {
+      const page = new Page(p)
+      const applicableRules = pageRules.filter(r => pageRuleSvc.appliesSync(r, page, p.pagetreeType, '/' + p.name))
+      const applicableToChildRules = pageRules.filter(r => pageRuleSvc.appliesToChildSync(r, page, p.pagetreeType, '/' + p.name))
+      const [create, update, mayDelete, move, publish, undelete, unpublish, viewForEdit] = [
+        hasPerm(applicableRules, 'create'),
+        hasPerm(applicableRules, 'update'),
+        false,
+        false,
+        hasPerm(applicableRules, 'publish') && p.deleteState === DeleteState.NOTDELETED && p.hasUnpublishedChanges,
+        false,
+        hasPerm(applicableRules, 'unpublish') && !!p.published,
+        hasPerm([...applicableRules, ...applicableToChildRules], 'viewForEdit')
+      ]
+      if (viewForEdit) pagesToKeep.push(p)
+      permsByPageInternalId[p.id] = {
+        create,
+        update,
+        delete: mayDelete,
+        move,
+        publish,
+        undelete,
+        unpublish,
+        viewForEdit
+      }
+    }
+
+    const children = await db.getall<{ dataId: string, path: string }>(`SELECT dataId, path FROM pages WHERE path IN (${db.in(binds, pagesToKeep.map(p => '/' + String(p.id)))})`, binds)
+    const childrenByPath = groupby(children, 'path')
+
+    const ret: RootPage[] = pagesToKeep.map(p => ({
+      id: p.dataId,
+      linkId: p.linkId,
+      name: p.name,
+      title: p.title,
+      path: '/' + p.name,
+      deleteState: p.deleteState,
+      hasUnpublishedChanges: p.hasUnpublishedChanges,
+      modifiedAt: p.modified.toISOString(),
+      modifiedBy: {
+        id: p.modifiedBy
+      },
+      template: {
+        key: p.templateKey,
+        name: templateRegistry.getPageTemplate(p.templateKey).name
+      },
+      pagetree: {
+        id: String(p.pagetreeId),
+        name: p.pagetreeName,
+        type: p.pagetreeType.toLocaleUpperCase()
+      },
+      site: {
+        id: String(p.siteId),
+        name: p.siteName
+      },
+      published: !!p.published,
+      publishedAt: p.publishedAt?.toISOString(),
+      children: childrenByPath['/' + String(p.id)]?.map(c => ({ id: c.dataId })) ?? [],
+      permissions: permsByPageInternalId[p.id]
+    }))
+    return ret
   })
 }

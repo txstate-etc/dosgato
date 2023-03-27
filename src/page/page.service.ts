@@ -10,7 +10,7 @@ import {
   getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage,
   Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
   Site, PagetreeType, DeleteState, publishPageDeletions, CreatePageExtras, getPagesByPath, parsePath,
-  normalizePath, validateRecurse, Template, PageRuleGrants, DeleteStateAll
+  normalizePath, validateRecurse, Template, PageRuleGrants, DeleteStateAll, PageRuleService
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -280,7 +280,7 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async getApprovedTemplates (page: Page, filter?: TemplateFilter) {
-    const templates = await this.svc(TemplateService).find(filter)
+    const templates = await this.svc(TemplateServiceInternal).find(filter)
     return await filterAsync(templates, async template => await this.svc(TemplateService).mayUseOnPage(template, page))
   }
 
@@ -320,21 +320,17 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async mayViewForEdit (page: Page) {
-    const [viewForEdit, children, parent] = await Promise.all([
+    const [viewForEdit, pageRules, path, parent, pagetree] = await Promise.all([
       this.havePagePerm(page, 'viewForEdit'),
-      this.raw.getPageChildren(page, true),
-      page.parentInternalId ? await this.raw.findByInternalId(page.parentInternalId) : undefined
+      this.currentPageRules(),
+      this.raw.getPath(page),
+      page.parentInternalId ? await this.raw.findByInternalId(page.parentInternalId) : undefined,
+      this.svc(PagetreeServiceInternal).findById(page.pagetreeId)
     ])
     if (viewForEdit) return true
-    if (!await this.hasPathBasedPageRulesForSite(String(page.siteInternalId))) return false
-    const [childrenPass, parentPass] = await Promise.all([
-      // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
-      someAsync(children, async c => await this.havePagePerm(c, 'viewForEdit')),
-      // if we have some sort of permission on a single page, we should be able to see its children
-      // since it might be important
-      parent && await this.havePagePerm(parent, 'viewForEdit')
-    ])
-    return childrenPass || !!parentPass
+    const prSvc = this.svc(PageRuleService)
+    for (const pr of pageRules) if (pr.grants.viewForEdit && prSvc.appliesToChildSync(pr, page, pagetree!.type, path)) return true
+    return parent != null && await this.havePagePerm(parent, 'viewForEdit')
   }
 
   async mayViewLatest (page: Page) {
