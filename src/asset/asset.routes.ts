@@ -356,6 +356,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
           AND f.deleteState IN (0, 1)
           AND s.deletedAt IS NULL
           AND pt.deletedAt IS NULL
+        ORDER BY f.name
       `),
       (folderSvc as any).currentAssetRules() as AssetRule[]
     ])

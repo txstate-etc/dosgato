@@ -263,6 +263,7 @@ export async function createPageRoutes (app: FastifyInstance) {
           AND p.deleteState IN (0, 1)
           AND s.deletedAt IS NULL
           AND pt.deletedAt IS NULL
+        ORDER BY p.path, p.name
       `),
       (pageSvc as any).currentPageRules() as PageRule[]
     ])
