@@ -15,7 +15,7 @@ import { groupby, isNotBlank, keyby, randomid } from 'txstate-utils'
 import {
   type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
   AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler, getEnabledUser, GlobalRuleService, logMutation,
-  makeSafeFilename, type PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService
+  makeSafeFilename, PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService
 } from '../internal.js'
 
 interface RootAssetFolder {
@@ -359,7 +359,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
       (folderSvc as any).currentAssetRules() as AssetRule[]
     ])
 
-    const permsByInternalId: Record<number, RootAssetFolder['permissions'] & { viewForEdit: boolean }> = {}
+    const permsByInternalId: Record<number, RootAssetFolder['permissions']> = {}
     function hasPerm (rules: AssetRule[], perm: keyof AssetRule['grants']) {
       for (const r of rules) {
         if (r.grants[perm]) return true
@@ -368,12 +368,12 @@ export async function createAssetRoutes (app: FastifyInstance) {
     }
     const foldersToKeep: typeof folders = []
     for (const f of folders) {
-      const page = new AssetFolder(f)
-      const applicableRules = assetRules.filter(r => assetRuleSvc.appliesToFolderSync(r, page, '/' + f.name, f.pagetreeType))
-      const applicableToChildRules = assetRules.filter(r => assetRuleSvc.appliesToChildSync(r, page, f.pagetreeType, '/' + f.name))
+      const folder = new AssetFolder(f)
+      const applicableRules = assetRules.filter(r => assetRuleSvc.appliesToFolderSync(r, folder, '/' + f.name, f.pagetreeType))
+      const applicableToChildRules = assetRules.filter(r => assetRuleSvc.appliesToChildSync(r, folder, f.pagetreeType, '/' + f.name))
       const [create, update, mayDelete, move, undelete, viewForEdit] = [
-        hasPerm(applicableRules, 'create'),
-        hasPerm(applicableRules, 'update'),
+        hasPerm(applicableRules, 'create') && f.pagetreeType !== PagetreeType.ARCHIVE,
+        hasPerm(applicableRules, 'update') && f.pagetreeType !== PagetreeType.ARCHIVE,
         false,
         false,
         false,
@@ -385,8 +385,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
         update,
         delete: mayDelete,
         move,
-        undelete,
-        viewForEdit
+        undelete
       }
     }
 
