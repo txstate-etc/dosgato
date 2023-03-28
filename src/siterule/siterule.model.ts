@@ -95,10 +95,10 @@ export class SiteRuleFilter {
 
 @InputType()
 export class CreateSiteRuleInput {
-  @Field()
+  @Field(type => ID)
   roleId!: string
 
-  @Field({ nullable: true })
+  @Field(type => ID, { nullable: true })
   siteId?: string
 
   @Field(type => SiteRuleGrantsInput, { nullable: true })
@@ -107,10 +107,10 @@ export class CreateSiteRuleInput {
 
 @InputType()
 export class UpdateSiteRuleInput {
-  @Field()
+  @Field(type => ID)
   ruleId!: string
 
-  @Field({ nullable: true })
+  @Field(type => ID, { nullable: true })
   siteId?: string
 
   @Field(type => SiteRuleGrantsInput, { nullable: true })

@@ -162,10 +162,10 @@ export class PageRuleResponse extends ValidatedResponse {
 
 @InputType()
 export class CreatePageRuleInput {
-  @Field()
+  @Field(type => ID)
   roleId!: string
 
-  @Field({ nullable: true })
+  @Field(type => ID, { nullable: true })
   siteId?: string
 
   @Field({ nullable: true })
@@ -183,10 +183,10 @@ export class CreatePageRuleInput {
 
 @InputType()
 export class UpdatePageRuleInput {
-  @Field()
+  @Field(type => ID)
   ruleId!: string
 
-  @Field({ nullable: true })
+  @Field(type => ID, { nullable: true })
   siteId?: string
 
   @Field({ nullable: true })
