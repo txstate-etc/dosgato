@@ -8,10 +8,10 @@ export class User {
   @Field(type => ID)
   id: string
 
-  @Field()
-  firstname: string
+  @Field({ nullable: true, description: 'System users and several celebrities will have no first name.' })
+  firstname?: string
 
-  @Field()
+  @Field({ description: 'Required. If Cher needs access, put "Cher" here and leave first name empty. Similarly, system users only have a last name.' })
   lastname: string
 
   @Field(type => String)
