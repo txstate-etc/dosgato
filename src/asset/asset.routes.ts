@@ -389,6 +389,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
       }
     }
 
+    if (!foldersToKeep.length) return []
+
     const binds1: any[] = []
     const binds2: any[] = []
     const [childFolders, childAssets] = await Promise.all([
