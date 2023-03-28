@@ -45,3 +45,15 @@ export function numerate (name: string) {
   if (/\d+$/.test(name)) return name.replace(/(\d+)$/, num => String(Number(num) + 1).padStart(num.length, '0'))
   return name.replace(/[._\s-]+$/, '') + '-1'
 }
+
+export function numerateBasedOnExisting (base: string, usedNames: string[]) {
+  let maxArchiveNum: number | undefined
+  for (const n of usedNames) {
+    const m = n.match(new RegExp(base + '(-(\\d+))?$'))
+    if (m) {
+      const num = m[2] ? Number(m[2]) : 1
+      if (maxArchiveNum == null || num > maxArchiveNum) maxArchiveNum = num
+    }
+  }
+  return base + (maxArchiveNum != null ? '-' + String(maxArchiveNum + 1) : '')
+}

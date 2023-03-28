@@ -68,9 +68,12 @@ describe('pagetree mutations', () => {
     const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { name pagetrees { id type } } }`)
     const initialPagetree = sites[0].pagetrees.find((p: any) => p.type === 'PRIMARY')
     const { pagetree: newPagetree } = await createPagetree(testSiteId, 'keyp2')
-    const { promotePagetree: { pagetree, success } } = await query('mutation PromotePagetree ($id: ID!) { promotePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })
+    const { promotePagetree: { pagetree, success } } = await query('mutation PromotePagetree ($id: ID!) { promotePagetree (pagetreeId: $id) { success pagetree { id name type rootPage { name } rootAssetFolder { name } } } }', { id: newPagetree.id })
     expect(success).to.be.true
     expect(pagetree.type).to.equal('PRIMARY')
+    expect(pagetree.rootPage.name).to.equal(pagetree.name)
+    expect(pagetree.rootAssetFolder.name).to.equal(pagetree.name)
+    expect(pagetree.name).to.equal('pagetreetestsite')
     const { sites: updatedSites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { name pagetrees(filter: { ids: [${initialPagetree.id}] }) { id type } } }`)
     expect(updatedSites[0].pagetrees[0].type).to.equal('ARCHIVE')
   })
@@ -80,9 +83,12 @@ describe('pagetree mutations', () => {
   })
   it('should archive a pagetree', async () => {
     const { pagetree: newPagetree } = await createPagetree(testSiteId, 'keyp1')
-    const { archivePagetree: { pagetree, success } } = await query('mutation ArchivePagetree ($id: ID!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type } } }', { id: newPagetree.id })
+    const { archivePagetree: { pagetree, success } } = await query('mutation ArchivePagetree ($id: ID!) { archivePagetree (pagetreeId: $id) { success pagetree { id name type rootPage { name } rootAssetFolder { name } } } }', { id: newPagetree.id })
     expect(success).to.be.true
     expect(pagetree.type).to.equal('ARCHIVE')
+    expect(pagetree.rootPage.name).to.equal(pagetree.name)
+    expect(pagetree.rootAssetFolder.name).to.equal(pagetree.name)
+    expect(pagetree.name).to.equal('pagetreetestsite-archive-2')
   })
   it('should not allow the primary pagetree to be archived', async () => {
     const { pagetree: newPagetree } = await createPagetree(testSiteId, 'keyp1')

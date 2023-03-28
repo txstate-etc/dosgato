@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid'
 import { unique, isNotBlank } from 'txstate-utils'
 import {
   Pagetree, type PagetreeFilter, PagetreeType, type VersionedService, type Site, createSiteComment, type User,
-  numerate, createVersionedPage, type CreatePageExtras, DeleteStateNoFinalizeDefault, DeleteStateInputNoFinalize, DeleteStateNoFinalizeAll
+  numerate, createVersionedPage, type CreatePageExtras, DeleteStateNoFinalizeDefault, DeleteStateInputNoFinalize, DeleteStateNoFinalizeAll, numerateBasedOnExisting
 } from '../internal.js'
 
 export function processDeletedFiltersNoFinalize (filter: any, tableName: string, orphansJoins: Map<string, string>, excludeOrphansClause: string, onlyOrphansClause: string) {
@@ -155,15 +155,16 @@ export async function promotePagetree (oldPrimaryId: string, newPrimaryId: strin
     const newPrimaryPagetree = new Pagetree(newPrimaryPagetreeRow)
 
     // former primary pagetree will be archived, numerate its name
-    const usedNames = new Set(await db.getvals<string>('SELECT name FROM pagetrees WHERE siteId = ? AND type = ?', [oldPrimaryPagetree.siteId, PagetreeType.ARCHIVE]))
-    let pagetreeName = `${site.name}-archive`
-    while (usedNames.has(pagetreeName)) pagetreeName = numerate(pagetreeName)
+    const usedNames = await db.getvals<string>('SELECT name FROM pagetrees WHERE siteId = ? AND type = ?', [oldPrimaryPagetree.siteId, PagetreeType.ARCHIVE])
+    const pagetreeName = numerateBasedOnExisting(`${site.name}-archive`, usedNames)
 
     await db.update('UPDATE pagetrees SET type = ?, name = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, pagetreeName, oldPrimaryId])
     await db.update('UPDATE pages SET name = ? WHERE pagetreeId = ? AND path = "/"', [pagetreeName, oldPrimaryId])
     await db.update('UPDATE pagetrees SET type = ?, name = ?, promotedAt = NOW() WHERE id = ?', [PagetreeType.PRIMARY, site.name, newPrimaryId])
     await db.update('UPDATE pages SET name = ? WHERE pagetreeId = ? AND path = "/"', [site.name, newPrimaryId])
     await db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [newPrimaryPagetree.id, newPrimaryPagetree.siteId])
+    await db.update('UPDATE assetfolders SET name = ? WHERE pagetreeId = ? AND path = "/"', [pagetreeName, oldPrimaryId])
+    await db.update('UPDATE assetfolders SET name = ? WHERE pagetreeId = ? AND path = "/"', [site.name, newPrimaryId])
     await createSiteComment(site.id, `Promoted pagetree ${newPrimaryPagetree.name} to primary.`, user.internalId, db)
     await createSiteComment(site.id, `Created new archive ${pagetreeName}.`, user.internalId, db)
   })
@@ -174,12 +175,12 @@ export async function archivePagetree (pagetreeId: string, user: User) {
     const pagetree = new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE ID=?', [pagetreeId]))
     const siteName = await db.getval<string>('SELECT name FROM sites WHERE id = ?', [pagetree.siteId])
 
-    const archiveNames = new Set(await db.getvals<string>('SELECT name FROM pagetrees WHERE siteId = ? AND type = ?', [pagetree.siteId, PagetreeType.ARCHIVE]))
-    let pagetreeName = `${siteName!}-archive`
-    while (archiveNames.has(pagetreeName)) pagetreeName = numerate(pagetreeName)
+    const archiveNames = await db.getvals<string>('SELECT name FROM pagetrees WHERE siteId = ? AND type = ?', [pagetree.siteId, PagetreeType.ARCHIVE])
+    const pagetreeName = numerateBasedOnExisting(`${siteName!}-archive`, archiveNames)
 
     await db.update('UPDATE pagetrees SET type = ?, name = ?, archivedAt = NOW() WHERE id = ?', [PagetreeType.ARCHIVE, pagetreeName, pagetreeId])
     await db.update('UPDATE pages SET name = ? WHERE pagetreeId = ? AND path ="/"', [pagetreeName, pagetreeId])
+    await db.update('UPDATE assetfolders SET name = ? WHERE pagetreeId = ? AND path ="/"', [pagetreeName, pagetreeId])
     await createSiteComment(pagetree.siteId, `Created archive ${pagetreeName}`, user.internalId, db)
   })
 }
