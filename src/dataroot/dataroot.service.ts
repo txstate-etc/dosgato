@@ -54,6 +54,7 @@ export class DataRootService extends DosGatoService<DataRoot> {
   }
 
   async mayView (obj: DataRoot) {
+    if (this.isRenderServer()) return true
     if (obj.site) return await this.svc(SiteService).mayView(obj.site)
     return await this.haveDataRootPerm(obj, 'view')
   }

@@ -442,6 +442,7 @@ export class DataService extends DosGatoService<Data> {
   }
 
   async mayView (data: Data) {
+    if (this.isRenderServer()) return true
     return await this.haveDataPerm(data, 'view')
   }
 

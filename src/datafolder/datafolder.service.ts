@@ -243,6 +243,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   }
 
   async mayView (folder: DataFolder) {
+    if (this.isRenderServer()) return true
     if (await this.haveDataFolderPerm(folder, 'view')) return true
     const dataEntries = await this.svc(DataServiceInternal).findByFolderInternalId(folder.internalId)
     for (const d of dataEntries) {

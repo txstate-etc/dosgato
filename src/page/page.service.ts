@@ -307,6 +307,7 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async mayView (page: Page) {
+    if (this.isRenderServer()) return true
     const [published, haveView] = await Promise.all([
       this.isPublished(page),
       this.havePagePerm(page, 'view')

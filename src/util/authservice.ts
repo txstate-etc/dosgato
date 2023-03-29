@@ -1,21 +1,48 @@
 import { AuthError, AuthorizedService, type Context } from '@txstate-mws/graphql-server'
-import { filterAsync, keyby } from 'txstate-utils'
+import { Cache, filterAsync, keyby } from 'txstate-utils'
 import {
   type Asset, type AssetFolder, type Data, type DataFolder, type Page, type Site, type Template,
   AssetRuleService, type AssetRuleGrants, DataRuleService, type DataRuleGrants, GlobalRuleService,
   type GlobalRuleGrants, PageRuleService, type PageRuleGrants, type SiteRuleGrants, SiteRuleService,
   TemplateRuleService, type TemplateRuleGrants, RoleServiceInternal, SiteRuleServiceInternal,
   PageRuleServiceInternal, AssetRuleServiceInternal, DataRuleServiceInternal, GlobalRuleServiceInternal,
-  GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal, type DataRoot, type Group,
-  type PageRule, type SiteRule, type AssetRule, type TemplateRule, type DataRule
+  GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal, type DataRoot, type Group
 } from '../internal.js'
+
+const pageRuleCache = new Cache(async (netid: string, ctx: Context) => {
+  const roles = await ctx.svc(RoleServiceInternal).findByUserId(netid)
+  return (await Promise.all(roles.map(async r => await ctx.svc(PageRuleServiceInternal).findByRoleId(r.id)))).flat()
+}, { freshseconds: 5, staleseconds: 30 })
+
+const assetRuleCache = new Cache(async (netid: string, ctx: Context) => {
+  const roles = await ctx.svc(RoleServiceInternal).findByUserId(netid)
+  return (await Promise.all(roles.map(async r => await ctx.svc(AssetRuleServiceInternal).findByRoleId(r.id)))).flat()
+}, { freshseconds: 5, staleseconds: 30 })
+
+const siteRuleCache = new Cache(async (netid: string, ctx: Context) => {
+  const roles = await ctx.svc(RoleServiceInternal).findByUserId(netid)
+  return (await Promise.all(roles.map(async r => await ctx.svc(SiteRuleServiceInternal).findByRoleId(r.id)))).flat()
+}, { freshseconds: 5, staleseconds: 30 })
+
+const dataRuleCache = new Cache(async (netid: string, ctx: Context) => {
+  const roles = await ctx.svc(RoleServiceInternal).findByUserId(netid)
+  return (await Promise.all(roles.map(async r => await ctx.svc(DataRuleServiceInternal).findByRoleId(r.id)))).flat()
+}, { freshseconds: 5, staleseconds: 30 })
+
+const globalRuleCache = new Cache(async (netid: string, ctx: Context) => {
+  const roles = await ctx.svc(RoleServiceInternal).findByUserId(netid)
+  return (await Promise.all(roles.map(async r => await ctx.svc(GlobalRuleServiceInternal).findByRoleId(r.id)))).flat()
+}, { freshseconds: 5, staleseconds: 30 })
+
+const templateRuleCache = new Cache(async (netid: string, ctx: Context) => {
+  const roles = await ctx.svc(RoleServiceInternal).findByUserId(netid)
+  return (await Promise.all(roles.map(async r => await ctx.svc(TemplateRuleServiceInternal).findByRoleId(r.id)))).flat()
+}, { freshseconds: 5, staleseconds: 30 })
 
 export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ sub: string }, ObjType, RedactedType> {
   protected get login () {
     return this.auth!.sub
   }
-
-  private cachedData = new Map()
 
   protected isRenderServer () {
     return this.login === 'anonymous'
@@ -40,8 +67,7 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async currentGlobalRules () {
-    const roles = await this.currentRoles()
-    return (await Promise.all(roles.map(async r => await this.svc(GlobalRuleServiceInternal).findByRoleId(r.id)))).flat()
+    return await globalRuleCache.get(this.login, this.ctx)
   }
 
   protected async haveGlobalPerm (grant: keyof GlobalRuleGrants) {
@@ -52,11 +78,7 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async currentSiteRules () {
-    if (!this.cachedData.has('currentSiteRules')) {
-      const roles = await this.currentRoles()
-      this.cachedData.set('currentSiteRules', (await Promise.all(roles.map(async r => await this.svc(SiteRuleServiceInternal).findByRoleId(r.id)))).flat())
-    }
-    return this.cachedData.get('currentSiteRules') as SiteRule[]
+    return await siteRuleCache.get(this.login, this.ctx)
   }
 
   protected async haveSitePerm (site: Site, grant: keyof SiteRuleGrants) {
@@ -67,15 +89,10 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async currentPageRules () {
-    if (!this.cachedData.has('currentPageRules')) {
-      const roles = await this.currentRoles()
-      this.cachedData.set('currentPageRules', (await Promise.all(roles.map(async r => await this.svc(PageRuleServiceInternal).findByRoleId(r.id)))).flat())
-    }
-    return this.cachedData.get('currentPageRules') as PageRule[]
+    return await pageRuleCache.get(this.login, this.ctx)
   }
 
   protected async havePagePerm (page: Page, grant: keyof PageRuleGrants) {
-    if (this.isRenderServer() && grant === 'view') return true
     const rules = await this.currentPageRules()
     const pageRuleService = this.svc(PageRuleService)
     const applicable = await filterAsync(rules, async r => await pageRuleService.applies(r, page))
@@ -83,15 +100,10 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async currentAssetRules () {
-    if (!this.cachedData.has('currentAssetRules')) {
-      const roles = await this.currentRoles()
-      this.cachedData.set('currentAssetRules', (await Promise.all(roles.map(async r => await this.svc(AssetRuleServiceInternal).findByRoleId(r.id)))).flat())
-    }
-    return this.cachedData.get('currentAssetRules') as AssetRule[]
+    return await assetRuleCache.get(this.login, this.ctx)
   }
 
   protected async haveAssetPerm (asset: Asset, grant: keyof AssetRuleGrants) {
-    if (this.isRenderServer() && grant === 'view') return true
     const rules = await this.currentAssetRules()
     const assetRuleService = this.svc(AssetRuleService)
     const applicable = await filterAsync(rules, async r => await assetRuleService.applies(r, asset))
@@ -99,7 +111,6 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async haveAssetFolderPerm (folder: AssetFolder, grant: keyof AssetRuleGrants) {
-    if (this.isRenderServer() && grant === 'view') return true
     const rules = await this.currentAssetRules()
     const assetRuleService = this.svc(AssetRuleService)
     const applicable = await filterAsync(rules, async r => await assetRuleService.appliesToFolder(r, folder))
@@ -107,16 +118,10 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async currentDataRules () {
-    if (!this.cachedData.has('currentDataRules')) {
-      const roles = await this.currentRoles()
-      this.cachedData.set('currentDataRules', (await Promise.all(roles.map(async r => await this.svc(DataRuleServiceInternal).findByRoleId(r.id)))).flat())
-    }
-    return this.cachedData.get('currentDataRules') as DataRule[]
+    return await dataRuleCache.get(this.login, this.ctx)
   }
 
   protected async haveDataPerm (item: Data, grant: keyof DataRuleGrants) {
-    if (this.isRenderServer() && grant === 'view') return true
-
     // if siteId is null it's global data and governed by GlobalRules.manageGlobalData instead
     // of DataRules
     if (!item.siteId) return await this.haveGlobalPerm('manageGlobalData')
@@ -128,8 +133,6 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async haveDataFolderPerm (folder: DataFolder, grant: keyof DataRuleGrants) {
-    if (this.isRenderServer() && grant === 'view') return true
-
     if (!folder.siteId) return await this.haveGlobalPerm('manageGlobalData')
 
     const rules = await this.currentDataRules()
@@ -139,7 +142,6 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async haveDataRootPerm (dataroot: DataRoot, grant: keyof DataRuleGrants) {
-    if (this.isRenderServer() && grant === 'view') return true
     if (!dataroot.site) return await this.haveGlobalPerm('manageGlobalData')
     const rules = await this.currentDataRules()
     return rules.some(r => {
@@ -152,11 +154,7 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async currentTemplateRules () {
-    if (!this.cachedData.has('currentTemplateRules')) {
-      const roles = await this.currentRoles()
-      this.cachedData.set('currentTemplateRules', (await Promise.all(roles.map(async r => await this.svc(TemplateRuleServiceInternal).findByRoleId(r.id)))).flat())
-    }
-    return this.cachedData.get('currentTemplateRules') as TemplateRule[]
+    return await templateRuleCache.get(this.login, this.ctx)
   }
 
   protected async haveTemplatePerm (template: Template, grant: keyof TemplateRuleGrants) {
