@@ -181,7 +181,7 @@ async function updateSourceDisplayOrder (db: Queryable, versionedService: Versio
 }
 
 export async function createDataEntry (versionedService: VersionedService, userId: string, args: CreateDataInput) {
-  return await db.transaction(async db => {
+  const newInternalId = await db.transaction(async db => {
     const folder = args.folderId ? await db.getrow<{ id: number, siteId: number }>('SELECT id, siteId FROM datafolders WHERE guid = ?', [args.folderId]) : undefined
     const siteId = folder?.siteId ?? args.siteId
     const displayOrder = await handleDisplayOrder(db, versionedService, args.data.templateKey, 1, folder?.id, args.siteId)
@@ -200,11 +200,11 @@ export async function createDataEntry (versionedService: VersionedService, userI
       columns.push('folderId')
       binds.push(folder?.id)
     }
-    const newInternalId = await db.insert(`
+    return await db.insert(`
     INSERT INTO data (${columns.join(', ')})
       VALUES (${columns.map(c => '?').join(', ')})`, binds)
-    return new Data(await db.getrow('SELECT * FROM data WHERE id=?', [newInternalId]))
   })
+  return new Data(await db.getrow('SELECT * FROM data WHERE id=?', [newInternalId]))
 }
 
 export async function renameDataEntry (dataId: string, name: string) {
