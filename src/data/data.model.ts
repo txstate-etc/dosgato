@@ -2,7 +2,7 @@ import { DataData } from '@dosgato/templating'
 import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { optionalString } from 'txstate-utils'
-import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
+import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString, JsonData, DeleteState, UrlSafePath, DeleteStateInput } from '../internal.js'
 
 @ObjectType({ description: 'Data are pieces of shareable versioned content with a template and a dialog but not rendering code. The data will be consumed by component templates, each of which will do its own rendering of the data. For example, an Article data type could be displayed by an Article List component or an Article Detail component. In addition, outside services could access the article data directly from GraphQL.' })
@@ -103,10 +103,10 @@ export class UpdateDataInput {
   @Field(type => JsonData, { description: 'Should include the current schemaVersion of the UI sending it.' })
   data!: any
 
-  @Field(type => Number, { description: 'The version of the data you had when you started the update' })
+  @Field(type => Int, { nullable: true, description: 'The version of the data you had when you started the update. If provided, an optimistic concurrency check will prevent the mutation from completing if someone has changed it since it was shown to the user.' })
   dataVersion?: number
 
-  @Field({ nullable: true, description: 'An optional comment describing the update' })
+  @Field({ nullable: true, description: 'An optional comment describing the update.' })
   comment?: string
 }
 
