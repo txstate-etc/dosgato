@@ -306,7 +306,7 @@ export async function createPageRoutes (app: FastifyInstance) {
 
     if (!pagesToKeep.length) return []
 
-    const children = await db.getall<{ dataId: string, path: string }>(`SELECT dataId, path FROM pages WHERE path IN (${db.in(binds, pagesToKeep.map(p => '/' + String(p.id)))})`, binds)
+    const children = await db.getall<{ dataId: string, path: string }>(`SELECT dataId, path FROM pages WHERE path IN (${db.in(binds, pagesToKeep.map(p => '/' + String(p.id)))}) AND deleteState IN (0, 1)`, binds)
     const childrenByPath = groupby(children, 'path')
 
     const ret: RootPage[] = pagesToKeep.map(p => ({

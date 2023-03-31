@@ -394,8 +394,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const binds1: any[] = []
     const binds2: any[] = []
     const [childFolders, childAssets] = await Promise.all([
-      db.getall<{ id: number, path: string }>(`SELECT id, path FROM assetfolders WHERE path IN (${db.in(binds1, foldersToKeep.map(f => '/' + String(f.id)))})`, binds1),
-      db.getall<{ dataId: string, folderId: number }>(`SELECT dataId, folderId FROM assets WHERE folderId IN (${db.in(binds2, foldersToKeep.map(f => f.id))})`, binds2)
+      db.getall<{ id: number, path: string }>(`SELECT id, path FROM assetfolders WHERE path IN (${db.in(binds1, foldersToKeep.map(f => '/' + String(f.id)))}) AND deleteState IN (0, 1)`, binds1),
+      db.getall<{ dataId: string, folderId: number }>(`SELECT dataId, folderId FROM assets WHERE folderId IN (${db.in(binds2, foldersToKeep.map(f => f.id))}) AND deleteState IN (0, 1)`, binds2)
     ])
     const childFoldersByPath = groupby(childFolders, 'path')
     const childAssetsById = groupby(childAssets, 'folderId')
