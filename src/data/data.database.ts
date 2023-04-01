@@ -73,10 +73,9 @@ export async function getData (filter?: DataFilter) {
 
 async function getEntriesWithTemplate (db: Queryable, versionedService: VersionedService, templateKey: string) {
   const searchRule = { indexName: 'templateKey', equal: templateKey }
-  // TODO: These are not fetched in a transaction. Do we need to add the transaction as an optional parameter for find()?
   const [dataIdsLatest, dataIdsPublished] = await Promise.all([
-    versionedService.find([searchRule], 'data'),
-    versionedService.find([searchRule], 'data', 'published')])
+    versionedService.find([searchRule], 'data', undefined, undefined, db),
+    versionedService.find([searchRule], 'data', 'published', undefined, db)])
   const dataIds = unique([...dataIdsLatest, ...dataIdsPublished])
   if (!dataIds.length) return []
   const binds: string[] = []

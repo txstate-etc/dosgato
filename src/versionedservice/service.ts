@@ -180,7 +180,8 @@ export class VersionedService extends BaseService {
     /**
      * limit search to the given ids to reduce the search space when possible
      */
-    ids?: string[]
+    ids?: string[],
+    tdb: Queryable = db
   ) {
     const permbinds: string[] = []
     const permwhere: string[] = []
@@ -245,7 +246,7 @@ export class VersionedService extends BaseService {
         binds.push(zerofill(rule.startsWith) + '%')
       }
 
-      return await db.getvals<string>(`
+      return await tdb.getvals<string>(`
         SELECT DISTINCT s.id
         FROM storage s
         INNER JOIN indexes i ON i.id=s.id
