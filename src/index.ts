@@ -20,7 +20,7 @@ import {
   AccessResolver, type DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
   DataRootPermissionsResolver, updateLastLogin, createAssetRoutes, UrlSafePath, UrlSafePathScalar,
-  AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler, beginProcessingResizes, FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar
+  AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler, beginProcessingResizes, FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, SchemaVersionScalar, SchemaVersion
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -130,7 +130,8 @@ export class DGServer {
       { type: FilenameSafeString, scalar: FilenameSafeStringScalar },
       { type: UrlSafePath, scalar: UrlSafePathScalar },
       { type: UrlSafeString, scalar: UrlSafeStringScalar },
-      { type: DateTime, scalar: DateTimeScalar }
+      { type: DateTime, scalar: DateTimeScalar },
+      { type: SchemaVersion, scalar: SchemaVersionScalar}
     ]
     scalarsMap.push(...(opts.scalarsMap ?? []))
 
