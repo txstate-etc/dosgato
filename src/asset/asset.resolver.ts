@@ -6,7 +6,7 @@ import {
   AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
   RoleService, AssetResponse, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site, SiteService,
-  Pagetree, AssetFolderServiceInternal, PagetreeService, DeleteStateRootDefault, FilenameSafeString, PagetreeServiceInternal
+  Pagetree, AssetFolderServiceInternal, DeleteStateRootDefault, FilenameSafeString, PagetreeServiceInternal
 } from '../internal.js'
 
 @Resolver(of => Asset)

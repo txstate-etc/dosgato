@@ -1,14 +1,14 @@
 /* eslint-disable no-trailing-spaces */
 import { BaseService, ValidatedResponse, type MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique, isNotNull, someAsync, eachConcurrent, mapConcurrent, intersect, isNull, keyby, isNotBlank } from 'txstate-utils'
+import { unique, isNotNull, someAsync, eachConcurrent, mapConcurrent, intersect, isNull, keyby, isNotBlank, filterAsync } from 'txstate-utils'
 import {
   type Data, type DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, type CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, type UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, type MoveDataTarget, moveDataEntries,
   type DataFolder, type Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions,
-  DeleteState, popPath, DeleteStateAll
+  DeleteState, popPath, DeleteStateAll, SiteRuleService, DataRuleService, shiftPath
 } from '../internal.js'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
@@ -42,15 +42,7 @@ const dataBySiteIdLoader = new OneToManyLoader({
 
 const dataByTemplateLoader = new OneToManyLoader({
   fetch: async (templateKeys: string[], filter: DataFilter | undefined, ctx: Context) => {
-    const idToTemplateKey = new Map<string, string>()
-    await Promise.all(templateKeys.map(async key => {
-      const searchRule = { indexName: 'templateKey', equal: key }
-      const dataIds = await ctx.svc(VersionedService).find([searchRule], 'data')
-      for (const dataId of dataIds) idToTemplateKey.set(dataId, key)
-    }))
-    const data = await getData({ ...filter, ids: intersect({ skipEmpty: true }, filter?.ids, Array.from(idToTemplateKey.keys())) })
-    for (const item of data) (item as any).templateKey = idToTemplateKey.get(item.dataId)
-    return data
+    return await getData({ ...filter, templateKeys })
   },
   extractKey: (item: any) => item.templateKey
 })
@@ -190,7 +182,9 @@ export class DataService extends DosGatoService<Data> {
   raw = this.svc(DataServiceInternal)
 
   async find (filter: DataFilter) {
-    return await this.removeUnauthorized(await this.raw.find(filter))
+    const data = await this.raw.find(filter)
+    if (filter?.links?.length || filter?.paths?.length || filter?.ids?.length) return await filterAsync(data, async f => await this.mayViewIndividual(f))
+    return await this.removeUnauthorized(data)
   }
 
   async findByIds (ids: string[]) {
@@ -442,8 +436,28 @@ export class DataService extends DosGatoService<Data> {
   }
 
   async mayView (data: Data) {
-    if (this.isRenderServer()) return true
-    return await this.haveDataPerm(data, 'view')
+    if (data.orphaned) {
+      const srSvc = this.svc(SiteRuleService)
+      const siteRules = (await this.currentSiteRules()).filter(r => srSvc.applies(r, data.siteId!))
+      return siteRules.some(r => r.grants.delete)
+    }
+    const [dataRules, dataPath] = await Promise.all([
+      this.currentDataRules(),
+      this.raw.getPath(data)
+    ])
+    const folderPathWithoutSite = popPath(shiftPath(dataPath))
+    for (const r of dataRules) {
+      if (!r.grants.view) continue
+      if (!DataRuleService.appliesToSiteAndTemplate(r, data)) continue
+      if (data.deleteState === DeleteState.DELETED && !r.grants.undelete) continue
+      if (data.deleteState === DeleteState.MARKEDFORDELETE && !r.grants.delete) continue
+      if (DataRuleService.appliesToPath(r, folderPathWithoutSite)) return true
+    }
+    return false
+  }
+
+  async mayViewIndividual (data: Data) {
+    return (!data.orphaned && data.deleteState === DeleteState.NOTDELETED) || await this.mayView(data)
   }
 
   async mayViewManagerUI () {

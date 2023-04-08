@@ -10,7 +10,7 @@ import {
   getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage,
   type Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
   type Site, PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, getPagesByPath, parsePath,
-  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService
+  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService, shiftPath
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -226,6 +226,10 @@ export class PageServiceInternal extends BaseService {
       if (!paths.length) filter.internalIds = [-1]
       filter.paths = intersect({ skipEmpty: true }, filter.paths, paths)
     }
+    if (filter.templateKeys?.length) {
+      const dataIds = await this.svc(VersionedService).find([{ in: filter.templateKeys, indexName: 'template' }], 'page', filter.published ? 'published' : 'latest')
+      filter.ids = intersect({ skipEmpty: true }, filter.ids, ['.never', ...dataIds])
+    }
     return filter
   }
 }
@@ -242,6 +246,7 @@ export class PageService extends DosGatoService<Page> {
       this.raw.find(filter),
       this.currentPageRules() // pre-load and cache page rules so they're ready for removeUnauthorized
     ])
+    if (filter.links?.length || filter.paths?.length || filter.ids?.length) return await filterAsync(ret, async p => await this.mayViewIndividual(p))
     return await this.postFilter(await this.removeUnauthorized(ret), filter)
   }
 
@@ -306,32 +311,37 @@ export class PageService extends DosGatoService<Page> {
     return (this.ctx as any).hasPathBasedPageRulesForSite[siteId]
   }
 
+  // may view the page in a list
   async mayView (page: Page) {
-    if (this.isRenderServer()) return true
-    const [published, haveView] = await Promise.all([
-      this.isPublished(page),
-      this.havePagePerm(page, 'view')
+    if (page.orphaned) {
+      const srSvc = this.svc(SiteRuleService)
+      const siteRules = (await this.currentSiteRules()).filter(r => srSvc.applies(r, page.siteId))
+      return siteRules.some(r => r.grants.delete)
+    }
+    const [pageRules, pagePath] = await Promise.all([
+      this.currentPageRules(),
+      this.raw.getPath(page)
     ])
-    if (published || haveView) return true
-    // if we are able to view any child pages, we have to be able to view the ancestors so that we can draw the tree
-    if (!await this.hasPathBasedPageRulesForSite(String(page.siteInternalId))) return false
-    const children = await this.raw.getPageChildren(page, true)
-    // no need to check whether children are published because it's impossible for published pages to have unpublished ancestors
-    return await someAsync(children, async c => await this.havePagePerm(c, 'view'))
+    const pagePathWithoutSite = shiftPath(pagePath)
+    for (const pr of pageRules) {
+      if (!pr.grants.view) continue
+      if (!PageRuleService.appliesToPagetree(pr, page)) continue
+      if (page.deleteState === DeleteState.DELETED && !pr.grants.undelete) continue
+      if (page.deleteState === DeleteState.MARKEDFORDELETE && !pr.grants.delete) continue
+      if (PageRuleService.appliesToPath(pr, pagePathWithoutSite)) return true
+      if (PageRuleService.appliesToChildOfPath(pr, pagePathWithoutSite)) return true
+      if (PageRuleService.appliesToParentOfPath(pr, pagePathWithoutSite)) return true
+    }
+    return false
+  }
+
+  // may view the page if requested individually
+  async mayViewIndividual (page: Page) {
+    return (page.pagetreeType === PagetreeType.PRIMARY && !page.orphaned && page.deleteState === DeleteState.NOTDELETED) || await this.mayView(page)
   }
 
   async mayViewForEdit (page: Page) {
-    const [viewForEdit, pageRules, path, parent, pagetree] = await Promise.all([
-      this.havePagePerm(page, 'viewForEdit'),
-      this.currentPageRules(),
-      this.raw.getPath(page),
-      page.parentInternalId ? await this.raw.findByInternalId(page.parentInternalId) : undefined,
-      this.svc(PagetreeServiceInternal).findById(page.pagetreeId)
-    ])
-    if (viewForEdit) return true
-    const prSvc = this.svc(PageRuleService)
-    for (const pr of pageRules) if (pr.grants.viewForEdit && prSvc.appliesToChildSync(pr, page, pagetree!.type, path)) return true
-    return parent != null && await this.havePagePerm(parent, 'viewForEdit')
+    return await this.mayView(page)
   }
 
   async mayViewLatest (page: Page) {
@@ -342,47 +352,28 @@ export class PageService extends DosGatoService<Page> {
     return (await this.currentPageRules()).some(r => r.grants.viewForEdit)
   }
 
-  async isInArchive (page: Page) {
-    const pagetree = await this.svc(PagetreeServiceInternal).findById(page.pagetreeId)
-    return pagetree!.type === PagetreeType.ARCHIVE
-  }
-
   async isPublished (page: Page) {
     const tag = await this.svc(VersionedService).getTag(page.dataId, 'published')
     return !!tag
   }
 
   async isLive (page: Page) {
-    const [published, pagetree, site] = await Promise.all([
+    if (page.pagetreeType !== PagetreeType.PRIMARY) return false
+    const [published, site] = await Promise.all([
       this.isPublished(page),
-      this.svc(PagetreeServiceInternal).findById(page.pagetreeId),
       this.svc(SiteServiceInternal).findById(String(page.siteInternalId))
     ])
-    if (!(published && pagetree!.type === PagetreeType.PRIMARY)) return false
-    if (site!.url == null || !site!.url.enabled) return false
-    return true
+    return published && site?.url != null && site.url.enabled
   }
 
-  async isOrphaned (page: Page) {
-    const [pagetree, site] = await Promise.all([
-      this.svc(PagetreeServiceInternal).findById(page.pagetreeId),
-      this.svc(SiteServiceInternal).findByPagetreeId(page.pagetreeId)
-    ])
-    return pagetree!.deleted || site!.deleted
-  }
-
-  async isOrphanedOrDeleted (page: Page, acceptPendingDelete?: boolean) {
+  isOrphanedOrDeleted (page: Page, acceptPendingDelete?: boolean) {
     if (page.deleteState !== DeleteState.NOTDELETED && (page.deleteState !== DeleteState.MARKEDFORDELETE || !acceptPendingDelete)) return true
-    return await this.isOrphaned(page)
+    return page.orphaned
   }
 
   async checkPerm (page: Page, perm: keyof PageRuleGrants, acceptPendingDelete: boolean) {
-    const [isInArchive, isOrphanedOrDeleted, havePagePerm] = await Promise.all([
-      this.isInArchive(page),
-      this.isOrphanedOrDeleted(page, acceptPendingDelete),
-      this.havePagePerm(page, perm)
-    ])
-    return !isInArchive && !isOrphanedOrDeleted && havePagePerm
+    if (this.isOrphanedOrDeleted(page, acceptPendingDelete)) return false
+    return await this.havePagePerm(page, perm)
   }
 
   // authenticated user may create pages underneath given page
@@ -396,6 +387,7 @@ export class PageService extends DosGatoService<Page> {
 
   async mayPublish (page: Page, parentBeingPublished?: boolean) {
     if (!await this.checkPerm(page, 'publish', false)) return false
+    if (page.pagetreeType === PagetreeType.ARCHIVE) return false
     if (page.parentInternalId && !parentBeingPublished) {
       const parent = await this.raw.findByInternalId(page.parentInternalId)
       if (!await this.isPublished(parent!)) return false
@@ -423,13 +415,8 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async mayUndelete (page: Page) {
-    if (page.deleteState === DeleteState.NOTDELETED) return false
-    const [isInArchive, isOrphaned, havePagePerm] = await Promise.all([
-      this.isInArchive(page),
-      this.isOrphaned(page),
-      this.havePagePerm(page, 'undelete')
-    ])
-    return !isOrphaned && !isInArchive && havePagePerm
+    if (page.deleteState === DeleteState.NOTDELETED || page.orphaned) return false
+    return await this.havePagePerm(page, 'undelete')
   }
 
   /**

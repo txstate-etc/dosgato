@@ -2,7 +2,7 @@ import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { Cache, filterAsync, isNotNull } from 'txstate-utils'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
-  tooPowerfulHelper, DosGatoService, type Data, DataService, type DataFolder, getDataRules, DataRule,
+  tooPowerfulHelper, DosGatoService, type Data, type DataFolder, getDataRules, DataRule,
   createDataRule, type CreateDataRuleInput, updateDataRule, type UpdateDataRuleInput, deleteDataRule,
   RoleService, type DataRuleFilter, DataRuleResponse, RoleServiceInternal, DataServiceInternal, DataFolderService
 } from '../internal.js'
@@ -174,6 +174,17 @@ export class DataRuleService extends DosGatoService<DataRule> {
     const dataPath = await this.svc(DataServiceInternal).getPath(item)
     const dataPathWithoutSite = '/' + dataPath.split('/').slice(2).join('/')
     return dataPathWithoutSite.startsWith(rule.path)
+  }
+
+  static appliesToSiteAndTemplate (r: DataRule, item: Data | DataFolder) {
+    if (!item.siteId && r.siteId) return false
+    if (r.siteId && r.siteId !== item.siteId) return false
+    if (r.templateId && r.templateId !== item.templateId) return false
+    return true
+  }
+
+  static appliesToPath (r: DataRule, dataPathWithoutSite: string) {
+    return dataPathWithoutSite.startsWith(r.path)
   }
 
   async appliesToFolder (rule: DataRule, folder: DataFolder) {

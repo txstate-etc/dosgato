@@ -254,7 +254,6 @@ export class SiteService extends DosGatoService<Site> {
   }
 
   async mayView (site: Site) {
-    if (site.url != null && this.isRenderServer()) return true
     const [viewForEdit, pages] = await Promise.all([
       this.mayViewForEdit(site),
       this.svc(PageServiceInternal).findByPagetreeId(site.primaryPagetreeId, { maxDepth: 0 })

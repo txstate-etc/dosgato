@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { isNotNull, unique, sortby } from 'txstate-utils'
+import { isNotNull, sortby } from 'txstate-utils'
 import { type Queryable } from 'mysql2-async'
 import { Data, type DataFilter, type VersionedService, type CreateDataInput, getDataIndexes, DataFolder, Site, type MoveDataTarget, DeleteState, processDeletedFilters } from '../internal.js'
 import { DateTime } from 'luxon'
@@ -8,10 +8,7 @@ async function processFilters (filter?: DataFilter) {
   const { binds, where, joins } = processDeletedFilters(
     filter,
     'data',
-    new Map([
-      ['templates', 'INNER JOIN templates ON data.templateId = templates.id'],
-      ['sites', 'LEFT JOIN sites ON data.siteId = sites.id']
-    ]),
+    new Map([]),
     ' AND sites.deletedAt IS NULL AND templates.deleted = 0',
     ' AND (sites.deletedAt IS NOT NULL OR templates.deleted = 1)'
   )
@@ -19,7 +16,6 @@ async function processFilters (filter?: DataFilter) {
   if (filter == null) return { where, binds, joins }
 
   if (filter.templateKeys?.length) {
-    joins.set('templates', 'INNER JOIN templates ON templates.id=data.templateId')
     where.push(`templates.\`key\` IN (${db.in(binds, filter.templateKeys)})`)
   }
 
@@ -61,7 +57,11 @@ async function processFilters (filter?: DataFilter) {
 
 export async function getData (filter?: DataFilter) {
   const { where, binds, joins } = await processFilters(filter)
-  let query = 'SELECT data.* FROM data'
+  let query = `SELECT data.*, templates.key AS templateKey,
+    templates.deleted = 1 OR sites.deletedAt IS NOT NULL as orphaned
+  FROM data
+  INNER JOIN templates ON data.templateId = templates.id
+  LEFT JOIN sites ON data.siteId = sites.id`
   query += ` ${Array.from(joins.values()).join('\n')}`
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`
@@ -71,64 +71,45 @@ export async function getData (filter?: DataFilter) {
   return data.map(d => new Data(d))
 }
 
-async function getEntriesWithTemplate (db: Queryable, versionedService: VersionedService, templateKey: string) {
-  const searchRule = { indexName: 'templateKey', equal: templateKey }
-  const [dataIdsLatest, dataIdsPublished] = await Promise.all([
-    versionedService.find([searchRule], 'data', undefined, undefined, db),
-    versionedService.find([searchRule], 'data', 'published', undefined, db)])
-  const dataIds = unique([...dataIdsLatest, ...dataIdsPublished])
-  if (!dataIds.length) return []
-  const binds: string[] = []
-  const rows = await db.getall(`SELECT * FROM data WHERE dataId IN (${db.in(binds, dataIds)})`, binds)
-  return rows.map(r => new Data(r))
-}
-
-async function handleDisplayOrder (db: Queryable, versionedService: VersionedService, templateKey: string, entriesAdded: number, folderInternalId?: number, siteId?: string, aboveTarget?: Data) {
+async function handleDisplayOrder (db: Queryable, templateKey: string, entriesAdded: number, folderInternalId?: number, siteId?: string, aboveTarget?: Data) {
   if (aboveTarget) {
     const displayOrder = aboveTarget.displayOrder
     if (aboveTarget.folderInternalId) {
       await db.update(`UPDATE data SET displayOrder = displayOrder + ${entriesAdded} WHERE folderId = ? AND displayOrder >= ?`, [aboveTarget.folderInternalId, displayOrder])
+    } else if (aboveTarget.siteId) {
+      await db.update(`
+        UPDATE data d
+        INNER JOIN templates t ON d.templateId = t.id
+        SET d.displayOrder = d.displayOrder + ${entriesAdded}
+        WHERE d.folderId IS NULL AND
+        d.displayOrder >= ? AND
+        d.siteId = ? AND
+        t.key = ?`, [displayOrder, aboveTarget.siteId, templateKey])
     } else {
-      const entriesWithTemplate = await getEntriesWithTemplate(db, versionedService, templateKey)
-      const binds: (string | number)[] = []
-      binds.push(displayOrder)
-      if (aboveTarget.siteId) {
-        binds.push(aboveTarget.siteId)
-        await db.update(`
-          UPDATE data SET displayOrder = displayOrder + ${entriesAdded}
-          WHERE folderId IS NULL AND
-          displayOrder >= ? AND
-          siteId = ? AND
-          id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})`, binds)
-      } else {
-        await db.update(`
-          UPDATE data SET displayOrder = displayOrder + ${entriesAdded}
-          WHERE folderId is NULL AND
-          siteId IS NULL AND
-          displayOrder >= ? AND
-          id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})`, binds)
-      }
+      await db.update(`
+        UPDATE data d
+        INNER JOIN templates t ON d.templateId = t.id
+        SET d.displayOrder = d.displayOrder + ${entriesAdded}
+        WHERE d.folderId is NULL AND
+        d.siteId IS NULL AND
+        d.displayOrder >= ? AND
+        t.key = ?`, [displayOrder, templateKey])
     }
     return displayOrder
   } else {
     let maxDisplayOrder
     if (folderInternalId) {
       maxDisplayOrder = await db.getval<number>('SELECT MAX(displayOrder) FROM data WHERE folderId = ?', [folderInternalId])
+    } else if (siteId) {
+      maxDisplayOrder = await db.getval<number>('SELECT MAX(d.displayOrder) FROM data d INNER JOIN templates t ON d.templateId = t.id WHERE d.folderId IS NULL AND d.siteId = ? AND t.key = ?', [siteId, templateKey])
     } else {
-      const entriesWithTemplate = await getEntriesWithTemplate(db, versionedService, templateKey)
-      const binds: string[] = []
-      if (siteId) {
-        binds.push(siteId)
-        maxDisplayOrder = await db.getval<number>(`SELECT MAX(displayOrder) FROM data WHERE folderId IS NULL AND siteId = ? ${entriesWithTemplate.length ? `AND id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})` : ''}`, binds)
-      } else {
-        maxDisplayOrder = await db.getval<number>(`SELECT MAX(displayOrder) FROM data WHERE folderId IS NULL AND siteId IS NULL ${entriesWithTemplate.length ? `AND id IN (${db.in(binds, entriesWithTemplate.map(d => d.internalId))})` : ''}`, binds)
-      }
+      maxDisplayOrder = await db.getval<number>('SELECT MAX(d.displayOrder) FROM data d INNER JOIN templates t ON d.templateId = t.id WHERE d.folderId IS NULL AND d.siteId IS NULL AND t.key = ?', [templateKey])
     }
     return (maxDisplayOrder ?? 0) + 1
   }
 }
 
-async function updateSourceDisplayOrder (db: Queryable, versionedService: VersionedService, data: Data, templateKey: string, movingIds: number[], folderInternalId?: number, siteId?: string, aboveTarget?: Data) {
+async function updateSourceDisplayOrder (db: Queryable, data: Data, templateKey: string, movingIds: number[], folderInternalId?: number, siteId?: string, aboveTarget?: Data) {
   if (data.folderInternalId) {
     if (aboveTarget) {
       if (data.folderInternalId !== aboveTarget.folderInternalId) {
@@ -153,26 +134,28 @@ async function updateSourceDisplayOrder (db: Queryable, versionedService: Versio
     }
   } else {
     // data was not in a folder
-    const entriesWithTemplate = await getEntriesWithTemplate(db, versionedService, templateKey)
-    const remainingEntriesWithTemplate = entriesWithTemplate.filter((entry) => !movingIds.includes(entry.internalId))
     // was it in a site?
     if (data.siteId) {
       if ((aboveTarget && data.siteId !== aboveTarget.siteId) || (!aboveTarget && data.siteId !== siteId)) {
-        const binds: (number | string)[] = [data.siteId]
+        const binds: (number | string)[] = [data.siteId, templateKey]
         const remaining = await db.getvals<number>(`
-          SELECT id from data
-          WHERE siteId = ? AND folderId IS NULL AND id IN (${db.in(binds, remainingEntriesWithTemplate.map((e) => e.internalId))})
-          ORDER BY displayOrder`, binds)
+          SELECT d.id FROM data d
+          INNER JOIN templates t ON t.id=d.templateId
+          WHERE d.siteId = ? AND t.key = ?
+            AND d.folderId IS NULL AND d.id NOT IN (${db.in(binds, movingIds)})
+          ORDER BY d.displayOrder`, binds)
         await Promise.all(remaining.map(async (id, index) => await db.update('UPDATE data SET displayOrder = ? WHERE id = ?', [index + 1, id])))
       }
     } else {
       // global data moved to a site or folder
       if (aboveTarget?.siteId || aboveTarget?.folderInternalId || folderInternalId || siteId) {
-        const binds: (number | string)[] = []
+        const binds: (number | string)[] = [templateKey]
         const remaining = await db.getvals<number>(`
-          SELECT id from data
-          WHERE siteId IS NULL AND folderId IS NULL AND id IN (${db.in(binds, remainingEntriesWithTemplate.map((e) => e.internalId))})
-          ORDER BY displayOrder`, binds)
+          SELECT d.id from data d
+          INNER JOIN templates t ON t.id=d.templateId
+          WHERE d.siteId IS NULL AND t.key = ?
+          AND d.folderId IS NULL AND d.id NOT IN (${db.in(binds, movingIds)})
+          ORDER BY d.displayOrder`, binds)
         await Promise.all(remaining.map(async (id, index) => await db.update('UPDATE data SET displayOrder = ? WHERE id = ?', [index + 1, id])))
       }
     }
@@ -183,7 +166,7 @@ export async function createDataEntry (versionedService: VersionedService, userI
   const newInternalId = await db.transaction(async db => {
     const folder = args.folderId ? await db.getrow<{ id: number, siteId: number }>('SELECT id, siteId FROM datafolders WHERE guid = ?', [args.folderId]) : undefined
     const siteId = folder?.siteId ?? args.siteId
-    const displayOrder = await handleDisplayOrder(db, versionedService, args.data.templateKey, 1, folder?.id, args.siteId)
+    const displayOrder = await handleDisplayOrder(db, args.data.templateKey, 1, folder?.id, args.siteId)
     const data = args.data
     const templateId = await db.getval<number>('SELECT id FROM templates WHERE `key`=?', [data.templateKey])
     if (!templateId) throw new Error('templateKey does not exist.')
@@ -203,7 +186,7 @@ export async function createDataEntry (versionedService: VersionedService, userI
     INSERT INTO data (${columns.join(', ')})
       VALUES (${columns.map(c => '?').join(', ')})`, binds)
   })
-  return new Data(await db.getrow('SELECT * FROM data WHERE id=?', [newInternalId]))
+  return (await getData({ internalIds: [newInternalId] }))[0]
 }
 
 export async function renameDataEntry (dataId: string, name: string) {
@@ -219,10 +202,10 @@ export async function moveDataEntries (versionedService: VersionedService, dataI
     const site = target.siteId ? new Site(await db.getrow('SELECT * FROM sites WHERE id = ?', [target.siteId])) : undefined
     const aboveTarget = target.aboveTarget ? new Data(await db.getrow('SELECT * from data WHERE dataId = ?', [target.aboveTarget])) : undefined
     // get the entrys' new display order
-    const displayOrder = await handleDisplayOrder(db, versionedService, templateKey, dataEntries.length, folder?.internalId, site?.id, aboveTarget)
+    const displayOrder = await handleDisplayOrder(db, templateKey, dataEntries.length, folder?.internalId, site?.id, aboveTarget)
     // update the display order for data in the entrys' previous locations
     for (const d of dataEntries) {
-      await updateSourceDisplayOrder(db, versionedService, d, templateKey, dataEntries.map(e => e.internalId), folder?.internalId, site?.id, aboveTarget)
+      await updateSourceDisplayOrder(db, d, templateKey, dataEntries.map(e => e.internalId), folder?.internalId, site?.id, aboveTarget)
     }
     if (aboveTarget) {
       // if the entry is being moved above a specific data entry, use the same site and folder values as that specific data entry

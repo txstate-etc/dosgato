@@ -55,6 +55,9 @@ export class RoleFilter {
 
   @Field(type => [UrlSafeString], { nullable: true, description: 'Return roles matching one of the given names.' })
   names?: string[]
+
+  @Field(type => [UrlSafeString], { nullable: true, description: 'Exclude roles matching one of the given names.' })
+  notNames?: string[]
 }
 
 @ObjectType()

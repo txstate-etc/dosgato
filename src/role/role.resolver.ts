@@ -5,7 +5,9 @@ import {
   AssetRule, AssetRuleService, AssetRuleFilter, DataRule, DataRuleService, GlobalRule, GlobalRuleService,
   PageRule, PageRuleService, SiteRule, SiteRuleFilter, SiteRuleService, Group, GroupFilter,
   GroupService, User, UserFilter, UserService, Role, RoleFilter, RolePermissions, RoleResponse,
-  RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType, Site, SiteService, UrlSafeString
+  RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType, Site, SiteService,
+  UrlSafeString, GlobalRuleServiceInternal, SiteRuleServiceInternal, AssetRuleServiceInternal,
+  DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal
 } from '../internal.js'
 
 @Resolver(of => Role)
@@ -17,32 +19,32 @@ export class RoleResolver {
 
   @FieldResolver(returns => [GlobalRule])
   async globalRules (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(GlobalRuleService).findByRoleId(role.id)
+    return await ctx.svc(GlobalRuleServiceInternal).findByRoleId(role.id)
   }
 
   @FieldResolver(returns => [SiteRule])
   async siteRules (@Ctx() ctx: Context, @Root() role: Role, @Arg('filter', { nullable: true }) filter?: SiteRuleFilter) {
-    return await ctx.svc(SiteRuleService).findByRoleId(role.id, filter)
+    return await ctx.svc(SiteRuleServiceInternal).findByRoleId(role.id, filter)
   }
 
   @FieldResolver(returns => [AssetRule])
   async assetRules (@Ctx() ctx: Context, @Root() role: Role, @Arg('filter', { nullable: true }) filter?: AssetRuleFilter) {
-    return await ctx.svc(AssetRuleService).findByRoleId(role.id, filter)
+    return await ctx.svc(AssetRuleServiceInternal).findByRoleId(role.id, filter)
   }
 
   @FieldResolver(returns => [DataRule])
   async dataRules (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(DataRuleService).findByRoleId(role.id)
+    return await ctx.svc(DataRuleServiceInternal).findByRoleId(role.id)
   }
 
   @FieldResolver(returns => [PageRule])
   async pageRules (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(PageRuleService).findByRoleId(role.id)
+    return await ctx.svc(PageRuleServiceInternal).findByRoleId(role.id)
   }
 
   @FieldResolver(returns => [TemplateRule])
   async templateRules (@Ctx() ctx: Context, @Root() role: Role, @Arg('filter', { nullable: true }) filter?: TemplateRuleFilter) {
-    return await ctx.svc(TemplateRuleService).findByRoleId(role.id, filter)
+    return await ctx.svc(TemplateRuleServiceInternal).findByRoleId(role.id, filter)
   }
 
   @FieldResolver(returns => [User], { description: 'Returns a list of all users related to the role, either directly or through a group.' })

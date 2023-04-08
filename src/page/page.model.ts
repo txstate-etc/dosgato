@@ -96,7 +96,10 @@ export class Page {
   dataId: string
   pathAsParent: string
   siteInternalId: number
+  siteId: string
   templateKey: string
+  pagetreeType: PagetreeType
+  orphaned: boolean
 
   // this is a helper property for determining whether templates can be kept on a page
   // see TemplateService.mayKeepOnPage()
@@ -108,6 +111,7 @@ export class Page {
     this.name = row.name
     this.pagetreeId = String(row.pagetreeId)
     this.siteInternalId = row.siteId
+    this.siteId = String(row.siteId)
     this.title = row.title
     this.templateKey = row.templateKey
     this.path = row.path
@@ -121,6 +125,8 @@ export class Page {
     this.deletedAt = row.deletedAt ? DateTime.fromJSDate(row.deletedAt) : undefined
     this.deletedBy = row.deletedBy
     this.deleteState = row.deleteState
+    this.pagetreeType = row.pagetreeType
+    this.orphaned = !!row.orphaned
   }
 }
 

@@ -1,11 +1,11 @@
 import { BaseService, MutationMessageType, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { Cache, filterAsync, isNotNull } from 'txstate-utils'
+import { Cache, isNotNull } from 'txstate-utils'
 import {
   type Page, type PageRuleFilter, DosGatoService, comparePathsWithMode, tooPowerfulHelper, getPageRules,
-  PageRule, RulePathMode, SiteService, type CreatePageRuleInput, RoleService, createPageRule, PageRuleResponse,
-  type UpdatePageRuleInput, updatePageRule, deletePageRule, RoleServiceInternal, PagetreeServiceInternal,
-  PageServiceInternal, type Pagetree, type PagetreeType
+  PageRule, RulePathMode, type CreatePageRuleInput, RoleService, createPageRule, PageRuleResponse,
+  type UpdatePageRuleInput, updatePageRule, deletePageRule, RoleServiceInternal,
+  PageServiceInternal, popPath
 } from '../internal.js'
 
 const pageRulesByIdLoader = new PrimaryKeyLoader({
@@ -45,12 +45,11 @@ export class PageRuleServiceInternal extends BaseService {
   }
 
   async findByPage (page: Page) {
-    const site = await this.svc(SiteService).findByPagetreeId(page.pagetreeId)
     // Get the page rules that apply to the site
-    const rules = await this.findBySiteId(site!.id)
+    const rules = await this.findBySiteId(page.siteId)
     // filter to get the ones that apply to this page
-    const prService = this.svc(PageRuleService)
-    return await filterAsync(rules, async rule => await prService.applies(rule, page))
+    const pagePath = await this.svc(PageServiceInternal).getPath(page)
+    return rules.filter(r => PageRuleService.appliesToPagetree(r, page) && PageRuleService.appliesToPath(r, pagePath))
   }
 }
 
@@ -151,41 +150,25 @@ export class PageRuleService extends DosGatoService<PageRule> {
     }
   }
 
-  async applies (rule: PageRule, page: Page) {
-    const [pagetree, pagePath] = await Promise.all([
-      this.svc(PagetreeServiceInternal).findById(page.pagetreeId),
-      this.svc(PageServiceInternal).getPath(page)
-    ])
-    if (!pagetree) return false
-    return this.appliesSync(rule, page, pagetree.type, pagePath)
+  static appliesToPagetree (r: PageRule, page: Page) {
+    return (!r.siteId || r.siteId === page.siteId) && (!r.pagetreeType || r.pagetreeType === page.pagetreeType)
   }
 
-  appliesSync (rule: PageRule, page: Page, pagetreeType: PagetreeType, pagePath: string) {
-    if (rule.siteId && rule.siteId !== String(page.siteInternalId)) return false
-    if (rule.pagetreeType && rule.pagetreeType !== pagetreeType) return false
-    const pagePathWithoutSite = '/' + pagePath.split('/').slice(2).join('/')
+  static appliesToPath (rule: PageRule, pagePathWithoutSite: string) {
     if (rule.mode === RulePathMode.SELF && rule.path !== pagePathWithoutSite) return false
     if (rule.mode === RulePathMode.SELFANDSUB && !pagePathWithoutSite.startsWith(rule.path)) return false
     if (rule.mode === RulePathMode.SUB && (rule.path === pagePathWithoutSite || !pagePathWithoutSite.startsWith(rule.path))) return false
     return true
   }
 
-  async appliesToChild (rule: PageRule, page: Page, pagetree?: Pagetree, pagePath?: string) {
-    const [fetchedPagetree, fetchedPagePath] = await Promise.all([
-      pagetree ?? this.svc(PagetreeServiceInternal).findById(page.pagetreeId),
-      pagePath ?? this.svc(PageServiceInternal).getPath(page)
-    ])
-    if (!fetchedPagetree || !pagePath) return false
-    return this.appliesToChildSync(rule, page, fetchedPagetree.type, pagePath)
-  }
-
-  appliesToChildSync (rule: PageRule, page: Page, pagetreeType: PagetreeType, pagePath: string) {
-    if (rule.siteId && rule.siteId !== String(page.siteInternalId)) return false
-    if (rule.pagetreeType && rule.pagetreeType !== pagetreeType) return false
-    const pagePathWithoutSite = '/' + pagePath.split('/').slice(2).join('/')
+  static appliesToChildOfPath (rule: PageRule, pagePathWithoutSite: string) {
     if (rule.path.startsWith(pagePathWithoutSite + '/')) return true
     if (rule.mode === RulePathMode.SELFANDSUB && rule.path === pagePathWithoutSite) return true
     return false
+  }
+
+  static appliesToParentOfPath (rule: PageRule, pagePathWithoutSite: string) {
+    return this.appliesToPath(rule, popPath(pagePathWithoutSite))
   }
 
   async mayView (rule: PageRule) {

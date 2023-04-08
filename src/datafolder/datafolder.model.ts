@@ -26,6 +26,8 @@ export class DataFolder {
   templateId: number
   siteId?: string
   deletedBy?: number
+  templateKey: string
+  orphaned: boolean
 
   constructor (row: any) {
     this.internalId = row.id
@@ -37,6 +39,8 @@ export class DataFolder {
     this.deleted = row.deleteState !== DeleteState.NOTDELETED
     this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
+    this.templateKey = row.templateKey
+    this.orphaned = row.orphaned
   }
 }
 

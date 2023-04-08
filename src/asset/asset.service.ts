@@ -7,7 +7,7 @@ import {
   deleteAsset, undeleteAsset, getResizesById, VersionedService, getDownloads, type DownloadsFilter,
   getResizeDownloads, type AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion,
   renameAsset, updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal, DeleteStateAll,
-  getAssetsByPath, PagetreeType
+  getAssetsByPath, PagetreeType, SiteRuleService, DeleteState, AssetRuleService, shiftPath
 } from '../internal.js'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
@@ -126,7 +126,7 @@ export class AssetServiceInternal extends BaseService {
   async getPath (asset: Asset) {
     const folder = await this.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
     if (!folder) return '/'
-    return appendPath(await this.svc(AssetFolderServiceInternal).getPath(folder), encodeURIComponent(asset.name as string))
+    return appendPath(await this.svc(AssetFolderServiceInternal).getPath(folder), asset.name as string)
   }
 
   async getData (asset: Asset, version?: number) {
@@ -197,7 +197,9 @@ export class AssetService extends DosGatoService<Asset> {
   }
 
   async find (filter: AssetFilter) {
-    return await this.postFilter(await this.removeUnauthorized(await this.raw.find(filter)), filter)
+    const ret = await this.raw.find(filter)
+    if (filter.links?.length || filter.paths?.length || filter.ids?.length) return await filterAsync(ret, async p => await this.mayViewIndividual(p))
+    return await this.postFilter(await this.removeUnauthorized(ret), filter)
   }
 
   async findByFolder (folder: AssetFolder) {
@@ -373,7 +375,30 @@ export class AssetService extends DosGatoService<Asset> {
   * can't see the currently selected asset they will just get a list of folders and will have to cancel the chooser to keep it
   */
   async mayView (asset: Asset) {
-    return true
+    if (asset.orphaned) {
+      const srSvc = this.svc(SiteRuleService)
+      const siteRules = (await this.currentSiteRules()).filter(r => srSvc.applies(r, asset.siteId))
+      return siteRules.some(r => r.grants.delete)
+    }
+    const [rules, assetPath] = await Promise.all([
+      this.currentAssetRules(),
+      this.raw.getPath(asset)
+    ])
+    const assetPathWithoutSite = shiftPath(assetPath)
+
+    for (const r of rules) {
+      if (!r.grants.view) continue
+      if (!AssetRuleService.appliesToPagetree(r, asset)) continue
+      if (asset.deleteState === DeleteState.DELETED && !r.grants.undelete) continue
+      if (asset.deleteState === DeleteState.MARKEDFORDELETE && !r.grants.delete) continue
+      if (AssetRuleService.appliesToPath(r, assetPathWithoutSite)) return true
+      if (AssetRuleService.appliesToParentOfPath(r, assetPathWithoutSite)) return true
+    }
+    return false
+  }
+
+  async mayViewIndividual (asset: Asset) {
+    return (!asset.orphaned && asset.pagetreeType === PagetreeType.PRIMARY && asset.deleteState === DeleteState.NOTDELETED) || await this.mayView(asset)
   }
 
   /**

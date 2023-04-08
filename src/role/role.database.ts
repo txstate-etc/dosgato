@@ -11,6 +11,9 @@ export async function getRoles (filter?: RoleFilter) {
   if (filter?.names?.length) {
     where.push(`roles.name IN (${db.in(binds, filter.names)})`)
   }
+  if (filter?.notNames?.length) {
+    where.push(`roles.name NOT IN (${db.in(binds, filter.notNames)})`)
+  }
   if (filter?.users?.length) {
     where.push(`users.login IN (${db.in(binds, filter.users)})`)
   }

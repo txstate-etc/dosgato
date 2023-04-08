@@ -15,7 +15,7 @@ import { groupby, isNotBlank, keyby, randomid } from 'txstate-utils'
 import {
   type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
   AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler, getEnabledUser, GlobalRuleService, logMutation,
-  makeSafeFilename, PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService
+  makeSafeFilename, type PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService
 } from '../internal.js'
 
 interface RootAssetFolder {
@@ -343,7 +343,6 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const ctx = new Context(req)
     await getEnabledUser(ctx)
     const folderSvc = ctx.svc(AssetFolderService)
-    const assetRuleSvc = ctx.svc(AssetRuleService)
     const [folders, assetRules] = await Promise.all([
       db.getall<{ id: number, linkId: string, name: string, path: string, deleteState: DeleteState, siteId: number, siteName: string, pagetreeId: number, pagetreeName: string, pagetreeType: PagetreeType }>(`
         SELECT f.*, pt.name AS pagetreeName, pt.type as pagetreeType, s.name as siteName
@@ -369,11 +368,12 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const foldersToKeep: typeof folders = []
     for (const f of folders) {
       const folder = new AssetFolder(f)
-      const applicableRules = assetRules.filter(r => assetRuleSvc.appliesToFolderSync(r, folder, '/' + f.name, f.pagetreeType))
-      const applicableToChildRules = assetRules.filter(r => assetRuleSvc.appliesToChildSync(r, folder, f.pagetreeType, '/' + f.name))
+      const applicableToPagetree = assetRules.filter(r => AssetRuleService.appliesToPagetree(r, folder))
+      const applicableRules = applicableToPagetree.filter(r => AssetRuleService.appliesToPath(r, '/'))
+      const applicableToChildRules = applicableToPagetree.filter(r => AssetRuleService.appliesToChildOfPath(r, '/'))
       const [create, update, mayDelete, move, undelete, viewForEdit] = [
-        hasPerm(applicableRules, 'create') && f.pagetreeType !== PagetreeType.ARCHIVE,
-        hasPerm(applicableRules, 'update') && f.pagetreeType !== PagetreeType.ARCHIVE,
+        hasPerm(applicableRules, 'create'),
+        hasPerm(applicableRules, 'update'),
         false,
         false,
         false,

@@ -6,7 +6,7 @@ import {
   comparePathsWithMode, createAssetRule, type CreateAssetRuleInput, DosGatoService,
   getAssetRules, RulePathMode, RoleService, tooPowerfulHelper, type UpdateAssetRuleInput,
   updateAssetRule, deleteAssetRule, AssetServiceInternal, AssetFolderServiceInternal,
-  RoleServiceInternal, PagetreeServiceInternal, type PagetreeType
+  RoleServiceInternal, shiftPath, popPath
 } from '../internal.js'
 
 const assetRulesByIdLoader = new PrimaryKeyLoader({
@@ -175,47 +175,73 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
   }
 
   async applies (rule: AssetRule, asset: Asset) {
-    const [site, pagetree] = await Promise.all([
-      this.svc(AssetServiceInternal).getSite(asset),
-      this.svc(AssetServiceInternal).getPagetree(asset)
-    ])
-    if (!site || !pagetree) return false
-    if (rule.siteId && rule.siteId !== site.id) return false
-    if (rule.pagetreeType && rule.pagetreeType !== pagetree.type) return false
     const assetPath = await this.svc(AssetServiceInternal).getPath(asset)
-    const assetPathWithoutSite = '/' + assetPath.split('/').slice(2).join('/')
+    const assetPathWithoutSite = shiftPath(assetPath)
+    return this.appliesSync(rule, asset, assetPathWithoutSite)
+  }
+
+  async currentApplicable (asset: Asset) {
+    const [rules, assetPath] = await Promise.all([
+      this.currentAssetRules(),
+      this.svc(AssetServiceInternal).getPath(asset)
+    ])
+    const assetPathWithoutSite = shiftPath(assetPath)
+    return rules.filter(r => this.appliesSync(r, asset, assetPathWithoutSite))
+  }
+
+  appliesSync (rule: AssetRule, asset: Asset, assetPathWithoutSite: string) {
+    if (rule.siteId && rule.siteId !== asset.siteId) return false
+    if (rule.pagetreeType && rule.pagetreeType !== asset.pagetreeType) return false
     if (rule.mode === RulePathMode.SELF && rule.path !== assetPathWithoutSite) return false
     if (rule.mode === RulePathMode.SELFANDSUB && !assetPathWithoutSite.startsWith(rule.path)) return false
     if (rule.mode === RulePathMode.SUB && (rule.path === assetPathWithoutSite || !assetPathWithoutSite.startsWith(rule.path))) return false
     return true
   }
 
-  async appliesToFolder (rule: AssetRule, folder: AssetFolder) {
-    if (rule.siteId && rule.siteId !== folder.siteId) return false
-    const [folderPath, pagetree] = await Promise.all([
-      this.svc(AssetFolderServiceInternal).getPath(folder),
-      this.svc(PagetreeServiceInternal).findById(folder.pagetreeId)
-    ])
-    return this.appliesToFolderSync(rule, folder, folderPath, pagetree!.type)
+  static appliesToPagetree (r: AssetRule, assetOrFolder: Asset | AssetFolder) {
+    return (!r.siteId || r.siteId === assetOrFolder.siteId) && (!r.pagetreeType || r.pagetreeType === assetOrFolder.pagetreeType)
   }
 
-  appliesToFolderSync (rule: AssetRule, folder: AssetFolder, folderPath: string, pagetreeType: PagetreeType) {
+  async currentApplicableToFolder (folder: AssetFolder) {
+    const rules = await this.currentAssetRules()
+    const folderPath = await this.svc(AssetFolderServiceInternal).getPath(folder)
+    const folderPathWithoutSite = shiftPath(folderPath)
+    return rules.filter(r => this.appliesToFolderSync(r, folder, folderPathWithoutSite))
+  }
+
+  async appliesToFolder (rule: AssetRule, folder: AssetFolder) {
     if (rule.siteId && rule.siteId !== folder.siteId) return false
-    if (rule.pagetreeType && rule.pagetreeType !== pagetreeType) return false
-    const folderPathWithoutSite = '/' + folderPath.split('/').slice(2).join('/')
+    const folderPath = await this.svc(AssetFolderServiceInternal).getPath(folder)
+    return this.appliesToFolderSync(rule, folder, shiftPath(folderPath))
+  }
+
+  static appliesToPath (rule: AssetRule, folderPathWithoutSite: string) {
     if (rule.mode === RulePathMode.SELF && rule.path !== folderPathWithoutSite) return false
     if (rule.mode === RulePathMode.SELFANDSUB && !folderPathWithoutSite.startsWith(rule.path)) return false
     if (rule.mode === RulePathMode.SUB && (rule.path === folderPathWithoutSite || !folderPathWithoutSite.startsWith(rule.path))) return false
     return true
   }
 
-  appliesToChildSync (rule: AssetRule, folder: AssetFolder, pagetreeType: PagetreeType, folderPath: string) {
+  appliesToFolderSync (rule: AssetRule, folder: AssetFolder, folderPathWithoutSite: string) {
     if (rule.siteId && rule.siteId !== folder.siteId) return false
-    if (rule.pagetreeType && rule.pagetreeType !== pagetreeType) return false
-    const folderPathWithoutSite = '/' + folderPath.split('/').slice(2).join('/')
+    if (rule.pagetreeType && rule.pagetreeType !== folder.pagetreeType) return false
+    return AssetRuleService.appliesToPath(rule, folderPathWithoutSite)
+  }
+
+  static appliesToChildOfPath (rule: AssetRule, folderPathWithoutSite: string) {
     if (rule.path.startsWith(folderPathWithoutSite + '/')) return true
     if (rule.mode === RulePathMode.SELFANDSUB && rule.path === folderPathWithoutSite) return true
     return false
+  }
+
+  appliesToChildSync (rule: AssetRule, folder: AssetFolder, folderPathWithoutSite: string) {
+    if (rule.siteId && rule.siteId !== folder.siteId) return false
+    if (rule.pagetreeType && rule.pagetreeType !== folder.pagetreeType) return false
+    return AssetRuleService.appliesToChildOfPath(rule, folderPathWithoutSite)
+  }
+
+  static appliesToParentOfPath (rule: AssetRule, folderPathWithoutSite: string) {
+    return this.appliesToPath(rule, popPath(folderPathWithoutSite))
   }
 
   asOrMorePowerful (ruleA: AssetRule, ruleB: AssetRule) { // is ruleA equal or more powerful than ruleB?

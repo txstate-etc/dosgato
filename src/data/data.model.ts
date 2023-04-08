@@ -30,6 +30,8 @@ export class Data {
   siteId?: string
   displayOrder: number
   templateId: number
+  templateKey: string
+  orphaned: boolean
 
   constructor (row: any) {
     this.internalId = row.id
@@ -44,6 +46,8 @@ export class Data {
     this.deletedAt = row.deletedAt ? DateTime.fromJSDate(row.deletedAt) : undefined
     this.deletedBy = row.deletedBy
     this.deleteState = row.deleteState
+    this.templateKey = row.templateKey
+    this.orphaned = row.orphaned
   }
 }
 

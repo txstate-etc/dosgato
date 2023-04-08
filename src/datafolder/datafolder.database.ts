@@ -7,10 +7,7 @@ export async function getDataFolders (filter?: DataFolderFilter) {
   const { binds, where, joins } = processDeletedFilters(
     filter,
     'datafolders',
-    new Map([
-      ['templates', 'INNER JOIN templates ON datafolders.templateId = templates.id'],
-      ['sites', 'LEFT JOIN sites ON datafolders.siteId = sites.id']
-    ]),
+    new Map([]),
     ' AND sites.deletedAt IS NULL AND templates.deleted = 0',
     ' AND (sites.deletedAt IS NOT NULL OR templates.deleted = 1)'
   )
@@ -26,7 +23,6 @@ export async function getDataFolders (filter?: DataFolderFilter) {
       where.push(`datafolders.templateId IN (${db.in(binds, filter.templateIds)})`)
     }
     if (filter.templateKeys?.length) {
-      joins.set('templates', 'INNER JOIN templates ON templates.id=datafolders.templateId')
       where.push(`templates.\`key\` IN (${db.in(binds, filter.templateKeys)})`)
     }
     if (filter.siteIds?.length) {
@@ -42,7 +38,15 @@ export async function getDataFolders (filter?: DataFolderFilter) {
   if (!where.length) {
     throw new Error('Must include a filter')
   }
-  const folders = await db.getall(`SELECT datafolders.* FROM datafolders ${Array.from(joins.values()).join('\n')} WHERE (${where.join(') AND (')})`, binds)
+  const folders = await db.getall(`
+    SELECT datafolders.*, templates.key as templateKey,
+      templates.deleted = 1 OR sites.deletedAt IS NOT NULL as orphaned
+    FROM datafolders
+    INNER JOIN templates ON datafolders.templateId = templates.id
+    LEFT JOIN sites ON datafolders.siteId = sites.id
+    ${Array.from(joins.values()).join('\n')}
+    WHERE (${where.join(') AND (')})
+  `, binds)
   return folders.map(f => new DataFolder(f))
 }
 

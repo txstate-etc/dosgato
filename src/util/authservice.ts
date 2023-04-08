@@ -2,50 +2,54 @@ import { AuthError, AuthorizedService, type Context } from '@txstate-mws/graphql
 import { Cache, filterAsync, keyby } from 'txstate-utils'
 import {
   type Asset, type AssetFolder, type Data, type DataFolder, type Page, type Site, type Template,
-  AssetRuleService, type AssetRuleGrants, DataRuleService, type DataRuleGrants, GlobalRuleService,
-  type GlobalRuleGrants, PageRuleService, type PageRuleGrants, type SiteRuleGrants, SiteRuleService,
+  AssetRuleService, type AssetRuleGrants, DataRuleService, DataRuleGrants, GlobalRuleService,
+  type GlobalRuleGrants, PageRuleService, PageRuleGrants, SiteRuleGrants, SiteRuleService,
   TemplateRuleService, type TemplateRuleGrants, RoleServiceInternal, SiteRuleServiceInternal,
   PageRuleServiceInternal, AssetRuleServiceInternal, DataRuleServiceInternal, GlobalRuleServiceInternal,
-  GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal, type DataRoot, type Group
+  GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal, type DataRoot, type Group,
+  PageServiceInternal, shiftPath, PageRule, RulePathMode, DataRule, SiteRule
 } from '../internal.js'
 
 const pageRuleCache = new Cache(async (netid: string, ctx: Context) => {
-  const roles = await ctx.svc(RoleServiceInternal).findByUserId(netid)
+  if (netid === 'anonymous') return [new PageRule({ path: '/', mode: RulePathMode.SELFANDSUB, grants: new PageRuleGrants({}) })]
+  const roles = await roleCache.get(netid, ctx)
   return (await Promise.all(roles.map(async r => await ctx.svc(PageRuleServiceInternal).findByRoleId(r.id)))).flat()
 }, { freshseconds: 5, staleseconds: 30 })
 
 const assetRuleCache = new Cache(async (netid: string, ctx: Context) => {
-  const roles = await ctx.svc(RoleServiceInternal).findByUserId(netid)
+  const roles = await roleCache.get(netid, ctx)
   return (await Promise.all(roles.map(async r => await ctx.svc(AssetRuleServiceInternal).findByRoleId(r.id)))).flat()
 }, { freshseconds: 5, staleseconds: 30 })
 
 const siteRuleCache = new Cache(async (netid: string, ctx: Context) => {
-  const roles = await ctx.svc(RoleServiceInternal).findByUserId(netid)
+  if (netid === 'anonymous') return [new SiteRule({ grants: new SiteRuleGrants({}) })]
+  const roles = await roleCache.get(netid, ctx)
   return (await Promise.all(roles.map(async r => await ctx.svc(SiteRuleServiceInternal).findByRoleId(r.id)))).flat()
 }, { freshseconds: 5, staleseconds: 30 })
 
 const dataRuleCache = new Cache(async (netid: string, ctx: Context) => {
-  const roles = await ctx.svc(RoleServiceInternal).findByUserId(netid)
+  if (netid === 'anonymous') return [new DataRule({ path: '/', grants: new DataRuleGrants({}) })]
+  const roles = await roleCache.get(netid, ctx)
   return (await Promise.all(roles.map(async r => await ctx.svc(DataRuleServiceInternal).findByRoleId(r.id)))).flat()
 }, { freshseconds: 5, staleseconds: 30 })
 
 const globalRuleCache = new Cache(async (netid: string, ctx: Context) => {
-  const roles = await ctx.svc(RoleServiceInternal).findByUserId(netid)
+  const roles = await roleCache.get(netid, ctx)
   return (await Promise.all(roles.map(async r => await ctx.svc(GlobalRuleServiceInternal).findByRoleId(r.id)))).flat()
 }, { freshseconds: 5, staleseconds: 30 })
 
 const templateRuleCache = new Cache(async (netid: string, ctx: Context) => {
-  const roles = await ctx.svc(RoleServiceInternal).findByUserId(netid)
+  const roles = await roleCache.get(netid, ctx)
   return (await Promise.all(roles.map(async r => await ctx.svc(TemplateRuleServiceInternal).findByRoleId(r.id)))).flat()
 }, { freshseconds: 5, staleseconds: 30 })
+
+const roleCache = new Cache(async (netid: string, ctx: Context) => {
+  return await ctx.svc(RoleServiceInternal).findByUserId(netid)
+}, { freshseconds: 5, staleseconds: 10 })
 
 export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ sub: string }, ObjType, RedactedType> {
   protected get login () {
     return this.auth!.sub
-  }
-
-  protected isRenderServer () {
-    return this.login === 'anonymous'
   }
 
   protected async currentUser () {
@@ -53,16 +57,22 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async currentRoles () {
-    return await this.svc(RoleServiceInternal).findByUserId(this.login)
+    return await roleCache.get(this.login, this.ctx)
   }
 
   protected async currentGroups () {
     return await this.svc(GroupServiceInternal).findByUserId(this.login)
   }
 
+  protected currentGroupsByIdPromise?: Promise<Group[]>
   protected currentGroupsByIdStorage?: Record<string, Group>
   protected async currentGroupsById (id: string) {
-    this.currentGroupsByIdStorage ??= keyby(await this.currentGroups(), 'id')
+    if (!this.currentGroupsByIdStorage) {
+      // store the promise in a shared variable to coalesce calls
+      this.currentGroupsByIdPromise ??= this.currentGroups()
+      const groups = await this.currentGroupsByIdPromise
+      this.currentGroupsByIdStorage ??= keyby(groups, 'id')
+    }
     return this.currentGroupsByIdStorage[id]
   }
 
@@ -84,7 +94,7 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   protected async haveSitePerm (site: Site, grant: keyof SiteRuleGrants) {
     const rules = await this.currentSiteRules()
     const siteRuleService = this.svc(SiteRuleService)
-    const applicable = await filterAsync(rules, async r => await siteRuleService.applies(r, site))
+    const applicable = rules.filter(r => siteRuleService.applies(r, site.id))
     return applicable.some(r => r.grants[grant])
   }
 
@@ -93,9 +103,12 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async havePagePerm (page: Page, grant: keyof PageRuleGrants) {
-    const rules = await this.currentPageRules()
-    const pageRuleService = this.svc(PageRuleService)
-    const applicable = await filterAsync(rules, async r => await pageRuleService.applies(r, page))
+    const [rules, pagePath] = await Promise.all([
+      this.currentPageRules(),
+      this.svc(PageServiceInternal).getPath(page)
+    ])
+    const pagePathWithoutSite = shiftPath(pagePath)
+    const applicable = rules.filter(r => PageRuleService.appliesToPagetree(r, page) && PageRuleService.appliesToPath(r, pagePathWithoutSite))
     return applicable.some(r => r.grants[grant])
   }
 

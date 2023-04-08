@@ -22,7 +22,7 @@ function processFilters (filter?: UserFilter) {
     }
     if (isNotNull(filter.hideDisabledBefore)) {
       where.push('users.disabledAt > ?')
-      binds.push(filter.hideDisabledBefore.toISO())
+      binds.push(filter.hideDisabledBefore.toISO()!)
     }
     if (isNotNull(filter.trained)) {
       if (filter.trained) {

@@ -24,12 +24,12 @@ export class UserResolver {
 
   @FieldResolver(returns => [Site], { description: 'Sites owned by the user' })
   async sitesOwned (@Ctx() ctx: Context, @Root() user: User, @Arg('filter', { nullable: true }) filter: SiteFilter) {
-    return await ctx.svc(SiteService).findByOwnerInternalId(user.internalId, filter)
+    return await ctx.svc(SiteService).findByOwnerInternalId(user.internalId, { ...filter, viewForEdit: true })
   }
 
   @FieldResolver(returns => [Site], { description: 'Returns sites for which the user is a manager' })
   async sitesManaged (@Ctx() ctx: Context, @Root() user: User, @Arg('filter', { nullable: true }) filter: SiteFilter) {
-    return await ctx.svc(SiteService).findByManagerInternalId(user.internalId, filter)
+    return await ctx.svc(SiteService).findByManagerInternalId(user.internalId, { ...filter, viewForEdit: true })
   }
 
   @FieldResolver(returns => UserPermissions)

@@ -4,7 +4,7 @@ import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'ty
 import {
   Asset, AssetFilter, Role, RoleService, User, AssetFolder, AssetFolderFilter,
   AssetFolderPermission, AssetFolderPermissions, AssetFolderService, AssetRuleService,
-  UserService, AssetFolderResponse, CreateAssetFolderInput, UrlSafeString, Site, SiteService, DeleteStateRootDefault
+  AssetFolderResponse, CreateAssetFolderInput, UrlSafeString, Site, SiteService, DeleteStateRootDefault, UserService
 } from '../internal.js'
 
 @Resolver(of => AssetFolder)

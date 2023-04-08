@@ -116,10 +116,7 @@ async function processFilters (filter?: PageFilter) {
   const { binds, where, joins } = processDeletedFilters(
     filter,
     'pages',
-    new Map([
-      ['sites', 'INNER JOIN sites ON pages.siteId = sites.id'],
-      ['pagetrees', 'INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id']
-    ]),
+    new Map(),
     ' AND sites.deletedAt IS NULL AND pagetrees.deletedAt IS NULL',
     ' AND (sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL)'
   )
@@ -160,13 +157,11 @@ async function processFilters (filter?: PageFilter) {
 
   // pagetreeTypes
   if (filter.pagetreeTypes?.length) {
-    joins.set('pagetrees', 'INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id')
     where.push(`pagetrees.type IN (${db.in(binds, filter.pagetreeTypes)})`)
   }
 
   // siteIds
   if (filter.siteIds?.length) {
-    joins.set('pagetrees', 'INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id')
     where.push(`pagetrees.siteId IN (${db.in(binds, filter.siteIds)})`)
   }
 
@@ -214,10 +209,14 @@ async function processFilters (filter?: PageFilter) {
 
 export async function getPages (filter: PageFilter, tdb: Queryable = db) {
   const { binds, where, joins } = await processFilters(filter)
-  const pages = await tdb.getall(`SELECT pages.* FROM pages
-                           ${joins.size ? Array.from(joins.values()).join('\n') : ''}
-                           ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
-                           ORDER BY pages.\`path\`, pages.displayOrder, pages.name`, binds)
+  const pages = await tdb.getall(`
+    SELECT pages.*, pagetrees.type as pagetreeType, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned
+    FROM pages
+    INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id
+    INNER JOIN sites ON pages.siteId = sites.id
+    ${joins.size ? Array.from(joins.values()).join('\n') : ''}
+    ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
+    ORDER BY pages.\`path\`, pages.displayOrder, pages.name`, binds)
   return pages.map(p => new Page(p))
 }
 

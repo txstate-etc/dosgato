@@ -5,7 +5,7 @@ import { isNotBlank, isNotNull, someAsync, unique, isBlank } from 'txstate-utils
 import {
   DosGatoService, GroupService, type User, type UserFilter, UserResponse, getUsers, createUser,
   getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId, type RedactedUser, UsersResponse,
-  type UpdateUserInput, updateUser, disableUsers, enableUsers, getUsersManagingGroups
+  type UpdateUserInput, updateUser, disableUsers, enableUsers, getUsersManagingGroups, SiteRuleService
 } from '../internal.js'
 
 const usersByInternalIdLoader = new PrimaryKeyLoader({
@@ -128,20 +128,31 @@ export class UserService extends DosGatoService<User, RedactedUser | User> {
   }
 
   async findByGroupId (groupId: string, direct?: boolean, filter?: UserFilter) {
-    return await this.removeUnauthorized(await this.raw.findByGroupId(groupId, direct, filter))
+    const users = await this.raw.findByGroupId(groupId, direct, filter)
+    if (await this.haveGlobalPerm('manageAccess')) return users
+    return users.filter(u => u.id === this.login)
   }
 
   async findByRoleId (roleId: string, direct?: boolean, filter?: UserFilter) {
-    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, direct, filter))
+    const users = await this.raw.findByRoleId(roleId, direct, filter)
+    if (await this.haveGlobalPerm('manageAccess')) return users
+    return users.filter(u => u.id === this.login)
   }
 
   async findSiteManagers (siteId: string) {
-    return await this.removeUnauthorized(await this.raw.findSiteManagers(siteId))
+    const siteRules = await this.currentSiteRules()
+    const srSvc = this.svc(SiteRuleService)
+    if (siteRules.some(sr => srSvc.applies(sr, siteId) && sr.grants.governance)) {
+      return await this.removeUnauthorized(await this.raw.findSiteManagers(siteId))
+    }
+    return []
   }
 
   async findGroupManagers (groupId: string, direct?: boolean) {
-    return await this.removeUnauthorized(await this.raw.findGroupManagers(groupId, direct))
-  }
+      const users = await this.raw.findGroupManagers(groupId, direct)
+      if (await this.haveGlobalPerm('manageAccess')) return users
+      return users.filter(u => u.id === this.login)
+    }
 
   async findByInternalId (id: number) {
     return await this.removeUnauthorized(await this.raw.findByInternalId(id))
@@ -233,14 +244,11 @@ export class UserService extends DosGatoService<User, RedactedUser | User> {
   }
 
   async mayView (user: User) {
-    const currentUser = await this.currentUser()
-    return currentUser != null
+    return true
   }
 
   async mayList () {
-    if (await this.haveGlobalPerm('manageAccess')) return true
-    const siteRules = await this.currentSiteRules()
-    return siteRules.some(rule => rule.grants.governance)
+    return await this.haveGlobalPerm('manageAccess')
   }
 
   protected async removeProperties (user: User) {

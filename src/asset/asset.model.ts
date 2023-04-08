@@ -75,6 +75,10 @@ export class Asset {
   deletedBy?: number
   folderInternalId: number
   dataId: string
+  pagetreeType: PagetreeType
+  orphaned: boolean
+  siteId: string
+  pagetreeId: string
 
   stringMeta: string | object // mysql returns object, mariadb returns string
   parsedMeta: any
@@ -111,6 +115,10 @@ export class Asset {
     this.deletedAt = row.deletedAt ? DateTime.fromJSDate(row.deletedAt) : undefined
     this.deletedBy = row.deletedBy
     this.deleteState = row.deleteState
+    this.pagetreeType = row.pagetreeType
+    this.orphaned = !!row.orphaned
+    this.pagetreeId = row.pagetreeId
+    this.siteId = row.siteId
   }
 }
 

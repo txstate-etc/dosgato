@@ -2,7 +2,7 @@ import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Cache } from 'txstate-utils'
 import {
-  type Site, DosGatoService, tooPowerfulHelper, getSiteRules, SiteRule, type SiteRuleFilter,
+  DosGatoService, tooPowerfulHelper, getSiteRules, SiteRule, type SiteRuleFilter,
   type CreateSiteRuleInput, RoleService, createSiteRule, SiteRuleResponse, type UpdateSiteRuleInput,
   deleteSiteRule, updateSiteRule, type Pagetree, RoleServiceInternal
 } from '../internal.js'
@@ -127,8 +127,8 @@ export class SiteRuleService extends DosGatoService<SiteRule> {
     }
   }
 
-  async applies (rule: SiteRule, site: Site) {
-    if (rule.siteId && rule.siteId !== site.id) return false
+  applies (rule: SiteRule, siteId: string) {
+    if (rule.siteId && rule.siteId !== siteId) return false
     return true
   }
 

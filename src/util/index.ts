@@ -37,6 +37,15 @@ export function popPath (path: string) {
   return `/${path.split('/').filter(isNotBlank).slice(0, -1).join('/')}`
 }
 
+/**
+ * removes the leading directory from a path
+ *
+ * must begin with a / or else it will remove two directories
+ */
+export function shiftPath (path: string) {
+  return '/' + path.split('/').slice(2).join('/')
+}
+
 export function basename (p: string) {
   return path.basename(p)
 }

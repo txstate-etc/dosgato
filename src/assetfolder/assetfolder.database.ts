@@ -52,10 +52,7 @@ async function processFilters (filter?: AssetFolderFilter) {
   const { binds, where, joins } = processDeletedFilters(
     filter,
     'assetfolders',
-    new Map([
-      ['pagetrees', 'INNER JOIN pagetrees ON assetfolders.pagetreeId = pagetrees.id'],
-      ['sites', 'INNER JOIN sites ON assetfolders.siteId = sites.id']
-    ]),
+    new Map([]),
     ' AND sites.deletedAt IS NULL AND pagetrees.deletedAt IS NULL',
     ' AND (sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL)'
   )
@@ -118,7 +115,6 @@ async function processFilters (filter?: AssetFolderFilter) {
   }
 
   if (filter.pagetreeTypes?.length) {
-    joins.set('pagetrees', 'INNER JOIN pagetrees ON assetfolders.pagetreeId = pagetrees.id')
     where.push(`pagetrees.type IN (${db.in(binds, filter.pagetreeTypes)})`)
   }
 
@@ -149,8 +145,11 @@ async function processFilters (filter?: AssetFolderFilter) {
 export async function getAssetFolders (filter?: AssetFolderFilter) {
   const { joins, where, binds } = await processFilters(filter)
   return (await db.getall(`
-    SELECT assetfolders.*
+    SELECT assetfolders.*, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned,
+      pagetrees.type as pagetreeType
     FROM assetfolders
+    INNER JOIN pagetrees ON assetfolders.pagetreeId = pagetrees.id
+    INNER JOIN sites ON assetfolders.siteId = sites.id
     ${Array.from(joins.values()).join('\n')}
     ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
     ORDER BY assetfolders.name

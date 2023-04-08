@@ -1,12 +1,13 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { PrimaryKeyLoader, OneToManyLoader } from 'dataloader-factory'
-import { intersect, isNotBlank, isNotNull, keyby, someAsync } from 'txstate-utils'
+import { filterAsync, intersect, isNotBlank, isNotNull, keyby, someAsync } from 'txstate-utils'
 import {
   type DataFolder, type DataFolderFilter, DosGatoService, getDataFolders,
-  DataServiceInternal, type CreateDataFolderInput, createDataFolder, DataFolderResponse,
+  type CreateDataFolderInput, createDataFolder, DataFolderResponse,
   renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
   SiteService, DataFoldersResponse, moveDataFolders, DataRoot, DataRootService,
-  folderNameUniqueInDataRoot, TemplateServiceInternal, VersionedService, SiteServiceInternal, DeleteStateAll, finalizeDataFolderDeletion
+  folderNameUniqueInDataRoot, TemplateServiceInternal, VersionedService, SiteServiceInternal,
+  DeleteStateAll, finalizeDataFolderDeletion, DataRuleService, DeleteState, SiteRuleService
 } from '../internal.js'
 
 const dataFoldersByIdLoader = new PrimaryKeyLoader({
@@ -116,7 +117,9 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   raw = this.svc(DataFolderServiceInternal)
 
   async find (filter?: DataFolderFilter) {
-    return await this.removeUnauthorized(await this.raw.find(filter))
+    const folders = await this.raw.find(filter)
+    if (filter?.links?.length || filter?.paths?.length || filter?.ids?.length) return await filterAsync(folders, async f => await this.mayViewIndividual(f))
+    return await this.removeUnauthorized(folders)
   }
 
   async findById (id: string) {
@@ -243,13 +246,26 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   }
 
   async mayView (folder: DataFolder) {
-    if (this.isRenderServer()) return true
-    if (await this.haveDataFolderPerm(folder, 'view')) return true
-    const dataEntries = await this.svc(DataServiceInternal).findByFolderInternalId(folder.internalId)
-    for (const d of dataEntries) {
-      if (await this.haveDataPerm(d, 'view')) return true
+    if (!folder.siteId) return await this.haveGlobalPerm('manageGlobalData')
+    if (folder.orphaned) {
+      const srSvc = this.svc(SiteRuleService)
+      const siteRules = (await this.currentSiteRules()).filter(r => srSvc.applies(r, folder.siteId!))
+      return siteRules.some(r => r.grants.delete)
+    }
+    const dataRules = await this.currentDataRules()
+    const dataPathWithoutSite = `/${folder.name as string}`
+    for (const r of dataRules) {
+      if (!r.grants.view) continue
+      if (!DataRuleService.appliesToSiteAndTemplate(r, folder)) continue
+      if (folder.deleteState === DeleteState.DELETED && !r.grants.undelete) continue
+      if (folder.deleteState === DeleteState.MARKEDFORDELETE && !r.grants.delete) continue
+      if (DataRuleService.appliesToPath(r, dataPathWithoutSite)) return true
     }
     return false
+  }
+
+  async mayViewIndividual (folder: DataFolder) {
+    return (!folder.orphaned && folder.deleteState === DeleteState.NOTDELETED) || await this.mayView(folder)
   }
 
   async mayCreate (folder: DataFolder) {

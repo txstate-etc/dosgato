@@ -64,15 +64,15 @@ export class PageRuleGrants extends PageRuleGrantsBase {
   @Field({ description: 'Grants ability to view unpublished versions of pages. Admins do NOT set this directly - it is implied by having either update or publish grants.' })
   viewlatest!: boolean
 
-  @Field({ description: 'Grants ability to view pages in the page editing UI. Admins do NOT set this directly - it is implied by having other grants.' })
+  @Field({ description: 'Grants ability to view pages in the page editing UI and view the published version of the page.' })
   viewForEdit!: boolean
 
   constructor (row?: any) {
     super(row)
     if (row) {
-      this.view = true // every rule grants view
+      this.view = true
+      this.viewForEdit = true // any rule grants read-only access to the published version in edit
       this.viewlatest = this.update || this.publish
-      this.viewForEdit = this.create || this.update || this.move || this.delete || this.undelete || this.publish || this.unpublish
     }
   }
 }

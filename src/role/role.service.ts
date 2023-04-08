@@ -1,6 +1,6 @@
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { isNotNull, unique } from 'txstate-utils'
+import { intersect, isNotNull, unique } from 'txstate-utils'
 import {
   DosGatoService, GroupService, UserService, type Role, type RoleFilter, RoleResponse,
   addRolesToUser, createRole, deleteRole, getRoles, getRolesWithGroup, getRolesWithManager,
@@ -58,8 +58,8 @@ export class RoleServiceInternal extends BaseService {
     return await this.loaders.get(rolesByIdLoader).load(id)
   }
 
-  async findByIds (ids: string[]) {
-    return await this.loaders.loadMany(rolesByIdLoader, ids)
+  async findByIds (ids: string[], filter?: RoleFilter) {
+    return await this.find({ ...filter, ids: intersect({ skipEmpty: true }, filter?.ids, ids) })
   }
 
   async findByGroupId (groupId: string, direct?: boolean) {
@@ -123,8 +123,8 @@ export class RoleService extends DosGatoService<Role> {
     return await this.removeUnauthorized(await this.raw.findById(id))
   }
 
-  async findByIds (ids: string[]) {
-    return await this.removeUnauthorized(await this.raw.findByIds(ids))
+  async findByIds (ids: string[], filter?: RoleFilter) {
+    return await this.removeUnauthorized(await this.raw.findByIds(ids, filter))
   }
 
   async findByGroupId (groupId: string, direct?: boolean) {
@@ -262,8 +262,7 @@ export class RoleService extends DosGatoService<Role> {
   protected currentRolesSet?: Set<string>
   async mayView (role: Role): Promise<boolean> {
     if (await this.haveGlobalPerm('manageAccess')) return true
-    this.currentRolesSet ??= new Set((await this.currentRoles()).map(r => r.id))
-    return this.currentRolesSet.has(role.id)
+    return (await this.currentRoles()).some(r => r.id === role.id)
   }
 
   async mayViewManagerUI () {

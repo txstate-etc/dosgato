@@ -7,7 +7,7 @@ import { groupby, isNotBlank, pick } from 'txstate-utils'
 import {
   createPage, type CreatePageInput, createPagetree, createSite, DeleteState, getEnabledUser,
   getPageIndexes, GlobalRuleService, logMutation, makeSafe, numerate, Page, type PageRule,
-  PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, PagetreeType,
+  PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, type PagetreeType,
   SiteService, SiteServiceInternal, templateRegistry, VersionedService
 } from '../internal.js'
 
@@ -279,16 +279,17 @@ export async function createPageRoutes (app: FastifyInstance) {
     const pagesToKeep: typeof pages = []
     for (const p of pages) {
       const page = new Page(p)
-      const applicableRules = pageRules.filter(r => pageRuleSvc.appliesSync(r, page, p.pagetreeType, '/' + p.name))
-      const applicableToChildRules = pageRules.filter(r => pageRuleSvc.appliesToChildSync(r, page, p.pagetreeType, '/' + p.name))
+      const applicableToPagetree = pageRules.filter(r => PageRuleService.appliesToPagetree(r, page))
+      const applicableRules = applicableToPagetree.filter(r => PageRuleService.appliesToPath(r, '/'))
+      const applicableToChildRules = applicableToPagetree.filter(r => PageRuleService.appliesToChildOfPath(r, '/'))
       const [create, update, mayDelete, move, publish, undelete, unpublish, viewForEdit] = [
-        hasPerm(applicableRules, 'create') && p.pagetreeType !== PagetreeType.ARCHIVE,
-        hasPerm(applicableRules, 'update') && p.pagetreeType !== PagetreeType.ARCHIVE,
+        hasPerm(applicableRules, 'create'),
+        hasPerm(applicableRules, 'update'),
         false,
         false,
-        hasPerm(applicableRules, 'publish') && p.pagetreeType !== PagetreeType.ARCHIVE && p.deleteState === DeleteState.NOTDELETED && p.hasUnpublishedChanges,
+        hasPerm(applicableRules, 'publish') && p.deleteState === DeleteState.NOTDELETED && p.hasUnpublishedChanges,
         false,
-        hasPerm(applicableRules, 'unpublish') && p.pagetreeType !== PagetreeType.ARCHIVE && !!p.published,
+        hasPerm(applicableRules, 'unpublish') && !!p.published,
         hasPerm([...applicableRules, ...applicableToChildRules], 'viewForEdit')
       ]
       if (viewForEdit) pagesToKeep.push(p)

@@ -8,7 +8,7 @@ import {
   TemplateFilter, TemplateService, User, UserService, Site, SiteFilter, SitePermission, SitePermissions,
   SiteResponse, UpdateSiteManagementInput, SiteService, AssetRuleService, PageRuleService, SiteRuleService,
   DataRuleService, RoleService, DataRoot, DataRootService, DataRootFilter, SiteComment, SiteCommentService,
-  JsonData, UrlSafeString, PagetreeServiceInternal
+  JsonData, UrlSafeString, PagetreeServiceInternal, RoleFilter
 } from '../internal.js'
 
 @Resolver(of => Site)
@@ -49,6 +49,7 @@ export class SiteResolver {
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions anywhere on this site, or any permission if null.' })
   async roles (@Ctx() ctx: Context, @Root() site: Site,
+    @Arg('filter', type => RoleFilter, { nullable: true }) filter?: RoleFilter,
     @Arg('withSitePermission', type => [SitePermission], { nullable: true }) withSitePermission?: SitePermission[],
     @Arg('withAssetPermission', type => [AssetPermission], { nullable: true }) withAssetPermission?: AssetPermission[],
     @Arg('withDataPermission', type => [DataPermission], { nullable: true }) withDataPermission?: DataPermission[],
@@ -75,6 +76,7 @@ export class SiteResolver {
 
   @FieldResolver(returns => User, { nullable: true })
   async owner (@Ctx() ctx: Context, @Root() site: Site) {
+    if (!await ctx.svc(SiteService).mayViewForEdit(site)) return undefined
     if (isNotNull(site.ownerId)) {
       return await ctx.svc(UserService).findByInternalId(site.ownerId)
     }
@@ -82,7 +84,8 @@ export class SiteResolver {
 
   @FieldResolver(returns => Organization, { nullable: true })
   async organization (@Ctx() ctx: Context, @Root() site: Site) {
-      return await ctx.svc(OrganizationService).findByInternalId(site.organizationId)
+    if (!await ctx.svc(SiteService).mayViewForEdit(site)) return undefined
+    return await ctx.svc(OrganizationService).findByInternalId(site.organizationId)
   }
 
   @FieldResolver(returns => [User])

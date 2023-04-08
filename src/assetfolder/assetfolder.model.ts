@@ -33,6 +33,8 @@ export class AssetFolder {
   parentInternalId?: number
   pathAsParent: string
   pagetreeId: string
+  pagetreeType: PagetreeType
+  orphaned: boolean
 
   constructor (row: any) {
     this.internalId = row.id
@@ -49,6 +51,8 @@ export class AssetFolder {
     this.deletedAt = row.deletedAt ? DateTime.fromJSDate(row.deletedAt) : undefined
     this.deletedBy = row.deletedBy
     this.deleteState = row.deleteState
+    this.pagetreeType = row.pagetreeType
+    this.orphaned = !!row.orphaned
   }
 }
 

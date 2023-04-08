@@ -98,11 +98,7 @@ async function processFilters (filter?: AssetFilter) {
   const { binds, where, joins } = processDeletedFilters(
     filter,
     'assets',
-    new Map([
-      ['assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id'],
-      ['pagetrees', 'INNER JOIN pagetrees ON assetfolders.pagetreeId = pagetrees.id'],
-      ['sites', 'INNER JOIN sites ON assetfolders.siteId = sites.id']
-    ]),
+    new Map([]),
     ' AND sites.deletedAt IS NULL AND pagetrees.deletedAt IS NULL',
     ' AND (sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL)'
   )
@@ -147,23 +143,18 @@ async function processFilters (filter?: AssetFilter) {
     })()
   ])
   if (filter.folderIds?.length) {
-    joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
     where.push(`assetfolders.id IN (${db.in(binds, filter.folderIds)})`)
   }
   if (filter.pagetreeIds?.length) {
-    joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
     where.push(`assetfolders.pagetreeId IN (${db.in(binds, filter.pagetreeIds)})`)
   }
   if (filter.pagetreeTypes?.length) {
-    joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
-    joins.set('pagetrees', 'INNER JOIN pagetrees ON assetfolders.pagetreeId = pagetrees.id')
     where.push(`pagetrees.type IN (${db.in(binds, filter.pagetreeTypes)})`)
   }
   if (filter.folderInternalIds?.length) {
     where.push(`assets.folderId IN (${db.in(binds, filter.folderInternalIds)})`)
   }
   if (filter.siteIds?.length) {
-    joins.set('assetfolders', 'INNER JOIN assetfolders ON assets.folderId = assetfolders.id')
     where.push(`assetfolders.siteId IN (${db.in(binds, filter.siteIds)})`)
   }
   if (filter.names?.length) {
@@ -183,8 +174,15 @@ async function processFilters (filter?: AssetFilter) {
 export async function getAssets (filter?: AssetFilter, tdb: Queryable = db) {
   const { binds, where, joins } = await processFilters(filter)
   const assets = await tdb.getall(`
-    SELECT assets.id, assets.dataId, assets.name, assets.folderId, assets.deletedAt, assets.deletedBy, assets.deleteState, binaries.bytes AS filesize, binaries.mime, binaries.shasum, binaries.meta FROM assets
+    SELECT assets.id, assets.dataId, assets.name, assets.folderId, assets.deletedAt, assets.deletedBy, assets.deleteState,
+    binaries.bytes AS filesize, binaries.mime, binaries.shasum, binaries.meta,
+    sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned,
+    pagetrees.type as pagetreeType
+    FROM assets
     INNER JOIN binaries on assets.shasum = binaries.shasum
+    INNER JOIN assetfolders ON assets.folderId = assetfolders.id
+    INNER JOIN pagetrees ON assetfolders.pagetreeId = pagetrees.id
+    INNER JOIN sites ON assetfolders.siteId = sites.id
     ${joins.size ? Array.from(joins.values()).join('\n') : ''}
     ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
     ORDER BY assets.name
@@ -265,7 +263,7 @@ function processDownloadRows (rows: DownloadRow[], res = DownloadsResolution.DAI
       if (row.day > 0) add(row)
       else if (row.month > 0) {
         const dt = DateTime.local(row.year, row.month, 1)
-        add({ ...row, day: 1, downloads: row.downloads / dt.daysInMonth })
+        add({ ...row, day: 1, downloads: row.downloads / dt.daysInMonth! })
       } else {
         const dt = DateTime.local(row.year, 1, 1)
         add({ ...row, month: 1, day: 1, downloads: row.downloads / dt.daysInYear })
@@ -281,14 +279,14 @@ function processDownloadRows (rows: DownloadRow[], res = DownloadsResolution.DAI
         const end = start.endOf('month')
         for (let dt = start; dt < end; dt = dt.plus({ days: 1 })) {
           const week = dt.startOf('week')
-          add({ ...row, year: week.year, month: week.month, day: week.day, downloads: row.downloads / start.daysInMonth })
+          add({ ...row, year: week.year, month: week.month, day: week.day, downloads: row.downloads / start.daysInMonth! })
         }
       } else {
         const start = DateTime.local(row.year, 1, 1)
         const end = start.endOf('year')
         for (let dt = start; dt < end; dt = dt.plus({ days: 1 })) {
           const week = dt.startOf('week')
-          add({ ...row, year: week.year, month: week.month, day: week.day, downloads: row.downloads / start.daysInMonth })
+          add({ ...row, year: week.year, month: week.month, day: week.day, downloads: row.downloads / start.daysInMonth! })
         }
       }
     }

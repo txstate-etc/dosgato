@@ -1,11 +1,13 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { isNull, isNotNull, unique, mapConcurrent, intersect, isBlank, someAsync, filterAsync } from 'txstate-utils'
+import { isNull, isNotNull, unique, mapConcurrent, intersect, isBlank, filterAsync } from 'txstate-utils'
 import {
   AssetService, DosGatoService, getAssetFolders, type AssetFolder, AssetServiceInternal,
   type CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
   deleteAssetFolder, undeleteAssetFolder, type AssetFilter, type AssetFolderFilter,
-  finalizeAssetFolderDeletion, DeleteStateAll, PagetreeServiceInternal, PagetreeType, SiteServiceInternal, getAssetFoldersByPath, NameConflictError
+  finalizeAssetFolderDeletion, DeleteStateAll, PagetreeServiceInternal, PagetreeType,
+  SiteServiceInternal, getAssetFoldersByPath, NameConflictError, AssetRuleService, DeleteState,
+  SiteRuleService, shiftPath
 } from '../internal.js'
 
 const assetFolderByIdLoader = new PrimaryKeyLoader({
@@ -205,10 +207,11 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
 
   async find (filter?: AssetFolderFilter) {
     const [folders] = await Promise.all([
-      this.postFilter(await this.removeUnauthorized(await this.raw.find(filter)), filter),
+      this.raw.find(filter),
       this.currentAssetRules()
     ])
-    return folders
+    if (filter?.links?.length || filter?.paths?.length || filter?.ids?.length) return await filterAsync(folders, async f => await this.mayViewIndividual(f))
+    return await this.postFilter(await this.removeUnauthorized(folders), filter)
   }
 
   async findByInternalId (internalId: number) {
@@ -340,23 +343,35 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   }
 
   async mayView (folder: AssetFolder) {
-    return true
+    if (folder.orphaned) {
+      const srSvc = this.svc(SiteRuleService)
+      const siteRules = (await this.currentSiteRules()).filter(r => srSvc.applies(r, folder.siteId))
+      return siteRules.some(r => r.grants.delete)
+    }
+    const [rules, folderPath] = await Promise.all([
+      this.currentAssetRules(),
+      this.raw.getPath(folder)
+    ])
+    const folderPathWithoutSite = shiftPath(folderPath)
+    for (const r of rules) {
+      if (!r.grants.view) continue
+      if (!AssetRuleService.appliesToPagetree(r, folder)) continue
+      if (folder.deleteState === DeleteState.DELETED && !r.grants.undelete) continue
+      if (folder.deleteState === DeleteState.MARKEDFORDELETE && !r.grants.delete) continue
+      if (AssetRuleService.appliesToPath(r, folderPathWithoutSite)) return true
+      if (AssetRuleService.appliesToChildOfPath(r, folderPathWithoutSite)) return true
+      if (AssetRuleService.appliesToParentOfPath(r, folderPathWithoutSite)) return true
+    }
+    return false
+  }
+
+  // may view the folder if requested individually
+  async mayViewIndividual (folder: AssetFolder) {
+    return (folder.pagetreeType === PagetreeType.PRIMARY && !folder.orphaned && folder.deleteState === DeleteState.NOTDELETED) || await this.mayView(folder)
   }
 
   async mayViewForEdit (folder: AssetFolder) {
-    if (await this.haveAssetFolderPerm(folder, 'viewForEdit')) return true
-    // if we are able to view any child folders, we have to be able to view the ancestors so that we can draw the tree
-    const rules = await this.currentAssetRules()
-    if (!rules.some(r => r.path !== '/' && (!r.siteId || r.siteId === folder.siteId))) return false
-    const [folders, assets] = await Promise.all([
-      this.raw.getChildFolders(folder, true),
-      this.raw.getChildAssets(folder, true)
-    ])
-    const [folderPass, assetPass] = await Promise.all([
-      someAsync(folders, async f => await this.haveAssetFolderPerm(f, 'viewForEdit')),
-      someAsync(assets, async a => await this.haveAssetPerm(a, 'viewForEdit'))
-    ])
-    return folderPass || assetPass
+    return await this.mayView(folder)
   }
 
   async mayCreate (folder: AssetFolder) {
