@@ -1,9 +1,8 @@
 import { Context } from '@txstate-mws/graphql-server'
 import type { FastifyInstance } from 'fastify'
 import { HttpError } from 'fastify-txstate'
-import { getEnabledUser } from '../util'
-import { GlobalRuleService, SiteService, SiteServiceInternal, createSiteComments } from '../internal'
 import { isBlank } from 'txstate-utils'
+import { GlobalRuleService, SiteService, SiteServiceInternal, createSiteComments, getEnabledUser } from '../internal.js'
 
 export async function createCommentRoutes (app: FastifyInstance) {
   app.post<{ Params: { siteId: string }, Body?: { comments: { comment: string, login: string, date: string }[] } }>('/site/:id/comments', async req => {
