@@ -1,6 +1,7 @@
 import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
-import { SiteComment, type SiteCommentFilter } from '../internal.js'
+import { SiteComment, type User, type SiteCommentFilter } from '../internal.js'
+import { keyby } from 'txstate-utils'
 
 export async function getSiteComments (filter?: SiteCommentFilter) {
   const binds: string[] = []
@@ -30,4 +31,13 @@ export async function getSiteComments (filter?: SiteCommentFilter) {
 export async function createSiteComment (siteId: string, comment: string, userInternalId: number, tdb: Queryable = db) {
   return await tdb.insert(`INSERT INTO comments (siteId, comment, createdAt, createdBy)
                           VALUES (?, ?, NOW(), ?)`, [siteId, comment, userInternalId])
+}
+
+export async function createSiteComments (siteId: string, comments: { comment: string, login: string, date: string }[], fallbackUser: User) {
+  let binds: any[] = []
+  const users = await db.getall<{ id: number, login: string }>(`SELECT id, login FROM users WHERE login IN ${db.in(binds, comments.map(c => c.login))}`, binds)
+  const userByLogin = keyby(users, 'login')
+  binds = []
+  return await db.insert(`INSERT INTO comments (siteId, comment, createdAt, createdBy)
+                          VALUES ${db.in(binds, comments.map(c => [siteId, c.comment, c.date, userByLogin[c.login] ?? fallbackUser.internalId]))}`, binds)
 }
