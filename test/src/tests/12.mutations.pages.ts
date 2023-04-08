@@ -439,7 +439,7 @@ describe('pages mutations', () => {
     expect(page.data).to.not.deep.equal(updatePage.page.data)
   })
   const createPageComponentQuery = `
-    mutation createPageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $path: String!, $data: JsonData!) {
+    mutation createPageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $path: String!, $data: JsonData!) {
       createPageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, path: $path, data: $data) {
         success
         messages {
@@ -512,7 +512,7 @@ describe('pages mutations', () => {
     const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
     const oldPage = pages[0]
     const { updatePageComponent: { success, messages, page } } = await query<{ updatePageComponent: PageComponentResponse }>(`
-      mutation updatePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $path: String!, $data: JsonData!) {
+      mutation updatePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $path: String!, $data: JsonData!) {
         updatePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, path: $path, data: $data) {
           success
           messages {
@@ -542,7 +542,7 @@ describe('pages mutations', () => {
     const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
     const oldPage = pages[0]
     const { updatePageComponent: { success, messages, page } } = await query<{ updatePageComponent: PageComponentResponse }>(`
-      mutation updatePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $path: String!, $data: JsonData!) {
+      mutation updatePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $path: String!, $data: JsonData!) {
         updatePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, path: $path, data: $data) {
           success
           messages {
@@ -572,7 +572,7 @@ describe('pages mutations', () => {
     const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
     const oldPage = pages[0]
     const { movePageComponent: { success, page } } = await query<{ movePageComponent: { success: true, page: { version: { version: number }, data: any } } }>(`
-      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $fromPath: String!, $toPath: String!) {
+      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $fromPath: String!, $toPath: String!) {
         movePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, fromPath: $fromPath, toPath: $toPath) {
           success
           page {
@@ -597,7 +597,7 @@ describe('pages mutations', () => {
     const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
     const oldPage = pages[0]
     const { movePageComponent: { success, page } } = await query<{ movePageComponent: { success: true, page: { version: { version: number }, data: any } } }>(`
-      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $fromPath: String!, $toPath: String!) {
+      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $fromPath: String!, $toPath: String!) {
         movePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, fromPath: $fromPath, toPath: $toPath) {
           success
           page {
@@ -622,7 +622,7 @@ describe('pages mutations', () => {
     const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
     const oldPage = pages[0]
     const { movePageComponent: { success, page } } = await query<{ movePageComponent: { success: true, page: { version: { version: number }, data: any } } }>(`
-      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $fromPath: String!, $toPath: String!) {
+      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $fromPath: String!, $toPath: String!) {
         movePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, fromPath: $fromPath, toPath: $toPath) {
           success
           page {
@@ -647,7 +647,7 @@ describe('pages mutations', () => {
     const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
     const oldPage = pages[0]
     const { deletePageComponent: { success, page } } = await query<{ deletePageComponent: { success: true, page: { version: { version: number }, data: any } } }>(`
-      mutation deletePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $path: String!) {
+      mutation deletePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $path: String!) {
         deletePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, path: $path) {
           success
           page {
@@ -689,7 +689,7 @@ describe('pages mutations', () => {
       }
     })
     const { movePageComponent: { success, page } } = await query<{ movePageComponent: { success: true, page: { version: { version: number }, data: any } } }>(`
-      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $fromPath: String!, $toPath: String!) {
+      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $fromPath: String!, $toPath: String!) {
         movePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, fromPath: $fromPath, toPath: $toPath) {
           success
           page {
@@ -707,7 +707,7 @@ describe('pages mutations', () => {
     })
     expect(success).to.be.true
     const { movePageComponent: { success: success2, page: page2 } } = await query<{ movePageComponent: { success: true, page: { version: { version: number }, data: any } } }>(`
-      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: DateTime!, $fromPath: String!, $toPath: String!) {
+      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $fromPath: String!, $toPath: String!) {
         movePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, fromPath: $fromPath, toPath: $toPath) {
           success
           page {

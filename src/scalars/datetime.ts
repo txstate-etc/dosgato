@@ -9,17 +9,16 @@ export const DateTimeScalar = new GraphQLScalarType({
     return value.toISO()
   },
 
-  // TODO: Uncomment validity check onces the schema version scalar is in use
   parseValue (value: string) {
     const parsedValue = DateTime.fromISO(value)
-    // if (!parsedValue.isValid) throw new Error(`Invalid date: ${parsedValue.invalidReason} ${parsedValue.invalidExplanation}`)
+    if (!parsedValue.isValid) throw new Error(`Invalid date: ${parsedValue.invalidReason!} ${parsedValue.invalidExplanation!}`)
     return parsedValue
   },
 
   parseLiteral (ast: ValueNode) {
     if (ast.kind === Kind.STRING) {
       const parsedValue = DateTime.fromISO(ast.value)
-      // if (!parsedValue.isValid) throw new Error(`Invalid date: ${parsedValue.invalidReason} ${parsedValue.invalidExplanation}`)
+      if (!parsedValue.isValid) throw new Error(`Invalid date: ${parsedValue.invalidReason!} ${parsedValue.invalidExplanation!}`)
       return parsedValue
     }
     return null

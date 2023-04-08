@@ -130,8 +130,7 @@ export class DGServer {
       { type: FilenameSafeString, scalar: FilenameSafeStringScalar },
       { type: UrlSafePath, scalar: UrlSafePathScalar },
       { type: UrlSafeString, scalar: UrlSafeStringScalar },
-      { type: DateTime, scalar: DateTimeScalar },
-      { type: SchemaVersion, scalar: SchemaVersionScalar}
+      { type: DateTime, scalar: DateTimeScalar }
     ]
     scalarsMap.push(...(opts.scalarsMap ?? []))
 
