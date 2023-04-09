@@ -247,6 +247,23 @@ const dgMigrations: DBMigration[] = [
     run: async db => {
       await db.execute('ALTER TABLE pages DROP INDEX nameinpath, ADD UNIQUE nameinpath (`path`, `name`), DROP INDEX path_idx, ADD INDEX path_idx (`path`, `displayOrder`, `name`)')
     }
+  },
+  {
+    id: 20230408180000,
+    description: 'allow larger comments on sites and index by date',
+    run: async db => {
+      await db.execute(`ALTER TABLE comments
+        MODIFY comment TEXT NOT NULL,
+        DROP FOREIGN KEY FK_comments_sites,
+        DROP FOREIGN KEY FK_comments_users,
+        ADD INDEX sites_idx (siteId, createdAt DESC),
+        ADD INDEX users_idx (createdBy, createdAt DESC)
+      `)
+      await db.execute(`ALTER TABLE comments
+        ADD CONSTRAINT FK_comments_sites FOREIGN KEY (siteId) REFERENCES sites(id),
+        ADD CONSTRAINT FK_comments_users FOREIGN KEY (createdBy) REFERENCES users(id)
+      `)
+    }
   }
 ]
 

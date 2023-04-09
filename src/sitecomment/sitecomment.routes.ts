@@ -5,14 +5,14 @@ import { isBlank } from 'txstate-utils'
 import { GlobalRuleService, SiteService, SiteServiceInternal, createSiteComments, getEnabledUser } from '../internal.js'
 
 export async function createCommentRoutes (app: FastifyInstance) {
-  app.post<{ Params: { siteId: string }, Body?: { comments: { comment: string, login: string, date: string }[] } }>('/site/:id/comments', async req => {
+  app.post<{ Params: { siteId: string }, Body?: { comment: string, login: string, date: string }[] }>('/site/:siteId/comments', async req => {
     const ctx = new Context(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
     const site = await ctx.svc(SiteServiceInternal).findById(req.params.siteId)
     if (!site) throw new HttpError(404)
     if (!await ctx.svc(SiteService).mayManageGovernance(site) || !await ctx.svc(GlobalRuleService).mayOverrideStamps()) throw new HttpError(403)
-    if (!req.body?.comments.length) throw new HttpError(400)
-    for (const c of req.body.comments) if (isBlank(c.comment) || c.date == null || isBlank(c.login)) throw new HttpError(422, 'Comment, date, and login are required.')
-    await createSiteComments(site.id, req.body.comments, user)
+    if (!req.body?.length) throw new HttpError(400)
+    for (const c of req.body) if (isBlank(c.comment) || c.date == null || isBlank(c.login)) throw new HttpError(422, 'Comment, date, and login are required.')
+    await createSiteComments(site.id, req.body, user)
   })
 }
