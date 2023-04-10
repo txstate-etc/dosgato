@@ -143,14 +143,15 @@ export async function createPageRoutes (app: FastifyInstance) {
     if (body?.publishedAt || body?.publishedBy) {
       if (!pageRecord.data.legacyId) throw new HttpError(400, 'Only pages being imported from another system may override published stamps.')
     }
-    try {
-      await svcPage.validatePageTemplates(pageRecord.data, { page })
-    } catch (e: any) {
-      throw new HttpError(403, e.message)
-    }
     const pagetree = (await ctx.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
     const site = (await ctx.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const response = await svcPage.validatePageData(pageRecord.data, site, pagetree, page, pageRecord.name)
+    try {
+      await svcPage.validatePageTemplates(pageRecord.data, { page })
+    } catch (e: any) {
+      if (pageRecord.data.legacyId) response.addMessage(e.message)
+      else throw new HttpError(403, e.message)
+    }
     if (!response.success && !pageRecord.data.legacyId) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
 
     const indexes = getPageIndexes(pageRecord.data)
