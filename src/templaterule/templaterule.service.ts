@@ -101,7 +101,7 @@ export class TemplateRuleService extends DosGatoService<TemplateRule> {
     }
   }
 
-  async applies (rule: TemplateRule, template: Template) {
+  static applies (rule: TemplateRule, template: Template) {
     return !rule.templateId || rule.templateId === template.id
   }
 
@@ -120,7 +120,7 @@ export class TemplateRuleService extends DosGatoService<TemplateRule> {
 
   async mayView (rule: TemplateRule) {
     if (await this.haveGlobalPerm('manageAccess')) return true
-    const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
+    const role = await this.svc(RoleService).findById(rule.roleId)
     return !!role
   }
 }

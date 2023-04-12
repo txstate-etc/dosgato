@@ -87,12 +87,13 @@ export class GlobalRuleService extends DosGatoService<GlobalRule> {
     }
   }
 
-  async applies (rule: GlobalRule) {
-    return true // global rules always apply but we provide this function to match coding style of other rules
-  }
-
   async tooPowerful (rule: GlobalRule) {
-    return tooPowerfulHelper(rule, await this.currentGlobalRules(), () => true)
+    const grants = await this.currentGlobalGrants()
+    return (rule.grants.createSites && !grants.createSites) ||
+    (rule.grants.manageAccess && !grants.manageAccess) ||
+    (rule.grants.manageGlobalData && !grants.manageGlobalData) ||
+    (rule.grants.manageParentRoles && !grants.manageParentRoles) ||
+    (rule.grants.manageTemplates && !grants.manageTemplates)
   }
 
   async mayWrite (rule: GlobalRule) {
@@ -102,7 +103,7 @@ export class GlobalRuleService extends DosGatoService<GlobalRule> {
 
   async mayView (rule: GlobalRule) {
     if (await this.haveGlobalPerm('manageAccess')) return true
-    const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
+    const role = await this.svc(RoleService).findById(rule.roleId)
     return !!role
   }
 

@@ -90,14 +90,14 @@ export async function getPagetreesBySite (siteIds: string[], filter?: PagetreeFi
   return await getPagetrees({ ...filter, siteIds })
 }
 
-export async function getPagetreesByTemplate (templateIds: number[], direct?: boolean) {
+export async function getPagetreesByTemplate (templateIds: string[], direct?: boolean) {
   const directBinds: string[] = []
   const directPagetreeQuery = `SELECT pagetrees.*, pagetrees_templates.templateId as templateId FROM pagetrees
                                INNER JOIN pagetrees_templates ON pagetrees.id = pagetrees_templates.pagetreeId
                                WHERE pagetrees_templates.templateId IN (${db.in(directBinds, templateIds)})`
   const pagetrees = await db.getall(directPagetreeQuery, directBinds)
   if (direct) {
-    return pagetrees.map(row => ({ key: row.templateId, value: new Pagetree(row) }))
+    return pagetrees.map(row => ({ key: String(row.templateId), value: new Pagetree(row) }))
   } else {
     const indirectBinds: string[] = []
     const pagetreesThroughSites = await db.getall(`SELECT pagetrees.*, sites_templates.templateId as templateId
@@ -107,9 +107,9 @@ export async function getPagetreesByTemplate (templateIds: number[], direct?: bo
                                    WHERE sites_templates.templateId IN (${db.in(indirectBinds, templateIds)})`, indirectBinds)
     if (typeof direct === 'undefined') {
       const combined = unique([...pagetrees, ...pagetreesThroughSites], 'id')
-      return combined.map(row => ({ key: row.templateId, value: new Pagetree(row) }))
+      return combined.map(row => ({ key: String(row.templateId), value: new Pagetree(row) }))
     } else {
-      return pagetreesThroughSites.map(row => ({ key: row.templateId, value: new Pagetree(row) }))
+      return pagetreesThroughSites.map(row => ({ key: String(row.templateId), value: new Pagetree(row) }))
     }
   }
 }

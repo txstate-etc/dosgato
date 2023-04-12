@@ -36,7 +36,7 @@ const dataFoldersBySiteIdLoader = new OneToManyLoader({
 })
 
 const globalDataFoldersByTemplateIds = new OneToManyLoader({
-  fetch: async (templateIds: number[], filter?: DataFolderFilter) => await getDataFolders({ ...filter, templateIds, global: true }),
+  fetch: async (templateIds: string[], filter?: DataFolderFilter) => await getDataFolders({ ...filter, templateIds, global: true }),
   extractKey: f => f.templateId,
   keysFromFilter: (filter?: DataFolderFilter) => filter?.templateIds ?? [],
   idLoader: dataFoldersByIdLoader
@@ -248,8 +248,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   async mayView (folder: DataFolder) {
     if (!folder.siteId) return await this.haveGlobalPerm('manageGlobalData')
     if (folder.orphaned) {
-      const srSvc = this.svc(SiteRuleService)
-      const siteRules = (await this.currentSiteRules()).filter(r => srSvc.applies(r, folder.siteId!))
+      const siteRules = (await this.currentSiteRules()).filter(r => SiteRuleService.applies(r, folder.siteId!))
       return siteRules.some(r => r.grants.delete)
     }
     const dataRules = await this.currentDataRules()

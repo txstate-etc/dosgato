@@ -150,6 +150,10 @@ export class PageRuleService extends DosGatoService<PageRule> {
     }
   }
 
+  static applies (r: PageRule, page: Page, pathWithoutSite: string) {
+    return this.appliesToPagetree(r, page) && this.appliesToPath(r, pathWithoutSite)
+  }
+
   static appliesToPagetree (r: PageRule, page: Page) {
     return (!r.siteId || r.siteId === page.siteId) && (!r.pagetreeType || r.pagetreeType === page.pagetreeType)
   }
@@ -173,7 +177,7 @@ export class PageRuleService extends DosGatoService<PageRule> {
 
   async mayView (rule: PageRule) {
     if (await this.haveGlobalPerm('manageAccess')) return true
-    const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
+    const role = await this.svc(RoleService).findById(rule.roleId)
     return !!role
   }
 

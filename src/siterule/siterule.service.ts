@@ -127,7 +127,7 @@ export class SiteRuleService extends DosGatoService<SiteRule> {
     }
   }
 
-  applies (rule: SiteRule, siteId: string) {
+  static applies (rule: SiteRule, siteId: string) {
     if (rule.siteId && rule.siteId !== siteId) return false
     return true
   }
@@ -147,7 +147,7 @@ export class SiteRuleService extends DosGatoService<SiteRule> {
 
   async mayView (rule: SiteRule) {
     if (await this.haveGlobalPerm('manageAccess')) return true
-    const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
+    const role = await this.svc(RoleService).findById(rule.roleId)
     return !!role
   }
 }

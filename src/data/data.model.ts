@@ -29,7 +29,7 @@ export class Data {
   folderInternalId?: number
   siteId?: string
   displayOrder: number
-  templateId: number
+  templateId: string
   templateKey: string
   orphaned: boolean
 
@@ -41,7 +41,7 @@ export class Data {
     this.folderInternalId = row.folderId
     this.displayOrder = row.displayOrder
     this.siteId = optionalString(row.siteId)
-    this.templateId = row.templateId
+    this.templateId = String(row.templateId)
     this.deleted = row.deleteState !== DeleteState.NOTDELETED
     this.deletedAt = row.deletedAt ? DateTime.fromJSDate(row.deletedAt) : undefined
     this.deletedBy = row.deletedBy

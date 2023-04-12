@@ -2,7 +2,7 @@ import { intersect, isNotNull, keyby } from 'txstate-utils'
 import { type DataFolder, DataRoot, type DataRootFilter, DosGatoService, type Site, SiteServiceInternal, type Template, TemplateService, TemplateType } from '../internal.js'
 
 export class DataRootService extends DosGatoService<DataRoot> {
-  templatesById?: Map<number, Template>
+  templatesById?: Map<string, Template>
   templatesByKey?: Map<string, Template>
   allSites?: Site[]
 
@@ -13,7 +13,7 @@ export class DataRootService extends DosGatoService<DataRoot> {
     filter ??= {}
     const idPairs = (filter.ids ?? []).map(id => {
       const [siteId, templateId] = id.split('-')
-      return { siteId: siteId === 'global' ? undefined : siteId, templateId: Number(templateId) }
+      return { siteId: siteId === 'global' ? undefined : siteId, templateId }
     })
     filter.templateIds = intersect({ skipEmpty: true }, filter.templateIds, idPairs.map(p => p.templateId))
     filter.templateKeys = intersect({ skipEmpty: true }, filter.templateKeys, filter.templateIds?.map(tid => this.templatesById!.get(tid)?.key).filter(isNotNull))
@@ -22,7 +22,7 @@ export class DataRootService extends DosGatoService<DataRoot> {
     const templates = filter.templateKeys.length
       ? filter.templateKeys.map(k => this.templatesByKey!.get(k)).filter(isNotNull)
       : Array.from(this.templatesById.values())
-    let pairs: { siteId?: string, templateId: number }[] = []
+    let pairs: { siteId?: string, templateId: string }[] = []
     if (filter.global !== false) pairs.push(...templates.map(t => ({ templateId: t.id })))
     let sitesById: Record<string, Site> = {}
     if (filter.global !== true) {

@@ -27,7 +27,7 @@ export class DataRootFilter {
   @Field(type => [ID], { nullable: true, description: 'Return dataroots designated for data of one of the given templates.' })
   templateKeys?: string[]
 
-  templateIds?: number[]
+  templateIds?: string[]
 
   @Field(type => [ID], { nullable: true, description: 'Return dataroots that are associated with one of the given sites.' })
   siteIds?: string[]

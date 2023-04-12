@@ -141,8 +141,7 @@ export class UserService extends DosGatoService<User, RedactedUser | User> {
 
   async findSiteManagers (siteId: string) {
     const siteRules = await this.currentSiteRules()
-    const srSvc = this.svc(SiteRuleService)
-    if (siteRules.some(sr => srSvc.applies(sr, siteId) && sr.grants.governance)) {
+    if (siteRules.some(sr => SiteRuleService.applies(sr, siteId) && sr.grants.governance)) {
       return await this.removeUnauthorized(await this.raw.findSiteManagers(siteId))
     }
     return []

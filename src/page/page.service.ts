@@ -37,6 +37,15 @@ const pagesInPagetreeLoader = new OneToManyLoader({
   idLoader: [pagesByInternalIdLoader, pagesByDataIdLoader]
 })
 
+const pagesByTemplateKeyLoader = new OneToManyLoader({
+  fetch: async (templateKeys: string[], filter?: PageFilter) => {
+    return await getPages({ ...filter, templateKeys })
+  },
+  extractKey: (p: Page) => p.templateKey,
+  keysFromFilter: (filter: PageFilter | undefined) => filter?.templateKeys ?? [],
+  idLoader: [pagesByInternalIdLoader, pagesByDataIdLoader]
+})
+
 const pagesByInternalIdPathLoader = new OneToManyLoader({
   fetch: async (internalIdPaths: string[], filter?: PageFilter) => {
     return await getPages({ ...filter, internalIdPaths })
@@ -107,16 +116,7 @@ export class PageServiceInternal extends BaseService {
   }
 
   async findByTemplate (key: string, filter?: PageFilter) {
-    const searchRule = { indexName: 'templateKey', equal: key }
-    const [dataIdsLatest, dataIdsPublished] = await Promise.all([
-      this.svc(VersionedService).find([searchRule], 'page'),
-      this.svc(VersionedService).find([searchRule], 'page', 'published')])
-    let dataIds = unique([...dataIdsLatest, ...dataIdsPublished])
-    if (!dataIds.length) return []
-    if (filter?.ids?.length) {
-      dataIds = dataIds.filter(i => filter.ids?.includes(i))
-    }
-    return await this.findByIds(dataIds)
+    return await this.loaders.get(pagesByTemplateKeyLoader, filter).load(key)
   }
 
   async getPageChildren (page: Page, recursive?: boolean, filter?: PageFilter) {
@@ -314,8 +314,7 @@ export class PageService extends DosGatoService<Page> {
   // may view the page in a list
   async mayView (page: Page) {
     if (page.orphaned) {
-      const srSvc = this.svc(SiteRuleService)
-      const siteRules = (await this.currentSiteRules()).filter(r => srSvc.applies(r, page.siteId))
+      const siteRules = (await this.currentSiteRules()).filter(r => SiteRuleService.applies(r, page.siteId))
       return siteRules.some(r => r.grants.delete)
     }
     const [pageRules, pagePath] = await Promise.all([

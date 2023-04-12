@@ -376,8 +376,7 @@ export class AssetService extends DosGatoService<Asset> {
   */
   async mayView (asset: Asset) {
     if (asset.orphaned) {
-      const srSvc = this.svc(SiteRuleService)
-      const siteRules = (await this.currentSiteRules()).filter(r => srSvc.applies(r, asset.siteId))
+      const siteRules = (await this.currentSiteRules()).filter(r => SiteRuleService.applies(r, asset.siteId))
       return siteRules.some(r => r.grants.delete)
     }
     const [rules, assetPath] = await Promise.all([

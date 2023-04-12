@@ -82,14 +82,14 @@ export async function getSites (filter?: SiteFilter) {
   return sites.map(s => new Site(s))
 }
 
-export async function getSitesByTemplate (templateIds: number[], atLeastOneTree?: boolean) {
+export async function getSitesByTemplate (templateIds: string[], atLeastOneTree?: boolean) {
   const binds: string[] = []
 
   const wholeSites = await db.getall(`SELECT ${columnsjoined}, sites_templates.templateId as templateId FROM sites
                                  INNER JOIN sites_templates ON sites.id = sites_templates.siteId
                                  WHERE sites_templates.templateId IN (${db.in(binds, templateIds)})`, binds)
   if (!atLeastOneTree) {
-    return wholeSites.map(s => ({ key: s.templateId, value: new Site(s) }))
+    return wholeSites.map(s => ({ key: String(s.templateId), value: new Site(s) }))
   } else {
     // also return any sites where one or more pagetrees are able to use the template
     const binds2: string[] = []
@@ -98,7 +98,7 @@ export async function getSitesByTemplate (templateIds: number[], atLeastOneTree?
                                             INNER JOIN pagetrees_templates ON pagetrees_templates.pagetreeId = pagetrees.id
                                             WHERE pagetrees_templates.templateId IN (${db.in(binds2, templateIds)})`, binds2)
     const sites = unique([...wholeSites, ...sitesWithPagetreesWithTemplate], 'id')
-    return sites.map(s => ({ key: s.templateId, value: new Site(s) }))
+    return sites.map(s => ({ key: String(s.templateId), value: new Site(s) }))
   }
 }
 

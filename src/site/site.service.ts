@@ -38,7 +38,7 @@ const siteByOrganizationIdLoader = new OneToManyLoader({
 // TODO: does this loader need a filter parameter too? Without it, deleted
 // sites will be returned too
 const sitesByTemplateIdLoader = new ManyJoinedLoader({
-  fetch: async (templateIds: number[], atLeastOneTree?: boolean) => {
+  fetch: async (templateIds: string[], atLeastOneTree?: boolean) => {
     return await getSitesByTemplate(templateIds, atLeastOneTree)
   },
   idLoader: [sitesByIdLoader, sitesByNameLoader]
@@ -80,7 +80,7 @@ export class SiteServiceInternal extends BaseService {
     return await this.loaders.get(siteByOrganizationIdLoader, filter).load(org.internalId)
   }
 
-  async findByTemplateId (templateId: number, atLeastOneTree?: boolean) {
+  async findByTemplateId (templateId: string, atLeastOneTree?: boolean) {
     return await this.loaders.get(sitesByTemplateIdLoader, atLeastOneTree).load(templateId)
   }
 
@@ -123,7 +123,7 @@ export class SiteService extends DosGatoService<Site> {
     return await this.postFilter(await this.removeUnauthorized(await this.raw.findByOrganization(org, filter)), filter)
   }
 
-  async findByTemplateId (templateId: number, atLeastOneTree?: boolean) {
+  async findByTemplateId (templateId: string, atLeastOneTree?: boolean) {
     return await this.removeUnauthorized(await this.raw.findByTemplateId(templateId, atLeastOneTree))
   }
 
@@ -267,7 +267,7 @@ export class SiteService extends DosGatoService<Site> {
   }
 
   async mayViewManagerUI () {
-    if ((await this.currentGlobalRules()).some(r => r.grants.createSites)) return true
+    if (await this.haveGlobalPerm('createSites')) return true
     return (await this.currentSiteRules()).some(r => r.grants.viewForEdit)
   }
 

@@ -76,7 +76,7 @@ export class DataRule {
   @Field({ description: 'Folder to which this rule should apply. We take a path so that it could apply to the same folder name in multiple sites or multiple template types, if site or template is left null.' })
   path: string
 
-  templateId?: number
+  templateId?: string
   roleId: string
   siteId?: string
 
@@ -84,7 +84,7 @@ export class DataRule {
     this.id = String(row.id)
     this.roleId = String(row.roleId)
     this.siteId = optionalString(row.siteId)
-    this.templateId = row.templateId
+    this.templateId = optionalString(row.templateId)
     this.grants = new DataRuleGrants(row)
     this.path = row.path
   }

@@ -26,7 +26,7 @@ registerEnumType(TemplateType, {
   editors receive training or demonstrate a need.`
 })
 export class Template {
-  id: number
+  id: string
 
   @Field(type => ID, { description: 'This is a globally unique identifier that matches specific pieces of supporting source code. Upon startup, any new template keys detected in the source code will be automatically added to the database. When a piece of content is tagged with a template, it should be by key, NOT id, as id could differ from instance to instance and we want content to be easily migratable.' })
   key: string
@@ -58,7 +58,7 @@ export class Template {
   _areasByName: Record<string, TemplateArea | undefined>
 
   constructor (row: any) {
-    this.id = row.id
+    this.id = String(row.id)
     this.key = row.key
     this.type = row.type
     this.deleted = !!row.deleted
@@ -75,7 +75,7 @@ export class Template {
 
 @InputType()
 export class TemplateFilter {
-  ids?: number[]
+  ids?: string[]
 
   @Field(type => [ID], { nullable: true })
   keys?: string[]

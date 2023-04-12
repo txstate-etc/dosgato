@@ -2,12 +2,13 @@ import { AuthError, AuthorizedService, type Context } from '@txstate-mws/graphql
 import { Cache, filterAsync, keyby } from 'txstate-utils'
 import {
   type Asset, type AssetFolder, type Data, type DataFolder, type Page, type Site, type Template,
-  AssetRuleService, type AssetRuleGrants, DataRuleService, DataRuleGrants, GlobalRuleService,
-  type GlobalRuleGrants, PageRuleService, PageRuleGrants, SiteRuleGrants, SiteRuleService,
-  TemplateRuleService, type TemplateRuleGrants, RoleServiceInternal, SiteRuleServiceInternal,
-  PageRuleServiceInternal, AssetRuleServiceInternal, DataRuleServiceInternal, GlobalRuleServiceInternal,
-  GroupServiceInternal, UserServiceInternal, TemplateRuleServiceInternal, type DataRoot, type Group,
-  PageServiceInternal, shiftPath, PageRule, RulePathMode, DataRule, SiteRule
+  AssetRuleService, type AssetRuleGrants, DataRuleService, DataRuleGrants, type GlobalRuleGrants,
+  PageRuleService, PageRuleGrants, SiteRuleGrants, SiteRuleService, TemplateRuleService,
+  type TemplateRuleGrants, RoleServiceInternal, SiteRuleServiceInternal, PageRuleServiceInternal,
+  AssetRuleServiceInternal, DataRuleServiceInternal, GlobalRuleServiceInternal, GroupServiceInternal,
+  UserServiceInternal, TemplateRuleServiceInternal, type DataRoot, type Group, PageServiceInternal,
+  shiftPath, PageRule, RulePathMode, DataRule, SiteRule, AssetServiceInternal, AssetFolderServiceInternal,
+  DataServiceInternal, DataFolderServiceInternal, type GlobalRule
 } from '../internal.js'
 
 const pageRuleCache = new Cache(async (netid: string, ctx: Context) => {
@@ -35,7 +36,22 @@ const dataRuleCache = new Cache(async (netid: string, ctx: Context) => {
 
 const globalRuleCache = new Cache(async (netid: string, ctx: Context) => {
   const roles = await roleCache.get(netid, ctx)
-  return (await Promise.all(roles.map(async r => await ctx.svc(GlobalRuleServiceInternal).findByRoleId(r.id)))).flat()
+  const rules = (await Promise.all(roles.map(async r => await ctx.svc(GlobalRuleServiceInternal).findByRoleId(r.id)))).flat()
+  const grants: Record<keyof GlobalRule['grants'], boolean> = {
+    manageAccess: false,
+    manageGlobalData: false,
+    manageParentRoles: false,
+    manageTemplates: false,
+    createSites: false
+  }
+  for (const r of rules) {
+    grants.manageAccess ||= r.grants.manageAccess
+    grants.manageGlobalData ||= r.grants.manageGlobalData
+    grants.manageParentRoles ||= r.grants.manageParentRoles
+    grants.manageTemplates ||= r.grants.manageTemplates
+    grants.createSites ||= r.grants.createSites
+  }
+  return grants
 }, { freshseconds: 5, staleseconds: 30 })
 
 const templateRuleCache = new Cache(async (netid: string, ctx: Context) => {
@@ -76,15 +92,13 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
     return this.currentGroupsByIdStorage[id]
   }
 
-  protected async currentGlobalRules () {
+  protected async currentGlobalGrants () {
     return await globalRuleCache.get(this.login, this.ctx)
   }
 
   protected async haveGlobalPerm (grant: keyof GlobalRuleGrants) {
-    const rules = await this.currentGlobalRules()
-    const globalRuleService = this.svc(GlobalRuleService)
-    const applicable = await filterAsync(rules, async r => await globalRuleService.applies(r))
-    return applicable.some(r => r.grants[grant])
+    const grants = await globalRuleCache.get(this.login, this.ctx)
+    return grants[grant]
   }
 
   protected async currentSiteRules () {
@@ -93,9 +107,10 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
 
   protected async haveSitePerm (site: Site, grant: keyof SiteRuleGrants) {
     const rules = await this.currentSiteRules()
-    const siteRuleService = this.svc(SiteRuleService)
-    const applicable = rules.filter(r => siteRuleService.applies(r, site.id))
-    return applicable.some(r => r.grants[grant])
+    for (const r of rules) {
+      if (r.grants[grant] && SiteRuleService.applies(r, site.id)) return true
+    }
+    return false
   }
 
   protected async currentPageRules () {
@@ -108,8 +123,10 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
       this.svc(PageServiceInternal).getPath(page)
     ])
     const pagePathWithoutSite = shiftPath(pagePath)
-    const applicable = rules.filter(r => PageRuleService.appliesToPagetree(r, page) && PageRuleService.appliesToPath(r, pagePathWithoutSite))
-    return applicable.some(r => r.grants[grant])
+    for (const r of rules) {
+      if (r.grants[grant] && PageRuleService.applies(r, page, pagePathWithoutSite)) return true
+    }
+    return false
   }
 
   protected async currentAssetRules () {
@@ -117,17 +134,27 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async haveAssetPerm (asset: Asset, grant: keyof AssetRuleGrants) {
-    const rules = await this.currentAssetRules()
-    const assetRuleService = this.svc(AssetRuleService)
-    const applicable = await filterAsync(rules, async r => await assetRuleService.applies(r, asset))
-    return applicable.some(r => r.grants[grant])
+    const [rules, assetPath] = await Promise.all([
+      this.currentAssetRules(),
+      this.svc(AssetServiceInternal).getPath(asset)
+    ])
+    const assetPathWithoutSite = shiftPath(assetPath)
+    for (const r of rules) {
+      if (r.grants[grant] && AssetRuleService.applies(r, asset, assetPathWithoutSite)) return true
+    }
+    return false
   }
 
   protected async haveAssetFolderPerm (folder: AssetFolder, grant: keyof AssetRuleGrants) {
-    const rules = await this.currentAssetRules()
-    const assetRuleService = this.svc(AssetRuleService)
-    const applicable = await filterAsync(rules, async r => await assetRuleService.appliesToFolder(r, folder))
-    return applicable.some(r => r.grants[grant])
+    const [rules, folderPath] = await Promise.all([
+      this.currentAssetRules(),
+      this.svc(AssetFolderServiceInternal).getPath(folder)
+    ])
+    const folderPathWithoutSite = shiftPath(folderPath)
+    for (const r of rules) {
+      if (r.grants[grant] && AssetRuleService.applies(r, folder, folderPathWithoutSite)) return true
+    }
+    return false
   }
 
   protected async currentDataRules () {
@@ -139,19 +166,29 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
     // of DataRules
     if (!item.siteId) return await this.haveGlobalPerm('manageGlobalData')
 
-    const rules = await this.currentDataRules()
-    const dataRuleService = this.svc(DataRuleService)
-    const applicable = await filterAsync(rules, async r => await dataRuleService.applies(r, item))
-    return applicable.some(r => r.grants[grant])
+    const [rules, dataPath] = await Promise.all([
+      this.currentDataRules(),
+      this.svc(DataServiceInternal).getPath(item)
+    ])
+    const dataPathWithoutSite = shiftPath(dataPath)
+    for (const r of rules) {
+      if (r.grants[grant] && DataRuleService.applies(r, item, dataPathWithoutSite)) return true
+    }
+    return false
   }
 
   protected async haveDataFolderPerm (folder: DataFolder, grant: keyof DataRuleGrants) {
     if (!folder.siteId) return await this.haveGlobalPerm('manageGlobalData')
 
-    const rules = await this.currentDataRules()
-    const dataRuleService = this.svc(DataRuleService)
-    const applicable = await filterAsync(rules, async r => await dataRuleService.appliesToFolder(r, folder))
-    return applicable.some(r => r.grants[grant])
+    const [rules, folderPath] = await Promise.all([
+      this.currentDataRules(),
+      this.svc(DataFolderServiceInternal).getPath(folder)
+    ])
+    const folderPathWithoutSite = shiftPath(folderPath)
+    for (const r of rules) {
+      if (r.grants[grant] && DataRuleService.applies(r, folder, folderPathWithoutSite)) return true
+    }
+    return false
   }
 
   protected async haveDataRootPerm (dataroot: DataRoot, grant: keyof DataRuleGrants) {
@@ -172,8 +209,7 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
 
   protected async haveTemplatePerm (template: Template, grant: keyof TemplateRuleGrants) {
     const rules = await this.currentTemplateRules()
-    const templateRuleService = this.svc(TemplateRuleService)
-    const applicable = await filterAsync(rules, async r => await templateRuleService.applies(r, template))
+    const applicable = rules.filter(r => TemplateRuleService.applies(r, template))
     return applicable.some(r => r.grants[grant])
   }
 }

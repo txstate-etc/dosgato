@@ -51,14 +51,21 @@ export class AssetRuleServiceInternal extends BaseService {
   }
 
   async findByAsset (asset: Asset) {
-    const folder = await this.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
-    const rules = await this.findBySiteId(folder?.siteId)
-    return await filterAsync(rules, async r => await this.svc(AssetRuleService).applies(r, asset))
+    const [rules, assetPath] = await Promise.all([
+      this.findBySiteId(asset?.siteId),
+      this.svc(AssetServiceInternal).getPath(asset)
+    ])
+    const assetPathWithoutSite = shiftPath(assetPath)
+    return rules.filter(r => AssetRuleService.applies(r, asset, assetPathWithoutSite))
   }
 
   async findByAssetFolder (folder: AssetFolder) {
-    const rules = await this.findBySiteId(folder?.siteId)
-    return await filterAsync(rules, async r => await this.svc(AssetRuleService).appliesToFolder(r, folder))
+    const [rules, folderPath] = await Promise.all([
+      this.findBySiteId(folder?.siteId),
+      this.svc(AssetFolderServiceInternal).getPath(folder)
+    ])
+    const folderPathWithoutSite = shiftPath(folderPath)
+    return rules.filter(r => AssetRuleService.applies(r, folder, folderPathWithoutSite))
   }
 }
 
@@ -174,45 +181,12 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
     }
   }
 
-  async applies (rule: AssetRule, asset: Asset) {
-    const assetPath = await this.svc(AssetServiceInternal).getPath(asset)
-    const assetPathWithoutSite = shiftPath(assetPath)
-    return this.appliesSync(rule, asset, assetPathWithoutSite)
-  }
-
-  async currentApplicable (asset: Asset) {
-    const [rules, assetPath] = await Promise.all([
-      this.currentAssetRules(),
-      this.svc(AssetServiceInternal).getPath(asset)
-    ])
-    const assetPathWithoutSite = shiftPath(assetPath)
-    return rules.filter(r => this.appliesSync(r, asset, assetPathWithoutSite))
-  }
-
-  appliesSync (rule: AssetRule, asset: Asset, assetPathWithoutSite: string) {
-    if (rule.siteId && rule.siteId !== asset.siteId) return false
-    if (rule.pagetreeType && rule.pagetreeType !== asset.pagetreeType) return false
-    if (rule.mode === RulePathMode.SELF && rule.path !== assetPathWithoutSite) return false
-    if (rule.mode === RulePathMode.SELFANDSUB && !assetPathWithoutSite.startsWith(rule.path)) return false
-    if (rule.mode === RulePathMode.SUB && (rule.path === assetPathWithoutSite || !assetPathWithoutSite.startsWith(rule.path))) return false
-    return true
+  static applies (rule: AssetRule, assetOrFolder: Asset | AssetFolder, pathWithoutSite: string) {
+    return this.appliesToPagetree(rule, assetOrFolder) && this.appliesToPath(rule, pathWithoutSite)
   }
 
   static appliesToPagetree (r: AssetRule, assetOrFolder: Asset | AssetFolder) {
     return (!r.siteId || r.siteId === assetOrFolder.siteId) && (!r.pagetreeType || r.pagetreeType === assetOrFolder.pagetreeType)
-  }
-
-  async currentApplicableToFolder (folder: AssetFolder) {
-    const rules = await this.currentAssetRules()
-    const folderPath = await this.svc(AssetFolderServiceInternal).getPath(folder)
-    const folderPathWithoutSite = shiftPath(folderPath)
-    return rules.filter(r => this.appliesToFolderSync(r, folder, folderPathWithoutSite))
-  }
-
-  async appliesToFolder (rule: AssetRule, folder: AssetFolder) {
-    if (rule.siteId && rule.siteId !== folder.siteId) return false
-    const folderPath = await this.svc(AssetFolderServiceInternal).getPath(folder)
-    return this.appliesToFolderSync(rule, folder, shiftPath(folderPath))
   }
 
   static appliesToPath (rule: AssetRule, folderPathWithoutSite: string) {
@@ -222,22 +196,10 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
     return true
   }
 
-  appliesToFolderSync (rule: AssetRule, folder: AssetFolder, folderPathWithoutSite: string) {
-    if (rule.siteId && rule.siteId !== folder.siteId) return false
-    if (rule.pagetreeType && rule.pagetreeType !== folder.pagetreeType) return false
-    return AssetRuleService.appliesToPath(rule, folderPathWithoutSite)
-  }
-
   static appliesToChildOfPath (rule: AssetRule, folderPathWithoutSite: string) {
     if (rule.path.startsWith(folderPathWithoutSite + '/')) return true
     if (rule.mode === RulePathMode.SELFANDSUB && rule.path === folderPathWithoutSite) return true
     return false
-  }
-
-  appliesToChildSync (rule: AssetRule, folder: AssetFolder, folderPathWithoutSite: string) {
-    if (rule.siteId && rule.siteId !== folder.siteId) return false
-    if (rule.pagetreeType && rule.pagetreeType !== folder.pagetreeType) return false
-    return AssetRuleService.appliesToChildOfPath(rule, folderPathWithoutSite)
   }
 
   static appliesToParentOfPath (rule: AssetRule, folderPathWithoutSite: string) {
@@ -256,7 +218,7 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
 
   async mayView (rule: AssetRule) {
     if (await this.haveGlobalPerm('manageAccess')) return true
-    const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
+    const role = await this.svc(RoleService).findById(rule.roleId)
     return !!role
   }
 

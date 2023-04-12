@@ -134,7 +134,7 @@ export async function deauthorizeTemplate (template: Template, site: Site, userI
   }, { retries: 2 })
 }
 
-export async function setUniversal (templateId: number, universal: boolean) {
+export async function setUniversal (templateId: string, universal: boolean) {
   return await db.update('UPDATE templates SET universal = ? where id = ?', [universal, templateId])
 }
 

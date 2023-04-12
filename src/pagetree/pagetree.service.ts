@@ -22,7 +22,7 @@ const PagetreesBySiteIdLoader = new OneToManyLoader({
 })
 
 const PagetreesByTemplateIdLoader = new ManyJoinedLoader({
-  fetch: async (templateIds: number[], direct?: boolean) => {
+  fetch: async (templateIds: string[], direct?: boolean) => {
     return await getPagetreesByTemplate(templateIds, direct)
   },
   idLoader: PagetreesByIdLoader
@@ -45,7 +45,7 @@ export class PagetreeServiceInternal extends BaseService {
     return await this.loaders.get(PagetreesBySiteIdLoader, filter).load(siteId)
   }
 
-  async findByTemplateId (templateId: number, direct?: boolean) {
+  async findByTemplateId (templateId: string, direct?: boolean) {
     return await this.loaders.get(PagetreesByTemplateIdLoader, direct).load(templateId)
   }
 }
@@ -73,7 +73,7 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     return await this.removeUnauthorized(await this.raw.findBySiteId(siteId, filter))
   }
 
-  async findByTemplateId (templateId: number, direct?: boolean) {
+  async findByTemplateId (templateId: string, direct?: boolean) {
     return await this.removeUnauthorized(await this.raw.findByTemplateId(templateId, direct))
   }
 

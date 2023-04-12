@@ -344,8 +344,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
 
   async mayView (folder: AssetFolder) {
     if (folder.orphaned) {
-      const srSvc = this.svc(SiteRuleService)
-      const siteRules = (await this.currentSiteRules()).filter(r => srSvc.applies(r, folder.siteId))
+      const siteRules = (await this.currentSiteRules()).filter(r => SiteRuleService.applies(r, folder.siteId))
       return siteRules.some(r => r.grants.delete)
     }
     const [rules, folderPath] = await Promise.all([

@@ -4,7 +4,7 @@ import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   tooPowerfulHelper, DosGatoService, type Data, type DataFolder, getDataRules, DataRule,
   createDataRule, type CreateDataRuleInput, updateDataRule, type UpdateDataRuleInput, deleteDataRule,
-  RoleService, type DataRuleFilter, DataRuleResponse, RoleServiceInternal, DataServiceInternal, DataFolderService
+  RoleService, type DataRuleFilter, DataRuleResponse, RoleServiceInternal, DataServiceInternal, DataFolderService, shiftPath, DataFolderServiceInternal
 } from '../internal.js'
 
 const dataRulesByIdLoader = new PrimaryKeyLoader({
@@ -55,27 +55,21 @@ export class DataRuleServiceInternal extends BaseService {
   }
 
   async findByDataEntry (data: Data) {
-    // a data entry can have a site, folder, or neither
-    let folderRules: DataRule[] = []
-    if (data.folderInternalId) {
-      const folder = await this.svc(DataFolderService).findByInternalId(data.folderInternalId)
-      folderRules = await this.findByDataFolder(folder!)
-    } else {
-      // TODO: What if the data is not in a folder?
-    }
-    const siteDataRules = await this.findBySiteId(data.siteId)
-    const drService = this.svc(DataRuleService)
-    return await filterAsync([...folderRules, ...siteDataRules], async rule => await drService.applies(rule, data))
+    const [rules, dataPath] = await Promise.all([
+      this.findByTemplateId(data.templateId),
+      this.svc(DataServiceInternal).getPath(data)
+    ])
+    const dataPathWithoutSite = shiftPath(dataPath)
+    return rules.filter(rule => DataRuleService.applies(rule, data, dataPathWithoutSite))
   }
 
   async findByDataFolder (folder: DataFolder) {
-    const [siteRules, templateRules] = await Promise.all([
-      this.findBySiteId(folder.siteId),
-      this.findByTemplateId(String(folder.templateId))
+    const [rules, folderPath] = await Promise.all([
+      this.findByTemplateId(folder.templateId),
+      this.svc(DataFolderServiceInternal).getPath(folder)
     ])
-    const drService = this.svc(DataRuleService)
-    // TODO: Should appliesToFolder be looking at the template ID for the rule and the folder to see if they match?
-    return await filterAsync([...siteRules, ...templateRules], async rule => await drService.appliesToFolder(rule, folder))
+    const folderPathWithoutSite = shiftPath(folderPath)
+    return rules.filter(rule => DataRuleService.applies(rule, folder, folderPathWithoutSite))
   }
 }
 
@@ -168,12 +162,8 @@ export class DataRuleService extends DosGatoService<DataRule> {
     }
   }
 
-  async applies (rule: DataRule, item: Data) {
-    if (!item.siteId && rule.siteId) return false
-    if (rule.siteId && rule.siteId !== item.siteId) return false
-    const dataPath = await this.svc(DataServiceInternal).getPath(item)
-    const dataPathWithoutSite = '/' + dataPath.split('/').slice(2).join('/')
-    return dataPathWithoutSite.startsWith(rule.path)
+  static applies (rule: DataRule, itemOrFolder: Data | DataFolder, pathWithoutSite: string) {
+    return this.appliesToSiteAndTemplate(rule, itemOrFolder) && this.appliesToPath(rule, pathWithoutSite)
   }
 
   static appliesToSiteAndTemplate (r: DataRule, item: Data | DataFolder) {
@@ -204,13 +194,13 @@ export class DataRuleService extends DosGatoService<DataRule> {
   }
 
   async mayWrite (rule: DataRule) {
-    const role = await this.svc(RoleService).findById(rule.id)
+    const role = await this.svc(RoleServiceInternal).findById(rule.id)
     return await this.svc(RoleService).mayUpdate(role!)
   }
 
   async mayView (rule: DataRule) {
     if (await this.haveGlobalPerm('manageAccess')) return true
-    const role = await this.svc(RoleServiceInternal).findById(rule.roleId)
+    const role = await this.svc(RoleService).findById(rule.roleId)
     return !!role
   }
 }

@@ -23,7 +23,7 @@ export class DataFolder {
   @Field({ nullable: true, description: 'Date this folder was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
-  templateId: number
+  templateId: string
   siteId?: string
   deletedBy?: number
   templateKey: string
@@ -33,7 +33,7 @@ export class DataFolder {
     this.internalId = row.id
     this.id = row.guid
     this.name = row.name
-    this.templateId = row.templateId
+    this.templateId = String(row.templateId)
     this.siteId = optionalString(row.siteId)
     this.deleteState = row.deleteState
     this.deleted = row.deleteState !== DeleteState.NOTDELETED
@@ -54,7 +54,7 @@ export class DataFolderFilter {
   @Field(type => [ID], { nullable: true, description: 'Return folders designated for data of one of the given templates.' })
   templateKeys?: string[]
 
-  templateIds?: number[]
+  templateIds?: string[]
 
   @Field(type => [ID], { nullable: true, description: 'Return folders that are associated with one of the given sites.' })
   siteIds?: string[]

@@ -1,6 +1,7 @@
 import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { RuleType } from '../internal.js'
+import { optionalString } from 'txstate-utils'
 
 @ObjectType()
 @InputType('TemplateRuleGrantsInput')
@@ -32,12 +33,12 @@ export class TemplateRule {
   grants: TemplateRuleGrants
 
   roleId: string
-  templateId?: number
+  templateId?: string
 
   constructor (row: any) {
     this.id = String(row.id)
     this.roleId = String(row.roleId)
-    this.templateId = row.templateId
+    this.templateId = optionalString(row.templateId)
     this.grants = new TemplateRuleGrants(row)
   }
 }

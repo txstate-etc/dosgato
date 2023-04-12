@@ -9,7 +9,7 @@ import {
 } from '../internal.js'
 
 const templatesByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: number[]) => {
+  fetch: async (ids: string[]) => {
     return await getTemplates({ ids })
   }
 })
@@ -58,7 +58,7 @@ export class TemplateServiceInternal extends BaseService {
     return this.#findCache.get(filterKey)!
   }
 
-  async findById (id: number) {
+  async findById (id: string) {
     return await this.loaders.get(templatesByIdLoader).load(id)
   }
 
@@ -86,7 +86,7 @@ export class TemplateService extends DosGatoService<Template> {
     return await this.removeUnauthorized(await this.raw.find(filter))
   }
 
-  async findById (id: number) {
+  async findById (id: string) {
     return await this.removeUnauthorized(await this.raw.findById(id))
   }
 

@@ -437,8 +437,7 @@ export class DataService extends DosGatoService<Data> {
 
   async mayView (data: Data) {
     if (data.orphaned) {
-      const srSvc = this.svc(SiteRuleService)
-      const siteRules = (await this.currentSiteRules()).filter(r => srSvc.applies(r, data.siteId!))
+      const siteRules = (await this.currentSiteRules()).filter(r => SiteRuleService.applies(r, data.siteId!))
       return siteRules.some(r => r.grants.delete)
     }
     const [dataRules, dataPath] = await Promise.all([

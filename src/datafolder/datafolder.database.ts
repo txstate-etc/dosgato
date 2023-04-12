@@ -50,7 +50,7 @@ export async function getDataFolders (filter?: DataFolderFilter) {
   return folders.map(f => new DataFolder(f))
 }
 
-export async function folderNameUniqueInDataRoot (name: string, templateId: number, siteId?: string): Promise<boolean> {
+export async function folderNameUniqueInDataRoot (name: string, templateId: string, siteId?: string): Promise<boolean> {
   const where: string[] = ['name = ? ', 'templateId = ? ']
   const binds: (string | number)[] = [name, templateId]
   if (siteId) {
@@ -61,9 +61,9 @@ export async function folderNameUniqueInDataRoot (name: string, templateId: numb
   return count === 0
 }
 
-export async function createDataFolder (name: string, templateInternalId: number, siteId?: string) {
+export async function createDataFolder (name: string, templateId: string, siteId?: string) {
   const columns = ['name', 'guid', 'templateId']
-  const binds = [name, nanoid(10), templateInternalId]
+  const binds = [name, nanoid(10), templateId]
   if (siteId) {
     columns.push('siteId')
     binds.push(siteId)
