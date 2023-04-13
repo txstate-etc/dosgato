@@ -189,11 +189,10 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
     return (!r.siteId || r.siteId === assetOrFolder.siteId) && (!r.pagetreeType || r.pagetreeType === assetOrFolder.pagetreeType)
   }
 
-  static appliesToPath (rule: AssetRule, folderPathWithoutSite: string) {
-    if (rule.mode === RulePathMode.SELF && rule.path !== folderPathWithoutSite) return false
-    if (rule.mode === RulePathMode.SELFANDSUB && !folderPathWithoutSite.startsWith(rule.path)) return false
-    if (rule.mode === RulePathMode.SUB && (rule.path === folderPathWithoutSite || !folderPathWithoutSite.startsWith(rule.path))) return false
-    return true
+  static appliesToPath (rule: AssetRule, pathWithoutSite: string) {
+    if (rule.mode === RulePathMode.SELF) return rule.path === pathWithoutSite
+    if (rule.mode === RulePathMode.SELFANDSUB) return pathWithoutSite.startsWith(rule.path)
+    return rule.path !== pathWithoutSite && pathWithoutSite.startsWith(rule.path)
   }
 
   static appliesToChildOfPath (rule: AssetRule, folderPathWithoutSite: string) {

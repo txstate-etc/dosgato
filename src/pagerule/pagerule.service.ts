@@ -159,10 +159,9 @@ export class PageRuleService extends DosGatoService<PageRule> {
   }
 
   static appliesToPath (rule: PageRule, pagePathWithoutSite: string) {
-    if (rule.mode === RulePathMode.SELF && rule.path !== pagePathWithoutSite) return false
-    if (rule.mode === RulePathMode.SELFANDSUB && !pagePathWithoutSite.startsWith(rule.path)) return false
-    if (rule.mode === RulePathMode.SUB && (rule.path === pagePathWithoutSite || !pagePathWithoutSite.startsWith(rule.path))) return false
-    return true
+    if (rule.mode === RulePathMode.SELF) return rule.path === pagePathWithoutSite
+    if (rule.mode === RulePathMode.SELFANDSUB) return pagePathWithoutSite.startsWith(rule.path)
+    return rule.path !== pagePathWithoutSite && pagePathWithoutSite.startsWith(rule.path)
   }
 
   static appliesToChildOfPath (rule: PageRule, pagePathWithoutSite: string) {

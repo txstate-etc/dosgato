@@ -117,8 +117,8 @@ export class Asset {
     this.deleteState = row.deleteState
     this.pagetreeType = row.pagetreeType
     this.orphaned = !!row.orphaned
-    this.pagetreeId = row.pagetreeId
-    this.siteId = row.siteId
+    this.pagetreeId = String(row.pagetreeId)
+    this.siteId = String(row.siteId)
   }
 }
 
