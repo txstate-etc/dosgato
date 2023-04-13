@@ -199,9 +199,18 @@ async function processFilters (filter?: PageFilter) {
     binds.push(filter.maxDepth)
   }
 
-  // published TODO
-  // live TODO
-  // templateKeys TODO
+  // live
+  if (filter.live) {
+    filter.published = true
+    where.push('sites.launchEnabled=1')
+  }
+
+  // published
+  if (filter.published) {
+    joins.set('tags', 'INNER JOIN tags ON tags.id=pages.dataId')
+    where.push('tags.tag="published"')
+  }
+
   // pages, assets, data referenced TODO
 
   return { binds, where, joins }
