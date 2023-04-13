@@ -150,6 +150,7 @@ export class DGServer {
       send401: true,
       send403: async (ctx: Context) => {
         if (!ctx.auth?.sub) return true
+        if (ctx.auth.sub === 'anonymous') return false
         const user = await ctx.svc(UserServiceInternal).findById(ctx.auth?.sub)
         return !user || user.disabled
       },
