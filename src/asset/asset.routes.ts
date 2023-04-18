@@ -15,7 +15,7 @@ import { groupby, isNotBlank, keyby, randomid } from 'txstate-utils'
 import {
   type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
   AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler, getEnabledUser, GlobalRuleService, logMutation,
-  makeSafeFilename, type PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService
+  makeSafeFilename, type PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService, parsePath
 } from '../internal.js'
 
 interface RootAssetFolder {
@@ -289,10 +289,14 @@ export async function createAssetRoutes (app: FastifyInstance) {
 
     return await res.status(200).send(fileHandler.get(chosen.checksum))
   })
-  app.get<{ Params: { id: string, filename: string }, Querystring: { admin?: 1 } }>(
-    '/assets/:id/:filename', async (req, res) => {
+  app.get<{ Params: { id: string, '*': string }, Querystring: { admin?: 1 } }>(
+    '/assets/:id/*', async (req, res) => {
     const ctx = new Context(req)
-    const asset = await ctx.svc(AssetServiceInternal).findById(req.params.id)
+    let asset = await ctx.svc(AssetServiceInternal).findById(req.params.id)
+    if (!asset) {
+      const { path, extension } = parsePath([req.params.id, req.params['*']].filter(isNotBlank).join('/'))
+      asset = (await ctx.svc(AssetServiceInternal).find({ paths: extension ? [path, `${path}.${extension}`] : [path] }))[0]
+    }
     if (!asset) throw new HttpError(404)
 
     if (!req.query?.admin) recordDownload(asset.checksum)
@@ -306,7 +310,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const ifsince = req.headers['if-modified-since'] ? DateTime.fromHTTP(req.headers['if-modified-since']) : undefined
     if (ifsince?.isValid && modifiedAt <= ifsince) return await res.status(304).send()
 
-    const filename = req.params.filename
+    const filename = req.params['*'].split('/').slice(-1)[0]
 
     void res.header('Last-Modified', modifiedAt.toHTTP())
     void res.header('ETag', assetEtag)
