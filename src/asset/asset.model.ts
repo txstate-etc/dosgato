@@ -23,8 +23,8 @@ export class BoxAttributes {
   height: number
 
   constructor (meta: any) {
-    this.width = meta.width
-    this.height = meta.height
+    this.width = Math.round(meta.width)
+    this.height = Math.round(meta.height)
   }
 
   static hasBox (meta: any) {
