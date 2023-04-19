@@ -174,7 +174,7 @@ async function processFilters (filter?: AssetFilter) {
 export async function getAssets (filter?: AssetFilter, tdb: Queryable = db) {
   const { binds, where, joins } = await processFilters(filter)
   const assets = await tdb.getall(`
-    SELECT assets.id, assets.dataId, assets.name, assets.folderId, assets.deletedAt, assets.deletedBy, assets.deleteState,
+    SELECT assets.id, assets.dataId, assets.name, assets.linkId, assets.folderId, assets.deletedAt, assets.deletedBy, assets.deleteState,
     binaries.bytes AS filesize, binaries.mime, binaries.shasum, binaries.meta,
     sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned,
     pagetrees.type as pagetreeType, assetfolders.siteId
