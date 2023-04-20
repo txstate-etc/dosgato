@@ -5,7 +5,7 @@ import {
   type DataFolder, type DataFolderFilter, DosGatoService, getDataFolders,
   type CreateDataFolderInput, createDataFolder, DataFolderResponse,
   renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
-  SiteService, DataFoldersResponse, moveDataFolders, DataRoot, DataRootService,
+  DataFoldersResponse, moveDataFolders, DataRoot, DataRootService,
   folderNameUniqueInDataRoot, TemplateServiceInternal, VersionedService, SiteServiceInternal,
   DeleteStateAll, finalizeDataFolderDeletion, DataRuleService, DeleteState, SiteRuleService
 } from '../internal.js'
@@ -147,7 +147,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
     if (!template) throw new Error(`Template with key ${args.templateKey} not found.`)
     if (template.type !== TemplateType.DATA) throw new Error(`Template with key ${args.templateKey} is not a data template.`)
     if (args.siteId) {
-      const site = await this.svc(SiteService).findById(args.siteId)
+      const site = await this.svc(SiteServiceInternal).findById(args.siteId)
       if (!site) throw new Error('Cannot create data folder. Site does not exist.')
       const dataroots = await this.svc(DataRootService).findBySite(site, { templateKeys: [template.key] })
       if (!(await this.haveDataRootPerm(dataroots[0], 'create'))) throw new Error(`Current user is not permitted to create datafolders in ${site.name}.`)
@@ -186,7 +186,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
       throw new Error('Current user is not permitted to move one or more data folders')
     }
     if (siteId) {
-      const site = await this.svc(SiteService).findById(siteId)
+      const site = await this.svc(SiteServiceInternal).findById(siteId)
       if (!site) throw new Error('Data folders cannot be moved to a site that does not exist.')
       const template = await this.svc(TemplateServiceInternal).findById(dataFolders[0].templateId)
       const dataroot = new DataRoot(site, template!)

@@ -4,10 +4,12 @@ import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import { isNull, unique } from 'txstate-utils'
 import {
-  DataFolder, DataFolderService, Role, JsonData, Site, SiteService, Template,
+  DataFolder, Role, JsonData, Site, Template,
   TemplateService, User, UserService, ObjectVersion, VersionedService, Data,
   DataFilter, DataPermission, DataPermissions, DataService, DataResponse, DataMultResponse,
-  CreateDataInput, UpdateDataInput, DataRuleService, RoleService, MoveDataTarget, UrlSafeString, DeleteStateRootDefault
+  CreateDataInput, UpdateDataInput, DataRuleService, RoleService, MoveDataTarget,
+  UrlSafeString, DeleteStateRootDefault, SiteServiceInternal, DataFolderServiceInternal,
+  DataServiceInternal
 } from '../internal.js'
 
 @Resolver(of => Data)
@@ -42,18 +44,18 @@ export class DataResolver {
   @FieldResolver(returns => DataFolder, { nullable: true, description: 'Parent folder containing the data entry. Null if the data exists at the global or site root. In the data area, there is only one level of folders for organization - folders do not contain more folders.' })
   async folder (@Ctx() ctx: Context, @Root() data: Data) {
     if (isNull(data.folderInternalId)) return null
-    else return await ctx.svc(DataFolderService).findByInternalId(data.folderInternalId)
+    else return await ctx.svc(DataFolderServiceInternal).findByInternalId(data.folderInternalId)
   }
 
   @FieldResolver(returns => Site, { nullable: true, description: 'The site to which this data entry belongs. Data can be shared across sites, but one site is still the owner. Null if the data is global (not associated with any site).' })
   async site (@Ctx() ctx: Context, @Root() data: Data) {
     if (isNull(data.siteId)) return null
-    else return await ctx.svc(SiteService).findById(data.siteId)
+    else return await ctx.svc(SiteServiceInternal).findById(data.siteId)
   }
 
   @FieldResolver(returns => String)
   async path (@Ctx() ctx: Context, @Root() data: Data) {
-    return await ctx.svc(DataService).getPath(data)
+    return await ctx.svc(DataServiceInternal).getPath(data)
   }
 
   @FieldResolver(returns => Boolean, { description: 'True if the data entry has a version marked as published.' })

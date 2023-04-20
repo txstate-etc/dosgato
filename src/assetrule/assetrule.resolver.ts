@@ -2,8 +2,8 @@ import { Context } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver, Mutation, Root, Arg } from 'type-graphql'
 import { isNull } from 'txstate-utils'
 import {
-  Role, RoleService, Site, SiteService, AssetRule, AssetRulePermissions, AssetRuleResponse,
-  CreateAssetRuleInput, UpdateAssetRuleInput, AssetRuleService
+  Role, RoleService, Site, AssetRule, AssetRulePermissions, AssetRuleResponse,
+  CreateAssetRuleInput, UpdateAssetRuleInput, AssetRuleService, SiteServiceInternal
 } from '../internal.js'
 
 @Resolver(of => AssetRule)
@@ -11,7 +11,7 @@ export class AssetRuleResolver {
   @FieldResolver(returns => Site, { nullable: true, description: 'The site to which this rule applies. Null if it applies to all sites.' })
   async site (@Ctx() ctx: Context, @Root() assetrule: AssetRule) {
     if (isNull(assetrule.siteId)) return null
-    else return await ctx.svc(SiteService).findById(assetrule.siteId)
+    else return await ctx.svc(SiteServiceInternal).findById(assetrule.siteId)
   }
 
   @FieldResolver(returns => Role, { description: 'The role to which this rule belongs.' })

@@ -1,8 +1,8 @@
 import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
-  Data, DataFilter, DataService, Page, PageFilter, Pagetree, PagetreeService, Site, SiteService,
-  PageService, Template, TemplateArea, TemplateFilter, TemplatePermissions, TemplateService, TemplateType
+  Data, DataFilter, DataService, Page, PageFilter, Pagetree, PagetreeService, Site,
+  PageService, Template, TemplateArea, TemplateFilter, TemplatePermissions, TemplateService, TemplateType, SiteServiceInternal
 } from '../internal.js'
 
 @Resolver(of => Template)
@@ -40,7 +40,7 @@ export class TemplateResolver {
       description: 'A template may be linked to a whole site or an individual pagetree. By default this resolver only returns sites where the whole site is able to use the template. Use this toggle to also return any sites where one or more pagetrees are able to use the template. Ignored for data templates.'
     }) atLeastOneTree?: boolean
   ) {
-    return await ctx.svc(SiteService).findByTemplateId(template.id, atLeastOneTree)
+    return await ctx.svc(SiteServiceInternal).findByTemplateId(template.id, atLeastOneTree)
   }
 
   @FieldResolver(returns => [Data], { description: 'All data entries that use this template. Empty array for page or component templates.' })

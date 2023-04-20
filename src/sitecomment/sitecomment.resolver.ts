@@ -1,12 +1,12 @@
 import { Context } from '@txstate-mws/graphql-server'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
-import { SiteComment, SiteCommentResponse, SiteCommentService, Site, SiteService, User, UserService } from '../internal.js'
+import { SiteComment, SiteCommentResponse, SiteCommentService, Site, User, UserService, SiteServiceInternal } from '../internal.js'
 
 @Resolver(of => SiteComment)
 export class SiteCommentResolver {
   @FieldResolver(returns => Site)
   async site (@Ctx() ctx: Context, @Root() sitecomment: SiteComment) {
-    return await ctx.svc(SiteService).findById(sitecomment.siteId)
+    return await ctx.svc(SiteServiceInternal).findById(sitecomment.siteId)
   }
 
   @FieldResolver(returns => User)

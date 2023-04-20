@@ -1,8 +1,8 @@
 import { Context } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
-  Group, GroupService, Role, RoleService, User, UserFilter, Site, SiteService,
-  UserPermissions, UserResponse, UpdateUserInput, UserService, UsersResponse, SiteFilter
+  Group, GroupService, Role, RoleService, User, UserFilter, Site,
+  UserPermissions, UserResponse, UpdateUserInput, UserService, UsersResponse, SiteFilter, SiteServiceInternal
 } from '../internal.js'
 
 @Resolver(of => User)
@@ -24,12 +24,12 @@ export class UserResolver {
 
   @FieldResolver(returns => [Site], { description: 'Sites owned by the user' })
   async sitesOwned (@Ctx() ctx: Context, @Root() user: User, @Arg('filter', { nullable: true }) filter: SiteFilter) {
-    return await ctx.svc(SiteService).findByOwnerInternalId(user.internalId, { ...filter, viewForEdit: true })
+    return await ctx.svc(SiteServiceInternal).findByOwnerInternalId(user.internalId, { ...filter, viewForEdit: true })
   }
 
   @FieldResolver(returns => [Site], { description: 'Returns sites for which the user is a manager' })
   async sitesManaged (@Ctx() ctx: Context, @Root() user: User, @Arg('filter', { nullable: true }) filter: SiteFilter) {
-    return await ctx.svc(SiteService).findByManagerInternalId(user.internalId, { ...filter, viewForEdit: true })
+    return await ctx.svc(SiteServiceInternal).findByManagerInternalId(user.internalId, { ...filter, viewForEdit: true })
   }
 
   @FieldResolver(returns => UserPermissions)

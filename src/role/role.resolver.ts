@@ -5,9 +5,9 @@ import {
   AssetRule, AssetRuleService, AssetRuleFilter, DataRule, DataRuleService, GlobalRule, GlobalRuleService,
   PageRule, PageRuleService, SiteRule, SiteRuleFilter, SiteRuleService, Group, GroupFilter,
   GroupService, User, UserFilter, UserService, Role, RoleFilter, RolePermissions, RoleResponse,
-  RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType, Site, SiteService,
+  RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType, Site,
   UrlSafeString, GlobalRuleServiceInternal, SiteRuleServiceInternal, AssetRuleServiceInternal,
-  DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal
+  DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, SiteServiceInternal
 } from '../internal.js'
 
 @Resolver(of => Role)
@@ -65,7 +65,7 @@ export class RoleResolver {
   @FieldResolver(returns => Site, { nullable: true, description: 'Returns the site associated with this role or null if the role is not associated with a particular site' })
   async site (@Ctx() ctx: Context, @Root() role: Role) {
     if (isNull(role.siteId)) return null
-    else return await ctx.svc(SiteService).findById(role.siteId)
+    else return await ctx.svc(SiteServiceInternal).findById(role.siteId)
   }
 
   @FieldResolver(returns => RolePermissions, {

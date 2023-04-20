@@ -1,6 +1,6 @@
 import { Context } from '@txstate-mws/graphql-server'
 import { Arg, Ctx, FieldResolver, ID, Mutation, Query, Resolver, Root } from 'type-graphql'
-import { Site, SiteService, Organization, OrganizationService, OrganizationResponse, OrganizationFilter } from '../internal.js'
+import { Site, Organization, OrganizationService, OrganizationResponse, OrganizationFilter, SiteServiceInternal } from '../internal.js'
 
 @Resolver(of => Organization)
 export class OrganizationResolver {
@@ -11,7 +11,7 @@ export class OrganizationResolver {
 
   @FieldResolver(returns => [Site])
   async sites (@Ctx() ctx: Context, @Root() org: Organization) {
-    return await ctx.svc(SiteService).findByOrganization(org)
+    return await ctx.svc(SiteServiceInternal).findByOrganization(org)
   }
 
   @Mutation(returns => OrganizationResponse)

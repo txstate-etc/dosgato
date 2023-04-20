@@ -4,7 +4,7 @@ import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'ty
 import {
   Asset, AssetFilter, Role, RoleService, User, AssetFolder, AssetFolderFilter,
   AssetFolderPermission, AssetFolderPermissions, AssetFolderService, AssetRuleService,
-  AssetFolderResponse, CreateAssetFolderInput, UrlSafeString, Site, SiteService, DeleteStateRootDefault, UserService
+  AssetFolderResponse, CreateAssetFolderInput, UrlSafeString, Site, DeleteStateRootDefault, UserService, SiteServiceInternal, AssetFolderServiceInternal
 } from '../internal.js'
 
 @Resolver(of => AssetFolder)
@@ -22,17 +22,17 @@ export class AssetFolderResolver {
 
   @FieldResolver(returns => AssetFolder, { nullable: true, description: 'Returns parent folder, or null if this folder is the site root.' })
   async folder (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
-    return await ctx.svc(AssetFolderService).getParent(folder)
+    return await ctx.svc(AssetFolderServiceInternal).getParent(folder)
   }
 
   @FieldResolver(returns => [AssetFolder])
   async ancestors (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
-    return await ctx.svc(AssetFolderService).getAncestors(folder)
+    return await ctx.svc(AssetFolderServiceInternal).getAncestors(folder)
   }
 
   @FieldResolver(returns => Site)
   async site (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
-    return await ctx.svc(SiteService).findById(folder.siteId)
+    return await ctx.svc(SiteServiceInternal).findById(folder.siteId)
   }
 
   @FieldResolver(returns => String)

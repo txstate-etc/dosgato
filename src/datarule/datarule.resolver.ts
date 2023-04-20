@@ -2,9 +2,9 @@ import { Context } from '@txstate-mws/graphql-server'
 import { Arg, Resolver, Ctx, Mutation, FieldResolver, Root } from 'type-graphql'
 import { isNull } from 'txstate-utils'
 import {
-  Role, RoleService, Site, SiteService, Template, CreateDataRuleInput,
+  Role, RoleService, Site, Template, CreateDataRuleInput,
   DataRule, DataRulePermissions, DataRuleResponse, UpdateDataRuleInput,
-  TemplateService, DataRuleService
+  TemplateService, DataRuleService, SiteServiceInternal
 } from '../internal.js'
 
 @Resolver(of => DataRule)
@@ -17,7 +17,7 @@ export class DataRuleResolver {
   @FieldResolver(returns => Site, { nullable: true, description: 'The site to which this rule applies. Null if it applies to all sites.' })
   async site (@Ctx() ctx: Context, @Root() datarule: DataRule) {
     if (isNull(datarule.siteId)) return null
-    else return await ctx.svc(SiteService).findById(datarule.siteId)
+    else return await ctx.svc(SiteServiceInternal).findById(datarule.siteId)
   }
 
   @FieldResolver(returns => Template, { nullable: true, description: 'The data template to which this rule applies. Null if it applies to all data templates.' })

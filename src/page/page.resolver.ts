@@ -4,10 +4,10 @@ import { DateTime } from 'luxon'
 import { get, isNull } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import {
-  Pagetree, Role, JsonData, Site, SiteService, Template, TemplateFilter,
+  Pagetree, Role, JsonData, Site, Template, TemplateFilter,
   User, UserService, ObjectVersion, VersionedService, Page, PageFilter, PagePermission, PagePermissions,
   PageResponse, PagesResponse, PageService, RoleService, TemplateService, UrlSafeString,
-  DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal, SchemaVersionScalar
+  DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal, SchemaVersionScalar, SiteServiceInternal
 } from '../internal.js'
 
 @Resolver(of => Page)
@@ -65,7 +65,7 @@ export class PageResolver {
 
   @FieldResolver(returns => Site)
   async site (@Ctx() ctx: Context, @Root() page: Page) {
-    return await ctx.svc(SiteService).findById(String(page.siteInternalId))
+    return await ctx.svc(SiteServiceInternal).findById(String(page.siteInternalId))
   }
 
   @FieldResolver(returns => JsonData, { description: 'This is a JSON object that represents everything the editor has created on this page. It is up to the rendering code of the page template and all the component templates to turn this data into an HTML page.' })

@@ -2,8 +2,8 @@ import { Context } from '@txstate-mws/graphql-server'
 import { isNull } from 'txstate-utils'
 import { Resolver, Ctx, FieldResolver, Root, Mutation, Arg } from 'type-graphql'
 import {
-  Role, RoleService, Site, SiteService, CreateSiteRuleInput, SiteRule,
-  SiteRulePermissions, SiteRuleResponse, UpdateSiteRuleInput, SiteRuleService
+  Role, RoleService, Site, CreateSiteRuleInput, SiteRule,
+  SiteRulePermissions, SiteRuleResponse, UpdateSiteRuleInput, SiteRuleService, SiteServiceInternal
 } from '../internal.js'
 
 @Resolver(of => SiteRule)
@@ -16,7 +16,7 @@ export class SiteRuleResolver {
   @FieldResolver(returns => Site, { nullable: true, description: 'The site targeted by this rule. Null means it targets all sites.' })
   async site (@Ctx() ctx: Context, @Root() siterule: SiteRule) {
     if (isNull(siterule.siteId)) return null
-    else return await ctx.svc(SiteService).findById(siterule.siteId)
+    else return await ctx.svc(SiteServiceInternal).findById(siterule.siteId)
   }
 
   @FieldResolver(returns => SiteRulePermissions, {

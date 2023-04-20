@@ -2,10 +2,11 @@ import { Context } from '@txstate-mws/graphql-server'
 import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'type-graphql'
 import { isNull, unique } from 'txstate-utils'
 import {
-  Data, DataFilter, DataService, Site, SiteService, Template, TemplateService,
+  Data, DataFilter, DataService, Site, Template, TemplateService,
   User, UserService, Role, DataFolder, DataFolderPermission, DataFolderPermissions,
   DataFolderService, CreateDataFolderInput, DataFolderResponse, DataFoldersResponse,
-  DataRuleService, RoleService, DataFolderFilter, DataRoot, DataRootService, UrlSafeString, DeleteStateRootDefault
+  DataRuleService, RoleService, DataFolderFilter, DataRoot, DataRootService, UrlSafeString,
+  DeleteStateRootDefault, SiteServiceInternal
 } from '../internal.js'
 
 @Resolver(of => DataFolder)
@@ -29,7 +30,7 @@ export class DataFolderResolver {
   @FieldResolver(returns => Site, { nullable: true, description: 'The site this folder belongs to. Null if it is a folder for global data.' })
   async site (@Ctx() ctx: Context, @Root() folder: DataFolder) {
     if (isNull(folder.siteId)) return null
-    else return await ctx.svc(SiteService).findById(folder.siteId)
+    else return await ctx.svc(SiteServiceInternal).findById(folder.siteId)
   }
 
   @FieldResolver(returns => DataRoot, { description: 'The data root this folder belongs to.' })

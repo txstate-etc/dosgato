@@ -3,10 +3,10 @@ import { DateTime } from 'luxon'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import { isNull } from 'txstate-utils'
 import {
-  AssetFolder, AssetFolderService, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
+  AssetFolder, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
-  RoleService, AssetResponse, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site, SiteService,
-  Pagetree, AssetFolderServiceInternal, DeleteStateRootDefault, FilenameSafeString, PagetreeServiceInternal
+  RoleService, AssetResponse, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site,
+  Pagetree, AssetFolderServiceInternal, DeleteStateRootDefault, FilenameSafeString, PagetreeServiceInternal, SiteServiceInternal, AssetServiceInternal
 } from '../internal.js'
 
 @Resolver(of => Asset)
@@ -24,25 +24,26 @@ export class AssetResolver {
 
   @FieldResolver(returns => AssetFolder, { description: 'Returns parent folder.' })
   async folder (@Ctx() ctx: Context, @Root() asset: Asset) {
-    return await ctx.svc(AssetFolderService).findByInternalId(asset.folderInternalId)
+    // intentionally skip authz for performance - if you can see an asset you can see its ancestors
+    return await ctx.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
   }
 
   @FieldResolver(returns => [AssetFolder], { description: 'Starts with the parent folder and proceeds upward. Last element will be the site\'s root folder.' })
   async ancestors (@Ctx() ctx: Context, @Root() asset: Asset) {
-    return await ctx.svc(AssetService).getAncestors(asset)
+    // intentionally skip authz for performance - if you can see an asset you can see its ancestors
+    return await ctx.svc(AssetServiceInternal).getAncestors(asset)
   }
 
   @FieldResolver(returns => Site)
   async site (@Ctx() ctx: Context, @Root() asset: Asset) {
-    const folder = await ctx.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
-    return await ctx.svc(SiteService).findById(folder!.siteId)
+    // intentionally skip authz for performance - if you can see an asset you can see its site
+    return await ctx.svc(SiteServiceInternal).findById(asset.siteId)
   }
 
   @FieldResolver(returns => Pagetree)
   async pagetree (@Ctx() ctx: Context, @Root() asset: Asset) {
-    const folder = await ctx.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
     // intentionally skip authz for performance - if you can see an asset you can see its pagetree
-    return await ctx.svc(PagetreeServiceInternal).findById(folder!.pagetreeId)
+    return await ctx.svc(PagetreeServiceInternal).findById(asset.pagetreeId)
   }
 
   @FieldResolver(returns => String)

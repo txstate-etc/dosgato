@@ -3,7 +3,7 @@ import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-
 import { filterAsync, intersect, isBlank, isNotNull, sortby } from 'txstate-utils'
 import {
   type Asset, type AssetFilter, getAssets, type AssetFolder, AssetFolderService, appendPath, getResizes,
-  SiteService, DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
+  DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
   deleteAsset, undeleteAsset, getResizesById, VersionedService, getDownloads, type DownloadsFilter,
   getResizeDownloads, type AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion,
   renameAsset, updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal, DeleteStateAll,
@@ -212,10 +212,6 @@ export class AssetService extends DosGatoService<Asset> {
 
   async getAncestors (asset: Asset) {
     return await this.svc(AssetFolderService).removeUnauthorized(await this.raw.getAncestors(asset))
-  }
-
-  async getSite (asset: Asset) {
-    return await this.svc(SiteService).removeUnauthorized(await this.raw.getSite(asset))
   }
 
   async getPath (asset: Asset) {
