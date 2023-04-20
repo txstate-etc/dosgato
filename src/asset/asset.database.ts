@@ -729,6 +729,7 @@ export async function createResizes (shasum: string) {
     const info = await fileHandler.sharp(shasum, { limitInputPixels: 50000 * 50000 }).metadata()
     const orientation = info.orientation ?? 1
     const animated = (info.pages ?? 0) > 0 && info.format !== 'heif'
+    const transparency = info.hasAlpha
     const img = fileHandler.sharp(shasum, { animated, limitInputPixels: 50000 * 50000 })
 
     let uselossless: boolean | undefined
@@ -765,7 +766,7 @@ export async function createResizes (shasum: string) {
         }
       }
 
-      const outputformat = uselossless || animated
+      const outputformat = uselossless || animated || transparency
         ? (animated ? 'gif' : 'png')
         : 'jpg'
       const outputmime = lookup(outputformat) as string
