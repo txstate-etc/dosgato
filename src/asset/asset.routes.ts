@@ -255,7 +255,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
 
     return await res.status(200).send(fileHandler.get(resize.checksum))
   })
-  app.get<{ Params: { assetid: string, width: string, filename: string }, Querystring: { admin?: 1 } }>(
+  app.get<{ Params: { assetid: string, width: string, '*': string }, Querystring: { admin?: 1 } }>(
     '/assets/:assetid/w/:width/*', async (req, res) => {
     const ctx = new Context(req)
     const asset = await ctx.svc(AssetServiceInternal).findById(req.params.assetid)
@@ -280,12 +280,13 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const etag = req.headers['if-none-match']
     const resizeEtag = `"${chosen.checksum}"`
     if (etag && resizeEtag === etag) return await res.status(304).send()
+    const hasChecksum = /^[\w-]{8,}\/.+/.test(req.params['*'])
 
     void res.header('Content-Type', chosen.mime)
     void res.header('Content-Disposition', 'inline')
     void res.header('Content-Length', chosen.size)
     void res.header('ETag', resizeEtag)
-    void res.header('Cache-Control', `public, max-age=${String(60 * 60)}`)
+    void res.header('Cache-Control', hasChecksum ? 'max-age=31536000, immutable' : `public, max-age=${String(5 * 60)}`)
 
     return await res.status(200).send(fileHandler.get(chosen.checksum))
   })
@@ -314,7 +315,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
 
     void res.header('Last-Modified', modifiedAt.toHTTP())
     void res.header('ETag', assetEtag)
-    void res.header('Cache-Control', 'no-cache')
+    void res.header('Cache-Control', `public, max-age=${String(5 * 60)}`)
     void res.header('Content-Type', asset.mime)
     void res.header('Content-Disposition', 'attachment;filename=' + filename)
     void res.header('Content-Length', asset.size)
