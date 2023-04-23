@@ -148,10 +148,6 @@ export async function createAssetRoutes (app: FastifyInstance) {
       if (!req.body.legacyId) throw new HttpError(400, 'Only assets being imported from another system may override created/modified attributes.')
       if (!await ctx.svc(GlobalRuleService).mayOverrideStamps()) throw new HttpError(403, 'You are not allowed to set created/modified stamps on new assets.')
     }
-    if (req.body?.legacyId) {
-      const asset = (await ctx.svc(AssetServiceInternal).find({ legacyIds: [req.body.legacyId] }))[0]
-      if (asset) req.body.legacyId = undefined // already been uploaded but we may be making a copy for a good reason
-    }
 
     const versionedService = ctx.svc(VersionedService)
 
