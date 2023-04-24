@@ -64,6 +64,12 @@ async function processFilters (filter?: DataFilter) {
       where.push('data.folderId IS NOT NULL')
     }
   }
+
+  if (filter.published) {
+    joins.set('tags', 'INNER JOIN tags ON tags.id=data.dataId')
+    where.push('tags.tag="published"')
+  }
+
   if (filter.folderIds?.length) {
     joins.set('datafolders', 'LEFT JOIN datafolders on data.folderId = datafolders.id')
     where.push(`datafolders.guid IN (${db.in(binds, filter.folderIds)})`)

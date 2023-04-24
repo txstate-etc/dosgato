@@ -88,6 +88,9 @@ export class DataFilter {
 
   @Field(type => [DataLinkInput], { nullable: true, description: 'Resolve data links preferring id and falling back to path.' })
   links?: DataLinkInput[]
+
+  @Field(type => Boolean, { nullable: true, description: 'Only return data entries that have been published.' })
+  published?: boolean
 }
 
 @InputType()
