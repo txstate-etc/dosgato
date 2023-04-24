@@ -83,6 +83,9 @@ export class DataFilter {
   @Field(type => [UrlSafePath], { nullable: true, description: 'Return data entries with the given paths.' })
   paths?: string[]
 
+  @Field(type => [UrlSafePath], { nullable: true, description: 'Return data entries beneath or at any of the given paths.' })
+  beneathOrAt?: string[]
+
   @Field(type => [DataLinkInput], { nullable: true, description: 'Resolve data links preferring id and falling back to path.' })
   links?: DataLinkInput[]
 }

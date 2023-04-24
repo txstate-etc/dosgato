@@ -109,56 +109,6 @@ export class DataServiceInternal extends BaseService {
   }
 
   async processFilters (filter?: DataFilter) {
-    if (filter?.paths?.length) {
-      const siteNames = filter.paths.map(p => p.split('/').filter(isNotBlank)[0]).filter(name => name !== 'global')
-      const sites = await this.svc(SiteServiceInternal).find({ names: siteNames })
-      const sitesByName = keyby(sites, 'name')
-      const longPaths = filter.paths.map(p => p.split('/').filter(isNotBlank)).filter(arr => arr.length > 1)
-      const possibleFolderPaths = longPaths.map(p => {
-        if (p.length === 2) return `/${p.join('/')}`
-        else return popPath(p.join('/'))
-      })
-      const foundFolders = await this.svc(DataFolderServiceInternal).find({ paths: possibleFolderPaths })
-      const foundFolderPaths = await mapConcurrent(foundFolders, async (f) => await this.svc(DataFolderServiceInternal).getPath(f))
-      const foldersByPath: Record<string, DataFolder[]> = {}
-      for (const [i, p] of foundFolderPaths.entries()) {
-        foldersByPath[p] ||= []
-        foldersByPath[p].push(foundFolders[i])
-      }
-      const promises: Promise<Data[]>[] = []
-      for (const path of filter.paths) {
-        const parts = path.split('/').filter(isNotBlank)
-        const filter: DataFilter = {}
-        if (parts.length === 1) {
-          filter.root = true
-          if (parts[0] === 'global') {
-            filter.global = true
-          } else {
-            filter.siteIds = [sitesByName[parts[0]].id]
-          }
-        } else if (parts.length === 2) {
-          const folders = foldersByPath[path]
-          if (folders?.length) {
-            filter.folderIds = [...folders.map(f => f.id)]
-          } else {
-            filter.root = true
-            filter.names = [parts[1]]
-          }
-        } else if (parts.length === 3) {
-          // it has a site, folder, and item
-          const folders = foldersByPath[popPath(path)]
-          if (folders?.length) {
-            filter.folderIds = [...folders.map(f => f.id)]
-            filter.names = [parts[2]]
-          } else continue // path does not exist
-        }
-        promises.push(this.find(filter))
-      }
-      const data = (await Promise.all(promises)).flat()
-      if (!data.length) filter.internalIds = [-1]
-      else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, data.map(d => d.internalId))
-    }
-
     if (filter?.links?.length) {
       const data = await this.findByIds(filter.links.map(l => l.id))
       const dataById = keyby(data, 'id')

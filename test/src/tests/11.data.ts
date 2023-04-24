@@ -213,7 +213,12 @@ describe('data', () => {
   it('should filter data entries by path', async () => {
     const { data } = await query('{ data(filter: { paths: ["/global/globalcolordata","/global","/site2/site2datafolder/red-content", "/site2/gold-content","/global/mauve-content", "/wrong/path"] }){ id name path } }')
     const dataNames = data.map(d => d.name)
-    expect(dataNames).to.include.members(['ebony-content', 'cottonwood-hall', 'red-content', 'gold-content', 'mauve-content'])
+    expect(dataNames).to.include.members(['red-content', 'gold-content', 'mauve-content'])
+  })
+  it('should filter data entries by beneathOrAt', async () => {
+    const { data } = await query('{ data(filter: { beneathOrAt: ["/global/globalcolordata","/site2/site2datafolder/red-content", "/site2/gold-content","/global/mauve-content", "/wrong/path"] }){ id name path } }')
+    const dataNames = data.map(d => d.name)
+    expect(dataNames).to.include.members(['ebony-content', 'sandstone-content', 'red-content', 'gold-content', 'mauve-content'])
   })
   it('should return only deleted data entries when the deleted=ONLY filter is used', async () => {
     const { data } = await query('{ data(filter: { deleteStates: [DELETED, ORPHAN_NOTDELETED, ORPHAN_MARKEDFORDELETE, ORPHAN_DELETED] }) {id name deleted site { deleted } folder { deleted } } }')

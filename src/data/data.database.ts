@@ -1,8 +1,30 @@
 import db from 'mysql2-async/db'
-import { isNotNull, sortby } from 'txstate-utils'
+import { isNotBlank, isNotNull, sortby } from 'txstate-utils'
 import { type Queryable } from 'mysql2-async'
 import { Data, type DataFilter, type VersionedService, type CreateDataInput, getDataIndexes, DataFolder, Site, type MoveDataTarget, DeleteState, processDeletedFilters } from '../internal.js'
 import { DateTime } from 'luxon'
+
+function pathsToTuples (paths: string[]) {
+  const sites = new Set<string | null>()
+  const folders: { site: string | null, folder: string }[] = []
+  const data: { site: string | null, folder: string | null, data: string }[] = []
+
+  for (const path of paths) {
+    const parts = path.split('/').filter(isNotBlank)
+    const siteName: string | undefined = parts[0]
+    const folderOrDataName: string | undefined = parts[1]
+    const dataName: string | undefined = parts[2]
+    if (!siteName) return { siteTuples: [], folderTuples: [], dataTuples: [] }
+    const resolvedSiteName = siteName === 'global' ? null : siteName
+    if (!folderOrDataName) sites.add(resolvedSiteName)
+    else if (!dataName) {
+      folders.push({ site: resolvedSiteName, folder: folderOrDataName })
+      data.push({ site: resolvedSiteName, folder: null, data: folderOrDataName })
+    } else data.push({ site: resolvedSiteName, folder: folderOrDataName, data: dataName })
+  }
+
+  return { siteTuples: Array.from(sites), folderTuples: folders.map(f => [f.site, f.folder]), dataTuples: data.map(d => [d.site, d.folder, d.data]) }
+}
 
 async function processFilters (filter?: DataFilter) {
   const { binds, where, joins } = processDeletedFilters(
@@ -43,7 +65,7 @@ async function processFilters (filter?: DataFilter) {
     }
   }
   if (filter.folderIds?.length) {
-    joins.set('datafolders', 'INNER JOIN datafolders on data.folderId = datafolders.id')
+    joins.set('datafolders', 'LEFT JOIN datafolders on data.folderId = datafolders.id')
     where.push(`datafolders.guid IN (${db.in(binds, filter.folderIds)})`)
   }
   if (filter.folderInternalIds?.length) {
@@ -51,6 +73,33 @@ async function processFilters (filter?: DataFilter) {
   }
   if (filter.siteIds?.length) {
     where.push(`data.siteId IN (${db.in(binds, filter.siteIds)})`)
+  }
+  if (filter.paths?.length) {
+    const { dataTuples } = pathsToTuples(filter.paths)
+    joins.set('datafolders', 'LEFT JOIN datafolders on data.folderId = datafolders.id')
+    const ors: string[] = []
+    for (const tuple of dataTuples) {
+      binds.push(...tuple)
+      ors.push('(sites.name <=> ? AND datafolders.name <=> ? AND data.name <=> ?)')
+    }
+    if (ors.length) where.push(ors.join(' OR '))
+    else where.push('1=0')
+  }
+  if (filter.beneathOrAt?.length) {
+    const { dataTuples, folderTuples, siteTuples } = pathsToTuples(filter.beneathOrAt)
+    joins.set('datafolders', 'LEFT JOIN datafolders on data.folderId = datafolders.id')
+    const ors: string[] = []
+    if (siteTuples.filter(isNotNull).length) ors.push(`sites.name IN (${db.in(binds, siteTuples)})`)
+    if (siteTuples.some(st => st == null)) ors.push('sites.name IS NULL')
+    for (const tuple of folderTuples) {
+      binds.push(...tuple)
+      ors.push('(sites.name <=> ? AND datafolders.name <=> ?)')
+    }
+    for (const tuple of dataTuples) {
+      binds.push(...tuple)
+      ors.push('(sites.name <=> ? AND datafolders.name <=> ? AND data.name <=> ?)')
+    }
+    if (ors.length) where.push(ors.join(' OR '))
   }
   return { where, binds, joins }
 }
