@@ -71,6 +71,9 @@ export class DataFolderFilter {
   @Field(type => [UrlSafePath], { nullable: true, description: 'Return folders with the given paths.' })
   paths?: string[]
 
+  @Field(type => [UrlSafePath], { nullable: true, description: 'Return folders beneath or at the given paths.' })
+  beneathOrAt?: string[]
+
   names?: string[]
 }
 
@@ -126,6 +129,9 @@ registerEnumType(DataFolderPermission, {
 export class DataFolderLinkInput {
   @Field(type => ID)
   id!: string
+
+  @Field(type => ID)
+  templateKey!: string
 
   @Field(type => ID, { nullable: true })
   siteId!: string

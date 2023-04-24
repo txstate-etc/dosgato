@@ -173,6 +173,9 @@ export class DataLinkInput {
   @Field(type => ID)
   id!: string
 
+  @Field(type => ID)
+  templateKey!: string
+
   @Field(type => ID, { nullable: true })
   siteId!: string
 

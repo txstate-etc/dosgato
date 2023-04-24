@@ -250,7 +250,7 @@ describe('data mutations', () => {
     expect(success).to.be.true
     expect(data.name).to.equal('site-building-1')
     expect(data.data.floors).to.equal(2)
-    const { data: siteData } = await query('{ data(filter: { siteIds: [1] }) { name } }')
+    const { data: siteData } = await query('{ data(filter: { siteIds: ["1"] }) { name } }')
     expect(siteData).to.deep.include({ name: 'site-building-1' })
   })
   it('should create a data entry in a folder', async () => {

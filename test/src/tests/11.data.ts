@@ -163,7 +163,6 @@ describe('datafolder', () => {
     const { datafolders } = await query('{ datafolders(filter: { paths: ["/site2/site2datafolder", "/site5", "/global/globaldatafolder", "/site7", "/wrong/path"]}) { id name path } }')
     const folderNames = datafolders.map(f => f.name)
     expect(folderNames).to.include('site2datafolder')
-    expect(folderNames).to.include('site5datafolder2')
     expect(folderNames).to.include('globaldatafolder')
   })
 })

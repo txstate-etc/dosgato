@@ -2,6 +2,26 @@ import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { DataFolder, type DataFolderFilter, Site, DeleteState, type VersionedService, processDeletedFilters } from '../internal.js'
+import { isNotBlank, isNotNull } from 'txstate-utils'
+
+function pathsToTuples (paths: string[]) {
+  const sites = new Set<string | null>()
+  const folders: { site: string | null, folder: string }[] = []
+
+  for (const path of paths) {
+    const parts = path.split('/').filter(isNotBlank)
+    const siteName: string | undefined = parts[0]
+    const folderName: string | undefined = parts[1]
+    if (!siteName) return { siteTuples: [], folderTuples: [], dataTuples: [] }
+    const resolvedSiteName = siteName === 'global' ? null : siteName
+    if (!folderName) sites.add(resolvedSiteName)
+    else {
+      folders.push({ site: resolvedSiteName, folder: folderName })
+    }
+  }
+
+  return { siteTuples: Array.from(sites), folderTuples: folders.map(f => [f.site, f.folder]) }
+}
 
 export async function getDataFolders (filter?: DataFolderFilter) {
   const { binds, where, joins } = processDeletedFilters(
@@ -33,6 +53,27 @@ export async function getDataFolders (filter?: DataFolderFilter) {
     }
     if (filter.names?.length) {
       where.push(`datafolders.name IN (${db.in(binds, filter.names)})`)
+    }
+    if (filter.paths?.length) {
+      const { folderTuples } = pathsToTuples(filter.paths)
+      const ors: string[] = []
+      for (const tuple of folderTuples) {
+        binds.push(...tuple)
+        ors.push('(sites.name <=> ? AND datafolders.name <=> ?)')
+      }
+      if (ors.length) where.push(ors.join(' OR '))
+      else where.push('1=0')
+    }
+    if (filter.beneathOrAt?.length) {
+      const { folderTuples, siteTuples } = pathsToTuples(filter.beneathOrAt)
+      const ors: string[] = []
+      if (siteTuples.filter(isNotNull).length) ors.push(`sites.name IN (${db.in(binds, siteTuples)})`)
+      if (siteTuples.some(st => st == null)) ors.push('sites.name IS NULL')
+      for (const tuple of folderTuples) {
+        binds.push(...tuple)
+        ors.push('(sites.name <=> ? AND datafolders.name <=> ?)')
+      }
+      if (ors.length) where.push(ors.join(' OR '))
     }
   }
   if (!where.length) {

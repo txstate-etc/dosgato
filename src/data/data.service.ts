@@ -114,12 +114,14 @@ export class DataServiceInternal extends BaseService {
       const dataById = keyby(data, 'id')
       const notFoundById = filter.links.filter(l => !dataById[l.id])
       if (notFoundById.length) {
-        const pathDataEntries = await this.find({ paths: notFoundById.map(l => l.path) })
-        const dataByPath: Record<string, Data> = {}
+        const pathDataEntries = await this.find({ paths: notFoundById.map(l => l.path), templateKeys: notFoundById.map(l => l.templateKey) })
+        const dataByPathAndTemplateKey: Record<string, Record<string, Data>> = {}
         await Promise.all(pathDataEntries.map(async d => {
-          dataByPath[await this.getPath(d)] = d
+          const path = await this.getPath(d)
+          dataByPathAndTemplateKey[path] ??= {}
+          dataByPathAndTemplateKey[path][d.templateKey] = d
         }))
-        data.push(...notFoundById.map(link => dataByPath[link.path]).filter(isNotNull))
+        data.push(...notFoundById.map(link => dataByPathAndTemplateKey[link.path][link.templateKey]).filter(isNotNull))
       }
       if (!data.length) filter.internalIds = [-1]
       else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, data.map(d => d.internalId))

@@ -80,36 +80,24 @@ export class DataFolderServiceInternal extends BaseService {
   }
 
   async processFilters (filter?: DataFolderFilter) {
-    if (filter?.paths) {
-      const siteNames = filter.paths.map(p => p.split('/').filter(isNotBlank)[0]).filter(name => name !== 'global')
-      const sites = await this.svc(SiteServiceInternal).find({ names: siteNames })
-      const sitesByName = keyby(sites, 'name')
-      const promises: Promise<DataFolder[]>[] = []
-      for (const path of filter.paths) {
-        const parts = path.split('/').filter(isNotBlank)
-        if (parts.length === 2) {
-          if (parts[0] === 'global') {
-            promises.push(this.find({ global: true, names: [parts[1]] }))
-          } else {
-            if (sitesByName[parts[0]]) {
-              promises.push(this.find({ names: [parts[1]], siteIds: [sitesByName[parts[0]].id] }))
-            }
-          }
-        } else if (parts.length === 1) {
-          if (parts[0] === 'global') {
-            promises.push(this.find({ global: true }))
-          } else {
-            if (sitesByName[parts[0]]) {
-              promises.push(this.find({ siteIds: [sitesByName[parts[0]].id] }))
-            }
-          }
-        }
+    if (filter?.links?.length) {
+      const folders = await this.findByIds(filter.links.map(l => l.id))
+      const foldersById = keyby(folders, 'id')
+      const notFoundById = filter.links.filter(l => !foldersById[l.id])
+      if (notFoundById.length) {
+        const pathFolders = await this.find({ paths: notFoundById.map(l => l.path), templateKeys: notFoundById.map(l => l.templateKey) })
+        const folderByPathAndTemplateKey: Record<string, Record<string, DataFolder>> = {}
+        await Promise.all(pathFolders.map(async f => {
+          const path = await this.getPath(f)
+          folderByPathAndTemplateKey[path] ??= {}
+          folderByPathAndTemplateKey[path][f.templateKey] = f
+        }))
+        folders.push(...notFoundById.map(link => folderByPathAndTemplateKey[link.path][link.templateKey]).filter(isNotNull))
       }
-      const folders = (await Promise.all(promises)).flat()
       if (!folders.length) filter.internalIds = [-1]
       else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, folders.map(f => f.internalId))
     }
-    return filter
+    return filter ?? {} as DataFolderFilter
   }
 }
 
