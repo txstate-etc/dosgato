@@ -3,12 +3,13 @@ import { Context } from '@txstate-mws/graphql-server'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { HttpError } from 'fastify-txstate'
 import db from 'mysql2-async/db'
-import { groupby, isNotBlank, pick } from 'txstate-utils'
+import { type Readable } from 'node:stream'
+import { groupby, isNotBlank, pick, stringify } from 'txstate-utils'
 import {
   createPage, type CreatePageInput, createPagetree, createSite, DeleteState, getEnabledUser,
   getPageIndexes, GlobalRuleService, logMutation, makeSafe, numerate, Page, type PageRule,
   PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, type PagetreeType,
-  SiteService, SiteServiceInternal, templateRegistry, VersionedService
+  SiteService, SiteServiceInternal, templateRegistry, VersionedService, tarGzStream
 } from '../internal.js'
 
 export interface PageExport {
@@ -218,32 +219,41 @@ export async function createPageRoutes (app: FastifyInstance) {
     return { success: true, id: page.id, linkId: page.linkId, messages: response.messages }
   })
 
-  app.get<{ Params: { id: string } }>('/pages/:id', async (req, res) => {
-    const ctx = new Context(req)
-    const page = await ctx.svc(PageServiceInternal).findById(req.params.id)
-    if (!page) throw new HttpError(404)
-
-    const [path, data] = await Promise.all([
-      ctx.svc(PageServiceInternal).getPath(page),
-      ctx.svc(VersionedService).get(page.dataId)
-    ])
-
-    if (!data) throw new HttpError(500, 'Page found but data was missing.')
-
-    void res.header('Cache-Control', 'no-cache')
-    void res.header('Content-Type', 'application/json')
-    void res.header('Content-Disposition', 'attachment;filename=' + path.split('/').filter(isNotBlank).join('.') + '.json')
-    data.data.legacyId = undefined
-    return {
+  async function exportRecursive (ctx: Context, stream: Readable, page: Page, pagePath: string, recurse: boolean) {
+    const data = await ctx.svc(VersionedService).get(page.dataId)
+    if (!data) throw new HttpError(500, `Page ${page.name} is corrupted and cannot be exported.`)
+    const pageRecord = {
       name: page.name,
       linkId: page.linkId,
-      data: data.data,
+      data: { ...data.data, legacyId: undefined },
       version: data.version,
       createdBy: data.createdBy,
       createdAt: data.created,
       modifiedBy: data.modifiedBy,
       modifiedAt: data.modified
     }
+    stream.push({ fileName: pagePath.split('/').filter(isNotBlank).join('.') + '.json', content: Buffer.from(stringify(pageRecord), 'utf8') })
+    if (recurse) {
+      const children = await ctx.svc(PageService).getPageChildren(page)
+      for (const child of children) await exportRecursive(ctx, stream, child, pagePath + '/' + child.name, recurse)
+    }
+  }
+
+  app.get<{ Params: { id: string }, Querystring: { withSubpages?: boolean } }>('/pages/:id', async (req, res) => {
+    const ctx = new Context(req)
+    await getEnabledUser(ctx)
+    const page = await ctx.svc(PageService).findById(req.params.id)
+    if (!page) throw new HttpError(404)
+
+    const path = await ctx.svc(PageServiceInternal).getPath(page)
+
+    void res.header('Cache-Control', 'no-cache')
+    void res.header('Content-Type', 'application/json')
+    void res.header('Access-Control-Expose-Headers', 'Content-Disposition')
+    void res.header('Content-Disposition', 'attachment;filename=' + path.split('/').filter(isNotBlank).join('.') + '.tar.gz')
+    const { input, output } = tarGzStream()
+    exportRecursive(ctx, input, page, path, !!req.query.withSubpages).then(() => input.push(null)).catch(e => input.destroy(e))
+    return output
   })
   app.get('/pages/list', async (req, res) => {
     const ctx = new Context(req)

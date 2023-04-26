@@ -10,6 +10,7 @@ export * from './scheduler.js'
 export * from './mutationlogger.js'
 export * from './dates.js'
 export * from './login.js'
+export * from './zip.js'
 
 export function normalizePath (path: string) {
   path = path.trim().toLocaleLowerCase()
