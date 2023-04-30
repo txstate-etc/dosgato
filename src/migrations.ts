@@ -183,7 +183,7 @@ const dgMigrations: DBMigration[] = [
     }
   },
   {
-    id: 202302261190000,
+    id: 20230226190000,
     description: 'add table to keep track of resizes we have already created in a previous migration',
     run: async db => {
       await db.execute(`
@@ -263,6 +263,14 @@ const dgMigrations: DBMigration[] = [
         ADD CONSTRAINT FK_comments_sites FOREIGN KEY (siteId) REFERENCES sites(id),
         ADD CONSTRAINT FK_comments_users FOREIGN KEY (createdBy) REFERENCES users(id)
       `)
+    }
+  },
+  {
+    id: 20230430120000,
+    description: 'allow versions to be "marked" by editors',
+    run: async db => {
+      await db.execute('ALTER TABLE versions ADD COLUMN markedAt DATETIME')
+      await db.execute('ALTER TABLE storage ADD COLUMN markedAt DATETIME')
     }
   }
 ]

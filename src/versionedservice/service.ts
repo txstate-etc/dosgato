@@ -28,7 +28,7 @@ const metaLoader = new ManyJoinedLoader({
         if (latests.length) {
           const binds: string[] = []
           const latestrows = await db.getall<VersionedCommon>(`
-            SELECT s.id, s.type, s.version, s.created, s.createdBy, s.modified, s.modifiedBy, s.comment
+            SELECT s.id, s.type, s.version, s.created, s.createdBy, s.modified, s.modifiedBy, s.comment, s.markedAt
             FROM storage s
             WHERE s.id IN (${db.in(binds, latests.map(p => p.id))})
           `, binds)
@@ -38,9 +38,9 @@ const metaLoader = new ManyJoinedLoader({
       (async () => {
         if (versions.length) {
           const binds: (string | number)[] = []
-          const versionsrows = await db.getall<VersionedCommon & { selectedVersion?: number, selectedModified?: Date, selectedModifier?: string, selectedComment: string }>(`
-            SELECT s.id, s.type, s.version, s.created, s.createdBy, s.modified, s.modifiedBy, s.comment,
-              v.version as selectedVersion, v.date as selectedModified, v.user as selectedModifier, v.comment as selectedComment
+          const versionsrows = await db.getall<VersionedCommon & { selectedVersion?: number, selectedModified?: Date, selectedModifier?: string, selectedMarkedAt?: Date, selectedComment: string }>(`
+            SELECT s.id, s.type, s.version, s.created, s.createdBy, s.modified, s.modifiedBy, s.comment, s.markedAt,
+              v.version as selectedVersion, v.date as selectedModified, v.user as selectedModifier, v.comment as selectedComment, v.markedAt as selectedMarkedAt
             FROM storage s
             LEFT JOIN versions v ON v.id = s.id
             WHERE
@@ -55,6 +55,7 @@ const metaLoader = new ManyJoinedLoader({
               version: r.selectedVersion ?? r.version,
               modified: r.selectedModified ?? r.modified,
               modifiedBy: r.selectedModifier ?? r.modifiedBy,
+              markedAt: r.selectedVersion ? r.selectedMarkedAt : r.markedAt,
               comment: r.selectedVersion != null ? r.selectedComment : r.comment
             }
           })))
@@ -79,6 +80,14 @@ const currentTagsLoader = new OneToManyLoader({
     return await db.getall<Tag>(`SELECT t.* FROM tags t INNER JOIN storage s ON s.id=t.id AND s.version=t.version WHERE s.id IN (${db.in(binds, ids)})`, binds)
   },
   extractKey: tag => tag.id
+})
+
+const tagsLoader = new OneToManyLoader({
+  fetch: async (pairs: { id: string, version: number }[]) => {
+    const binds: string[] = []
+    return await db.getall<Tag>(`SELECT t.* FROM tags t WHERE (t.id, t.version) IN (${db.in(binds, pairs.map(p => [p.id, p.version]))})`, binds)
+  },
+  extractKey: tag => ({ id: tag.id, version: tag.version })
 })
 
 const versionsByNumberLoader = new OneToManyLoader({
@@ -397,9 +406,9 @@ export class VersionedService extends BaseService {
         UPDATE storage SET modified=?, version=?, data=?, modifiedBy=?, comment=? WHERE id=?
       `, [date ?? new Date(), newversion, JSON.stringify(data), user ?? '', comment ?? '', current.id])
       await db.insert(`
-        INSERT INTO versions (id, version, date, user, comment, \`undo\`)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [current.id, current.version, current.modified, current.modifiedBy, current.comment, JSON.stringify(undo)])
+        INSERT INTO versions (id, version, date, markedAt, user, comment, \`undo\`)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `, [current.id, current.version, current.modified, current.markedAt ?? null, current.modifiedBy, current.comment, JSON.stringify(undo)])
       await this._setIndexes(current.id, newversion, indexes, db)
       this.loaders.get(storageLoader).clear(id)
     }
@@ -467,6 +476,15 @@ export class VersionedService extends BaseService {
   }
 
   /**
+   * Get a list of tags that apply to the given version
+   *
+   * Does not include 'latest'.
+   */
+  async getTags (id: string, version: number) {
+    return await this.loaders.get(tagsLoader).load({ id, version })
+  }
+
+  /**
    * Get the set of tags that apply to the latest version of the given object, not
    * including 'latest'. For instance, if the latest version happens to be tagged as
    * 'published', then this will return [{ id, version, tag: 'published', user, date }]
@@ -506,7 +524,7 @@ export class VersionedService extends BaseService {
    */
   async listVersions (id: string) {
     const versions = await db.getall(`
-      SELECT v.version, v.date, v.user, v.comment, t.tag
+      SELECT v.version, v.date, v.user, v.comment, t.tag, v.markedAt
       FROM versions v LEFT JOIN tags t ON t.id=v.id AND t.version=v.version
       WHERE v.id=?
       ORDER BY v.version DESC
@@ -517,6 +535,11 @@ export class VersionedService extends BaseService {
       if (tag) versionMap.get(version)!.tags.push(tag)
     }
     return Array.from(versionMap.values())
+  }
+
+  async toggleMarked (id: string, version: number) {
+    await db.update('UPDATE storage SET markedAt=IF(markedAt IS NULL, NOW(), NULL) WHERE id=? AND version=?', [id, version])
+    await db.update('UPDATE versions SET markedAt=IF(markedAt IS NULL, NOW(), NULL) WHERE id=? AND version=?', [id, version])
   }
 
   /**

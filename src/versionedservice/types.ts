@@ -6,6 +6,7 @@ export interface VersionedCommon {
   createdBy: string
   modified: Date
   modifiedBy: string
+  markedAt?: Date
   comment: string
 }
 export interface Versioned<DataType = any> extends VersionedCommon {
@@ -21,6 +22,7 @@ interface VersionCommon {
   date: Date
   user: string
   comment: string
+  markedAt?: Date
 }
 
 export interface VersionStorage extends VersionCommon {
