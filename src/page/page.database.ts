@@ -274,31 +274,34 @@ export async function createVersionedPage (versionedService: VersionedService, u
 }
 
 export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page | undefined, name: string, data: PageData & { legacyId?: string }, extra?: CreatePageExtras) {
-  let linkId = extra?.linkId ?? nanoid(10)
   return await db.transaction(async db => {
-    [parent, aboveTarget] = await refetch(db, parent, aboveTarget)
-    if (aboveTarget && parent.internalId !== aboveTarget.parentInternalId) {
-      throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
-    }
-    const displayOrder = await handleDisplayOrder(db, parent, aboveTarget)
-    const dataId = await createVersionedPage(versionedService, userId, data, db, extra)
-    async function insert () {
-      const newInternalId = await db.insert(`
-        INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId, siteId, title, templateKey)
-        VALUES (?,?,?,?,?,?,?,?,?)
-      `, [name, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder, parent.pagetreeId, dataId, linkId, parent.siteInternalId, data.title, data.templateKey])
-      // return the newly created page
-      return new Page(await db.getrow('SELECT * FROM pages WHERE id=?', [newInternalId]))
-    }
-    try {
-      return await insert()
-    } catch (e: any) {
-      if (e.code !== 1062) throw e
-      // if we got a duplicate key error, try again with a new linkId
-      linkId = nanoid(10)
-      return await insert()
-    }
+    return await createPageInTransaction(db, versionedService, userId, parent, aboveTarget, name, data, extra)
   }, { retries: 2 })
+}
+
+export async function createPageInTransaction (db: Queryable, versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page | undefined, name: string, data: PageData & { legacyId?: string }, extra?: CreatePageExtras) {
+  let linkId = extra?.linkId ?? nanoid(10)
+  ;[parent, aboveTarget] = await refetch(db, parent, aboveTarget)
+  if (aboveTarget && parent.internalId !== aboveTarget.parentInternalId) {
+    throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
+  }
+  const displayOrder = await handleDisplayOrder(db, parent, aboveTarget)
+  const dataId = await createVersionedPage(versionedService, userId, data, db, extra)
+  async function insert () {
+    const newInternalId = await db.insert(`
+      INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId, siteId, title, templateKey)
+      VALUES (?,?,?,?,?,?,?,?,?)
+    `, [name, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder, parent.pagetreeId, dataId, linkId, parent.siteInternalId, data.title, data.templateKey])
+    return newInternalId
+  }
+  try {
+    return await insert()
+  } catch (e: any) {
+    if (e.code !== 1062) throw e
+    // if we got a duplicate key error, try again with a new linkId
+    linkId = nanoid(10)
+    return await insert()
+  }
 }
 
 export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page) {

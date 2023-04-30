@@ -522,8 +522,9 @@ export class PageService extends DosGatoService<Page> {
       response.addMessage(`Page name: ${name} already exists in this location.`, 'name')
     } else response.addMessage(`Page name: ${name} is available.`, 'name', MutationMessageType.success)
     if (!validateOnly && response.success) {
-      response.page = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data, extra)
+      const pageInternalId = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data, extra)
       this.loaders.clear()
+      response.page = (await this.raw.findByInternalId(pageInternalId))
     }
     return response
   }

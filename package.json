@@ -22,8 +22,7 @@
     "nanoid": "^4.0.0",
     "probe-image-size": "^7.2.3",
     "sharp": ">=0.31.0",
-    "tar-stream": "^3.0.0",
-    "txstate-utils": "^1.7.16",
+    "txstate-utils": "^1.8.9",
     "type-graphql": "^1.1.1"
   },
   "devDependencies": {
@@ -32,7 +31,6 @@
     "@types/mime-types": "^2.1.1",
     "@types/node": "^18.7.14",
     "@types/probe-image-size": "^7.2.0",
-    "@types/tar-stream": "^2.2.2",
     "eslint-config-standard-with-typescript": "^34.0.0",
     "nodemon": "^2.0.12",
     "ts-node": "^10.1.0",

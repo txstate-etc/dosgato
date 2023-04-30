@@ -1,50 +1,67 @@
-import { Duplex, PassThrough, Readable, Transform, Writable } from 'stream'
+import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
-import { extract, pack } from 'tar-stream'
+import { Queue } from 'txstate-utils'
 import { createGunzip, createGzip } from 'zlib'
 
-export interface GZipFile {
-  fileName: string
-  content: Buffer
+export function jsonlGzStream () {
+  const gzip = createGzip()
+  return {
+    push: async function (obj: any) {
+      const keepgoing = gzip.write(Buffer.from(JSON.stringify(obj) + '\n', 'utf8'))
+      if (!keepgoing) await new Promise(resolve => gzip.once('drain', resolve))
+    },
+    done: () => {
+      gzip.end()
+    },
+    output: gzip,
+    error: (e: any) => {
+      gzip.destroy(e)
+    }
+  }
 }
 
-export function readTarGz (inputStream: Readable) {
+export function gzipJsonLToJSON (input: Readable) {
   const gunzip = createGunzip()
-  const tarExtractor = extract()
   const output = new Readable({ objectMode: true })
-  tarExtractor.on('entry', async (header, stream, next) => {
-    if (header.type !== 'file') return
-    const bufs: Buffer[] = []
-    for await (const chunk of stream) bufs.push(chunk)
-    const buf = Buffer.concat(bufs)
-    output.push({ fileName: header.name, content: buf })
-    next()
-  })
-  pipeline(inputStream, gunzip, tarExtractor).then(() => output.push(null)).catch(e => output.destroy(e))
-  return output
-}
-
-export function tarGzStream () {
-  const output = new Transform({
-    transform (data, encoding, next) {
-      next(undefined, data)
+  const backlog = new Queue()
+  output._read = () => { output.emit('read') }
+  let buffer = ''
+  gunzip.on('data', (chunk: Buffer) => {
+    if (output.destroyed) return
+    buffer += chunk.toString('utf8')
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    for (const line of lines) {
+      try {
+        if (line.trim().length) backlog.enqueue(JSON.parse(line))
+      } catch (e: any) {
+        if (!input.destroyed) input.destroy(e)
+        output.destroy(e)
+      }
+    }
+    let keepgoing = true
+    while (backlog.size && keepgoing) {
+      keepgoing = output.push(backlog.dequeue())
+    }
+    if (backlog.size) {
+      gunzip.pause()
+      const onresume = () => {
+        keepgoing = true
+        while (backlog.size && keepgoing) keepgoing = output.push(backlog.dequeue())
+        if (backlog.size) output.once('read', onresume)
+        else gunzip.resume()
+      }
+      output.once('read', onresume)
     }
   })
-  const gzip = createGzip()
-  gzip.on('error', e => output.destroy(e))
-  const tarPacker = pack()
-  tarPacker.on('error', e => gzip.destroy(e))
-  const input = new Readable({
-    objectMode: true
+  gunzip.on('end', () => {
+    try {
+      if (buffer.trim().length) output.push(JSON.parse(buffer))
+    } catch (e: any) {
+      output.destroy(e)
+    }
+    output.push(null)
   })
-  input._read = () => {}
-  input.on('data', (data: { fileName: string, content: Buffer }) => {
-    tarPacker.entry({ name: data.fileName, type: 'file', size: data.content.length }, data.content)
-  })
-  input.on('error', e => tarPacker.destroy(e))
-  input.on('close', () => {
-    tarPacker.finalize()
-  })
-  tarPacker.pipe(gzip).pipe(output)
-  return { input, output }
+  pipeline(input, gunzip).catch(e => { output.destroy(e) })
+  return output
 }

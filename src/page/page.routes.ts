@@ -3,17 +3,18 @@ import { Context } from '@txstate-mws/graphql-server'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { HttpError } from 'fastify-txstate'
 import db from 'mysql2-async/db'
-import { type Readable } from 'node:stream'
-import { groupby, isNotBlank, pick, stringify } from 'txstate-utils'
+import { groupby, isNotBlank, pick } from 'txstate-utils'
 import {
   createPage, type CreatePageInput, createPagetree, createSite, DeleteState, getEnabledUser,
   getPageIndexes, GlobalRuleService, logMutation, makeSafe, numerate, Page, type PageRule,
   PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, type PagetreeType,
-  SiteService, SiteServiceInternal, templateRegistry, VersionedService, tarGzStream
+  SiteService, SiteServiceInternal, templateRegistry, VersionedService,
+  createPageInTransaction, getPages, jsonlGzStream, gzipJsonLToJSON
 } from '../internal.js'
 
 export interface PageExport {
   name: string
+  path: string
   linkId: string
   data: PageData & { legacyId?: string }
   version: number
@@ -82,6 +83,29 @@ async function handleUpload (req: FastifyRequest) {
   }
   if (!pageRecord) throw new HttpError(400, 'Must upload a file to import.')
   return { pageRecord, body }
+}
+
+async function handleUploads (req: FastifyRequest, handleFile: (pageRecord: PageExport) => Promise<void>) {
+  for await (const part of req.files()) {
+    if (part.mimetype === 'application/json') {
+      try {
+        const pageRecord = JSON.parse((await part.toBuffer()).toString('utf8')) as PageExport
+        if (pageRecord.name && pageRecord.linkId && pageRecord.data.templateKey) await handleFile(pageRecord)
+      } catch (e: any) {
+        throw new HttpError(400, 'At least one uploaded JSON file was not a Dos Gato export file.')
+      }
+    } else if (part.mimetype === 'application/x-gzip') {
+      const stream = gzipJsonLToJSON(part.file)
+      for await (const pageRecord of stream) {
+        try {
+          if (pageRecord.name && pageRecord.linkId && pageRecord.data.templateKey) await handleFile(pageRecord)
+          else throw new Error()
+        } catch (e: any) {
+          throw new HttpError(400, 'At least one file in the uploaded archive was not a Dos Gato export file.')
+        }
+      }
+    }
+  }
 }
 
 export async function createPageRoutes (app: FastifyInstance) {
@@ -174,6 +198,61 @@ export async function createPageRoutes (app: FastifyInstance) {
     const ctx = new Context(req)
     const svcPageInternal = ctx.svc(PageServiceInternal)
     const svcPage = ctx.svc(PageService)
+    const versionedService = ctx.svc(VersionedService)
+    const user = await getEnabledUser(ctx) // throws if not authenticated
+    const parent = await svcPageInternal.findById(req.params.parentPageId)
+    if (!parent) throw new HttpError(404, 'Specified page does not exist.')
+    if (!(await svcPage.mayCreate(parent))) throw new HttpError(403, `Current user is not permitted to import pages beneath ${String(parent.name)}.`)
+
+    const above = req.body?.abovePage ? await svcPageInternal.findById(req.body?.abovePage) : undefined
+    const pages = await svcPageInternal.getPageChildren(parent, false)
+    const nameSet = new Set(pages.map(p => p.name))
+    const pagetree = (await ctx.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
+    const site = (await ctx.svc(SiteServiceInternal).findById(pagetree.siteId))!
+    let first = true
+    let firstInternalId: number | undefined
+    const parentsByPath: Record<string, Page> = {}
+    await db.transaction(async db => {
+      await handleUploads(req, async (pageRecord) => {
+        delete pageRecord.data.legacyId
+        let newPageName = makeSafe(pageRecord.name)
+        let actualParent = parent
+        const placeAbove = first ? above : undefined
+        const pathparts = pageRecord.path.split('/')
+        if (first) while (nameSet.has(newPageName)) newPageName = numerate(newPageName)
+        else {
+          actualParent = parentsByPath[pathparts.slice(0, -1).join('.')]
+        }
+        if (!actualParent) throw new HttpError(400, 'Uploaded archive contains page exports in an inconsistent order or with missing parent pages.')
+        const response = await svcPage.validatePageData(pageRecord.data, site, pagetree, parent, newPageName)
+        if (!response.success) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
+        try {
+          await svcPage.validatePageTemplates(pageRecord.data, { parent })
+        } catch (e: any) {
+          throw new HttpError(403, e.message)
+        }
+        const pageInternalId = await createPageInTransaction(db, versionedService, user.id, actualParent, placeAbove, newPageName, pageRecord.data, {
+          ...pick(pageRecord, 'createdBy', 'createdAt', 'modifiedBy', 'modifiedAt', 'linkId')
+        })
+        const [page] = await getPages({ internalIds: [pageInternalId] }, db)
+        parentsByPath[pathparts.join('.')] = page
+        if (first) firstInternalId = pageInternalId
+        first = false
+      })
+    })
+
+    if (!firstInternalId) throw new HttpError(400, 'No valid page exports were uploaded.')
+    const page = (await svcPageInternal.findByInternalId(firstInternalId))!
+    logMutation(new Date().getTime() - startTime.getTime(), 'importPage', 'mutation uploadImportPage (RESTful)', user.id, { parentId: parent.id }, { success: true, pagesImported: Object.values(parentsByPath).map(p => p.id) }, []).catch(console.error)
+    return { success: true, id: page.id, linkId: page.linkId }
+  })
+
+  app.post<{ Params: { parentPageId: string }, Body?: CreatePageInput }>('/pages/migrate/:parentPageId', async (req, res) => {
+    if (!req.isMultipart()) throw new HttpError(400, 'Page import must be multipart.')
+    const startTime = new Date()
+    const ctx = new Context(req)
+    const svcPageInternal = ctx.svc(PageServiceInternal)
+    const svcPage = ctx.svc(PageService)
     const user = await getEnabledUser(ctx) // throws if not authenticated
     const parent = await svcPageInternal.findById(req.params.parentPageId)
     if (!parent) throw new HttpError(404, 'Specified page does not exist.')
@@ -211,19 +290,21 @@ export async function createPageRoutes (app: FastifyInstance) {
     }
     if (!response.success && !pageRecord.data.legacyId) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
 
-    const page = await createPage(ctx.svc(VersionedService), user.id, parent, above, newPageName, pageRecord.data, {
+    const pageInternalId = await createPage(ctx.svc(VersionedService), user.id, parent, above, newPageName, pageRecord.data, {
       ...body,
       ...pick(pageRecord, 'createdBy', 'createdAt', 'modifiedBy', 'modifiedAt', 'linkId')
     })
-    logMutation(new Date().getTime() - startTime.getTime(), 'importPage', 'mutation uploadImportPage (RESTful)', user.id, { parentId: parent.id, name: newPageName }, { success: true, id: page.id }, []).catch(console.error)
+    const page = (await svcPageInternal.findByInternalId(pageInternalId))!
+    logMutation(new Date().getTime() - startTime.getTime(), 'importPage', 'mutation uploadMigratePage (RESTful)', user.id, { parentId: parent.id, name: newPageName }, { success: true, id: page.id }, []).catch(console.error)
     return { success: true, id: page.id, linkId: page.linkId, messages: response.messages }
   })
 
-  async function exportRecursive (ctx: Context, stream: Readable, page: Page, pagePath: string, recurse: boolean) {
+  async function exportRecursive (ctx: Context, push: (obj: any) => Promise<void>, page: Page, pagePath: string, recurse: boolean, counter = { count: 0 }) {
     const data = await ctx.svc(VersionedService).get(page.dataId)
     if (!data) throw new HttpError(500, `Page ${page.name} is corrupted and cannot be exported.`)
     const pageRecord = {
       name: page.name,
+      path: pagePath,
       linkId: page.linkId,
       data: { ...data.data, legacyId: undefined },
       version: data.version,
@@ -232,10 +313,11 @@ export async function createPageRoutes (app: FastifyInstance) {
       modifiedBy: data.modifiedBy,
       modifiedAt: data.modified
     }
-    stream.push({ fileName: pagePath.split('/').filter(isNotBlank).join('.') + '.json', content: Buffer.from(stringify(pageRecord), 'utf8') })
+    await push(pageRecord)
+    counter.count++
     if (recurse) {
       const children = await ctx.svc(PageService).getPageChildren(page)
-      for (const child of children) await exportRecursive(ctx, stream, child, pagePath + '/' + child.name, recurse)
+      for (const child of children) await exportRecursive(ctx, push, child, pagePath + '/' + child.name, recurse, counter)
     }
   }
 
@@ -246,13 +328,14 @@ export async function createPageRoutes (app: FastifyInstance) {
     if (!page) throw new HttpError(404)
 
     const path = await ctx.svc(PageServiceInternal).getPath(page)
+    const recursive = !!req.query.withSubpages
 
     void res.header('Cache-Control', 'no-cache')
-    void res.header('Content-Type', 'application/json')
+    void res.header('Content-Type', 'application/x-gzip')
     void res.header('Access-Control-Expose-Headers', 'Content-Disposition')
-    void res.header('Content-Disposition', 'attachment;filename=' + path.split('/').filter(isNotBlank).join('.') + '.tar.gz')
-    const { input, output } = tarGzStream()
-    exportRecursive(ctx, input, page, path, !!req.query.withSubpages).then(() => input.push(null)).catch(e => input.destroy(e))
+    void res.header('Content-Disposition', 'attachment;filename=' + path.split('/').filter(isNotBlank).join('.') + (recursive ? '.jsonl.gz' : '.json.gz'))
+    const { push, done, output, error } = jsonlGzStream()
+    exportRecursive(ctx, push, page, path, recursive).then(done).catch(error)
     return output
   })
   app.get('/pages/list', async (req, res) => {
