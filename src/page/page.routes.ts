@@ -381,7 +381,7 @@ export async function createPageRoutes (app: FastifyInstance) {
         hasPerm(applicableRules, 'update'),
         false,
         false,
-        hasPerm(applicableRules, 'publish') && p.deleteState === DeleteState.NOTDELETED && p.hasUnpublishedChanges,
+        hasPerm(applicableRules, 'publish') && p.deleteState === DeleteState.NOTDELETED,
         false,
         hasPerm(applicableRules, 'unpublish') && !!p.published,
         hasPerm([...applicableRules, ...applicableToChildRules], 'viewForEdit')
