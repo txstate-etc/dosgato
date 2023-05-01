@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { ObjectType, Field, Int } from 'type-graphql'
+import { ObjectType, Field, Int, InputType } from 'type-graphql'
 import { Version } from '../internal.js'
 import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 
@@ -39,6 +39,12 @@ export class ObjectVersion {
     this.marked = !!row.markedAt
     this.markedAt = row.markedAt ? DateTime.fromJSDate(row.markedAt) : undefined
   }
+}
+
+@InputType()
+export class VersionFilter {
+  @Field(type => [String], { nullable: true })
+  tags?: string[]
 }
 
 @ObjectType()

@@ -7,7 +7,7 @@ import {
   Pagetree, Role, JsonData, Site, Template, TemplateFilter,
   User, UserService, ObjectVersion, VersionedService, Page, PageFilter, PagePermission, PagePermissions,
   PageResponse, PagesResponse, PageService, RoleService, TemplateService, UrlSafeString,
-  DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal, SchemaVersionScalar, SiteServiceInternal
+  DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal, SchemaVersionScalar, SiteServiceInternal, VersionFilter
 } from '../internal.js'
 
 @Resolver(of => Page)
@@ -155,8 +155,8 @@ export class PageResolver {
   }
 
   @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all old versions of this page in reverse order (latest version at position 0). One of the version numbers can be passed to the data property in order to retrieve that version of the data.' })
-  async versions (@Ctx() ctx: Context, @Root() page: Page) {
-    const versions = await ctx.svc(VersionedService).listVersions(page.dataId)
+  async versions (@Ctx() ctx: Context, @Root() page: Page, @Arg('filter', { nullable: true }) filter?: VersionFilter) {
+    const versions = await ctx.svc(VersionedService).listVersions(page.dataId, filter)
     return versions.map(v => new ObjectVersion(v))
   }
 

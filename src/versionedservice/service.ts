@@ -7,7 +7,11 @@ import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { createHash } from 'node:crypto'
 import { clone, intersect } from 'txstate-utils'
-import { type Index, type IndexJoinedStorage, type IndexStorage, type IndexStringified, NotFoundError, type SearchRule, type Tag, UpdateConflictError, type Version, type Versioned, type VersionedCommon, type VersionedStorage, type VersionStorage } from '../internal.js'
+import {
+  type Index, type IndexJoinedStorage, type IndexStorage, type IndexStringified, NotFoundError,
+  type SearchRule, type Tag, UpdateConflictError, type Version, type Versioned, type VersionedCommon,
+  type VersionedStorage, type VersionStorage, type VersionFilter
+} from '../internal.js'
 const { applyPatch, compare } = jsonPatch
 
 const storageLoader = new PrimaryKeyLoader({
@@ -522,19 +526,21 @@ export class VersionedService extends BaseService {
   /**
    * List old versions of an object so one can be picked for retrieval.
    */
-  async listVersions (id: string) {
+  async listVersions (id: string, filter?: VersionFilter) {
+    let tagClause = '1=1'
+    const binds: any[] = []
+    if (filter?.tags?.length) {
+      tagClause = `t.tag IN (${db.in(binds, filter.tags)})`
+    }
     const versions = await db.getall(`
-      SELECT v.version, v.date, v.user, v.comment, t.tag, v.markedAt
+      SELECT v.version, v.date, v.user, v.comment, GROUP_CONCAT(t.tag) AS tags, v.markedAt, COUNT(${tagClause}) AS matches
       FROM versions v LEFT JOIN tags t ON t.id=v.id AND t.version=v.version
       WHERE v.id=?
-      ORDER BY v.version DESC
-    `, [id])
-    const versionMap = new Map<number, Version>()
-    for (const { version, date, user, comment, tag } of versions) {
-      if (!versionMap.has(version)) versionMap.set(version, { id, version, date, user, comment, tags: [] })
-      if (tag) versionMap.get(version)!.tags.push(tag)
-    }
-    return Array.from(versionMap.values())
+      GROUP BY v.id, v.version
+      HAVING matches > 0
+      ORDER BY v.id, v.version DESC
+    `, [...binds, id])
+    return versions.map(v => ({ ...v, tags: v.tags?.split(',') ?? [] }))
   }
 
   async toggleMarked (id: string, version: number) {
