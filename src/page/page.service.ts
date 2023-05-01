@@ -928,7 +928,7 @@ export class PageService extends DosGatoService<Page> {
   async publishPages (dataIds: string[], includeChildren?: boolean) {
     let pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (includeChildren) {
-      const children = (await Promise.all(pages.map(async (page) => await this.getPageChildren(page, true)))).flat()
+      const children = (await Promise.all(pages.map(async (page) => await this.getPageChildren(page, true)))).flat().filter(c => c.deleteState === DeleteState.NOTDELETED)
       pages = [...pages, ...children]
     }
     if (await someAsync(pages, async (page: Page) => !(await this.mayPublish(page, true)))) {
