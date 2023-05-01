@@ -532,8 +532,8 @@ export class VersionedService extends BaseService {
     if (filter?.tags?.length) {
       tagClause = `t.tag IN (${db.in(binds, filter.tags)})`
     }
-    const versions = await db.getall(`
-      SELECT v.version, v.date, v.user, v.comment, GROUP_CONCAT(t.tag) AS tags, v.markedAt, COUNT(${tagClause}) AS matches
+    const versions = await db.getall<{ id: string, version: number, date: Date, user: string, comment: string, tags: string, markedAt?: Date, matches: number }>(`
+      SELECT v.id, v.version, v.date, v.user, v.comment, GROUP_CONCAT(t.tag) AS tags, v.markedAt, COUNT(${tagClause}) AS matches
       FROM versions v LEFT JOIN tags t ON t.id=v.id AND t.version=v.version
       WHERE v.id=?
       GROUP BY v.id, v.version
