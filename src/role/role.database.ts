@@ -110,12 +110,28 @@ export async function addRolesToUser (roleIds: string[], userId: number) {
   return await db.insert(`INSERT INTO users_roles (userId, roleId) VALUES ${db.in(binds, roleIds.map(id => [userId, id]))} ON DUPLICATE KEY UPDATE userId=userId`, binds)
 }
 
+export async function assignRoleToUsers (roleId: string, userIds: number[]) {
+  const binds: (string | number)[] = []
+  for (const id of userIds) {
+    binds.push(roleId, id)
+  }
+  if (userIds.length) {
+    return await db.insert(`INSERT INTO users_roles (roleId, userId) VALUES ${userIds.map(g => '(?,?)').join(',')} ON DUPLICATE KEY UPDATE userId=userId`, binds)
+  }
+}
+
 export async function removeRoleFromUser (roleId: string, userId: number) {
   return await db.delete('DELETE FROM users_roles WHERE roleId = ? AND userId = ?', [roleId, userId])
 }
 
-export async function addRoleToGroup (groupId: string, roleId: string) {
-  return await db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [groupId, roleId])
+export async function addRoleToGroups (groupIds: string[], roleId: string) {
+  const binds: (string | number)[] = []
+  for (const id of groupIds) {
+    binds.push(roleId, id)
+  }
+  if (groupIds.length) {
+    return await db.insert(`INSERT INTO groups_roles (roleId, groupId) VALUES ${groupIds.map(g => '(?,?)').join(',')} ON DUPLICATE KEY UPDATE groupId=groupId`, binds)
+  }
 }
 
 export async function removeRoleFromGroup (groupId: string, roleId: string) {

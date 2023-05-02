@@ -4,10 +4,10 @@ import { intersect, isNotNull, unique } from 'txstate-utils'
 import {
   DosGatoService, GroupService, UserService, type Role, type RoleFilter, RoleResponse,
   addRolesToUser, createRole, deleteRole, getRoles, getRolesWithGroup, getRolesWithManager,
-  getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroup,
+  getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroups,
   GroupServiceInternal, GlobalRuleServiceInternal, SiteRuleServiceInternal, AssetRuleServiceInternal,
   DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, GlobalRuleService, AssetRuleService,
-  DataRuleService, PageRuleService, SiteRuleService, TemplateRuleService, roleNameIsUnique
+  DataRuleService, PageRuleService, SiteRuleService, TemplateRuleService, roleNameIsUnique, assignRoleToUsers
 } from '../internal.js'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
@@ -202,6 +202,16 @@ export class RoleService extends DosGatoService<Role> {
     }
   }
 
+  async assignRoleToUsers (roleId: string, userIds: string[]) {
+    const role = await this.findById(roleId)
+    if (!role) throw new Error('Specified role does not exist.')
+    if (!(await this.mayAssign(role))) throw new Error(`Current user is not permitted to assign role ${role.name} to users.`)
+    const users = (await Promise.all(userIds.map(async u => await this.svc(UserService).findById(u)))).filter(isNotNull)
+    if (!users.length) throw new Error('Cannot assign role to user(s)')
+    await assignRoleToUsers(roleId, users.map(u => u.internalId))
+    return new ValidatedResponse({ success: true })
+  }
+
   async removeRoleFromUser (roleId: string, userId: string) {
     const role = await this.findById(roleId)
     if (!role) throw new Error('Role to be unassigned does not exist.')
@@ -223,18 +233,14 @@ export class RoleService extends DosGatoService<Role> {
     }
   }
 
-  async addRoleToGroup (groupId: string, roleId: string) {
-    const [role, group] = await Promise.all([this.findById(roleId), this.svc(GroupService).findById(groupId)])
-    if (!role) throw new Error('Role to be updated does not exist.')
-    if (!group) throw new Error('Group to be assigned does not exist.')
-    if (!(await this.mayAssign(role))) throw new Error(`Current user is not permitted to assign role ${role.name} to group ${group.name}.`)
-    try {
-      await addRoleToGroup(groupId, roleId)
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error(`An unknown error occurred while adding role ${role.name} to group ${group.name}.`)
-    }
+  async addRoleToGroups (groupIds: string[], roleId: string) {
+    const role = await this.findById(roleId)
+    if (!role) throw new Error('Specified role does not exist.')
+    if (!(await this.mayAssign(role))) throw new Error(`Current user is not permitted to assign role ${role.name} to groups.`)
+    const groups = (await Promise.all(groupIds.map(async g => await this.svc(GroupService).findById(g)))).filter(isNotNull)
+    if (!groups.length) throw new Error('Cannot assign role to group(s)')
+    await addRoleToGroups(groups.map(g => g.id), roleId)
+    return new ValidatedResponse({ success: true })
   }
 
   async removeRoleFromGroup (groupId: string, roleId: string) {

@@ -98,13 +98,18 @@ export class RoleResolver {
   }
 
   @Mutation(returns => ValidatedResponse)
+  async assignRoleToUsers (@Ctx() ctx: Context, @Arg('roleId', type => ID) roleId: string, @Arg('userIds', type => [ID]) userIds: string[]) {
+    return await ctx.svc(RoleService).assignRoleToUsers(roleId, userIds)
+  }
+
+  @Mutation(returns => ValidatedResponse)
   async removeRoleFromUser (@Ctx() ctx: Context, @Arg('roleId', type => ID) roleId: string, @Arg('userId', type => ID) userId: string) {
     return await ctx.svc(RoleService).removeRoleFromUser(roleId, userId)
   }
 
-  @Mutation(returns => ValidatedResponse, { description: 'Add a role to a group' })
-  async addRoleToGroup (@Ctx() ctx: Context, @Arg('groupId', type => ID) groupId: string, @Arg('roleId', type => ID) roleId: string) {
-    return await ctx.svc(RoleService).addRoleToGroup(groupId, roleId)
+  @Mutation(returns => ValidatedResponse, { description: 'Add a role to groups' })
+  async addRoleToGroups (@Ctx() ctx: Context, @Arg('groupIds', type => [ID]) groupIds: string[], @Arg('roleId', type => ID) roleId: string) {
+    return await ctx.svc(RoleService).addRoleToGroups(groupIds, roleId)
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Remove a role from a group' })

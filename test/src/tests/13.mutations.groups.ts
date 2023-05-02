@@ -64,7 +64,7 @@ describe('groups mutations', () => {
   })
   it('should not add a non-existent user to a group', async () => {
     const { group: groupE } = await createGroup('groupE')
-    await expect(query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: ID!) { addUserToGroups (groupIds: [$groupId], userId: $userId) { success } }', { groupIds: [groupE.id], userId: 'fake' })).to.be.rejected
+    await expect(query('mutation AddUserToGroups ($groupIds: [ID!]!, $userId: ID!) { addUserToGroups (groupIds: $groupIds, userId: $userId) { success } }', { groupIds: [groupE.id], userId: 'fake' })).to.be.rejected
     const { groups } = await query('{ groups { id name users { id firstname lastname } } }')
     const group = groups.find((g: any) => g.id === groupE.id)
     expect(group.users).to.have.lengthOf(0)
@@ -91,7 +91,7 @@ describe('groups mutations', () => {
   it('should add a role to a group', async () => {
     const { roles } = await query('{ roles(filter: { ids: [2] }) { id name } }')
     const { group: groupJ } = await createGroup('groupJ')
-    const { addRoleToGroup: { success } } = await query('mutation AddRoleToGroup ($groupId: ID!, $roleId: ID!) { addRoleToGroup (groupId: $groupId, roleId: $roleId) { success } }', { groupId: groupJ.id, roleId: roles[0].id })
+    const { addRoleToGroups: { success } } = await query('mutation AddRoleToGroups ($roleId: ID!, $groupIds: [ID!]!) { addRoleToGroups (roleId: $roleId, groupIds: $groupIds) { success } }', { groupIds: [groupJ.id], roleId: roles[0].id })
     expect(success).to.be.true
     const { groups } = await query('{ groups { id name roles { id } } }')
     const group = groups.find((g: any) => g.id === groupJ.id)
@@ -100,12 +100,12 @@ describe('groups mutations', () => {
   it('should not allow an unauthorized user to add a role to a group', async () => {
     const { roles } = await query('{ roles(filter: { ids: [2] }) { id name } }')
     const { group: groupJJ } = await createGroup('groupJJ')
-    await expect(queryAs('ed07', 'mutation AddRoleToGroup ($groupId: ID!, $roleId: ID!) { addRoleToGroup (groupId: $groupId, roleId: $roleId) { success } }', { groupId: groupJJ.id, roleId: roles[0].id })).to.be.rejected
+    await expect(queryAs('ed07', 'mutation AddRoleToGroups ($roleId: ID!, $groupIds: [ID!]!) { addRoleToGroups (roleId: $roleId, groupIds: $groupIds) { success } }', { groupIds: [groupJJ.id], roleId: roles[0].id })).to.be.rejected
   })
   it('should remove a role from a group', async () => {
     const { roles } = await query('{ roles(filter: { ids: [2] }) { id name } }')
     const { group: groupK } = await createGroup('groupK')
-    await query('mutation AddRoleToGroup ($groupId: ID!, $roleId: ID!) { addRoleToGroup (groupId: $groupId, roleId: $roleId) { success } }', { groupId: groupK.id, roleId: roles[0].id })
+    await query('mutation AddRoleToGroups ($roleId: ID!, $groupIds: [ID!]!) { addRoleToGroups (roleId: $roleId, groupIds: $groupIds) { success } }', { groupIds: [groupK.id], roleId: roles[0].id })
     const { removeRoleFromGroup: { success } } = await query('mutation RemoveRoleFromGroup ($groupId: ID!, $roleId: ID!) { removeRoleFromGroup (groupId: $groupId, roleId: $roleId) {success } }', { groupId: groupK.id, roleId: roles[0].id })
     expect(success).to.be.true
     const { groups } = await query('{ groups { id name roles { id } } }')
