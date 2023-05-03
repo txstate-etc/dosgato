@@ -556,7 +556,13 @@ export class VersionedService extends BaseService {
     if (!values.length) return {} as Record<string, number>
     const checksumMap = new Map(values.map(v => [createChecksum(v), v]))
     await db.execute('SELECT * FROM dbversion FOR UPDATE')
-    await db.insert(`INSERT INTO indexvalues (value, checksum) VALUES ${values.map(v => '(?,UNHEX(?))').join(',')} ON DUPLICATE KEY UPDATE value=value`, Array.from(checksumMap.entries()).flatMap(([checksum, value], i) => [value.substring(0, 1024), checksum]))
+    const insert: string[] = []
+    const binds: any[] = []
+    for (const [checksum, value] of checksumMap.entries()) {
+      insert.push('(?,UNHEX(?))')
+      binds.push(value.substring(0, 1024), checksum)
+    }
+    await db.insert(`INSERT INTO indexvalues (value, checksum) VALUES ${insert.join(',')} ON DUPLICATE KEY UPDATE value=value`, binds)
     const checksums = Array.from(checksumMap.keys())
     const valuerows = await db.getall<[number, string]>(`SELECT id, LOWER(HEX(checksum)) FROM indexvalues WHERE checksum IN (${checksums.map(v => 'UNHEX(?)').join(',')}) LOCK IN SHARE MODE`, checksums, { rowsAsArray: true })
     const valuehash: Record<string, number> = {}
