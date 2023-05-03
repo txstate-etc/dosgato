@@ -1,5 +1,5 @@
 export interface VersionedCommon {
-  id: string
+  id: number
   type: string
   version: number
   created: Date
@@ -17,7 +17,7 @@ export interface VersionedStorage extends VersionedCommon {
 }
 
 interface VersionCommon {
-  id: string
+  id: number
   version: number
   date: Date
   user: string
@@ -34,7 +34,7 @@ export interface Version extends VersionCommon {
 }
 
 export interface Tag {
-  id: string
+  id: number
   version: number
   tag: string
   user: string
@@ -51,8 +51,9 @@ export interface IndexStringified {
 }
 
 export interface IndexStorage {
-  id: string
+  id: number
   version: number
+  name_id: number
   name: string
   value_id: number
 }
@@ -96,7 +97,7 @@ export class NotFoundError extends Error {
 }
 
 export class UpdateConflictError extends Error {
-  constructor (id: string) {
+  constructor (id: number) {
     super(`Unable to update object with id: ${id}. Another user has updated the object since you loaded it.`)
   }
 }

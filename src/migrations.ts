@@ -85,13 +85,6 @@ const dgMigrations: DBMigration[] = [
     }
   },
   {
-    id: 20230201120000,
-    description: 'fix collation on assets.dataId since we use case-sensitive ids',
-    run: async db => {
-      await db.execute('ALTER TABLE `assets` MODIFY `dataId` CHAR(10) CHARACTER SET ascii COLLATE ascii_bin')
-    }
-  },
-  {
     id: 20230214080000,
     description: 'add checksum to versionedservice indexvalues table and make it the unique key so we can shorten the index on the value column',
     run: async db => {

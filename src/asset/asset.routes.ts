@@ -199,7 +199,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const versionedService = ctx.svc(VersionedService)
     if (!(await assetService.mayUpdate(asset))) throw new HttpError(403, `You are not permitted to update asset ${String(asset.name)}.`)
     if (req.body?.modifiedAt || req.body?.modifiedBy) {
-      const data = await versionedService.get(asset.dataId)
+      const data = await versionedService.get(asset.intDataId)
       if (!data?.data.legacyId) throw new HttpError(400, 'Only assets that were imported from another system may override modified attributes.')
       if (!await ctx.svc(GlobalRuleService).mayOverrideStamps()) throw new HttpError(403, 'You are not allowed to set modified stamps when updating assets.')
     }
@@ -302,7 +302,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const assetEtag = `"${asset.checksum}"`
     if (etag && assetEtag === etag) return await res.status(304).send()
 
-    const data = await ctx.svc(VersionedService).get(asset.dataId)
+    const data = await ctx.svc(VersionedService).get(asset.intDataId)
     const modifiedAt = DateTime.fromJSDate(data!.modified)
     const ifsince = req.headers['if-modified-since'] ? DateTime.fromHTTP(req.headers['if-modified-since']) : undefined
     if (ifsince?.isValid && modifiedAt <= ifsince) return await res.status(304).send()

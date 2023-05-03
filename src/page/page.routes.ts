@@ -186,8 +186,8 @@ export async function createPageRoutes (app: FastifyInstance) {
     const modifiedAt = pageRecord.data.legacyId && isNotBlank(pageRecord.modifiedAt) ? new Date(pageRecord.modifiedAt) : undefined
     const publishedAt = isNotBlank(body?.publishedAt) ? new Date(body.publishedAt) : undefined
     await db.transaction(async db => {
-      await versionedService.update(page.dataId, pageRecord.data, indexes, { user: modifiedBy, date: modifiedAt }, db)
-      if (publishedAt && modifiedAt && publishedAt >= modifiedAt) await versionedService.tag(page.dataId, 'published', undefined, body.publishedBy ?? modifiedBy, publishedAt, db)
+      await versionedService.update(page.intDataId, pageRecord.data, indexes, { user: modifiedBy, date: modifiedAt }, db)
+      if (publishedAt && modifiedAt && publishedAt >= modifiedAt) await versionedService.tag(page.intDataId, 'published', undefined, body.publishedBy ?? modifiedBy, publishedAt, db)
       await db.update('UPDATE pages SET title=?, templateKey=? WHERE dataId=?', [pageRecord.data.title, pageRecord.data.templateKey, page.dataId])
     }, { retries: 2 })
 
@@ -297,7 +297,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   })
 
   async function exportRecursive (ctx: Context, push: (obj: any) => Promise<void>, page: Page, pagePath: string, recurse: boolean, counter = { count: 0 }) {
-    const data = await ctx.svc(VersionedService).get(page.dataId)
+    const data = await ctx.svc(VersionedService).get(page.intDataId)
     if (!data) throw new HttpError(500, `Page ${page.name} is corrupted and cannot be exported.`)
     const pageRecord = {
       name: page.name,

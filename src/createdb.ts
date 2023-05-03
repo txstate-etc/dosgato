@@ -145,7 +145,7 @@ export async function init (db: Queryable) {
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `name` VARCHAR(255) NOT NULL, \
       `folderId` MEDIUMINT UNSIGNED NOT NULL, \
-      `dataId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL, \
+      `dataId` INT UNSIGNED NOT NULL, \
       `shasum` CHAR(43) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `deletedAt` DATETIME, \
       `deletedBy` MEDIUMINT UNSIGNED, \
@@ -240,7 +240,7 @@ export async function init (db: Queryable) {
       `path` TEXT NOT NULL, \
       `displayOrder` SMALLINT UNSIGNED NOT NULL, \
       `pagetreeId` MEDIUMINT UNSIGNED NOT NULL, \
-      `dataId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `dataId` INT UNSIGNED NOT NULL, \
       `linkId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `deletedAt` DATETIME, \
       `deletedBy` MEDIUMINT UNSIGNED, \
@@ -415,10 +415,10 @@ export async function init (db: Queryable) {
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;')
-  await db.execute("\
+  await db.execute('\
     CREATE TABLE IF NOT EXISTS `data` ( \
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
-      `dataId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `dataId` INT UNSIGNED NOT NULL, \
       `name` VARCHAR(255) NOT NULL, \
       `displayOrder` SMALLINT UNSIGNED NOT NULL, \
       `siteId` SMALLINT UNSIGNED, \
@@ -443,7 +443,7 @@ export async function init (db: Queryable) {
         REFERENCES `datafolders` (`id`)) \
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
-    DEFAULT COLLATE = utf8mb4_general_ci;")
+    DEFAULT COLLATE = utf8mb4_general_ci;')
   await db.execute("\
     CREATE TABLE IF NOT EXISTS `datarules` ( \
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \

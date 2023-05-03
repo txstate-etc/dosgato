@@ -337,7 +337,7 @@ export async function fixtures () {
   async function updatePage (id: string, content: any, indexes: Index[], user?: string, comment?: string) {
     const ctx = new Context()
     const versionedService = new VersionedService(ctx)
-    await versionedService.update(id, content, indexes, { user, comment })
+    await versionedService.update(Number(id), content, indexes, { user, comment })
   }
 
   /* Site 1, Pagetree 1 Pages */
@@ -536,7 +536,7 @@ export async function fixtures () {
     }
   ]
   const site2rootpageid = await createPage('site2', site2RootLinkId, pagetree2, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 2 Home', areas: { main: [] } }, indexes)
-  const dataIdSite2Root = await db.getval<string>('SELECT dataId FROM pages WHERE id = ?', [site2rootpageid])
+  const dataIdSite2Root = await db.getval<number>('SELECT dataId FROM pages WHERE id = ?', [site2rootpageid])
   await tagData(dataIdSite2Root!, 'published', 1, 'su01')
 
   /* Site 3, Pagetree 3 Pages */
@@ -656,13 +656,13 @@ export async function fixtures () {
     return id
   }
 
-  async function tagData (id: string, tag: string, version?: number, user?: string) {
+  async function tagData (id: number, tag: string, version?: number, user?: string) {
     const ctx = new Context()
     const versionedService = new VersionedService(ctx)
     await versionedService.tag(id, tag, version, user)
   }
 
-  async function updateData (id: string, content: Omit<DataData, 'savedAtVersion'>, user?: string, comment?: string) {
+  async function updateData (id: number, content: Omit<DataData, 'savedAtVersion'>, user?: string, comment?: string) {
     const ctx = new Context()
     const entryContent = { ...content, savedAtVersion: getSavedAtVersion() }
     const indexes = [{ name: 'templateKey', values: [content.templateKey] }]
@@ -672,7 +672,7 @@ export async function fixtures () {
   // TODO: Add more indexes?
   const data1Id = await createData('red-content', 1, { templateKey: 'keyd1', title: 'Red Text', color: 'red', align: 'center' }, 'su01')
   await db.update('UPDATE data SET siteId = ?, folderId = ? WHERE id = ?', [site2, datafolder1, data1Id])
-  const dataIdData1 = await db.getval<string>('SELECT dataId FROM data WHERE id = ?', [data1Id])
+  const dataIdData1 = await db.getval<number>('SELECT dataId FROM data WHERE id = ?', [data1Id])
   await updateData(dataIdData1!, { templateKey: 'keyd1', title: 'Red Text', color: 'red', align: 'left' }, 'su03', 'updating alignment')
   await updateData(dataIdData1!, { templateKey: 'keyd1', title: 'Red Text', color: 'red', align: 'right' }, 'su01', 'updating alignment again')
 
@@ -702,7 +702,7 @@ export async function fixtures () {
   // some global data that does not belong to a site
   const article1Id = await createData('car-cleaning', 1, { templateKey: 'articledatakey', title: '5 Steps to a Cleaner Car', author: 'Jane Doe' }, 'su01')
   await db.update('UPDATE data SET folderId = ? WHERE id = ?', [datafolder2, article1Id])
-  const dataIdArticle1 = await db.getval<string>('SELECT dataId FROM data WHERE id = ?', [article1Id])
+  const dataIdArticle1 = await db.getval<number>('SELECT dataId FROM data WHERE id = ?', [article1Id])
   await tagData(dataIdArticle1!, 'published', 1, 'su02')
 
   const article2Id = await createData('trees', 2, { templateKey: 'articledatakey', title: 'Trees of Central Texas', author: 'John Smith' }, 'su01')

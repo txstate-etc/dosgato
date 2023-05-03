@@ -104,7 +104,7 @@ describe('pages mutations', () => {
       expect(p.parent.name).to.equal('targetpagea')
     }
     const movedPages = await db.getall('SELECT dataId, displayOrder FROM pages where dataId IN (?,?) ORDER BY displayOrder', [firstPageToMove.id, secondPageToMove.id])
-    expect(movedPages[0].dataId).to.equal(firstPageToMove.id)
+    expect(String(movedPages[0].dataId)).to.equal(firstPageToMove.id)
   })
   it('should not move a page into its own subtree', async () => {
     const { page: movingPage } = await createPage('movingpageC', testSite6PageRootId, 'keyp2')
@@ -156,8 +156,8 @@ describe('pages mutations', () => {
     await query('mutation movePages ($pageIds: [ID!]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { success pages { name, parent { name } } } }', { pageIds: [secondchild.id], parentId: testSite6PageRootId })
     const parentrow = await db.getrow('SELECT id, path FROM pages WHERE dataId = ?', originalParent.id)
     const remaining = await db.getall('SELECT * FROM pages WHERE path = ? ORDER BY displayOrder', [`${parentrow.path}/${parentrow.id}`])
-    expect(remaining[0].dataId).to.equal(firstchild.id)
-    expect(remaining[1].dataId).to.equal(thirdchild.id)
+    expect(String(remaining[0].dataId)).to.equal(firstchild.id)
+    expect(String(remaining[1].dataId)).to.equal(thirdchild.id)
     expect(remaining[0].displayOrder).to.equal(1)
     expect(remaining[1].displayOrder).to.equal(2)
   })

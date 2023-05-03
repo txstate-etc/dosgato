@@ -141,7 +141,7 @@ export class PageServiceInternal extends BaseService {
 
   async getData (page: Page, version?: number, published?: boolean, toSchemaVersion = templateRegistry.currentSchemaVersion) {
     const [versioned, pagetree, parent, path] = await Promise.all([
-      this.svc(VersionedService).get(page.dataId, { tag: published ? 'published' : undefined, version }),
+      this.svc(VersionedService).get(page.intDataId, { tag: published ? 'published' : undefined, version }),
       this.svc(PagetreeServiceInternal).findById(page.pagetreeId),
       page.parentInternalId ? this.findByInternalId(page.parentInternalId) : undefined,
       this.getPath(page)
@@ -169,7 +169,7 @@ export class PageServiceInternal extends BaseService {
       // TODO: refactor this to use VersionedService indexes instead of rescanning the data
       const verService = this.svc(VersionedService)
       const pages = (await Promise.all(filter.referencedByPageIds.map(async id => await this.findById(id)))).filter(isNotNull)
-      const pagedata = (await Promise.all(pages.map(async page => await verService.get<PageData>(page.dataId, { tag: filter.published ? 'published' : undefined })))).filter(isNotNull)
+      const pagedata = (await Promise.all(pages.map(async page => await verService.get<PageData>(page.intDataId, { tag: filter.published ? 'published' : undefined })))).filter(isNotNull)
       const links = pagedata.flatMap(d => templateRegistry.get(d.data.templateKey)?.getLinks(d.data)).filter(l => l.type === 'page') as PageLink[]
       filter.links = intersect({ skipEmpty: true, by: lnk => stringify({ ...lnk, type: 'page' }) }, links, filter.links?.map(l => ({ ...l, type: 'page' })) as PageLink[])
     }
@@ -352,7 +352,7 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async isPublished (page: Page) {
-    const tag = await this.svc(VersionedService).getTag(page.dataId, 'published')
+    const tag = await this.svc(VersionedService).getTag(page.intDataId, 'published')
     return !!tag
   }
 
@@ -541,7 +541,7 @@ export class PageService extends DosGatoService<Page> {
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(data)
       await db.transaction(async db => {
-        await this.svc(VersionedService).update(dataId, data, indexes, { user: this.login, comment, version: dataVersion })
+        await this.svc(VersionedService).update(page!.intDataId, data, indexes, { user: this.login, comment, version: dataVersion })
         await db.update('UPDATE pages SET title=?, templateKey=? WHERE id=?', [data.title, data.templateKey, page!.internalId])
       })
       this.loaders.clear()
@@ -556,7 +556,7 @@ export class PageService extends DosGatoService<Page> {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot restore an older version of a page that does not exist.')
     if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
-    const dataToRestore = await this.svc(VersionedService).get(page.dataId, { version: restoreVersion })
+    const dataToRestore = await this.svc(VersionedService).get(page.intDataId, { version: restoreVersion })
     if (!dataToRestore) throw new Error('Version to be restored could not be found.')
     const data = dataToRestore.data as PageData
     const tmpl = await this.svc(TemplateServiceInternal).findByKey(data.templateKey)
@@ -565,7 +565,7 @@ export class PageService extends DosGatoService<Page> {
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(data)
       await db.transaction(async db => {
-        await this.svc(VersionedService).update(page!.dataId, data, indexes, { user: this.login, comment: `Restored from ${DateTime.fromJSDate(dataToRestore.modified).toLocaleString(DateTime.DATETIME_SHORT)}.` }, db)
+        await this.svc(VersionedService).update(page!.intDataId, data, indexes, { user: this.login, comment: `Restored from ${DateTime.fromJSDate(dataToRestore.modified).toLocaleString(DateTime.DATETIME_SHORT)}.` }, db)
         await db.update('UPDATE pages SET title=?, templateKey=? WHERE id=?', [data.title, data.templateKey, page!.internalId])
       })
       this.loaders.clear()
@@ -576,7 +576,7 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async checkLatestVersion (dataId: string, dataVersion: number) {
-    const latestVersion = await this.svc(VersionedService).get(dataId)
+    const latestVersion = await this.svc(VersionedService).get(Number(dataId))
     if (!latestVersion) throw new Error('Page you are trying to update is corrupted. Please contact user support.')
     if (latestVersion.version !== dataVersion) throw new Error('Unable to update page. Another user has updated the page since you loaded it. Try again after refreshing.')
   }
@@ -618,7 +618,7 @@ export class PageService extends DosGatoService<Page> {
     }
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(fullymigrated)
-      await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+      await this.svc(VersionedService).update(page.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
       await db.update('UPDATE pages SET title=? WHERE id=?', [fullymigrated.title, page.internalId])
       this.loaders.clear()
       page = await this.raw.findById(dataId)
@@ -653,7 +653,7 @@ export class PageService extends DosGatoService<Page> {
     }
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(fullymigrated)
-      await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+      await this.svc(VersionedService).update(page.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
       this.loaders.clear()
       page = await this.raw.findById(dataId)
     }
@@ -734,7 +734,7 @@ export class PageService extends DosGatoService<Page> {
     // execute the mutation if appropriate
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(fullymigrated)
-      await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+      await this.svc(VersionedService).update(page.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
       this.loaders.clear()
       page = await this.raw.findById(dataId)
     }
@@ -817,7 +817,7 @@ export class PageService extends DosGatoService<Page> {
 
     // if we haven't thrown yet then we can execute the mutation
     const indexes = getPageIndexes(fullymigrated)
-    await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+    await this.svc(VersionedService).update(page.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
     this.loaders.clear()
     page = await this.raw.findById(dataId)
     const response = new PageResponse({ success: true })
@@ -850,7 +850,7 @@ export class PageService extends DosGatoService<Page> {
 
     // if we haven't thrown yet then we can execute the mutation
     const indexes = getPageIndexes(fullymigrated)
-    await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+    await this.svc(VersionedService).update(page.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
     this.loaders.clear()
     page = await this.raw.findById(dataId)
     const response = new PageResponse({ success: true })
@@ -876,7 +876,7 @@ export class PageService extends DosGatoService<Page> {
     if (!validateOnly && response.success) {
       fullymigrated.templateKey = templateKey
       const indexes = getPageIndexes(fullymigrated)
-      await this.svc(VersionedService).update(dataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+      await this.svc(VersionedService).update(page.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
       await db.update('UPDATE pages SET templateKey=? WHERE id=?', [fullymigrated.templateKey, page.internalId])
       this.loaders.clear()
       page = await this.raw.findById(dataId)
@@ -963,7 +963,7 @@ export class PageService extends DosGatoService<Page> {
     pages = pages.filter(p => !p.deleted)
     try {
       await db.transaction(async db => {
-        for (const p of pages) await this.svc(VersionedService).tag(p.dataId, 'published', undefined, this.login)
+        for (const p of pages) await this.svc(VersionedService).tag(p.intDataId, 'published', undefined, this.login)
       })
       this.loaders.clear()
       return new ValidatedResponse({ success: true })
@@ -981,7 +981,7 @@ export class PageService extends DosGatoService<Page> {
       throw new Error('Current user is not permitted to unpublish one or more pages')
     }
     await db.transaction(async db => {
-      await this.svc(VersionedService).removeTags(pages.map(p => p.dataId), ['published'], db)
+      await this.svc(VersionedService).removeTags(pages.map(p => p.intDataId), ['published'], db)
     })
     this.loaders.clear()
     return new ValidatedResponse({ success: true })

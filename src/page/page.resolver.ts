@@ -95,25 +95,25 @@ export class PageResolver {
 
   @FieldResolver(returns => DateTime)
   async createdAt (@Ctx() ctx: Context, @Root() page: Page) {
-    const data = await ctx.svc(VersionedService).getMeta(page.dataId)
+    const data = await ctx.svc(VersionedService).getMeta(page.intDataId)
     return DateTime.fromJSDate(data!.created)
   }
 
   @FieldResolver(returns => User)
   async createdBy (@Ctx() ctx: Context, @Root() page: Page) {
-    const data = await ctx.svc(VersionedService).getMeta(page.dataId)
+    const data = await ctx.svc(VersionedService).getMeta(page.intDataId)
     return await ctx.svc(UserService).findById(data!.createdBy)
   }
 
   @FieldResolver(returns => DateTime, { description: 'Date page was last modified. May be used to determine whether page has been modified since being published: (page.published && page.modifiedAt > page.publishedAt).' })
   async modifiedAt (@Ctx() ctx: Context, @Root() page: Page) {
-    const data = await ctx.svc(VersionedService).getMeta(page.dataId)
+    const data = await ctx.svc(VersionedService).getMeta(page.intDataId)
     return DateTime.fromJSDate(data!.modified)
   }
 
   @FieldResolver(returns => User)
   async modifiedBy (@Ctx() ctx: Context, @Root() page: Page) {
-    const data = await ctx.svc(VersionedService).getMeta(page.dataId)
+    const data = await ctx.svc(VersionedService).getMeta(page.intDataId)
     return await ctx.svc(UserService).findById(data!.modifiedBy)
   }
 
@@ -124,7 +124,7 @@ export class PageResolver {
 
   @FieldResolver(returns => Boolean, { description: 'True if versions of this page have been added since it was last published. Also true if page is currently unpublished.' })
   async hasUnpublishedChanges (@Ctx() ctx: Context, @Root() page: Page) {
-    const tags = await ctx.svc(VersionedService).getCurrentTags(page.dataId)
+    const tags = await ctx.svc(VersionedService).getCurrentTags(page.intDataId)
     return !tags.some(t => t.tag === 'published')
   }
 
@@ -135,14 +135,14 @@ export class PageResolver {
 
   @FieldResolver(returns => DateTime, { nullable: true, description: 'Null if the page has never been published, but could have a value. ' })
   async publishedAt (@Ctx() ctx: Context, @Root() page: Page) {
-    const tag = await ctx.svc(VersionedService).getTag(page.dataId, 'published')
+    const tag = await ctx.svc(VersionedService).getTag(page.intDataId, 'published')
     if (!tag) return null
     return DateTime.fromJSDate(tag.date)
   }
 
   @FieldResolver(returns => User, { nullable: true })
   async publishedBy (@Ctx() ctx: Context, @Root() page: Page) {
-    const tag = await ctx.svc(VersionedService).getTag(page.dataId, 'published')
+    const tag = await ctx.svc(VersionedService).getTag(page.intDataId, 'published')
     if (!tag) return null
     return await ctx.svc(UserService).findById(tag.user)
   }
@@ -156,15 +156,15 @@ export class PageResolver {
 
   @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all old versions of this page in reverse order (latest version at position 0). One of the version numbers can be passed to the data property in order to retrieve that version of the data.' })
   async versions (@Ctx() ctx: Context, @Root() page: Page, @Arg('filter', { nullable: true }) filter?: VersionFilter) {
-    const versions = await ctx.svc(VersionedService).listVersions(page.dataId, filter)
+    const versions = await ctx.svc(VersionedService).listVersions(page.intDataId, filter)
     return versions.map(v => new ObjectVersion(v))
   }
 
   @FieldResolver(returns => ObjectVersion, { description: 'Returns the latest version information for the page.' })
   async version (@Ctx() ctx: Context, @Root() page: Page) {
     const [versioned, tags] = await Promise.all([
-      ctx.svc(VersionedService).getMeta(page.dataId),
-      ctx.svc(VersionedService).getCurrentTags(page.dataId)
+      ctx.svc(VersionedService).getMeta(page.intDataId),
+      ctx.svc(VersionedService).getCurrentTags(page.intDataId)
     ])
     if (!versioned) throw new Error('Tried to retrieve version for a page that does not exist.')
     return new ObjectVersion({

@@ -299,7 +299,7 @@ export async function moveDataEntries (versionedService: VersionedService, dataI
 
 export async function deleteDataEntries (versionedService: VersionedService, data: Data[], userInternalId: number) {
   const binds: (string | number)[] = [userInternalId, DeleteState.MARKEDFORDELETE]
-  const dataIds = data.map(d => d.dataId)
+  const dataIds = data.map(d => d.intDataId)
   return await db.transaction(async db => {
     await versionedService.removeTags(dataIds, ['published'], db)
     return await db.update(`UPDATE data SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE dataId IN (${db.in(binds, dataIds)})`, binds)
@@ -309,11 +309,11 @@ export async function deleteDataEntries (versionedService: VersionedService, dat
 export async function publishDataEntryDeletions (data: Data[], userInternalId: number) {
   const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
   const binds: (string | number)[] = [userInternalId, DeleteState.DELETED]
-  return await db.update(`UPDATE data SET deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE dataId IN (${db.in(binds, data.map(d => d.dataId))})`, binds)
+  return await db.update(`UPDATE data SET deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE dataId IN (${db.in(binds, data.map(d => d.intDataId))})`, binds)
 }
 
 export async function undeleteDataEntries (data: Data[]) {
   const binds: (string | number)[] = [DeleteState.NOTDELETED]
-  const dataIds = data.map(d => d.dataId)
+  const dataIds = data.map(d => d.intDataId)
   return await db.update(`UPDATE data SET deletedAt = NULL, deletedBy = NULL, deleteState = ? where dataId IN (${db.in(binds, dataIds)})`, binds)
 }

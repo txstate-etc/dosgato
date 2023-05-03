@@ -130,7 +130,7 @@ export class AssetServiceInternal extends BaseService {
   }
 
   async getData (asset: Asset, version?: number) {
-    return (await this.svc(VersionedService).get(asset.dataId, { version }))!.data
+    return (await this.svc(VersionedService).get(asset.intDataId, { version }))!.data
   }
 
   async processAssetFilters (filter?: AssetFilter) {
