@@ -370,9 +370,9 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
 }
 
 async function handleCopy (db: Queryable, versionedService: VersionedService, userId: string, page: Page, parent: Page, displayOrder: number, includeChildren?: boolean) {
-  const pageData = await versionedService.get<PageData>(page.dataId)
+  const pageData = await versionedService.get<PageData>(page.intDataId)
   delete pageData!.data.legacyId
-  const pageIndexes = await versionedService.getIndexes(page.dataId, pageData!.version)
+  const pageIndexes = await versionedService.getIndexes(page.intDataId, pageData!.version)
   const newDataId = await versionedService.create('page', pageData!.data, pageIndexes, userId, db)
   let newPageName = page.name
   const pagesWithName = new Set(await db.getvals<string>('SELECT name FROM pages WHERE name LIKE ? AND path = ?', [`${String(page.name)}%`, parent.pathAsParent]))
@@ -422,7 +422,7 @@ export async function deletePages (versionedService: VersionedService, pages: Pa
     const pageInternalIds = refetchedPages.map(p => p.internalId)
     const children = await getPages({ deleteStates: DeleteStateAll, internalIdPathsRecursive: refetchedPages.map(page => `${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`) }, db)
     const childInternalIds = children.map(c => c.internalId)
-    const pageIds = [...refetchedPages.map(p => p.dataId), ...children.map(p => p.dataId)]
+    const pageIds = [...refetchedPages.map(p => p.intDataId), ...children.map(p => p.intDataId)]
     await versionedService.removeTags(pageIds, ['published'], db)
     await db.update(`UPDATE pages SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id IN (${db.in(binds, unique([...pageInternalIds, ...childInternalIds]))})`, binds)
   })

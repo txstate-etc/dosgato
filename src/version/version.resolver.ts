@@ -17,6 +17,7 @@ export class VersionResolver {
 
   @Mutation(returns => VersionResponse, { description: 'Allows an editor to mark or unmark a version as significant or important. Marking a version does NOT protect it from being deleted by retention policy.' })
   async versionToggleMarked (@Ctx() ctx: Context, @Arg('dataId', type => ID, { description: 'This could be the dataId for anything versionable, i.e. an asset, page, or data entry.' }) dataId: string, @Arg('version', type => Int) version: number) {
+    const intDataId = Number(dataId)
     const [page, asset, data] = await Promise.all([
       ctx.svc(PageServiceInternal).findById(dataId),
       ctx.svc(AssetServiceInternal).findById(dataId),
@@ -29,10 +30,10 @@ export class VersionResolver {
       (data && !await ctx.svc(DataService).mayUpdate(data))
     ) throw new Error('You are not allowed to mark or unmark this version.')
     const vSvc = ctx.svc(VersionedService)
-    await vSvc.toggleMarked(dataId, version)
+    await vSvc.toggleMarked(intDataId, version)
     const [versioned, tags] = await Promise.all([
-      vSvc.getMeta(dataId, { version }),
-      vSvc.getTags(dataId, version)
+      vSvc.getMeta(intDataId, { version }),
+      vSvc.getTags(intDataId, version)
     ])
     if (!versioned) throw new Error('Specified dataId and version combination could not be found.')
     const versionObj = new ObjectVersion({

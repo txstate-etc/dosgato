@@ -26,6 +26,7 @@ export class Data {
 
   deletedBy?: number
   dataId: string
+  intDataId: number
   folderInternalId?: number
   siteId?: string
   displayOrder: number
@@ -35,9 +36,10 @@ export class Data {
 
   constructor (row: any) {
     this.internalId = row.id
-    this.id = row.dataId
+    this.id = String(row.dataId)
     this.name = row.name
-    this.dataId = row.dataId
+    this.dataId = this.id
+    this.intDataId = row.dataId
     this.folderInternalId = row.folderId
     this.displayOrder = row.displayOrder
     this.siteId = optionalString(row.siteId)

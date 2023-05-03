@@ -99,7 +99,7 @@ export class DataServiceInternal extends BaseService {
   }
 
   async getData (data: Data, opts?: { version?: number, tag?: string }) {
-    const versioned = await this.svc(VersionedService).get(data.dataId, opts)
+    const versioned = await this.svc(VersionedService).get(data.intDataId, opts)
     return versioned?.data
   }
 
@@ -231,7 +231,7 @@ export class DataService extends DosGatoService<Data> {
     }
     if (validateOnly || response.hasErrors()) return response
     const indexes = getDataIndexes(migrated)
-    await this.svc(VersionedService).update(dataId, args.data, indexes, { user: this.login, comment: args.comment, version: args.dataVersion })
+    await this.svc(VersionedService).update(data.intDataId, args.data, indexes, { user: this.login, comment: args.comment, version: args.dataVersion })
     this.loaders.clear()
     const updated = await this.raw.findById(dataId)
     response.success = true
@@ -318,7 +318,7 @@ export class DataService extends DosGatoService<Data> {
     }
     data = data.filter(d => !d.deleted)
     try {
-      await eachConcurrent(data.map(d => d.dataId), async (dataId) => { await this.svc(VersionedService).tag(dataId, 'published', undefined, this.login) })
+      await eachConcurrent(data.map(d => d.intDataId), async (dataId) => { await this.svc(VersionedService).tag(dataId, 'published', undefined, this.login) })
       this.loaders.clear()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
@@ -332,7 +332,7 @@ export class DataService extends DosGatoService<Data> {
     if (await someAsync(data, async (d: Data) => !(await this.mayUnpublish(d)))) {
       throw new Error('Current user is not permitted to unpublish one or more data entries')
     }
-    await this.svc(VersionedService).removeTags(data.map(d => d.dataId), ['published'])
+    await this.svc(VersionedService).removeTags(data.map(d => d.intDataId), ['published'])
     this.loaders.clear()
     return new ValidatedResponse({ success: true })
   }
@@ -383,7 +383,7 @@ export class DataService extends DosGatoService<Data> {
   }
 
   async isPublished (data: Data) {
-    const tag = await this.svc(VersionedService).getTag(data.dataId, 'published')
+    const tag = await this.svc(VersionedService).getTag(data.intDataId, 'published')
     return !!tag
   }
 

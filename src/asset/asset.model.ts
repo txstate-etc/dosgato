@@ -75,6 +75,7 @@ export class Asset {
   deletedBy?: number
   folderInternalId: number
   dataId: string
+  intDataId: number
   pagetreeType: PagetreeType
   orphaned: boolean
   siteId: string
@@ -99,7 +100,7 @@ export class Asset {
   constructor (row: any) {
     this.stringMeta = row.meta
     this.internalId = row.id
-    this.id = row.dataId
+    this.id = String(row.dataId)
     this.name = row.name
     this.linkId = row.linkId
     this.size = row.filesize
@@ -108,7 +109,8 @@ export class Asset {
     if (this.extension === 'jpeg') this.extension = 'jpg'
     this.filename = [this.name as string, this.extension].filter(isNotBlank).join('.')
     this.folderInternalId = row.folderId
-    this.dataId = row.dataId
+    this.dataId = this.id
+    this.intDataId = row.dataId
     this.checksum = row.shasum
     this.lastRawDownload = row.lastDownload
     this.deleted = isNotNull(row.deletedAt)

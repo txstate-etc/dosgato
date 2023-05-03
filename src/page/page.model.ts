@@ -94,6 +94,7 @@ export class Page {
   displayOrder: number
   parentInternalId?: number
   dataId: string
+  intDataId: number
   pathAsParent: string
   siteInternalId: number
   siteId: string
@@ -107,7 +108,7 @@ export class Page {
 
   constructor (row: any) {
     this.internalId = row.id
-    this.id = row.dataId
+    this.id = String(row.dataId)
     this.name = row.name
     this.pagetreeId = String(row.pagetreeId)
     this.siteInternalId = row.siteId
@@ -119,7 +120,8 @@ export class Page {
     this.parentInternalId = this.pathSplit[this.pathSplit.length - 1]
     this.pathAsParent = '/' + [...this.pathSplit, this.internalId].join('/')
     this.displayOrder = row.displayOrder
-    this.dataId = row.dataId
+    this.dataId = this.id
+    this.intDataId = row.dataId
     this.linkId = row.linkId
     this.deleted = isNotNull(row.deletedAt)
     this.deletedAt = row.deletedAt ? DateTime.fromJSDate(row.deletedAt) : undefined

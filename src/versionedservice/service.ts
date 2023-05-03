@@ -15,18 +15,18 @@ import {
 const { applyPatch, compare } = jsonPatch
 
 const storageLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => {
-    const binds: string[] = []
+  fetch: async (ids: number[]) => {
+    const binds: any[] = []
     const rows = await db.getall<VersionedStorage>(`SELECT * FROM storage WHERE id IN (${db.in(binds, ids)})`, binds)
     return rows.map(r => ({ ...r, data: JSON.parse(r.data) }) as Versioned)
   }
 })
 
 const metaLoader = new ManyJoinedLoader({
-  fetch: async (pairs: { id: string, version?: number }[]) => {
+  fetch: async (pairs: { id: number, version?: number }[]) => {
     const latests = pairs.filter(p => p.version == null)
     const versions = pairs.filter(p => p.version != null)
-    const ret: { key: { id: string, version?: number }, value: VersionedCommon }[] = []
+    const ret: { key: { id: number, version?: number }, value: VersionedCommon }[] = []
     await Promise.all([
       (async () => {
         if (latests.length) {
@@ -71,7 +71,7 @@ const metaLoader = new ManyJoinedLoader({
 })
 
 const tagLoader = new PrimaryKeyLoader({
-  fetch: async (keys: { id: string, tag: string }[]) => {
+  fetch: async (keys: { id: number, tag: string }[]) => {
     const binds: string[] = []
     return await db.getall<Tag>(`SELECT * FROM tags WHERE (id, tag) IN (${db.in(binds, keys.map(k => [k.id, k.tag]))})`, binds)
   },
@@ -79,7 +79,7 @@ const tagLoader = new PrimaryKeyLoader({
 })
 
 const currentTagsLoader = new OneToManyLoader({
-  fetch: async (ids: string[]) => {
+  fetch: async (ids: number[]) => {
     const binds: string[] = []
     return await db.getall<Tag>(`SELECT t.* FROM tags t INNER JOIN storage s ON s.id=t.id AND s.version=t.version WHERE s.id IN (${db.in(binds, ids)})`, binds)
   },
@@ -87,7 +87,7 @@ const currentTagsLoader = new OneToManyLoader({
 })
 
 const tagsLoader = new OneToManyLoader({
-  fetch: async (pairs: { id: string, version: number }[]) => {
+  fetch: async (pairs: { id: number, version: number }[]) => {
     const binds: string[] = []
     return await db.getall<Tag>(`SELECT t.* FROM tags t WHERE (t.id, t.version) IN (${db.in(binds, pairs.map(p => [p.id, p.version]))})`, binds)
   },
@@ -95,7 +95,7 @@ const tagsLoader = new OneToManyLoader({
 })
 
 const versionsByNumberLoader = new OneToManyLoader({
-  fetch: async (keys: { id: string, version: number, current: number }[]) => {
+  fetch: async (keys: { id: number, version: number, current: number }[]) => {
     const binds: (string | number)[] = []
     const where = []
     for (const { id, version, current } of keys) {
@@ -152,7 +152,7 @@ export class VersionedService extends BaseService {
    *
    * If you ask for a specific tag that doesn't exist, you'll receive undefined.
    */
-  async get <DataType = any> (id: string, { version, tag }: { version?: number, tag?: string } = {}) {
+  async get <DataType = any> (id: number, { version, tag }: { version?: number, tag?: string } = {}) {
     let versioned = await this.loaders.get(storageLoader).load(id)
     if (!versioned) return undefined
     if (tag && tag !== 'latest') {
@@ -176,7 +176,7 @@ export class VersionedService extends BaseService {
     return versioned as Versioned<DataType>
   }
 
-  async getMeta (id: string, opts?: { version?: number, tag?: string }) {
+  async getMeta (id: number, opts?: { version?: number, tag?: string }) {
     let { tag, version } = opts ?? {}
     if (tag && tag !== 'latest') {
       const verNum = (await this.loaders.get(tagLoader).load({ id, tag }))?.version
@@ -217,7 +217,7 @@ export class VersionedService extends BaseService {
     }
 
     const idsets = await Promise.all(rules.map(async rule => {
-      const where = [...permwhere, 'i.name=?']
+      const where = [...permwhere, 'n.name=?']
       const binds = [...permbinds, rule.indexName]
 
       if ('in' in rule) {
@@ -263,6 +263,7 @@ export class VersionedService extends BaseService {
         SELECT DISTINCT s.id
         FROM storage s
         INNER JOIN indexes i ON i.id=s.id
+        INNER JOIN indexnames n ON i.name_id=n.id
         INNER JOIN indexvalues v ON i.value_id=v.id
         ${join.join('\n')}
         WHERE (${where.join(') AND (')})
@@ -278,8 +279,8 @@ export class VersionedService extends BaseService {
    * Note that any numbers you passed in as indexes will have been stringified with
    * zerofill to 10 digits. This is to help normalize lexical vs numerical comparisons.
    */
-  async getIndexes (id: string, version: number) {
-    const indexrows = await db.getall<IndexJoinedStorage>('SELECT i.*, v.value FROM indexes i INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? ORDER BY i.name, v.value', [id, version])
+  async getIndexes (id: number, version: number) {
+    const indexrows = await db.getall<IndexJoinedStorage>('SELECT i.*, v.value, n.name FROM indexes i INNER JOIN indexnames n ON i.name_id=n.id INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? ORDER BY n.name, v.value', [id, version])
     const indexhash: Record<string, IndexStringified> = {}
     for (const row of indexrows) {
       indexhash[row.name] ??= { name: row.name, values: [] }
@@ -291,7 +292,7 @@ export class VersionedService extends BaseService {
   /**
    * Completely overwrite all the indexes for a specific version of an object.
    */
-  async setIndexes (id: string, version: number, indexes: Index[]) {
+  async setIndexes (id: number, version: number, indexes: Index[]) {
     await db.transaction(async db => {
       // this method expects to already be in a transaction because it's shared by
       // create, update, and restore and they all do more work in the same transaction
@@ -302,11 +303,11 @@ export class VersionedService extends BaseService {
   /**
    *  Only overwrite a single index type, leave the others alone.
    */
-  async setIndex (id: string, version: number, index: Index) {
+  async setIndex (id: number, version: number, index: Index) {
     const [sindex] = zerofillIndexes([index])
     await db.transaction(async db => {
       const existing = await db.getvals<string>(
-        'SELECT v.value FROM indexes i INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? AND i.name=?',
+        'SELECT v.value FROM indexes i INNER JOIN indexnames n ON i.name_id=n.id INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? AND n.name=?',
         [id, version, sindex.name])
       const currentSet = new Set(existing)
       const nextSet = new Set(sindex.values)
@@ -315,17 +316,19 @@ export class VersionedService extends BaseService {
         const deletebinds = [id, version, sindex.name]
         await db.delete(`
           DELETE i FROM indexes i
+          INNER JOIN indexnames n ON i.name_id=n.id
           INNER JOIN indexvalues v ON v.id=i.value_id
-          WHERE i.id=? AND i.version=? AND i.name=?
+          WHERE i.id=? AND i.version=? AND n.name=?
           AND v.value IN (${db.in(deletebinds, eliminate)})
         `, deletebinds)
       }
       const tobeadded = sindex.values.filter(v => !currentSet.has(v))
       const valuehash = await this.getIndexValueIds(tobeadded, db)
-      const indexEntries = tobeadded.map(value => [id, version, index.name, valuehash[value]])
+      const namehash = await this.getIndexNameIds([index.name], db)
+      const indexEntries = tobeadded.map(value => [id, version, namehash[index.name], valuehash[value]])
       const binds: (string | number)[] = []
       await db.insert(`
-        INSERT INTO indexes (id, version, name, value_id) VALUES ${db.in(binds, indexEntries)}
+        INSERT INTO indexes (id, version, name_id, value_id) VALUES ${db.in(binds, indexEntries)}
       `, binds)
     })
   }
@@ -340,18 +343,17 @@ export class VersionedService extends BaseService {
    *
    * @param tdb Optional transaction in which to perform creation.
    */
-  async create (type: string, data: any, indexes: Index[], user?: string, tdb?: Queryable): Promise<string> {
-    const id = nanoid(10)
+  async create (type: string, data: any, indexes: Index[], user?: string, tdb?: Queryable): Promise<number> {
     try {
       const action = async (db: Queryable) => {
-        await db.insert(`
-          INSERT INTO storage (id, type, version, data, created, createdBy, modified, modifiedBy, comment)
-          VALUES (?, ?, 1, ?, NOW(), ?, NOW(), ?, '')
-        `, [id, type, JSON.stringify(data), user ?? '', user ?? '', ''])
+        const id = await db.insert(`
+          INSERT INTO storage (type, version, data, created, createdBy, modified, modifiedBy, comment)
+          VALUES (?, 1, ?, NOW(), ?, NOW(), ?, '')
+        `, [type, JSON.stringify(data), user ?? '', user ?? '', ''])
         await this._setIndexes(id, 1, indexes, db)
+        return id
       }
-      if (tdb) await action(tdb)
-      else await db.transaction(action)
+      const id = tdb ? await action(tdb) : await db.transaction(action)
       return id
     } catch (e: any) {
       if (e.errno === 1062) return await this.create(type, data, indexes, user, tdb ?? db)
@@ -370,7 +372,7 @@ export class VersionedService extends BaseService {
    * after each update to update the modifiedAt stamp. This way the corrected stamp will make its way into the
    * version history when you send your next update.
    */
-  async setStamps (id: string, stamps: { createdAt?: Date, modifiedAt?: Date, modifiedBy?: string }, tdb?: Queryable) {
+  async setStamps (id: number, stamps: { createdAt?: Date, modifiedAt?: Date, modifiedBy?: string }, tdb?: Queryable) {
     if (!stamps.createdAt && !stamps.modifiedAt && !stamps.modifiedBy) return true
     const action = async (db: Queryable) => {
       const row = await db.getrow<{ modified: Date, modifiedBy: string, created: Date }>('SELECT created, modified, modifiedBy FROM storage WHERE id=?', [id])
@@ -398,10 +400,10 @@ export class VersionedService extends BaseService {
    * You may also optionally provide the version that you had when you started the update for
    * an optimistic concurrency check.
    */
-  async update (id: string, data: any, indexes: Index[], { user, comment, version, date }: { user?: string, comment?: string, version?: number, date?: Date } = {}, tdb?: Queryable) {
+  async update (id: number, data: any, indexes: Index[], { user, comment, version, date }: { user?: string, comment?: string, version?: number, date?: Date } = {}, tdb?: Queryable) {
     const action = async (db: Queryable) => {
       const current = await db.getrow<VersionedStorage>('SELECT * FROM storage WHERE id=?', [id])
-      if (!current) throw new NotFoundError('Unable to find node with id: ' + id)
+      if (!current) throw new NotFoundError('Unable to find node with id: ' + String(id))
       if (typeof version !== 'undefined' && version !== current.version) throw new UpdateConflictError(id)
       const currentdata = JSON.parse(current.data)
       const newversion = current.version + 1
@@ -427,9 +429,9 @@ export class VersionedService extends BaseService {
    * If you provide an indexes array, it will be used. Otherwise the indexes for the version
    * being restored will be restored as well.
    */
-  async restore (id: string, { tag, version }: { tag?: string, version?: number }, { indexes, user, comment }: { indexes?: Index[], user?: string, comment?: string } = {}) {
+  async restore (id: number, { tag, version }: { tag?: string, version?: number }, { indexes, user, comment }: { indexes?: Index[], user?: string, comment?: string } = {}) {
     const toberestored = await this.get(id, { tag, version })
-    if (!toberestored) throw new NotFoundError('Could not restore version for non-existing id: ' + id)
+    if (!toberestored) throw new NotFoundError('Could not restore version for non-existing id: ' + String(id))
     indexes ??= await this.getIndexes(id, toberestored.version)
     await this.update(id, toberestored.data, indexes, { user, comment: `restored from earlier version ${toberestored.version}${comment ? '\n' + comment : ''}` })
   }
@@ -438,7 +440,7 @@ export class VersionedService extends BaseService {
    * Completely remove an object and its entire version history. Use with caution. May be
    * better to place a soft delete flag inside the object data.
    */
-  async delete (id: string) {
+  async delete (id: number) {
     await db.transaction(async db => {
       await db.execute('DELETE FROM indexes WHERE id=?', [id])
       await db.execute('DELETE FROM tags WHERE id=?', [id])
@@ -460,9 +462,9 @@ export class VersionedService extends BaseService {
    * @param version If undefined, tags latest version.
    * @param user Person responsible for applying the tag.
    */
-  async tag (id: string, tag: string, version?: number, user?: string, date?: Date, tdb: Queryable = db) {
+  async tag (id: number, tag: string, version?: number, user?: string, date?: Date, tdb: Queryable = db) {
     version ??= await tdb.getval('SELECT version FROM storage WHERE id=?', [id])
-    if (typeof version === 'undefined') throw new NotFoundError('Unable to tag non-existing object with id ' + id)
+    if (typeof version === 'undefined') throw new NotFoundError('Unable to tag non-existing object with id ' + String(id))
     if (tag === 'latest') throw new Error('Object versions may not be manually tagged as latest. That tag is managed automatically.')
     await tdb.insert('INSERT INTO tags (id, tag, version, date, user) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE version=VALUES(version), user=VALUES(user), date=VALUES(date)', [id, tag, version, date ?? new Date(), user ?? ''])
     this.loaders.get(tagLoader).clear({ id, tag })
@@ -475,7 +477,7 @@ export class VersionedService extends BaseService {
    *
    * If the object does not have the given tag, returns undefined.
    */
-  async getTag (id: string, tag: string) {
+  async getTag (id: number, tag: string) {
     return await this.loaders.get(tagLoader).load({ id, tag })
   }
 
@@ -484,7 +486,7 @@ export class VersionedService extends BaseService {
    *
    * Does not include 'latest'.
    */
-  async getTags (id: string, version: number) {
+  async getTags (id: number, version: number) {
     return await this.loaders.get(tagsLoader).load({ id, version })
   }
 
@@ -493,19 +495,19 @@ export class VersionedService extends BaseService {
    * including 'latest'. For instance, if the latest version happens to be tagged as
    * 'published', then this will return [{ id, version, tag: 'published', user, date }]
    */
-  async getCurrentTags (id: string) {
+  async getCurrentTags (id: number) {
     return await this.loaders.get(currentTagsLoader).load(id)
   }
 
   /**
    * Remove a tag from an object, no matter which version it might be pointing at. Cannot be undone.
    */
-  async removeTag (id: string, tag: string, tdb: Queryable = db) {
+  async removeTag (id: number, tag: string, tdb: Queryable = db) {
     await tdb.delete('DELETE FROM tags WHERE id=? AND tag=?', [id, tag])
     this.loaders.get(tagLoader).clear({ id, tag })
   }
 
-  async removeTags (ids: string[], tags: string[], tdb: Queryable = db) {
+  async removeTags (ids: number[], tags: string[], tdb: Queryable = db) {
     if (!ids?.length || !tags?.length) return true
     const binds: any[] = []
     await tdb.delete(`DELETE FROM tags WHERE tag IN (${db.in(binds, tags)}) AND id IN (${db.in(binds, ids)})`, binds)
@@ -526,13 +528,13 @@ export class VersionedService extends BaseService {
   /**
    * List old versions of an object so one can be picked for retrieval.
    */
-  async listVersions (id: string, filter?: VersionFilter) {
+  async listVersions (id: number, filter?: VersionFilter) {
     let tagClause = '1=1'
     const binds: any[] = []
     if (filter?.tags?.length) {
       tagClause = `t.tag IN (${db.in(binds, filter.tags)})`
     }
-    const versions = await db.getall<{ id: string, version: number, date: Date, user: string, comment: string, tags: string, markedAt?: Date, matches: number }>(`
+    const versions = await db.getall<{ id: number, version: number, date: Date, user: string, comment: string, tags: string, markedAt?: Date, matches: number }>(`
       SELECT v.id, v.version, v.date, v.user, v.comment, GROUP_CONCAT(t.tag) AS tags, v.markedAt, COUNT(${tagClause}) AS matches
       FROM versions v LEFT JOIN tags t ON t.id=v.id AND t.version=v.version
       WHERE v.id=?
@@ -543,7 +545,7 @@ export class VersionedService extends BaseService {
     return versions.map(v => ({ ...v, tags: v.tags?.split(',') ?? [] }))
   }
 
-  async toggleMarked (id: string, version: number) {
+  async toggleMarked (id: number, version: number) {
     await db.update('UPDATE storage SET markedAt=IF(markedAt IS NULL, NOW(), NULL) WHERE id=? AND version=?', [id, version])
     await db.update('UPDATE versions SET markedAt=IF(markedAt IS NULL, NOW(), NULL) WHERE id=? AND version=?', [id, version])
   }
@@ -572,30 +574,46 @@ export class VersionedService extends BaseService {
     return valuehash
   }
 
+  protected async getIndexNameIds (names: string[], db: Queryable) {
+    const rows = await db.getall<[number, string]>('SELECT * FROM indexnames', undefined, { rowsAsArray: true })
+    const ret: Record<string, number> = {}
+    for (const [id, name] of rows) ret[name] = id
+    const tobeadded = new Set<string>()
+    for (const name of names) if (!ret[name]) tobeadded.add(name)
+    if (tobeadded.size) {
+      const binds: any[] = []
+      await db.insert(`INSERT INTO indexnames (name) VALUES ${db.in(binds, Array.from(tobeadded).map(n => [n]))}`, binds)
+      const rows = await db.getall<[number, string]>('SELECT * FROM indexnames', undefined, { rowsAsArray: true })
+      for (const [id, name] of rows) ret[name] = id
+    }
+    return ret
+  }
+
   /**
    * internal method to replace all indexes for a given version of a versioned object
    * the public create, update, and setIndexes all share this common logic
    */
-  protected async _setIndexes (id: string, version: number, indexes: Index[], db: Queryable) {
+  protected async _setIndexes (id: number, version: number, indexes: Index[], db: Queryable) {
     const sindexes = zerofillIndexes(indexes)
     const values = sindexes.flatMap(ind => ind.values)
     const valuehash = await this.getIndexValueIds(values, db)
-    const indexEntries = sindexes.flatMap(ind => ind.values.map(value => [id, version, ind.name, valuehash[value]]))
+    const namehash = await this.getIndexNameIds(sindexes.map(ind => ind.name), db)
+    const indexEntries = sindexes.flatMap(ind => ind.values.map(value => [id, version, namehash[ind.name], valuehash[value]]))
     const wanted = new Set(indexEntries.map(e => `${e[2]}.${e[3]}`))
-    const currentEntries = await db.getall<IndexStorage>('SELECT * FROM indexes WHERE id=? AND version=?', [id, version])
+    const currentEntries = await db.getall<Omit<IndexStorage, 'name'>>('SELECT * FROM indexes WHERE id=? AND version=?', [id, version])
     const eliminate = currentEntries
-      .filter(e => !wanted.has(`${e.name}.${e.value_id}`))
-      .map(e => [e.name, e.value_id])
+      .filter(e => !wanted.has(`${e.name_id}.${e.value_id}`))
+      .map(e => [e.name_id, e.value_id])
     if (eliminate.length) {
       const deletebinds = [id, version]
-      await db.execute(`DELETE FROM indexes WHERE id=? AND version=? AND (name, value_id) IN (${db.in(deletebinds, eliminate)})`, deletebinds)
+      await db.execute(`DELETE FROM indexes WHERE id=? AND version=? AND (name_id, value_id) IN (${db.in(deletebinds, eliminate)})`, deletebinds)
     }
-    const alreadyhave = new Set(currentEntries.map(r => `${r.name}.${r.value_id}`))
+    const alreadyhave = new Set(currentEntries.map(r => `${r.name_id}.${r.value_id}`))
     const tobeadded = indexEntries.filter(e => !alreadyhave.has(`${e[2]}.${e[3]}`))
     if (tobeadded.length) {
       const binds: (string | number)[] = []
       await db.insert(`
-        INSERT INTO indexes (id, version, name, value_id) VALUES ${db.in(binds, tobeadded)} ON DUPLICATE KEY UPDATE value_id=value_id
+        INSERT INTO indexes (id, version, name_id, value_id) VALUES ${db.in(binds, tobeadded)} ON DUPLICATE KEY UPDATE value_id=value_id
       `, binds)
     }
   }
@@ -678,7 +696,7 @@ export class VersionedService extends BaseService {
   static async init (db: Queryable) {
     await db.execute("\
     CREATE TABLE IF NOT EXISTS `storage` ( \
-      `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `type` VARCHAR(255) NOT NULL, \
       `version` MEDIUMINT UNSIGNED NOT NULL, \
       `data` LONGTEXT CHARACTER SET 'utf8mb4' COLLATE 'utf8mb4_bin' NOT NULL, \
@@ -694,7 +712,7 @@ export class VersionedService extends BaseService {
     DEFAULT COLLATE = utf8mb4_general_ci")
     await db.execute("\
     CREATE TABLE IF NOT EXISTS `versions` ( \
-      `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `id` INT UNSIGNED NOT NULL, \
       `version` MEDIUMINT UNSIGNED NOT NULL, \
       `date` DATETIME NOT NULL, \
       `user` VARCHAR(255) NOT NULL, \
@@ -711,7 +729,7 @@ export class VersionedService extends BaseService {
     DEFAULT COLLATE = utf8mb4_general_ci")
     await db.execute("\
     CREATE TABLE IF NOT EXISTS `tags` ( \
-      `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `id` INT UNSIGNED NOT NULL, \
       `tag` VARCHAR(255) CHARACTER SET 'ascii' NOT NULL, \
       `version` MEDIUMINT UNSIGNED NOT NULL, \
       `user` VARCHAR(255) NOT NULL, \
@@ -734,24 +752,36 @@ export class VersionedService extends BaseService {
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci')
-    await db.execute("\
+    await db.execute(`
+    CREATE TABLE IF NOT EXISTS indexnames (
+      id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      name VARCHAR(50) NOT NULL,
+      PRIMARY KEY (id)
+    )
+    ENGINE = InnoDB
+    DEFAULT CHARACTER SET = utf8mb4
+    DEFAULT COLLATE = utf8mb4_general_ci`)
+    await db.execute('\
     CREATE TABLE IF NOT EXISTS `indexes` ( \
-      `id` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `version` MEDIUMINT UNSIGNED NOT NULL, \
-      `name` VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL, \
+      `name_id` SMALLINT UNSIGNED NOT NULL, \
       `value_id` INT UNSIGNED NOT NULL, \
       INDEX `value_idx` (`value_id` ASC), \
-      INDEX `name_value` (`name` ASC, `value_id` ASC), \
-      PRIMARY KEY (`id`, `version`, `name`, `value_id`), \
+      INDEX `name_value` (`name_id` ASC, `value_id` ASC), \
+      PRIMARY KEY (`id`, `version`, `name_id`, `value_id`), \
       CONSTRAINT `value` \
         FOREIGN KEY (`value_id`) \
         REFERENCES `indexvalues` (`id`), \
+      CONSTRAINT `name_foreign` \
+        FOREIGN KEY (`name_id`) \
+        REFERENCES `indexnames` (`id`), \
       CONSTRAINT `value_foreign` \
         FOREIGN KEY (`id`) \
         REFERENCES `storage` (`id`) \
     ) \
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
-    DEFAULT COLLATE = utf8mb4_general_ci")
+    DEFAULT COLLATE = utf8mb4_general_ci')
   }
 }

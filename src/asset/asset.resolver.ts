@@ -55,7 +55,7 @@ export class AssetResolver {
   async data (@Ctx() ctx: Context, @Root() asset: Asset,
     @Arg('version', type => Int, { nullable: true }) version?: number
   ) {
-    const versioned = await ctx.svc(VersionedService).get(asset.dataId, { version })
+    const versioned = await ctx.svc(VersionedService).get(asset.intDataId, { version })
     return versioned!.data
   }
 
@@ -82,25 +82,25 @@ export class AssetResolver {
 
   @FieldResolver(returns => DateTime)
   async createdAt (@Ctx() ctx: Context, @Root() asset: Asset) {
-    const data = await ctx.svc(VersionedService).get(asset.dataId)
+    const data = await ctx.svc(VersionedService).get(asset.intDataId)
     return DateTime.fromJSDate(data!.created)
   }
 
   @FieldResolver(returns => User)
   async createdBy (@Ctx() ctx: Context, @Root() asset: Asset) {
-    const data = await ctx.svc(VersionedService).get(asset.dataId)
+    const data = await ctx.svc(VersionedService).get(asset.intDataId)
     return await ctx.svc(UserService).findById(data!.createdBy)
   }
 
   @FieldResolver(returns => DateTime)
   async modifiedAt (@Ctx() ctx: Context, @Root() asset: Asset) {
-    const data = await ctx.svc(VersionedService).get(asset.dataId)
+    const data = await ctx.svc(VersionedService).get(asset.intDataId)
     return DateTime.fromJSDate(data!.modified)
   }
 
   @FieldResolver(returns => User)
   async modifiedBy (@Ctx() ctx: Context, @Root() asset: Asset) {
-    const data = await ctx.svc(VersionedService).get(asset.dataId)
+    const data = await ctx.svc(VersionedService).get(asset.intDataId)
     return await ctx.svc(UserService).findById(data!.modifiedBy)
   }
 
@@ -121,7 +121,7 @@ export class AssetResolver {
 
   @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all versions of this asset. One of the version numbers can be passed to the data property in order to retrieve that version of the data.' })
   async versions (@Ctx() ctx: Context, @Root() asset: Asset) {
-    const versions = await ctx.svc(VersionedService).listVersions(asset.dataId)
+    const versions = await ctx.svc(VersionedService).listVersions(asset.intDataId)
     return versions.map(v => new ObjectVersion(v))
   }
 

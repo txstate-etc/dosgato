@@ -26,7 +26,7 @@ export class ObjectVersion {
   @Field({ nullable: true })
   markedAt?: DateTime
 
-  id: string
+  id: number
   userId: string
 
   constructor (row: Version) {

@@ -30,13 +30,13 @@ export class DataResolver {
     @Arg('published', { nullable: true, description: 'Return the published version of the data.' }) published?: boolean,
     @Arg('version', type => Int, { nullable: true }) version?: number
   ) {
-    const versioned = await ctx.svc(VersionedService).get(data.dataId, { version, tag: published ? 'published' : undefined })
+    const versioned = await ctx.svc(VersionedService).get(data.intDataId, { version, tag: published ? 'published' : undefined })
     return versioned!.data
   }
 
   @FieldResolver(returns => Template, { description: 'Data are created with a template that defines the schema and provides an editing dialog. The template never changes (except as part of an upgrade task).' })
   async template (@Ctx() ctx: Context, @Root() data: Data) {
-    const versioned = await ctx.svc(VersionedService).get<DataData>(data.dataId)
+    const versioned = await ctx.svc(VersionedService).get<DataData>(data.intDataId)
     const templateKey = versioned!.data.templateKey
     return await ctx.svc(TemplateService).findByKey(templateKey)
   }
@@ -60,38 +60,38 @@ export class DataResolver {
 
   @FieldResolver(returns => Boolean, { description: 'True if the data entry has a version marked as published.' })
   async published (@Ctx() ctx: Context, @Root() data: Data) {
-    const published = await ctx.svc(VersionedService).get(data.dataId, { tag: 'published' })
+    const published = await ctx.svc(VersionedService).get(data.intDataId, { tag: 'published' })
     return (typeof published) !== 'undefined'
   }
 
   @FieldResolver(returns => DateTime, { nullable: true })
   async publishedAt (@Ctx() ctx: Context, @Root() data: Data) {
-    const tag = await ctx.svc(VersionedService).getTag(data.dataId, 'published')
+    const tag = await ctx.svc(VersionedService).getTag(data.intDataId, 'published')
     if (!tag) return null
     return DateTime.fromJSDate(tag.date)
   }
 
   @FieldResolver(returns => DateTime)
   async createdAt (@Ctx() ctx: Context, @Root() data: Data) {
-    const dataFromStorage = await ctx.svc(VersionedService).get(data.dataId)
+    const dataFromStorage = await ctx.svc(VersionedService).get(data.intDataId)
     return DateTime.fromJSDate(dataFromStorage!.created)
   }
 
   @FieldResolver(returns => User)
   async createdBy (@Ctx() ctx: Context, @Root() data: Data) {
-    const dataFromStorage = await ctx.svc(VersionedService).get(data.dataId)
+    const dataFromStorage = await ctx.svc(VersionedService).get(data.intDataId)
     return await ctx.svc(UserService).findById(dataFromStorage!.createdBy)
   }
 
   @FieldResolver(returns => DateTime)
   async modifiedAt (@Ctx() ctx: Context, @Root() data: Data) {
-    const dataFromStorage = await ctx.svc(VersionedService).get(data.dataId)
+    const dataFromStorage = await ctx.svc(VersionedService).get(data.intDataId)
     return DateTime.fromJSDate(dataFromStorage!.modified)
   }
 
   @FieldResolver(returns => User)
   async modifiedBy (@Ctx() ctx: Context, @Root() data: Data) {
-    const dataFromStorage = await ctx.svc(VersionedService).get(data.dataId)
+    const dataFromStorage = await ctx.svc(VersionedService).get(data.intDataId)
     return await ctx.svc(UserService).findById(dataFromStorage!.modifiedBy)
   }
 
@@ -104,15 +104,15 @@ export class DataResolver {
 
   @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all versions of this data entry. One of the version numbers can be passed to the data property in order to retrieve that version.' })
   async versions (@Ctx() ctx: Context, @Root() data: Data) {
-    const versions = await ctx.svc(VersionedService).listVersions(data.dataId)
+    const versions = await ctx.svc(VersionedService).listVersions(data.intDataId)
     return versions.map(v => new ObjectVersion(v))
   }
 
   @FieldResolver(returns => ObjectVersion, { description: 'Returns the latest version information for the data entry.' })
   async version (@Ctx() ctx: Context, @Root() data: Data) {
     const [versioned, tags] = await Promise.all([
-      ctx.svc(VersionedService).get(data.dataId),
-      ctx.svc(VersionedService).getCurrentTags(data.dataId)
+      ctx.svc(VersionedService).get(data.intDataId),
+      ctx.svc(VersionedService).getCurrentTags(data.intDataId)
     ])
     if (!versioned) throw new Error('Tried to retrieve version for a data entry that does not exist.')
     return new ObjectVersion({

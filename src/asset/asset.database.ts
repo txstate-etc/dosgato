@@ -38,7 +38,7 @@ export interface AssetRow {
   id: number
   name: string
   folderId: number
-  dataId: string
+  dataId: number
   linkId: string
   shasum: string
   deletedAt?: Date
@@ -424,30 +424,30 @@ export async function createAsset (versionedService: VersionedService, userId: s
 
 export async function replaceAsset (versionedService: VersionedService, userId: string, args: ReplaceAssetInput) {
   return await db.transaction(async db => {
-    const data = await versionedService.get(args.assetId)
+    const data = await versionedService.get(Number(args.assetId))
     if (!data) throw new Error('Asset to be updated had no backing data.')
     await db.insert(`
     INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)
     VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify(pick(args, 'width', 'height')), args.size])
     const newData = { ...data.data, shasum: args.checksum, uploadedFilename: args.filename, meta: args.meta }
-    await versionedService.update(args.assetId, newData, getIndexes(newData), { user: userId }, db)
+    await versionedService.update(Number(args.assetId), newData, getIndexes(newData), { user: userId }, db)
     const modifiedBy = data.data.legacyId ? (args.modifiedBy ?? userId) : userId
     const modifiedAt = data.data.legacyId ? (args.modifiedAt ?? undefined) : undefined
-    await versionedService.setStamps(args.assetId, { modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
+    await versionedService.setStamps(Number(args.assetId), { modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
     await db.update('UPDATE assets SET shasum=? WHERE dataId=?', [args.checksum, args.assetId])
     return (await getAssets({ ids: [args.assetId] }, db))[0]
   })
 }
 
 export async function updateAssetMeta (versionedService: VersionedService, asset: Asset, meta: any, userId: string, stamps?: { modifiedBy: string, modifiedAt: Date }) {
-  const oldVersion = await versionedService.get(asset.dataId)
+  const oldVersion = await versionedService.get(asset.intDataId)
   if (!oldVersion) throw new Error('Asset data missing.')
   const newData = {
       ...oldVersion.data,
       meta
   }
-  await versionedService.update(asset.dataId, newData, getIndexes(newData), { user: userId })
-  if (newData.legacyId && stamps) await versionedService.setStamps(asset.dataId, stamps, db)
+  await versionedService.update(asset.intDataId, newData, getIndexes(newData), { user: userId })
+  if (newData.legacyId && stamps) await versionedService.setStamps(asset.intDataId, stamps, db)
 }
 
 export async function renameAsset (assetId: string, name: string, folderInternalIdPath: string) {

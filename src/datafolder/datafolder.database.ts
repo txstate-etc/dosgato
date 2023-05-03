@@ -138,7 +138,7 @@ export async function moveDataFolders (folderIds: string[], siteId?: string) {
 export async function deleteDataFolder (versionedService: VersionedService, folderIds: string[], userInternalId: number) {
   return await db.transaction(async db => {
     const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
-    const dataEntryIds = await db.getvals<string>(`SELECT dataId from data INNER JOIN datafolders ON data.folderId = datafolders.id WHERE datafolders.guid IN (${db.in([], folderIds)})`, folderIds)
+    const dataEntryIds = await db.getvals<number>(`SELECT dataId from data INNER JOIN datafolders ON data.folderId = datafolders.id WHERE datafolders.guid IN (${db.in([], folderIds)})`, folderIds)
     if (dataEntryIds.length) {
       await versionedService.removeTags(dataEntryIds, ['published'], db)
       await db.update(`UPDATE data SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE dataId IN (${db.in([], dataEntryIds)})`, [userInternalId, DeleteState.MARKEDFORDELETE, ...dataEntryIds])
