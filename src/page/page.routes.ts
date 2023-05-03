@@ -88,12 +88,14 @@ async function handleUpload (req: FastifyRequest) {
 async function handleUploads (req: FastifyRequest, handleFile: (pageRecord: PageExport) => Promise<void>) {
   for await (const part of req.files()) {
     if (part.mimetype === 'application/json') {
+      let pageRecord: PageExport
       try {
-        const pageRecord = JSON.parse((await part.toBuffer()).toString('utf8')) as PageExport
-        if (pageRecord.name && pageRecord.linkId && pageRecord.data.templateKey) await handleFile(pageRecord)
+        pageRecord = JSON.parse((await part.toBuffer()).toString('utf8'))
+        if (!pageRecord.name || !pageRecord.linkId || !pageRecord.data.templateKey) throw new Error()
       } catch (e: any) {
         throw new HttpError(400, 'At least one uploaded JSON file was not a Dos Gato export file.')
       }
+      await handleFile(pageRecord)
     } else if (part.mimetype === 'application/x-gzip') {
       const stream = gzipJsonLToJSON(part.file)
       for await (const pageRecord of stream) {
