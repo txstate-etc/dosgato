@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto'
 import { clone, intersect } from 'txstate-utils'
 import {
   type Index, type IndexJoinedStorage, type IndexStorage, type IndexStringified, NotFoundError,
-  type SearchRule, type Tag, UpdateConflictError, type Version, type Versioned, type VersionedCommon,
+  type SearchRule, type Tag, UpdateConflictError, type Versioned, type VersionedCommon,
   type VersionedStorage, type VersionStorage, type VersionFilter
 } from '../internal.js'
 const { applyPatch, compare } = jsonPatch
@@ -42,15 +42,15 @@ const metaLoader = new ManyJoinedLoader({
       (async () => {
         if (versions.length) {
           const binds: (string | number)[] = []
+          const cols = 's.id, s.type, s.version, s.created, s.createdBy, s.modified, s.modifiedBy, s.comment, s.markedAt'
           const versionsrows = await db.getall<VersionedCommon & { selectedVersion?: number, selectedModified?: Date, selectedModifier?: string, selectedMarkedAt?: Date, selectedComment: string }>(`
-            SELECT s.id, s.type, s.version, s.created, s.createdBy, s.modified, s.modifiedBy, s.comment, s.markedAt,
-              v.version as selectedVersion, v.date as selectedModified, v.user as selectedModifier, v.comment as selectedComment, v.markedAt as selectedMarkedAt
+            SELECT ${cols}, NULL as selectedVersion, NULL as selectedModified, NULL as selectedModifier, NULL as selectedComment, NULL as selectedMarkedAt
             FROM storage s
-            LEFT JOIN versions v ON v.id = s.id
-            WHERE
-              (s.id, s.version) IN (${db.in(binds, versions.map(p => [p.id, p.version]))})
-              OR
-              (v.id, v.version) IN (${db.in(binds, versions.map(p => [p.id, p.version]))})
+            WHERE (s.id, s.version) IN (${db.in(binds, versions.map(p => [p.id, p.version]))})
+            UNION
+            SELECT ${cols}, v.version as selectedVersion, v.date as selectedModified, v.user as selectedModifier, v.comment as selectedComment, v.markedAt as selectedMarkedAt
+            FROM storage s INNER JOIN versions v ON v.id = s.id
+            WHERE (v.id, v.version) IN (${db.in(binds, versions.map(p => [p.id, p.version]))})
           `, binds)
           ret.push(...versionsrows.map(r => ({
             key: { id: r.id, version: r.selectedVersion ?? r.version },
