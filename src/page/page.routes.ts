@@ -9,7 +9,7 @@ import {
   getPageIndexes, GlobalRuleService, logMutation, makeSafe, numerate, Page, type PageRule,
   PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, type PagetreeType,
   SiteService, SiteServiceInternal, templateRegistry, VersionedService,
-  createPageInTransaction, getPages, jsonlGzStream, gzipJsonLToJSON
+  createPageInTransaction, getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput
 } from '../internal.js'
 
 export interface PageExport {
@@ -200,6 +200,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     const ctx = new Context(req)
     const svcPageInternal = ctx.svc(PageServiceInternal)
     const svcPage = ctx.svc(PageService)
+    const svcTmpl = ctx.svc(TemplateService)
     const versionedService = ctx.svc(VersionedService)
     const user = await getEnabledUser(ctx) // throws if not authenticated
     const parent = await svcPageInternal.findById(req.params.parentPageId)
@@ -209,8 +210,6 @@ export async function createPageRoutes (app: FastifyInstance) {
     const above = req.body?.abovePage ? await svcPageInternal.findById(req.body?.abovePage) : undefined
     const pages = await svcPageInternal.getPageChildren(parent, false)
     const nameSet = new Set(pages.map(p => p.name))
-    const pagetree = (await ctx.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
-    const site = (await ctx.svc(SiteServiceInternal).findById(pagetree.siteId))!
     let first = true
     let firstInternalId: number | undefined
     const parentsByPath: Record<string, Page> = {}
@@ -226,13 +225,9 @@ export async function createPageRoutes (app: FastifyInstance) {
           actualParent = parentsByPath[pathparts.slice(0, -1).join('.')]
         }
         if (!actualParent) throw new HttpError(400, 'Uploaded archive contains page exports in an inconsistent order or with missing parent pages.')
-        const response = await svcPage.validatePageData(pageRecord.data, site, pagetree, parent, newPageName)
-        if (!response.success) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
-        try {
-          await svcPage.validatePageTemplates(pageRecord.data, { parent })
-        } catch (e: any) {
-          throw new HttpError(403, e.message)
-        }
+        const template = await svcTmpl.findByKey(pageRecord.data.templateKey)
+        if (!template) throw new HttpError(400, 'Template ' + pageRecord.data.templateKey + ' is not recognized.')
+        if (!await svcTmpl.mayUseOnPage(template, parent)) throw new HttpError(403, 'At least one page being imported is using a template not compatible with the site being imported into.')
         const pageInternalId = await createPageInTransaction(db, versionedService, user.id, actualParent, placeAbove, newPageName, pageRecord.data, {
           ...pick(pageRecord, 'createdBy', 'createdAt', 'modifiedBy', 'modifiedAt', 'linkId')
         })
@@ -318,7 +313,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     await push(pageRecord)
     counter.count++
     if (recurse) {
-      const children = await ctx.svc(PageService).getPageChildren(page)
+      const children = await ctx.svc(PageService).getPageChildren(page, false, { deleteStates: [DeleteStateInput.NOTDELETED] })
       for (const child of children) await exportRecursive(ctx, push, child, pagePath + '/' + child.name, recurse, counter)
     }
   }
