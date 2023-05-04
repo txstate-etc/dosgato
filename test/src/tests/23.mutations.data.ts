@@ -599,7 +599,7 @@ describe('data mutations', () => {
       SELECT dataId, displayOrder FROM data
       INNER JOIN datafolders ON data.folderId = datafolders.id
       WHERE datafolders.guid = ?`, [folder.id])
-    expect(remaining[1].dataId).to.equal(data3.id)
+    expect(String(remaining[1].dataId)).to.equal(data3.id)
     expect(remaining[1].displayOrder).to.equal(2)
   })
   it('should move data out of a folder to global data', async () => {
@@ -615,7 +615,7 @@ describe('data mutations', () => {
       SELECT dataId, displayOrder FROM data
       INNER JOIN datafolders ON data.folderId = datafolders.id
       WHERE datafolders.guid = ?`, [folder.id])
-    expect(remaining[0].dataId).to.equal(data2.id)
+    expect(String(remaining[0].dataId)).to.equal(data2.id)
     expect(remaining[0].displayOrder).to.equal(1)
   })
   it('should move site-level data within a site', async () => {
@@ -643,7 +643,7 @@ describe('data mutations', () => {
     const ids = sortedData.map((d: any) => d.id)
     expect(ids).to.have.ordered.members([data4.id, data2.id])
     const remaining = await db.getall('SELECT dataId, displayOrder FROM data WHERE folderId IS NULL and siteId = ?', [site.id])
-    expect(remaining[1].dataId).to.equal(data3.id)
+    expect(String(remaining[1].dataId)).to.equal(data3.id)
     expect(remaining[1].displayOrder).to.equal(2)
   })
   it('should move site-level data to global data', async () => {
@@ -661,7 +661,7 @@ describe('data mutations', () => {
     const position: number = globaldatanames.indexOf('lime')
     expect(globaldatanames.indexOf('black')).to.be.lessThan(position)
     const remaining = await db.getall('SELECT dataId, displayOrder FROM data WHERE folderId IS NULL AND siteId = ?', [site.id])
-    expect(remaining[1].dataId).to.equal(data4.id)
+    expect(String(remaining[1].dataId)).to.equal(data4.id)
     expect(remaining[1].displayOrder).to.equal(2)
   })
   it('should update the display order of global data', async () => {
@@ -750,7 +750,7 @@ describe('data mutations', () => {
       SELECT dataId, displayOrder FROM data
       INNER JOIN datafolders ON data.folderId = datafolders.id
       WHERE datafolders.guid = ?`, [folderR.id])
-    expect(remaining[1].dataId).to.equal(data4.id)
+    expect(String(remaining[1].dataId)).to.equal(data4.id)
     expect(remaining[1].displayOrder).to.equal(2)
   })
   it('should move multiple data entries out of a folder to global data', async () => {
@@ -767,7 +767,7 @@ describe('data mutations', () => {
       SELECT dataId, displayOrder FROM data
       INNER JOIN datafolders ON data.folderId = datafolders.id
       WHERE datafolders.guid = ?`, [folder.id])
-    expect(remaining[1].dataId).to.equal(data4.id)
+    expect(String(remaining[1].dataId)).to.equal(data4.id)
     expect(remaining[1].displayOrder).to.equal(2)
   })
   it('should move multiple site-level data entries within a site', async () => {
