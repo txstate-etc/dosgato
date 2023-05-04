@@ -6,7 +6,8 @@ export async function init (db: Queryable) {
     CREATE TABLE IF NOT EXISTS `users` ( \
       `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `login` VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL, \
-      `name` VARCHAR(255) NOT NULL, \
+      `firstname` VARCHAR(255) NOT NULL DEFAULT '', \
+      `lastname` VARCHAR(255) NOT NULL, \
       `email` VARCHAR(255) NOT NULL, \
       `trained` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `system` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
@@ -21,35 +22,20 @@ export async function init (db: Queryable) {
   await db.execute('\
       CREATE TABLE IF NOT EXISTS `organizations` ( \
         `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, \
+        `externalId` VARCHAR(255) CHARACTER SET "ascii" COLLATE "ascii_bin", \
         `name` VARCHAR(255) NOT NULL, \
         PRIMARY KEY (`id`), \
-        UNIQUE INDEX `name_UNIQUE` (`name`)) \
+        UNIQUE `externalId_UNIQUE` (externalId), \
+        UNIQUE INDEX `name_UNIQUE` (`name`) \
+      ) \
       ENGINE = InnoDB \
       DEFAULT CHARACTER SET = utf8mb4 \
       DEFAULT COLLATE = utf8mb4_general_ci;')
-  await db.execute("\
-      CREATE TABLE IF NOT EXISTS `assetfolders` ( \
-        `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \
-        `siteId` SMALLINT UNSIGNED NOT NULL COMMENT 'for lookup convenience, not canonical', \
-        `path` TEXT NOT NULL, \
-        `name` VARCHAR(255) NOT NULL, \
-        `guid` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
-        `deletedAt` DATETIME, \
-        `deletedBy` MEDIUMINT UNSIGNED, \
-        PRIMARY KEY (`id`), \
-        INDEX `path_idx` (`path`(255)), \
-        CONSTRAINT `FK_assetfolders_users` \
-          FOREIGN KEY (`deletedBy`) \
-          REFERENCES `users` (`id`)) \
-      ENGINE = InnoDB \
-      DEFAULT CHARACTER SET = utf8mb4 \
-      DEFAULT COLLATE = utf8mb4_general_ci;")
   await db.execute("\
       CREATE TABLE IF NOT EXISTS `sites` ( \
         `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, \
         `name` VARCHAR(255) NOT NULL, \
         `primaryPagetreeId` MEDIUMINT UNSIGNED, \
-        `rootAssetFolderId` MEDIUMINT UNSIGNED, \
         `launchHost` VARCHAR(255), \
         `launchPath` VARCHAR(255) DEFAULT '/', \
         `launchEnabled` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
@@ -60,17 +46,14 @@ export async function init (db: Queryable) {
         PRIMARY KEY (`id`), \
         UNIQUE INDEX `name_UNIQUE` (`name`), \
         UNIQUE INDEX `primary_pagetree_id_UNIQUE` (`primaryPagetreeId`), \
-        UNIQUE INDEX `asset_root_id_UNIQUE` (`rootAssetFolderId`), \
         INDEX `launchUrl` (`launchHost`, `launchPath`), \
         CONSTRAINT `FK_sites_users` \
           FOREIGN KEY (`ownerId`) \
           REFERENCES `users` (`id`), \
         CONSTRAINT `FK_sites_organizations` \
           FOREIGN KEY (`organizationId`) \
-          REFERENCES `organizations` (`id`), \
-        CONSTRAINT `FK_sites_assetfolders` \
-          FOREIGN KEY (`rootAssetFolderId`) \
-          REFERENCES `assetfolders` (`id`)) \
+          REFERENCES `organizations` (`id`) \
+      ) \
       ENGINE = InnoDB \
       DEFAULT CHARACTER SET = utf8mb4 \
       DEFAULT COLLATE = utf8mb4_general_ci;")
@@ -78,10 +61,12 @@ export async function init (db: Queryable) {
     CREATE TABLE IF NOT EXISTS `comments` ( \
       `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `siteId` SMALLINT UNSIGNED NOT NULL, \
-      `comment` VARCHAR(255) NOT NULL, \
+      `comment` TEXT NOT NULL, \
       `createdBy` MEDIUMINT UNSIGNED NOT NULL, \
       `createdAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, \
       PRIMARY KEY (`id`), \
+      INDEX `sites_idx` (siteId, createdAt DESC), \
+      INDEX `users_idx` (createdBy, createdAt DESC), \
       CONSTRAINT `FK_comments_sites` \
         FOREIGN KEY (`siteId`) \
         REFERENCES `sites` (`id`), \
@@ -105,6 +90,7 @@ export async function init (db: Queryable) {
       PRIMARY KEY (`id`), \
       UNIQUE INDEX `nameinsite` (`siteId`, `name`), \
       INDEX `site_idx` (`siteId`, `type`), \
+      INDEX `name_idx` (`name`), \
       CONSTRAINT `FK_pagetrees_users` \
         FOREIGN KEY (`deletedBy`) \
         REFERENCES `users` (`id`), \
@@ -114,7 +100,33 @@ export async function init (db: Queryable) {
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;")
-  await db.execute('\
+  await db.execute("\
+    CREATE TABLE IF NOT EXISTS `assetfolders` ( \
+      `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, \
+      `siteId` SMALLINT UNSIGNED NOT NULL, \
+      `pagetreeId` MEDIUMINT UNSIGNED NOT NULL, \
+      `path` TEXT NOT NULL, \
+      `name` VARCHAR(255) NOT NULL, \
+      `linkId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `deleteState` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
+      `deletedAt` DATETIME, \
+      `deletedBy` MEDIUMINT UNSIGNED, \
+      PRIMARY KEY (`id`), \
+      UNIQUE `linkId_unique_in_pagetree` (pagetreeId, linkId), \
+      INDEX `path_idx` (`path`(255)), \
+      INDEX `name_idx` (`name`), \
+      INDEX `linkId_idx` (`linkId`), \
+      CONSTRAINT `assetfolders_ibfk_1` \
+        FOREIGN KEY (`pagetreeId`) \
+        REFERENCES `pagetrees` (`id`), \
+      CONSTRAINT `FK_assetfolders_users` \
+        FOREIGN KEY (`deletedBy`) \
+        REFERENCES `users` (`id`) \
+    ) \
+    ENGINE = InnoDB \
+    DEFAULT CHARACTER SET = utf8mb4 \
+    DEFAULT COLLATE = utf8mb4_general_ci;")
+await db.execute('\
     CREATE TABLE IF NOT EXISTS `sites_managers` ( \
       `siteId` SMALLINT UNSIGNED NOT NULL, \
       `userId` MEDIUMINT UNSIGNED NOT NULL, \
@@ -144,13 +156,16 @@ export async function init (db: Queryable) {
     CREATE TABLE IF NOT EXISTS `assets` ( \
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `name` VARCHAR(255) NOT NULL, \
+      `linkId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
       `folderId` MEDIUMINT UNSIGNED NOT NULL, \
       `dataId` INT UNSIGNED NOT NULL, \
       `shasum` CHAR(43) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `deleteState` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `deletedAt` DATETIME, \
       `deletedBy` MEDIUMINT UNSIGNED, \
       PRIMARY KEY (`id`), \
       INDEX `name_idx` (`name`), \
+      INDEX `linkId_idx` (`linkId`), \
       CONSTRAINT `FK_assets_assetfolders` \
         FOREIGN KEY (`folderId`) \
         REFERENCES `assetfolders` (`id`), \
@@ -237,19 +252,25 @@ export async function init (db: Queryable) {
     CREATE TABLE IF NOT EXISTS `pages` ( \
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `name` VARCHAR(255) NOT NULL, \
-      `path` TEXT NOT NULL, \
+      `title` VARCHAR(255), \
+      `path` VARCHAR(255) NOT NULL, \
       `displayOrder` SMALLINT UNSIGNED NOT NULL, \
       `pagetreeId` MEDIUMINT UNSIGNED NOT NULL, \
+      `siteId` SMALLINT UNSIGNED NOT NULL, \
       `dataId` INT UNSIGNED NOT NULL, \
       `linkId` CHAR(10) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `templateKey` VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL, \
+      `deleteState` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `deletedAt` DATETIME, \
       `deletedBy` MEDIUMINT UNSIGNED, \
       PRIMARY KEY (`id`), \
       UNIQUE INDEX `data_UNIQUE` (`dataId`), \
       UNIQUE INDEX `linkId_in_pagetree` (`pagetreeId`, `linkId`), \
+      UNIQUE INDEX `nameinpath` (`path`, `name`), \
       INDEX `linkId_idx` (`linkId`), \
       INDEX `path_idx` (`path`(255), `displayOrder`), \
       INDEX `name_idx` (`name`(255)), \
+      FOREIGN KEY (siteId) REFERENCES sites(id), \
       CONSTRAINT `FK_pages_pagetrees` \
         FOREIGN KEY (`pagetreeId`) \
         REFERENCES `pagetrees` (`id`), \
@@ -298,7 +319,7 @@ export async function init (db: Queryable) {
       `height` SMALLINT UNSIGNED NOT NULL, \
       `quality` TINYINT UNSIGNED NOT NULL, \
       `othersettings` JSON NOT NULL, \
-      PRIMARY KEY (`binaryId`), \
+      PRIMARY KEY (`binaryId`, `originalBinaryId`), \
       INDEX `resize_idx` (`originalBinaryId`, `width`, `height`, `quality`), \
       CONSTRAINT `FK_resizes_binaries_id` \
         FOREIGN KEY (`binaryId`) \
@@ -364,6 +385,7 @@ export async function init (db: Queryable) {
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
       `roleId` MEDIUMINT UNSIGNED NOT NULL, \
       `siteId` SMALLINT UNSIGNED, \
+      `pagetreeType` ENUM('primary', 'sandbox', 'archive'), \
       `path` VARCHAR(255) NOT NULL DEFAULT '/', \
       `mode` ENUM('self', 'sub', 'selfsub') NOT NULL DEFAULT 'selfsub', \
       `create` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
@@ -403,6 +425,7 @@ export async function init (db: Queryable) {
       `guid` CHAR(10) CHARACTER SET \'ascii\' COLLATE \'ascii_bin\' NOT NULL,\
       `siteId` SMALLINT UNSIGNED, \
       `templateId` SMALLINT UNSIGNED NOT NULL, \
+      `deleteState` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `deletedAt` DATETIME, \
       `deletedBy` MEDIUMINT UNSIGNED, \
       PRIMARY KEY (`id`), \
@@ -422,7 +445,9 @@ export async function init (db: Queryable) {
       `name` VARCHAR(255) NOT NULL, \
       `displayOrder` SMALLINT UNSIGNED NOT NULL, \
       `siteId` SMALLINT UNSIGNED, \
+      `templateId` SMALLINT UNSIGNED NOT NULL, \
       `folderId` MEDIUMINT UNSIGNED, \
+      `deleteState` TINYINT UNSIGNED NOT NULL DEFAULT 0, \
       `deletedAt` DATETIME, \
       `deletedBy` MEDIUMINT UNSIGNED, \
       PRIMARY KEY (`id`), \
@@ -438,6 +463,9 @@ export async function init (db: Queryable) {
       CONSTRAINT `FK_data_sites` \
         FOREIGN KEY (`siteId`) \
         REFERENCES `sites` (`id`), \
+      CONSTRAINT `FK_data_templates` \
+        FOREIGN KEY (`templateId`) \
+        REFERENCES `templates` (`id`), \
       CONSTRAINT `FK_data_datafolders` \
         FOREIGN KEY (`folderId`) \
         REFERENCES `datafolders` (`id`)) \
@@ -533,6 +561,31 @@ export async function init (db: Queryable) {
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;')
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      name VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL,
+      lastBegin DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      inProgress TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      retries TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      PRIMARY KEY (name)
+    )
+    ENGINE = InnoDB
+    DEFAULT CHARACTER SET = utf8mb4
+    DEFAULT COLLATE = utf8mb4_general_ci
+  `)
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS requestedresizes (
+      binaryId INT UNSIGNED NOT NULL,
+      started DATETIME,
+      completed DATETIME,
+      withError TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      PRIMARY KEY (binaryId),
+      INDEX(started)
+    )
+    ENGINE = InnoDB
+    DEFAULT CHARACTER SET = utf8mb4
+    DEFAULT COLLATE = utf8mb4_general_ci;
+  `)
   await db.execute('\
     CREATE TABLE IF NOT EXISTS `migratedurlinfo` ( \
       `urlhash` BINARY(20) NOT NULL, \
@@ -546,4 +599,20 @@ export async function init (db: Queryable) {
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;')
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS migratedresizeinfo (
+      originalChecksum CHAR(43) CHARACTER SET "ascii" COLLATE "ascii_bin" NOT NULL,
+      resizedChecksum CHAR(43) CHARACTER SET "ascii" COLLATE "ascii_bin" NOT NULL,
+      mime VARCHAR(255) CHARACTER SET "ascii" COLLATE "ascii_bin" NOT NULL,
+      size INT UNSIGNED NOT NULL,
+      quality INT UNSIGNED NOT NULL,
+      lossless TINYINT UNSIGNED NOT NULL,
+      width SMALLINT UNSIGNED,
+      height SMALLINT UNSIGNED,
+      PRIMARY KEY (originalChecksum, width, mime)
+    )
+    ENGINE = InnoDB
+    DEFAULT CHARACTER SET = utf8mb4
+    DEFAULT COLLATE = utf8mb4_general_ci;
+  `)
 }

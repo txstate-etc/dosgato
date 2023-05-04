@@ -745,9 +745,11 @@ export class VersionedService extends BaseService {
     await db.execute('\
     CREATE TABLE IF NOT EXISTS `indexvalues` ( \
       `id` INT UNSIGNED NOT NULL AUTO_INCREMENT, \
-      `value` VARCHAR(255) NOT NULL, \
+      `value` VARCHAR(1024) NOT NULL, \
+      `checksum` BINARY(20) NOT NULL, \
       PRIMARY KEY (`id`), \
-      UNIQUE `value` (`value`) \
+      UNIQUE `checksum` (`checksum`), \
+      INDEX `value` (`value`(100)) \
     ) \
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
