@@ -1,7 +1,7 @@
 import { type ComponentData, type PageData, type PageExtras, type PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { type DateTime } from 'luxon'
+import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
 import { equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set, someAsync, stringify, unique } from 'txstate-utils'
 import {
@@ -540,8 +540,34 @@ export class PageService extends DosGatoService<Page> {
     const response = await this.validatePageData(data, site, pagetree, parent, page.name, page.linkId)
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(data)
-      await this.svc(VersionedService).update(dataId, data, indexes, { user: this.login, comment, version: dataVersion })
-      await db.update('UPDATE pages SET title=?, templateKey=? WHERE id=?', [data.title, data.templateKey, page.internalId])
+      await db.transaction(async db => {
+        await this.svc(VersionedService).update(dataId, data, indexes, { user: this.login, comment, version: dataVersion })
+        await db.update('UPDATE pages SET title=?, templateKey=? WHERE id=?', [data.title, data.templateKey, page!.internalId])
+      })
+      this.loaders.clear()
+      page = await this.raw.findById(dataId)
+    }
+    response.page = page
+    return response
+  }
+
+  // make sure the page template is still valid but ignore validation and component template problems
+  async restorePage (dataId: string, restoreVersion: number, validateOnly?: boolean) {
+    let page = await this.raw.findById(dataId)
+    if (!page) throw new Error('Cannot restore an older version of a page that does not exist.')
+    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    const dataToRestore = await this.svc(VersionedService).get(page.dataId, { version: restoreVersion })
+    if (!dataToRestore) throw new Error('Version to be restored could not be found.')
+    const data = dataToRestore.data as PageData
+    const tmpl = await this.svc(TemplateServiceInternal).findByKey(data.templateKey)
+    const response = new PageResponse({ success: true })
+    if (!tmpl || !await this.svc(TemplateService).mayKeepOnPage(tmpl.key, page, tmpl)) response.addMessage('This version may not be restored because it uses a page template that is no longer available.')
+    if (!validateOnly && response.success) {
+      const indexes = getPageIndexes(data)
+      await db.transaction(async db => {
+        await this.svc(VersionedService).update(page!.dataId, data, indexes, { user: this.login, comment: `Restored from ${DateTime.fromJSDate(dataToRestore.modified).toLocaleString(DateTime.DATETIME_SHORT)}.` }, db)
+        await db.update('UPDATE pages SET title=?, templateKey=? WHERE id=?', [data.title, data.templateKey, page!.internalId])
+      })
       this.loaders.clear()
       page = await this.raw.findById(dataId)
     }

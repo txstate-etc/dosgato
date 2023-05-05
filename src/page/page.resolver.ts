@@ -210,6 +210,15 @@ export class PageResolver {
     return await ctx.svc(PageService).updatePage(pageId, dataVersion, data, comment, validateOnly)
   }
 
+  @Mutation(returns => PageResponse)
+  async restorePage (@Ctx() ctx: Context,
+    @Arg('pageId', type => ID) pageId: string,
+    @Arg('restoreVersion', type => Int) restoreVersion: number,
+    @Arg('validateOnly', { nullable: true, description: 'When true, the mutation will not save but will return a validation response indicating whether the restoration will be possible.' }) validateOnly?: boolean
+  ) {
+    return await ctx.svc(PageService).restorePage(pageId, restoreVersion, validateOnly)
+  }
+
   @Mutation(returns => PageResponse, { description: 'Update only one component on a page. Validation will only cover the inserted data and validation failures in other components will not cause the mutation to fail. This is in contrast to updatePage where the full page must validate in order to be accepted.' })
   async updatePageProperties (@Ctx() ctx: Context,
     @Arg('pageId', type => ID) pageId: string,
