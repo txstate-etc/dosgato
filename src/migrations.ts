@@ -21,6 +21,13 @@ const dgMigrations: DBMigration[] = [
       await db.execute('ALTER TABLE versions ADD COLUMN markedAt DATETIME')
       await db.execute('ALTER TABLE storage ADD COLUMN markedAt DATETIME')
     }
+  },
+  {
+    id: 20230507150000,
+    description: 'indexnames should not have duplicates',
+    run: async db => {
+      await db.execute('CREATE UNIQUE INDEX `name_idx` ON `indexnames`(`name`)')
+    }
   }
 ]
 
@@ -91,6 +98,7 @@ export async function resetdb () {
       db.execute('DROP TABLE IF EXISTS versions'),
       db.execute('DROP TABLE IF EXISTS sites'),
       db.execute('DROP TABLE IF EXISTS users'),
+      db.execute('DROP TABLE IF EXISTS indexnames'),
       db.execute('DROP TABLE IF EXISTS indexvalues'),
       db.execute('DROP TABLE IF EXISTS storage')
     ])

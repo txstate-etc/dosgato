@@ -4,7 +4,7 @@ import { type Index, templateRegistry, processLink } from '../internal.js'
 
 export function getDataIndexes (data: DataData): Index[] {
   const storage: Record<string, Set<string>> = {}
-  storage.templateKey = new Set([data.templateKey])
+  storage.template = new Set([data.templateKey])
   const indexes = templateRegistry.get(data.templateKey)?.getLinks(data).flatMap(processLink) ?? []
   for (const index of indexes) {
     storage[index.name] ??= new Set()

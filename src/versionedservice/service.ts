@@ -140,6 +140,8 @@ function unhexIn (binds: any[], hexvals: string[]) {
   return hexvals.map(v => 'UNHEX(?)').join(',')
 }
 
+const indexNameIds: Record<string, number> = {}
+
 export class VersionedService extends BaseService {
   protected static cleaningIndexValues: boolean
   protected static optimizingTables: boolean
@@ -575,18 +577,13 @@ export class VersionedService extends BaseService {
   }
 
   protected async getIndexNameIds (names: string[], db: Queryable) {
-    const rows = await db.getall<[number, string]>('SELECT * FROM indexnames', undefined, { rowsAsArray: true })
-    const ret: Record<string, number> = {}
-    for (const [id, name] of rows) ret[name] = id
-    const tobeadded = new Set<string>()
-    for (const name of names) if (!ret[name]) tobeadded.add(name)
-    if (tobeadded.size) {
+    if (names.some(n => indexNameIds[n] == null)) {
       const binds: any[] = []
-      await db.insert(`INSERT INTO indexnames (name) VALUES ${db.in(binds, Array.from(tobeadded).map(n => [n]))}`, binds)
+      await db.insert(`INSERT INTO indexnames (name) VALUES ${db.in(binds, names.map(n => [n]))} ON DUPLICATE KEY UPDATE name=name`, binds)
       const rows = await db.getall<[number, string]>('SELECT * FROM indexnames', undefined, { rowsAsArray: true })
-      for (const [id, name] of rows) ret[name] = id
+      for (const [id, name] of rows) indexNameIds[name] = id
     }
-    return ret
+    return indexNameIds
   }
 
   /**

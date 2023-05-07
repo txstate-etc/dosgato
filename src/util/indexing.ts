@@ -1,5 +1,5 @@
 import { type LinkDefinition } from '@dosgato/templating'
-import { stringify } from 'txstate-utils'
+import { ensureString, stringify } from 'txstate-utils'
 
 export function getHostname (urlString: string) {
   if (!urlString) return undefined
@@ -21,40 +21,40 @@ export interface SingleValueIndex {
   value: string
 }
 
-export type LinkIndexTypes = 'link_asset' | 'link_page' | 'link_hostname' | 'link_data' | 'link_assetfolder' | 'link_datafolder'
+export type LinkIndexTypes = 'link_asset_id' | 'link_asset_path' | 'link_asset_checksum' | 'link_page_linkId' | 'link_page_path' | 'link_hostname' | 'link_data_id' | 'link_data_path' | 'link_assetfolder_id' | 'link_assetfolder_path' | 'link_datafolder_id' | 'link_datafolder_path'
 
 export function processLink (link: LinkDefinition) {
   let ret: { name: LinkIndexTypes, value: any }[] = []
   if (link.type === 'asset') {
     ret = [
-      { name: 'link_asset', value: { source: link.source, id: link.id } },
-      { name: 'link_asset', value: { path: link.path } },
-      { name: 'link_asset', value: { checksum: link.checksum } }
+      { name: 'link_asset_id', value: link.id },
+      { name: 'link_asset_path', value: link.path },
+      { name: 'link_asset_checksum', value: link.checksum }
     ]
   } else if (link.type === 'page') {
     ret = [
-      { name: 'link_page', value: { linkId: link.linkId } },
-      { name: 'link_page', value: { path: link.path } }
+      { name: 'link_page_linkId', value: link.linkId },
+      { name: 'link_page_path', value: link.path }
     ]
   } else if (link.type === 'data') {
     ret = [
-      { name: 'link_data', value: { linkId: link.id } },
-      { name: 'link_data', value: { siteId: link.siteId, path: link.path } }
+      { name: 'link_data_id', value: link.id },
+      { name: 'link_data_path', value: link.path }
     ]
   } else if (link.type === 'assetfolder') {
     ret = [
-      { name: 'link_assetfolder', value: { linkId: link.id } },
-      { name: 'link_assetfolder', value: { path: link.path } }
+      { name: 'link_assetfolder_id', value: link.id },
+      { name: 'link_assetfolder_path', value: link.path }
     ]
   } else if (link.type === 'datafolder') {
     ret = [
-      { name: 'link_datafolder', value: { linkId: link.id } },
-      { name: 'link_datafolder', value: { siteId: link.siteId, path: link.path } }
+      { name: 'link_datafolder_id', value: link.id },
+      { name: 'link_datafolder_path', value: link.path }
     ]
   } else if (link.type === 'url') {
     const hostname = getHostname(link.url)
     if (!hostname) ret = []
     else ret = [{ name: 'link_hostname', value: hostname }]
   }
-  return ret.map(l => ({ ...l, value: stringify(l.value) }) as SingleValueIndex)
+  return ret.map(l => ({ ...l, value: ensureString(l.value) }) as SingleValueIndex)
 }
