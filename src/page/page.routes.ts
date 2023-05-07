@@ -339,9 +339,8 @@ export async function createPageRoutes (app: FastifyInstance) {
     const ctx = new Context(req)
     await getEnabledUser(ctx)
     const pageSvc = ctx.svc(PageService)
-    const pageRuleSvc = ctx.svc(PageRuleService)
     const [pages, pageRules] = await Promise.all([
-      db.getall<{ id: number, linkId: string, dataId: string, name: string, path: string, title: string, templateKey: string, siteId: number, siteName: string, pagetreeId: number, deleteState: DeleteState, pagetreeName: string, pagetreeType: PagetreeType, modifiedBy: string, modified: Date, version: number, published: 0 | 1, publishedAt?: Date, hasUnpublishedChanges: boolean }>(`
+      db.getall<{ id: number, linkId: string, dataId: number, name: string, path: string, title: string, templateKey: string, siteId: number, siteName: string, pagetreeId: number, deleteState: DeleteState, pagetreeName: string, pagetreeType: PagetreeType, modifiedBy: string, modified: Date, version: number, published: 0 | 1, publishedAt?: Date, hasUnpublishedChanges: boolean }>(`
         SELECT p.*, pt.name AS pagetreeName, pt.type as pagetreeType, st.modifiedBy, st.modified, st.version,
           t.id IS NOT NULL as published, t.date as publishedAt, (t.version IS NULL OR t.version != st.version) as hasUnpublishedChanges,
           s.name as siteName
@@ -398,11 +397,11 @@ export async function createPageRoutes (app: FastifyInstance) {
 
     if (!pagesToKeep.length) return []
 
-    const children = await db.getall<{ dataId: string, path: string }>(`SELECT dataId, path FROM pages WHERE path IN (${db.in(binds, pagesToKeep.map(p => '/' + String(p.id)))}) AND deleteState IN (0, 1)`, binds)
+    const children = await db.getall<{ dataId: number, path: string }>(`SELECT dataId, path FROM pages WHERE path IN (${db.in(binds, pagesToKeep.map(p => '/' + String(p.id)))}) AND deleteState IN (0, 1)`, binds)
     const childrenByPath = groupby(children, 'path')
 
     const ret: RootPage[] = pagesToKeep.map(p => ({
-      id: p.dataId,
+      id: String(p.dataId),
       linkId: p.linkId,
       name: p.name,
       title: p.title,
@@ -428,7 +427,7 @@ export async function createPageRoutes (app: FastifyInstance) {
       },
       published: !!p.published,
       publishedAt: p.publishedAt?.toISOString(),
-      children: childrenByPath['/' + String(p.id)]?.map(c => ({ id: c.dataId })) ?? [],
+      children: childrenByPath['/' + String(p.id)]?.map(c => ({ id: String(c.dataId) })) ?? [],
       permissions: permsByPageInternalId[p.id]
     }))
     return ret
