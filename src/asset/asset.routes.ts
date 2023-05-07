@@ -9,8 +9,8 @@ import { DateTime } from 'luxon'
 import { lookup } from 'mime-types'
 import db from 'mysql2-async/db'
 import probe from 'probe-image-size'
-import { PassThrough, Readable } from 'stream'
-import { type ReadableStream } from 'stream/web'
+import { Readable } from 'node:stream'
+import { type ReadableStream } from 'node:stream/web'
 import { groupby, isNotBlank, keyby, randomid } from 'txstate-utils'
 import {
   type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
@@ -50,14 +50,12 @@ interface RootAssetFolder {
 }
 export async function placeFile (readStream: Readable, filename: string, mimeGuess: string) {
   const fileTypePassthru = await fileTypeStream(readStream)
-  const probePassthru = new PassThrough()
-  const metadataPromise = probe(probePassthru, true)
-  const finalStream = fileTypePassthru.pipe(probePassthru)
+  const metadataPromise = probe(fileTypePassthru, true)
   readStream.on('limit', () => {
-    (finalStream as any).truncated = true
-    finalStream.emit('error', new Error('Max file size limit reached.'))
+    (fileTypePassthru as any).truncated = true
+    fileTypePassthru.emit('error', new Error('Max file size limit reached.'))
   })
-  const { checksum, size } = await fileHandler.put(finalStream)
+  const { checksum, size } = await fileHandler.put(fileTypePassthru)
   let { mime } = fileTypePassthru.fileType ?? { mime: mimeGuess }
   if (mime === 'application/x-cfb' || mime.startsWith('plain/text')) mime = mimeGuess // npm file-type library not good at distinguishing old MS Office formats
 
