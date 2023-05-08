@@ -346,21 +346,16 @@ export class VersionedService extends BaseService {
    * @param tdb Optional transaction in which to perform creation.
    */
   async create (type: string, data: any, indexes: Index[], user?: string, tdb?: Queryable): Promise<number> {
-    try {
-      const action = async (db: Queryable) => {
-        const id = await db.insert(`
-          INSERT INTO storage (type, version, data, created, createdBy, modified, modifiedBy, comment)
-          VALUES (?, 1, ?, NOW(), ?, NOW(), ?, '')
-        `, [type, JSON.stringify(data), user ?? '', user ?? '', ''])
-        await this._setIndexes(id, 1, indexes, db)
-        return id
-      }
-      const id = tdb ? await action(tdb) : await db.transaction(action)
+    const action = async (db: Queryable) => {
+      const id = await db.insert(`
+        INSERT INTO storage (type, version, data, created, createdBy, modified, modifiedBy, comment)
+        VALUES (?, 1, ?, NOW(), ?, NOW(), ?, '')
+      `, [type, JSON.stringify(data), user ?? '', user ?? '', ''])
+      await this._setIndexes(id, 1, indexes, db)
       return id
-    } catch (e: any) {
-      if (e.errno === 1062) return await this.create(type, data, indexes, user, tdb ?? db)
-      throw e
     }
+    const id = tdb ? await action(tdb) : await db.transaction(action)
+    return id
   }
 
   /**
@@ -580,7 +575,7 @@ export class VersionedService extends BaseService {
     if (names.some(n => indexNameIds[n] == null)) {
       const binds: any[] = []
       await db.insert(`INSERT INTO indexnames (name) VALUES ${db.in(binds, names.map(n => [n]))} ON DUPLICATE KEY UPDATE name=name`, binds)
-      const rows = await db.getall<[number, string]>('SELECT * FROM indexnames', undefined, { rowsAsArray: true })
+      const rows = await db.getall<[number, string]>('SELECT * FROM indexnames LOCK IN SHARE MODE', undefined, { rowsAsArray: true })
       for (const [id, name] of rows) indexNameIds[name] = id
     }
     return indexNameIds
