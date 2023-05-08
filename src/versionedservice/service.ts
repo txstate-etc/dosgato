@@ -413,10 +413,10 @@ export class VersionedService extends BaseService {
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `, [current.id, current.version, current.modified, current.markedAt ?? null, current.modifiedBy, current.comment, JSON.stringify(undo)])
       await this._setIndexes(current.id, newversion, indexes, db)
-      this.loaders.get(storageLoader).clear(id)
     }
     if (tdb) await action(tdb)
     else await db.transaction(action, { retries: 2 })
+    this.loaders.get(storageLoader).clear(id)
   }
 
   /**

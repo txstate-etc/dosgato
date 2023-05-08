@@ -12,7 +12,7 @@ export function getPageIndexes (page: PageData): Index[] {
   }
   if (isNotBlank(page.legacyId)) storage.legacyId = new Set([page.legacyId])
   storage.template = new Set(components.map(c => c.templateKey).filter(isNotBlank))
-  storage.fulltext = new Set()
+  // storage.fulltext = new Set()
   for (const component of components) {
     const texts = (templateRegistry.get(component.templateKey)?.getFulltext?.(component) ?? []).filter(isNotBlank)
     const moreLinks = texts.flatMap(extractLinksFromText).flatMap(processLink)
@@ -20,8 +20,10 @@ export function getPageIndexes (page: PageData): Index[] {
       storage[index.name] ??= new Set()
       storage[index.name].add(index.value)
     }
-    const words = texts.flatMap(t => getKeywords(t))
-    for (const word of words) storage.fulltext.add(word)
+    // disabling full-text indexing for now as it's just too much data, we'll revisit
+    // later - maybe send it to another system like elasticsearch that's more accustomed to fulltext indexing
+    // const words = texts.flatMap(t => getKeywords(t))
+    // for (const word of words) storage.fulltext.add(word)
   }
   return Object.keys(storage).map(k => ({ name: k, values: Array.from(storage[k]) }))
 }
