@@ -22,13 +22,13 @@ const dgMigrations: DBMigration[] = [
       await db.execute('ALTER TABLE storage ADD COLUMN markedAt DATETIME')
     }
   },
-  {
-    id: 20230507150000,
-    description: 'indexnames should not have duplicates',
-    run: async db => {
-      await db.execute('CREATE UNIQUE INDEX `name_idx` ON `indexnames`(`name`)')
-    }
-  },
+  // {
+  //   id: 20230507150000,
+  //   description: 'indexnames should not have duplicates',
+  //   run: async db => {
+  //     await db.execute('CREATE UNIQUE INDEX `name_idx` ON `indexnames`(`name`)')
+  //   }
+  // },
   {
     id: 20230508110000,
     description: 'index dataId on assets',
