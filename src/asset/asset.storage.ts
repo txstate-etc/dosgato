@@ -3,7 +3,6 @@ import { createReadStream, createWriteStream } from 'fs'
 import { access, constants, mkdir, rename, unlink } from 'fs/promises'
 import { nanoid } from 'nanoid'
 import { dirname } from 'path'
-import sharp from 'sharp'
 import { type Readable } from 'stream'
 import { pipeline } from 'stream/promises'
 import { rescue } from 'txstate-utils'
@@ -12,8 +11,6 @@ interface FileHandler {
   init: () => Promise<void>
   put: (stream: Readable) => Promise<{ checksum: string, size: number }> // returns a checksum
   get: (checksum: string) => Readable
-  sharp: (checksum: string, opts?: sharp.SharpOptions) => sharp.Sharp
-  sharpWrite: (img: sharp.Sharp) => Promise<{ checksum: string, info: sharp.OutputInfo }> // returns a checksum
   remove: (checksum: string) => Promise<void>
 }
 
@@ -58,26 +55,6 @@ class FileSystemHandler implements FileHandler {
       const checksum = hash.digest('base64url')
       await this.#moveToPerm(tmp, checksum)
       return { checksum, size }
-    } catch (e: any) {
-      await rescue(unlink(tmp))
-      throw e
-    }
-  }
-
-  sharp (checksum: string, opts?: sharp.SharpOptions) {
-    const filepath = this.#getFileLocation(checksum)
-    return sharp(filepath, opts)
-  }
-
-  async sharpWrite (img: sharp.Sharp) {
-    const tmp = this.#getTmpLocation()
-    const hash = createHash('sha256', { encoding: 'base64url' })
-    try {
-      await pipeline(img.clone(), hash)
-      const checksum = hash.read()
-      const info = await img.toFile(tmp)
-      await this.#moveToPerm(tmp, checksum)
-      return { checksum, info }
     } catch (e: any) {
       await rescue(unlink(tmp))
       throw e

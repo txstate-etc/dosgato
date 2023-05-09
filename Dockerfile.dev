@@ -1,10 +1,7 @@
 FROM node:18-alpine
-RUN apk add build-base
-RUN apk add vips-heif libheif-dev vips-dev --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main
 WORKDIR /usr/app
 COPY package.json ./
 RUN npm install
-RUN apk del --purge build-base && rm -rf /var/cache/apk/*
 COPY tsconfig.json ./
 COPY nodemon.json ./
 COPY src src

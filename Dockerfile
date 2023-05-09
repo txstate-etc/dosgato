@@ -9,10 +9,9 @@ COPY testserver testserver
 RUN npm run buildrun
 
 FROM node:18-alpine
-RUN apk add vips-heif libheif-dev vips-dev --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community --repository=http://dl-cdn.alpinelinux.org/alpine/edge/main
 WORKDIR /usr/app
 COPY package.json ./
-RUN apk add build-base && npm install --omit=dev --omit=optional && apk del --purge build-base && rm -rf /var/cache/apk/*
+RUN npm install --omit=dev --omit=optional
 COPY --from=build /usr/app/dist dist
 COPY tsconfig.json ./
 COPY test/files/blankpdf.pdf /files/storage/P/K/BUoghpogATqmK14ry1wqKsP-e-S8GVqHKuCxH7k1k
