@@ -750,7 +750,8 @@ export class VersionedService extends BaseService {
     CREATE TABLE IF NOT EXISTS indexnames (
       id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
       name VARCHAR(50) NOT NULL,
-      PRIMARY KEY (id)
+      PRIMARY KEY (id),
+      UNIQUE name_idx (name)
     )
     ENGINE = InnoDB
     DEFAULT CHARACTER SET = utf8mb4
