@@ -130,6 +130,12 @@ export async function updateAssetRule (args: UpdateAssetRuleInput) {
   } else {
     binds.push(null)
   }
+  updates.push('`pagetreeType` = ?')
+  if (typeof args.pagetreeType !== 'undefined') {
+    binds.push(args.pagetreeType)
+  } else {
+    binds.push(null)
+  }
   updates.push('path = ?')
   if (args.path) {
     binds.push(args.path)
