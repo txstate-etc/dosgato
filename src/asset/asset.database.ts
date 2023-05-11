@@ -25,6 +25,7 @@ export interface CreateAssetInput extends AssetInput {
   createdBy?: string
   createdAt?: string
   linkId?: string
+  uploadedFilename?: string
 }
 
 export interface ReplaceAssetInput extends AssetInput {
@@ -390,7 +391,7 @@ export async function createAsset (versionedService: VersionedService, userId: s
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const modifiedBy = args.legacyId ? (args.modifiedBy || createdBy || userId) : userId // || is intended - to catch blanks
     const modifiedAt = args.legacyId ? (args.modifiedAt ?? args.createdAt ?? undefined) : undefined
-    const data = { legacyId: args.legacyId, shasum: args.checksum, uploadedFilename: args.filename, meta: args.meta }
+    const data = { legacyId: args.legacyId, shasum: args.checksum, uploadedFilename: args.uploadedFilename ?? args.filename, meta: args.meta }
     const dataId = await versionedService.create('asset', data, getIndexes(data), createdBy, db)
     await versionedService.setStamps(dataId, { createdAt: createdAt ? new Date(createdAt) : undefined, modifiedAt: modifiedAt ? new Date(modifiedAt) : undefined, modifiedBy: modifiedBy !== userId ? modifiedBy : undefined }, db)
     const folder = await db.getrow<{ id: number, pagetreeId: number, path: string }>('SELECT id, pagetreeId, path FROM assetfolders WHERE id = ? FOR UPDATE', [args.folderId])

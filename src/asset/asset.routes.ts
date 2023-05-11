@@ -15,7 +15,7 @@ import { groupby, isNotBlank, keyby, randomid } from 'txstate-utils'
 import {
   type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
   AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler, getEnabledUser, GlobalRuleService, logMutation,
-  makeSafeFilename, type PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService, parsePath
+  makeSafeFilename, type PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService, parsePath, deleteAsset
 } from '../internal.js'
 
 interface RootAssetFolder {
@@ -81,7 +81,7 @@ export async function placeFile (readStream: Readable, filename: string, mimeGue
 }
 
 export async function handleURLUpload (url: string, modifiedAt?: string, auth?: string) {
-  const filename = url.split('/').slice(-1)[0] ?? randomid()
+  const filename = decodeURIComponent(url.split('/').slice(-1)[0] ?? randomid())
   let urlhash: string | undefined
   if (modifiedAt) { // only try to skip download if modifiedAt was included... otherwise we can't determine that the target hasn't changed
     urlhash = createHash('sha1').update(url + modifiedAt).digest('hex')
@@ -134,7 +134,7 @@ function getFolderPath (folder: AssetFolder, foldersByInternalId: Record<string,
 
 export async function createAssetRoutes (app: FastifyInstance) {
   await app.register(multipart, { limits: { fileSize: 2 * 1024 * 1024 * 1024 } })
-  app.post<{ Params: { folderId: string }, Body?: { url: string, legacyId?: string, auth?: string, modifiedBy?: string, modifiedAt?: string, createdBy?: string, createdAt?: string, linkId?: string } }>(
+  app.post<{ Params: { folderId: string }, Body?: { url: string, uploadedFilename?: string, markAsDeleted?: boolean, legacyId?: string, auth?: string, modifiedBy?: string, modifiedAt?: string, createdBy?: string, createdAt?: string, linkId?: string } }>(
     '/assets/:folderId', async (req, res) => {
     const startTime = new Date()
     const ctx = new Context(req)
@@ -170,6 +170,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
       const file = await handleURLUpload(req.body.url, req.body.modifiedAt, req.body.auth)
       const asset = await createAsset(versionedService, user.id, {
         ...file,
+        uploadedFilename: req.body.uploadedFilename,
         legacyId: req.body.legacyId,
         folderId: folder.id,
         createdBy: req.body.createdBy,
@@ -179,6 +180,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
         linkId: req.body.linkId
       }, { numerate: true })
       ids.push(asset.id)
+      if (req.body.markAsDeleted) await deleteAsset(asset.internalId, user.internalId)
       await requestResizes(asset, { isMigration: isNotBlank(req.body.legacyId) })
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
@@ -229,11 +231,16 @@ export async function createAssetRoutes (app: FastifyInstance) {
     logMutation(new Date().getTime() - startTime.getTime(), 'replaceAsset', 'mutation uploadReplaceAsset (RESTful)', user.id, { assetid: asset.id }, { success: true }, []).catch(console.error)
     return { success: true }
   })
-  app.get<{ Params: { resizeid: string, filename: string }, Querystring: { admin?: 1 } }>(
-    '/resize/:resizeid/:filename', async (req, res) => {
+  app.get<{ Params: { assetid: string, resizeid: string, filename: string }, Querystring: { admin?: 1 } }>(
+    '/assets/:assetid/resize/:resizeid/:filename', async (req, res) => {
     const ctx = new Context(req)
-    const resize = await ctx.svc(AssetService).getResize(req.params.resizeid)
-    if (!resize) throw new HttpError(404)
+    const [asset, resize] = await Promise.all([
+      ctx.svc(AssetServiceInternal).findById(req.params.assetid),
+      ctx.svc(AssetService).getResize(req.params.resizeid)
+    ])
+    if (!asset || !resize) throw new HttpError(404)
+    await ctx.waitForAuth()
+    if (!await ctx.svc(AssetService).mayViewIndividual(asset)) throw new HttpError(404)
 
     if (!req.query?.admin) recordDownload(resize.checksum)
 
@@ -254,6 +261,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const ctx = new Context(req)
     const asset = await ctx.svc(AssetServiceInternal).findById(req.params.assetid)
     if (!asset) throw new HttpError(404)
+    await ctx.waitForAuth()
+    if (!await ctx.svc(AssetService).mayViewIndividual(asset)) throw new HttpError(404)
     if (!asset.box) throw new HttpError(400, 'Asset is not an image - width parameter is not supported.')
     const resizes = await ctx.svc(AssetService).getResizes(asset)
 
@@ -293,6 +302,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
       asset = (await ctx.svc(AssetServiceInternal).find({ paths: extension ? [path, `${path}.${extension}`] : [path] }))[0]
     }
     if (!asset) throw new HttpError(404)
+    await ctx.waitForAuth()
+    if (!await ctx.svc(AssetService).mayViewIndividual(asset)) throw new HttpError(404)
 
     if (!req.query?.admin) recordDownload(asset.checksum)
 
@@ -320,6 +331,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const ctx = new Context(req)
     const folder = await ctx.svc(AssetFolderServiceInternal).findById(req.params.folderId)
     if (!folder) throw new HttpError(404)
+    await ctx.waitForAuth()
+    if (!await ctx.svc(AssetFolderService).mayViewIndividual(folder)) throw new HttpError(404)
 
     const [folders, folderPath] = await Promise.all([
       ctx.svc(AssetFolderServiceInternal).getChildFolders(folder, true),
