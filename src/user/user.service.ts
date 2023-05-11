@@ -3,8 +3,8 @@ import { BaseService, MutationMessageType } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { isNotBlank, isNotNull, someAsync, unique, isBlank } from 'txstate-utils'
 import {
-  DosGatoService, GroupService, type User, type UserFilter, UserResponse, getUsers, createUser,
-  getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId, type RedactedUser, UsersResponse,
+  DosGatoService, GroupService, User, type UserFilter, UserResponse, getUsers, createUser,
+  getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId, UsersResponse,
   type UpdateUserInput, updateUser, disableUsers, enableUsers, getUsersManagingGroups, SiteRuleService
 } from '../internal.js'
 
@@ -116,7 +116,7 @@ export class UserServiceInternal extends BaseService {
   }
 }
 
-export class UserService extends DosGatoService<User, RedactedUser | User> {
+export class UserService extends DosGatoService<User, User> {
   raw = this.svc(UserServiceInternal)
 
   async find (filter: UserFilter) {
@@ -253,11 +253,12 @@ export class UserService extends DosGatoService<User, RedactedUser | User> {
   protected async removeProperties (user: User) {
     const currentUser = await this.currentUser()
     if (user.id === currentUser!.id || await this.mayList()) return user
-    return {
-      id: user.id,
-      internalId: user.internalId,
+    return new User({
+      id: user.internalId,
+      login: user.id,
+      system: user.system,
       firstname: user.firstname,
       lastname: user.lastname
-    } as RedactedUser
+    })
   }
 }

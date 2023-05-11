@@ -53,18 +53,11 @@ export class User {
     this.email = row.email
     this.disabledAt = row.disabledAt ? DateTime.fromJSDate(row.disabledAt) : undefined
     this.disabled = this.disabledAt != null
-    this.trained = row.trained
-    this.system = row.system
+    this.trained = !!row.trained
+    this.system = !!row.system
     this.lastlogin = row.lastlogin ? DateTime.fromJSDate(row.lastlogin) : undefined
     this.lastlogout = row.lastlogout ? DateTime.fromJSDate(row.lastlogout) : undefined
   }
-}
-
-export interface RedactedUser {
-  id: string
-  internalId: number
-  firstname: string
-  lastname: string
 }
 
 @InputType()
