@@ -1,5 +1,5 @@
 import { AuthError, AuthorizedService, type Context } from '@txstate-mws/graphql-server'
-import { Cache, filterAsync, keyby } from 'txstate-utils'
+import { Cache, keyby } from 'txstate-utils'
 import {
   type Asset, type AssetFolder, type Data, type DataFolder, type Page, type Site, type Template,
   AssetRuleService, type AssetRuleGrants, DataRuleService, DataRuleGrants, type GlobalRuleGrants,
@@ -65,7 +65,7 @@ const roleCache = new Cache(async (netid: string, ctx: Context) => {
 
 export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ sub: string }, ObjType, RedactedType> {
   protected get login () {
-    return this.auth!.sub
+    return this.auth?.sub ?? 'anonymous'
   }
 
   protected async currentUser () {
