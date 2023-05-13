@@ -41,27 +41,21 @@ const metaLoader = new ManyJoinedLoader({
       })(),
       (async () => {
         if (versions.length) {
-          const binds: (string | number)[] = []
-          const cols = 's.id, s.type, s.version, s.created, s.createdBy, s.modified, s.modifiedBy, s.comment, s.markedAt'
-          const versionsrows = await db.getall<VersionedCommon & { selectedVersion?: number, selectedModified?: Date, selectedModifier?: string, selectedMarkedAt?: Date, selectedComment: string }>(`
-            SELECT ${cols}, NULL as selectedVersion, NULL as selectedModified, NULL as selectedModifier, NULL as selectedComment, NULL as selectedMarkedAt
-            FROM storage s
-            WHERE (s.id, s.version) IN (${db.in(binds, versions.map(p => [p.id, p.version]))})
-            UNION
-            SELECT ${cols}, v.version as selectedVersion, v.date as selectedModified, v.user as selectedModifier, v.comment as selectedComment, v.markedAt as selectedMarkedAt
-            FROM storage s INNER JOIN versions v ON v.id = s.id
-            WHERE (v.id, v.version) IN (${db.in(binds, versions.map(p => [p.id, p.version]))})
-          `, binds)
-          ret.push(...versionsrows.map(r => ({
-            key: { id: r.id, version: r.selectedVersion ?? r.version },
-            value: {
-              ...r,
-              version: r.selectedVersion ?? r.version,
-              modified: r.selectedModified ?? r.modified,
-              modifiedBy: r.selectedModifier ?? r.modifiedBy,
-              markedAt: r.selectedVersion ? r.selectedMarkedAt : r.markedAt,
-              comment: r.selectedVersion != null ? r.selectedComment : r.comment
-            }
+          const bindsL: (string | number)[] = []
+          const bindsV: (string | number)[] = []
+          const [latestrows, versionsrows] = await Promise.all([
+            db.getall<VersionedCommon>(`
+              SELECT s.id, s.type, s.version, s.created, s.createdBy, s.modified, s.modifiedBy, s.comment, s.markedAt
+              FROM storage s
+              WHERE (s.id, s.version) IN (${db.in(bindsL, versions.map(p => [p.id, p.version]))})`, bindsL),
+            db.getall<VersionedCommon>(`
+              SELECT v.id, s.type, v.version, s.created, s.createdBy, v.date as modified, v.user as modifiedBy, v.comment, v.markedAt
+              FROM storage s INNER JOIN versions v ON v.id = s.id
+              WHERE (v.id, v.version) IN (${db.in(bindsV, versions.map(p => [p.id, p.version]))})`, bindsV)
+          ])
+          ret.push(...latestrows.concat(versionsrows).map(r => ({
+            key: { id: r.id, version: r.version },
+            value: r
           })))
         }
       })()
