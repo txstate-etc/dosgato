@@ -556,11 +556,15 @@ export class PageService extends DosGatoService<Page> {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot restore an older version of a page that does not exist.')
     if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
-    const dataToRestore = await this.svc(VersionedService).get(page.intDataId, { version: restoreVersion })
+    const [dataToRestore, meta] = await Promise.all([
+      this.svc(VersionedService).get(page.intDataId, { version: restoreVersion }),
+      this.svc(VersionedService).getMeta(page.intDataId)
+    ])
     if (!dataToRestore) throw new Error('Version to be restored could not be found.')
     const data = dataToRestore.data as PageData
     const tmpl = await this.svc(TemplateServiceInternal).findByKey(data.templateKey)
     const response = new PageResponse({ success: true })
+    if (meta?.version === restoreVersion) response.addMessage('This is already the latest version.')
     if (!tmpl || !await this.svc(TemplateService).mayKeepOnPage(tmpl.key, page, tmpl)) response.addMessage('This version may not be restored because it uses a page template that is no longer available.')
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(data)
