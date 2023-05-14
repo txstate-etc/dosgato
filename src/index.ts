@@ -88,25 +88,30 @@ export class DGServer {
         return userId + '-' + process.env.DOSGATO_TRAINING_SITE!
       }
       const createTrainingSite = new Cache(async (userId: string, ctx: Context) => {
-        let user = await ctx.svc(UserServiceInternal).findById(userId)
-        if (!user) {
-          const details = opts.userLookup ? (await opts.userLookup([userId]))[0] : { firstname: 'Training', lastname: 'User', email: '', enabled: true }
-          if (details.enabled !== false) {
-            const internalId = await createUser(userId, details.firstname, details.lastname, details.email, true, false)
-            user = await ctx.svc(UserServiceInternal).findByInternalId(internalId)
-          }
-        }
-        if (!user || user.disabled || user.system) return
         const tSiteName = trainingSiteName(userId)
         const site = await ctx.svc(SiteServiceInternal).findByName(tSiteName)
         if (site) return
-        const trainingTemplateSite = await ctx.svc(SiteServiceInternal).findByName(process.env.DOSGATO_TRAINING_SITE!)
-        if (!trainingTemplateSite) return
-        const siteId = await duplicateSite(trainingTemplateSite.id, tSiteName, ctx.svc(VersionedService), userId)
-        const roleId = String(await createRole(tSiteName + '-editor'))
-        await createPageRule({ roleId, siteId, grants: { create: true, delete: true, move: true, publish: true, unpublish: true, update: true, undelete: false } })
-        await createAssetRule({ roleId, siteId, grants: { create: true, delete: true, move: true, update: true, undelete: false } })
-        await addRolesToUser([roleId], user.internalId)
+        try {
+          let user = await ctx.svc(UserServiceInternal).findById(userId)
+          if (!user) {
+            const details = opts.userLookup ? (await opts.userLookup([userId]))[0] : { firstname: 'Training', lastname: 'User', email: '', enabled: true }
+            if (details.enabled !== false) {
+              const internalId = await createUser(userId, details.firstname, details.lastname, details.email, true, false)
+              user = await ctx.svc(UserServiceInternal).findByInternalId(internalId)
+            }
+          }
+          if (!user || user.disabled || user.system) return
+          const trainingTemplateSite = await ctx.svc(SiteServiceInternal).findByName(process.env.DOSGATO_TRAINING_SITE!)
+          if (!trainingTemplateSite) return
+          const siteId = await duplicateSite(trainingTemplateSite.id, tSiteName, ctx.svc(VersionedService), userId)
+          const roleId = String(await createRole(tSiteName + '-editor'))
+          await createPageRule({ roleId, siteId, grants: { create: true, delete: true, move: true, publish: true, unpublish: true, update: true, undelete: false } })
+          await createAssetRule({ roleId, siteId, grants: { create: true, delete: true, move: true, update: true, undelete: false } })
+          await addRolesToUser([roleId], user.internalId)
+        } catch (e: any) {
+          if (e.code === 1062) console.warn(`Did not automatically create training site for ${userId} as it appears another server is already doing it.`)
+          else console.error(e)
+        }
       }, { freshseconds: 12 * 3600 })
 
       this.app.addHook('onRequest', async req => {
