@@ -1,12 +1,13 @@
-import type { PageData } from '@dosgato/templating'
+import { type PageData, extractLinksFromText, replaceLinksInText } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { unique, keyby, eachConcurrent, isNotNull, Cache, isNotBlank, intersect } from 'txstate-utils'
+import { unique, keyby, isNotNull, Cache, isNotBlank, intersect, stringify } from 'txstate-utils'
 import {
   Site, type SiteFilter, PagetreeType, type VersionedService, createSiteComment, type UpdateSiteManagementInput,
-  DeletedFilter, normalizeHost, parsePath, type CreatePageExtras, createVersionedPage
+  DeletedFilter, normalizeHost, parsePath, type CreatePageExtras, createVersionedPage, getPages, type Page, createPage,
+  type AssetFolder, getAssetFolders, getAssets, createAsset, createAssetFolder, DeleteState, DeleteStateInput
 } from '../internal.js'
 
 const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.launchEnabled', 'sites.primaryPagetreeId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
@@ -270,4 +271,105 @@ export async function deleteSite (site: Site, currentUserInternalId: number) {
 
 export async function undeleteSite (site: Site) {
   return await db.update('UPDATE sites SET deletedAt = NULL, deletedBy = NULL WHERE id = ?', [site.id])
+}
+
+interface DuplicateContext {
+  oldSiteId: string
+  newSiteId: string
+  newSiteName: string
+  userId: string
+}
+
+function fixLinks (obj: any, context: DuplicateContext) {
+  if (typeof obj === 'string') {
+    const extracted = extractLinksFromText(obj)
+    const resolved = new Map<string, string | undefined>()
+    for (const link of extracted) {
+      const strLink = stringify(link)
+      if ('siteId' in link && link.siteId === context.oldSiteId) {
+        resolved.set(strLink, stringify({ ...link, siteId: context.newSiteId, path: link.path?.replace(/^\/[^/]+/, `/${context.newSiteName}`) }))
+      } else {
+        resolved.set(strLink, strLink)
+      }
+    }
+    return replaceLinksInText(obj, resolved)
+  }
+  if (typeof obj === 'object') {
+    if (Array.isArray(obj)) {
+      for (let i = 0; i < obj.length; i++) obj[i] = fixLinks(obj[i], context)
+    } else {
+      const keys = Object.keys(obj)
+      for (const k of keys) {
+        obj[k] = fixLinks(obj[k], context)
+      }
+      return obj
+    }
+  }
+  return obj
+}
+
+async function duplicateChildren (page: Page, into: Page, versionedService: VersionedService, context: DuplicateContext) {
+  const children = await getPages({ internalIdPaths: ['/' + [...page.pathSplit, page.internalId].join('/')], deleteStates: [DeleteStateInput.NOTDELETED] })
+  for (const child of children) {
+    const versioned = await versionedService.get(page.intDataId)
+    const data = fixLinks(versioned?.data, context)
+    // add template key to list of templates approved for the site
+    const templateInternalId = await db.getval('SELECT id FROM templates WHERE `key`=?', [data.templateKey])
+    if (!templateInternalId) throw new Error(`${data.templateKey} is not a recognized template key.`)
+    await db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?) ON DUPLICATE KEY UPDATE siteId=siteId', [context.newSiteId, templateInternalId])
+    const newPageId = await createPage(versionedService, context.userId, into, undefined, child.name, data, { linkId: child.linkId })
+    const newPage = (await getPages({ internalIds: [newPageId] }))[0]!
+    await duplicateChildren(child, newPage, versionedService, context)
+  }
+}
+
+async function duplicateAssets (folder: AssetFolder, into: AssetFolder, versionedService: VersionedService, context: DuplicateContext) {
+  const assets = await getAssets({ folderIds: [folder.id], deleteStates: [DeleteStateInput.NOTDELETED] })
+  for (const a of assets) {
+    const versioned = (await versionedService.get(a.intDataId))!
+    await createAsset(versionedService, context.userId, { checksum: a.checksum, filename: a.filename, folderId: into.id, mime: a.mime, name: a.name.toString(), size: a.size, width: a.box?.width, height: a.box?.height, linkId: a.linkId, uploadedFilename: versioned.data.uploadedFilename, meta: a.meta })
+  }
+
+  const folders = await getAssetFolders({ internalIdPaths: ['/' + [...folder.pathSplit, folder.internalId].join('/')], deleteStates: [DeleteStateInput.NOTDELETED] })
+  for (const f of folders) {
+    const newFolder = await createAssetFolder({ name: f.name, parentId: into.id })
+    await duplicateAssets(f, newFolder, versionedService, context)
+  }
+}
+
+export async function duplicateSite (siteId: string, newName: string, versionedService: VersionedService, userId: string) {
+  const [rootPage] = await getPages({ siteIds: [siteId], maxDepth: 0 })
+  const [rootFolder] = await getAssetFolders({ siteIds: [siteId], maxDepth: 0 })
+  const versioned = await versionedService.get(rootPage.intDataId)
+  let context: DuplicateContext
+  const [newSiteId, newPageId, newFolderId] = await db.transaction(async db => {
+    const newSiteId = await db.insert('INSERT INTO sites (name) VALUES (?)', [newName])
+    context = { oldSiteId: siteId, newSiteId: String(newSiteId), newSiteName: newName, userId }
+    const data = fixLinks(versioned?.data, context)
+    // create the site, get the internal id for the page template
+    const templateInternalId = await db.getval('SELECT id FROM templates WHERE `key`=?', [data.templateKey])
+    if (!templateInternalId) throw new Error(`${data.templateKey} is not a recognized template key.`)
+    const currentUserInternalId = await db.getval<number>('SELECT id FROM users WHERE login = ?', [userId])
+    const createdAt = new Date()
+    // create the primary pagetree
+    const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt, promotedAt) VALUES (?,?,?, ?, ?)', [newSiteId, PagetreeType.PRIMARY, newName, createdAt, createdAt])
+    // create the assetfolder
+    const newFolderId = await db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?,?,?,?,?)', [newSiteId, pagetreeId, rootFolder.linkId, '/', newName])
+    // add root page template key to list of templates approved for the site
+    await db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [newSiteId, templateInternalId])
+    await db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetreeId, newSiteId])
+    // create the root page.
+    const dataId = await createVersionedPage(versionedService, userId, data, db)
+    const oldSiteName = await db.getval<string>('SELECT name FROM sites WHERE id=?', [siteId])
+    const newPageId = await db.insert(`
+      INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId, siteId, title, templateKey)
+      VALUES (?,?,?,?,?,?,?,?,?)`, [newName, '/', 1, pagetreeId, dataId, rootPage.linkId, newSiteId, data.title, data.templateKey])
+    await createSiteComment(String(newSiteId), `Site duplicated from ${oldSiteName!} into ${newName}.`, currentUserInternalId!, db)
+    return [String(newSiteId), newPageId, newFolderId]
+  })
+  const intoPage = (await getPages({ internalIds: [newPageId] }))[0]!
+  await duplicateChildren(rootPage, intoPage, versionedService, context!)
+  const intoFolder = (await getAssetFolders({ internalIds: [newFolderId] }))[0]!
+  await duplicateAssets(rootFolder, intoFolder, versionedService, context!)
+  return newSiteId
 }

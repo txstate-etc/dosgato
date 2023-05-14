@@ -1,5 +1,5 @@
 import { type APIAnyTemplate, type FulltextGatheringFn, type LinkGatheringFn, type Migration, type ValidationFeedback } from '@dosgato/templating'
-import { type Context, GQLServer, type GQLStartOpts } from '@txstate-mws/graphql-server'
+import { Context, GQLServer, type GQLStartOpts } from '@txstate-mws/graphql-server'
 import { type FastifyInstance } from 'fastify'
 import { type FastifyTxStateOptions, devLogger } from 'fastify-txstate'
 import { type GraphQLError, type GraphQLScalarType } from 'graphql'
@@ -20,7 +20,10 @@ import {
   AccessResolver, type DBMigration, TemplateRulePermissionsResolver, TemplateRuleResolver,
   logMutation, templateRegistry, syncRegistryWithDB, UserServiceInternal, DataRootResolver,
   DataRootPermissionsResolver, updateLastLogin, createAssetRoutes, UrlSafePath, UrlSafePathScalar,
-  AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler, FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes
+  AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler,
+  FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes,
+  SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
+  duplicateSite, createUser
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -44,6 +47,7 @@ export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
   migrations?: DBMigration[]
   resolvers?: any[]
   assetMeta?: AssetMeta
+  userLookup?: (userIds: string[]) => Promise<{ firstname: string, lastname: string, email: string, enabled?: boolean, groups?: string[] }[]>
 }
 
 export class DGServer {
@@ -79,6 +83,38 @@ export class DGServer {
     await createAssetRoutes(this.app)
     await createPageRoutes(this.app)
     await createCommentRoutes(this.app)
+    if (process.env.DOSGATO_TRAINING_SITE) {
+      function trainingSiteName (userId: string) {
+        return userId + '-' + process.env.DOSGATO_TRAINING_SITE!
+      }
+      const createTrainingSite = new Cache(async (userId: string, ctx: Context) => {
+        let user = await ctx.svc(UserServiceInternal).findById(userId)
+        if (!user) {
+          const details = opts.userLookup ? (await opts.userLookup([userId]))[0] : { firstname: 'Training', lastname: 'User', email: '', enabled: true }
+          if (details.enabled !== false) {
+            const internalId = await createUser(userId, details.firstname, details.lastname, details.email, true, false)
+            user = await ctx.svc(UserServiceInternal).findByInternalId(internalId)
+          }
+        }
+        if (!user || user.disabled || user.system) return
+        const tSiteName = trainingSiteName(userId)
+        const site = await ctx.svc(SiteServiceInternal).findByName(tSiteName)
+        if (site) return
+        const trainingTemplateSite = await ctx.svc(SiteServiceInternal).findByName(process.env.DOSGATO_TRAINING_SITE!)
+        if (!trainingTemplateSite) return
+        const siteId = await duplicateSite(trainingTemplateSite.id, tSiteName, ctx.svc(VersionedService), userId)
+        const roleId = String(await createRole(tSiteName + '-editor'))
+        await createPageRule({ roleId, siteId, grants: { create: true, delete: true, move: true, publish: true, unpublish: true, update: true, undelete: false } })
+        await createAssetRule({ roleId, siteId, grants: { create: true, delete: true, move: true, update: true, undelete: false } })
+        await addRolesToUser([roleId], user.internalId)
+      }, { freshseconds: 12 * 3600 })
+
+      this.app.addHook('onRequest', async req => {
+        const ctx = new Context(req)
+        await ctx.waitForAuth()
+        if (ctx.auth?.sub) await createTrainingSite.get(ctx.auth.sub, ctx)
+      })
+    }
 
     const resolvers: NonEmptyArray<any> = [
       AccessResolver,
