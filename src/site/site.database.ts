@@ -314,6 +314,8 @@ async function duplicateChildren (page: Page, into: Page, versionedService: Vers
     const versioned = await versionedService.get(page.intDataId)
     const data = fixLinks(versioned?.data, context)
     // add template key to list of templates approved for the site
+    // TODO: check whether the template is universal first
+    // TODO: add component templates to the approved list as well
     const templateInternalId = await db.getval('SELECT id FROM templates WHERE `key`=?', [data.templateKey])
     if (!templateInternalId) throw new Error(`${data.templateKey} is not a recognized template key.`)
     await db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?) ON DUPLICATE KEY UPDATE siteId=siteId', [context.newSiteId, templateInternalId])

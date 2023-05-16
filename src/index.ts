@@ -104,6 +104,7 @@ export class DGServer {
           const trainingTemplateSite = await ctx.svc(SiteServiceInternal).findByName(process.env.DOSGATO_TRAINING_SITE!)
           if (!trainingTemplateSite) return
           const siteId = await duplicateSite(trainingTemplateSite.id, tSiteName, ctx.svc(VersionedService), userId)
+          // TODO: what if they had a site that got deleted and we are now making a second site for them, but the role is there?
           const roleId = String(await createRole(tSiteName + '-editor'))
           await createPageRule({ roleId, siteId, grants: { create: true, delete: true, move: true, publish: true, unpublish: true, update: true, undelete: false } })
           await createAssetRule({ roleId, siteId, grants: { create: true, delete: true, move: true, update: true, undelete: false } })
