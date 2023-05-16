@@ -1,6 +1,6 @@
 import { type APITemplateType, type APIAnyTemplate, type APIPageTemplate, type APIComponentTemplate, type APIDataTemplate, type ComponentData, type LinkDefinition, type Migration } from '@dosgato/templating'
 import { DateTime } from 'luxon'
-import { isNotEmpty, sortby } from 'txstate-utils'
+import { isNotEmpty, isNotNull, sortby } from 'txstate-utils'
 import { TemplateArea } from '../internal.js'
 
 interface HasHydratedAreas {
@@ -31,7 +31,15 @@ class TemplateRegistry {
       }
     }
     const originalGetLinks = template.getLinks ?? (() => [])
-    hydrated.getLinks = (data: ComponentData) => originalGetLinks(data).filter(isNotEmpty).map(l => typeof l === 'string' ? JSON.parse(l) as LinkDefinition : l)
+    hydrated.getLinks = (data: ComponentData) => originalGetLinks(data).filter(isNotEmpty).map(l => {
+      try {
+        return typeof l === 'string' ? JSON.parse(l) as LinkDefinition : l
+      } catch (e: any) {
+        if (typeof l === 'string' && l.startsWith('http')) return { type: 'url', url: l } as LinkDefinition
+        console.warn('Encountered unparseable link', l, 'in a component of type', data.templateKey)
+        return undefined
+      }
+    }).filter(isNotNull)
     if (template.type === 'page') hydrated.disallowSet = new Set(template.disallowComponents ?? [])
     this.byType[template.type].push(hydrated as any)
     this.byKey[template.templateKey] = hydrated
