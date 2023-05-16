@@ -19,11 +19,11 @@ interface SiteNode {
 }
 
 const sitesByUrlCache = new Cache(async () => {
-  const sites = await db.getall<{ id: number, launchHost: string, launchPath: string }>('SELECT * from sites WHERE deletedAt IS NULL AND launchEnabled = 1')
+  const sites = await db.getall<{ id: number, launchHost: string, launchPath: string | null }>('SELECT * from sites WHERE deletedAt IS NULL AND launchEnabled = 1')
   const sitesByUrl: SiteNode = { keepGoing: {} }
   for (const site of sites) {
     const searchhost = normalizeHost(site.launchHost)
-    const searchpaths = site.launchPath.split('/').filter(isNotBlank)
+    const searchpaths = (site.launchPath ?? '').split('/').filter(isNotBlank)
     const search = [searchhost, ...searchpaths]
     let current = sitesByUrl
     for (let i = 0; i < search.length; i++) {
@@ -199,6 +199,7 @@ export async function setLaunchURL (site: Site, host: string | undefined, path: 
       await createSiteComment(site.id, `${site.name} is ${enabled ? '' : ' no longer '} live`, currentUserInternalId, db)
     }
   })
+  await sitesByUrlCache.clear()
 }
 
 export async function updateSiteManagement (site: Site, args: UpdateSiteManagementInput, currentUserInternalId: number) {
