@@ -4,7 +4,7 @@ import { type FastifyInstance } from 'fastify'
 import { type FastifyTxStateOptions, devLogger } from 'fastify-txstate'
 import { type GraphQLError, type GraphQLScalarType } from 'graphql'
 import { DateTime } from 'luxon'
-import { Cache } from 'txstate-utils'
+import { Cache, isNotBlank } from 'txstate-utils'
 import { type NonEmptyArray } from 'type-graphql'
 import { migrations, resetdb } from './migrations.js'
 import {
@@ -83,14 +83,11 @@ export class DGServer {
     await createAssetRoutes(this.app)
     await createPageRoutes(this.app)
     await createCommentRoutes(this.app)
-    if (process.env.DOSGATO_TRAINING_SITE) {
-      function trainingSiteName (userId: string) {
-        return userId + '-' + process.env.DOSGATO_TRAINING_SITE!
+    if (process.env.DOSGATO_TRAINING_SITES) {
+      function trainingSiteName (userId: string, trainingSite: string) {
+        return userId + '-' + trainingSite
       }
       const createTrainingSite = new Cache(async (userId: string, ctx: Context) => {
-        const tSiteName = trainingSiteName(userId)
-        const site = await ctx.svc(SiteServiceInternal).findByName(tSiteName)
-        if (site) return
         try {
           let user = await ctx.svc(UserServiceInternal).findById(userId)
           if (!user) {
@@ -101,14 +98,20 @@ export class DGServer {
             }
           }
           if (!user || user.disabled || user.system) return
-          const trainingTemplateSite = await ctx.svc(SiteServiceInternal).findByName(process.env.DOSGATO_TRAINING_SITE!)
-          if (!trainingTemplateSite) return
-          const siteId = await duplicateSite(trainingTemplateSite.id, tSiteName, ctx.svc(VersionedService), userId)
-          // TODO: what if they had a site that got deleted and we are now making a second site for them, but the role is there?
-          const roleId = String(await createRole(tSiteName + '-editor'))
-          await createPageRule({ roleId, siteId, grants: { create: true, delete: true, move: true, publish: true, unpublish: true, update: true, undelete: false } })
-          await createAssetRule({ roleId, siteId, grants: { create: true, delete: true, move: true, update: true, undelete: false } })
-          await addRolesToUser([roleId], user.internalId)
+          const trainingSites = process.env.DOSGATO_TRAINING_SITES!.split(',').filter(isNotBlank)
+          for (const trainingSite of trainingSites) {
+            const tSiteName = trainingSiteName(userId, trainingSite)
+            const site = await ctx.svc(SiteServiceInternal).findByName(tSiteName)
+            if (site) continue
+            const trainingTemplateSite = await ctx.svc(SiteServiceInternal).findByName(trainingSite)
+            if (!trainingTemplateSite) continue
+            const siteId = await duplicateSite(trainingTemplateSite.id, tSiteName, ctx.svc(VersionedService), userId)
+            // TODO: what if they had a site that got deleted and we are now making a second site for them, but the role is there?
+            const roleId = String(await createRole(tSiteName + '-editor'))
+            await createPageRule({ roleId, siteId, grants: { create: true, delete: true, move: true, publish: true, unpublish: true, update: true, undelete: false } })
+            await createAssetRule({ roleId, siteId, grants: { create: true, delete: true, move: true, update: true, undelete: false } })
+            await addRolesToUser([roleId], user.internalId)
+          }
         } catch (e: any) {
           if (e.code === 1062) console.warn(`Did not automatically create training site for ${userId} as it appears another server is already doing it.`)
           else console.error(e)
@@ -118,7 +121,7 @@ export class DGServer {
       this.app.addHook('onRequest', async req => {
         const ctx = new Context(req)
         await ctx.waitForAuth()
-        if (ctx.auth?.sub) await createTrainingSite.get(ctx.auth.sub, ctx)
+        if (ctx.auth?.sub && ctx.auth.sub !== 'anonymous') await createTrainingSite.get(ctx.auth.sub, ctx)
       })
     }
 
