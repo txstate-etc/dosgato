@@ -1,4 +1,4 @@
-import { AuthError, AuthorizedService, type Context } from '@txstate-mws/graphql-server'
+import { AuthError, AuthorizedService, MockContext, type Context } from '@txstate-mws/graphql-server'
 import { Cache, keyby } from 'txstate-utils'
 import {
   type Asset, type AssetFolder, type Data, type DataFolder, type Page, type Site, type Template,
@@ -220,4 +220,8 @@ export async function getEnabledUser (ctx: Context) {
   const user = await ctx.svc(UserServiceInternal).findById(ctx.auth.sub)
   if (!user || user.disabled) throw new AuthError()
   return user
+}
+
+export function systemContext () {
+  return new MockContext({ sub: 'system' }) as Context
 }

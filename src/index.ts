@@ -23,7 +23,7 @@ import {
   AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler,
   FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes,
   SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
-  duplicateSite, createUser
+  duplicateSite, createUser, systemContext
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -87,7 +87,8 @@ export class DGServer {
       function trainingSiteName (userId: string, trainingSite: string) {
         return userId + '-' + trainingSite
       }
-      const createTrainingSite = new Cache(async (userId: string, ctx: Context) => {
+      const createTrainingSite = new Cache(async (userId: string) => {
+        const ctx = systemContext()
         try {
           let user = await ctx.svc(UserServiceInternal).findById(userId)
           if (!user) {
@@ -105,7 +106,7 @@ export class DGServer {
             if (site) continue
             const trainingTemplateSite = await ctx.svc(SiteServiceInternal).findByName(trainingSite)
             if (!trainingTemplateSite) continue
-            const siteId = await duplicateSite(trainingTemplateSite.id, tSiteName, ctx.svc(VersionedService), userId)
+            const siteId = await duplicateSite(trainingTemplateSite.id, tSiteName, ctx.svc(VersionedService), userId, ctx)
             // TODO: what if they had a site that got deleted and we are now making a second site for them, but the role is there?
             const roleId = String(await createRole(tSiteName + '-editor'))
             await createPageRule({ roleId, siteId, grants: { create: true, delete: true, move: true, publish: true, unpublish: true, update: true, undelete: false } })
@@ -121,7 +122,7 @@ export class DGServer {
       this.app.addHook('onRequest', async req => {
         const ctx = new Context(req)
         await ctx.waitForAuth()
-        if (ctx.auth?.sub && ctx.auth.sub !== 'anonymous') await createTrainingSite.get(ctx.auth.sub, ctx)
+        if (ctx.auth?.sub && ctx.auth.sub !== 'anonymous') await createTrainingSite.get(ctx.auth.sub)
       })
     }
 

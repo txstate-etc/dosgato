@@ -1,11 +1,11 @@
-import { type PageData } from '@dosgato/templating'
+import { type PageExtras, type PageData } from '@dosgato/templating'
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
   type Pagetree, type PagetreeFilter, getPagetreesById, getPagetreesBySite, renamePagetree,
   getPagetreesByTemplate, SiteService, DosGatoService, PagetreeType, PagetreeResponse,
   promotePagetree, createPagetree, VersionedService, deletePagetree,
-  undeletePagetree, archivePagetree, SiteServiceInternal, PageService, PageServiceInternal, getPagetrees
+  undeletePagetree, archivePagetree, SiteServiceInternal, PageService, PageServiceInternal, getPagetrees, migratePage, templateRegistry, systemContext
 } from '../internal.js'
 
 const PagetreesByIdLoader = new PrimaryKeyLoader({
@@ -88,20 +88,27 @@ export class PagetreeService extends DosGatoService<Pagetree> {
       throw new Error('Current user is not permitted to create pagetrees in this site.')
     }
     const response = new PagetreeResponse({ success: true })
+    if (!data.templateKey || !templateRegistry.getPageTemplate(data.templateKey)) response.addMessage('Template is required.', 'data.templateKey')
     // validate root page data if a template has been chosen
-    if (data.templateKey) {
-      const pageValidationResponse = await this.svc(PageService).validatePageData(data, site, undefined, undefined, site.name, linkId)
-      if (pageValidationResponse.hasErrors()) {
-        // take these errors and add them to the pagetree response
-        for (const message of pageValidationResponse.messages) {
-          response.addMessage(message.message, message.arg ? `data.${message.arg}` : undefined, message.type)
-        }
+    const extras: PageExtras = {
+      query: systemContext().query,
+      siteId: site.id,
+      pagePath: `/${site.name}`,
+      name: site.name,
+      linkId
+    }
+    const migrated = await migratePage(data, extras)
+    const pageValidationResponse = await this.svc(PageService).validatePageData(migrated, extras)
+    if (pageValidationResponse.hasErrors()) {
+      // take these errors and add them to the pagetree response
+      for (const message of pageValidationResponse.messages) {
+        response.addMessage(message.message, message.arg ? `data.${message.arg}` : undefined, message.type)
       }
     }
     if (validateOnly || response.hasErrors()) return response
     const versionedService = this.svc(VersionedService)
     const currentUser = await this.currentUser()
-    const pagetree = await createPagetree(versionedService, currentUser!, site, data, { linkId })
+    const pagetree = await createPagetree(versionedService, currentUser!, site, migrated, { linkId })
     this.loaders.clear()
     response.pagetree = pagetree
     return response

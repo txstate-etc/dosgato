@@ -1,15 +1,16 @@
 /* eslint-disable no-trailing-spaces */
 import { BaseService, ValidatedResponse, type MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique, isNotNull, someAsync, eachConcurrent, mapConcurrent, intersect, isNull, keyby, isNotBlank, filterAsync } from 'txstate-utils'
+import { unique, isNotNull, someAsync, eachConcurrent, intersect, isNull, keyby, isNotBlank, filterAsync } from 'txstate-utils'
 import {
   type Data, type DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, type CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, type UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, type MoveDataTarget, moveDataEntries,
   type DataFolder, type Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions,
-  DeleteState, popPath, DeleteStateAll, SiteRuleService, DataRuleService, shiftPath
+  DeleteState, popPath, DeleteStateAll, SiteRuleService, DataRuleService, shiftPath, systemContext
 } from '../internal.js'
+import db from 'mysql2-async/db'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => await getData({ internalIds, deleteStates: DeleteStateAll }),
@@ -202,15 +203,16 @@ export class DataService extends DosGatoService<Data> {
     }
     // validate data
     const tmpl = templateRegistry.getDataTemplate(template.key)
-    const migrated = await migrateData(this.ctx, args.data, dataroot.id, args.folderId)
-    const messages = await tmpl.validate?.(migrated, { query: this.ctx.query, dataRootId: dataroot.id, dataFolderId: args.folderId }) ?? []
+    const systemCtx = systemContext()
+    const migrated = await migrateData(systemCtx, args.data, dataroot.id, args.folderId)
+    const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId: dataroot.id, dataFolderId: args.folderId }) ?? []
     for (const message of messages) {
       response.addMessage(message.message, message.path && `args.data.${message.path}`, message.type as MutationMessageType)
     }
     if (validateOnly || response.hasErrors()) return response
     // passed validation, save it
     const versionedService = this.svc(VersionedService)
-    const data = await createDataEntry(versionedService, this.login, args)
+    const data = await createDataEntry(versionedService, this.login, { ...args, data: migrated })
     response.success = true
     response.data = data
     return response
@@ -223,15 +225,16 @@ export class DataService extends DosGatoService<Data> {
     const tmpl = templateRegistry.getDataTemplate(args.data.templateKey)
     const dataRootId = `${data.siteId ?? 'global'}-${args.data.templateKey}`
     const folder = data.folderInternalId ? await this.svc(DataFolderServiceInternal).findByInternalId(data.folderInternalId) : undefined
-    const migrated = await migrateData(this.ctx, args.data, dataRootId, folder?.id, data.id)
-    const messages = await tmpl.validate?.(migrated, { query: this.ctx.query, dataRootId, dataFolderId: folder?.id, dataId: data.id }) ?? []
+    const systemCtx = systemContext()
+    const migrated = await migrateData(systemCtx, args.data, dataRootId, folder?.id, data.id)
+    const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId, dataFolderId: folder?.id, dataId: data.id }) ?? []
     const response = new DataResponse({ success: true })
     for (const message of messages) {
       response.addMessage(message.message, message.path && `args.data.${message.path}`, message.type as MutationMessageType)
     }
     if (validateOnly || response.hasErrors()) return response
     const indexes = getDataIndexes(migrated)
-    await this.svc(VersionedService).update(data.intDataId, args.data, indexes, { user: this.login, comment: args.comment, version: args.dataVersion })
+    await this.svc(VersionedService).update(data.intDataId, migrated, indexes, { user: this.login, comment: args.comment, version: args.dataVersion })
     this.loaders.clear()
     const updated = await this.raw.findById(dataId)
     response.success = true
@@ -314,23 +317,20 @@ export class DataService extends DosGatoService<Data> {
   async publish (dataIds: string[]) {
     let data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (await someAsync(data, async (d: Data) => !(await this.mayPublish(d)))) {
-      throw new Error('Current user is not permitted to publish one or more data entries')
+      throw new Error('You are not permitted to publish one or more data entries.')
     }
     data = data.filter(d => !d.deleted)
-    try {
-      await eachConcurrent(data.map(d => d.intDataId), async (dataId) => { await this.svc(VersionedService).tag(dataId, 'published', undefined, this.login) })
-      this.loaders.clear()
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to publish one or more data entries.')
-    }
+    await db.transaction(async db => {
+      for (const d of data) await this.svc(VersionedService).tag(d.intDataId, 'published', undefined, this.login, undefined, db)
+    })
+    this.loaders.clear()
+    return new ValidatedResponse({ success: true })
   }
 
   async unpublish (dataIds: string[]) {
     const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (await someAsync(data, async (d: Data) => !(await this.mayUnpublish(d)))) {
-      throw new Error('Current user is not permitted to unpublish one or more data entries')
+      throw new Error('You are not permitted to unpublish one or more data entries.')
     }
     await this.svc(VersionedService).removeTags(data.map(d => d.intDataId), ['published'])
     this.loaders.clear()
@@ -340,7 +340,7 @@ export class DataService extends DosGatoService<Data> {
   async delete (dataIds: string[]) {
     const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (await someAsync(data, async (d: Data) => !(await this.mayDelete(d)))) {
-      throw new Error('Current user is not permitted to delete one or more data entries')
+      throw new Error('You are not permitted to delete one or more data entries.')
     }
     const currentUser = await this.currentUser()
     try {
@@ -350,14 +350,14 @@ export class DataService extends DosGatoService<Data> {
       return new DataMultResponse({ success: true, data: updated })
     } catch (err: any) {
       console.error(err)
-      throw new Error('Unable to delete one or more data entries')
+      throw new Error('Unable to delete one or more data entries.')
     }
   }
 
   async publishDataEntryDeletions (dataIds: string[]) {
     const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (await someAsync(data, async (d: Data) => !(await this.mayDelete(d)))) {
-      throw new Error('Current user is not permitted to delete one or more data entries')
+      throw new Error('Current user is not permitted to delete one or more data entries.')
     }
     const currentUser = await this.currentUser()
     await publishDataEntryDeletions(data, currentUser!.internalId)

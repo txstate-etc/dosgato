@@ -1,4 +1,5 @@
-import { type PageData, extractLinksFromText, replaceLinksInText } from '@dosgato/templating'
+import { type PageData, extractLinksFromText, replaceLinksInText, type PageExtras } from '@dosgato/templating'
+import { type Context } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
@@ -7,7 +8,7 @@ import { unique, keyby, isNotNull, Cache, isNotBlank, intersect, stringify } fro
 import {
   Site, type SiteFilter, PagetreeType, type VersionedService, createSiteComment, type UpdateSiteManagementInput,
   DeletedFilter, normalizeHost, parsePath, type CreatePageExtras, createVersionedPage, getPages, type Page, createPage,
-  type AssetFolder, getAssetFolders, getAssets, createAsset, createAssetFolder, DeleteState, DeleteStateInput
+  type AssetFolder, getAssetFolders, getAssets, createAsset, createAssetFolder, DeleteStateInput, migratePage
 } from '../internal.js'
 
 const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.launchEnabled', 'sites.primaryPagetreeId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
@@ -279,6 +280,7 @@ interface DuplicateContext {
   newSiteId: string
   newSiteName: string
   userId: string
+  ctx: Context
 }
 
 function fixLinks (obj: any, context: DuplicateContext) {
@@ -309,11 +311,22 @@ function fixLinks (obj: any, context: DuplicateContext) {
   return obj
 }
 
-async function duplicateChildren (page: Page, into: Page, versionedService: VersionedService, context: DuplicateContext) {
+async function duplicateChildren (page: Page, into: Page, versionedService: VersionedService, path: string, context: DuplicateContext) {
   const children = await getPages({ internalIdPaths: ['/' + [...page.pathSplit, page.internalId].join('/')], deleteStates: [DeleteStateInput.NOTDELETED] })
+  const pagePath = path + '/' + page.name
   for (const child of children) {
     const versioned = await versionedService.get(page.intDataId)
-    const data = fixLinks(versioned?.data, context)
+    const extras: PageExtras = {
+      query: context.ctx.query,
+      pagePath,
+      name: page.name,
+      linkId: page.linkId,
+      pageId: page.id,
+      pagetreeId: page.pagetreeId,
+      siteId: page.siteId
+    }
+    const migrated = await migratePage(versioned!.data, extras)
+    const data = fixLinks(migrated, context)
     // add template key to list of templates approved for the site
     // TODO: check whether the template is universal first
     // TODO: add component templates to the approved list as well
@@ -322,7 +335,7 @@ async function duplicateChildren (page: Page, into: Page, versionedService: Vers
     await db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?) ON DUPLICATE KEY UPDATE siteId=siteId', [context.newSiteId, templateInternalId])
     const newPageId = await createPage(versionedService, context.userId, into, undefined, child.name, data, { linkId: child.linkId })
     const newPage = (await getPages({ internalIds: [newPageId] }))[0]!
-    await duplicateChildren(child, newPage, versionedService, context)
+    await duplicateChildren(child, newPage, versionedService, pagePath, context)
   }
 }
 
@@ -340,15 +353,22 @@ async function duplicateAssets (folder: AssetFolder, into: AssetFolder, versione
   }
 }
 
-export async function duplicateSite (siteId: string, newName: string, versionedService: VersionedService, userId: string) {
+export async function duplicateSite (siteId: string, newName: string, versionedService: VersionedService, userId: string, ctx: Context) {
   const [rootPage] = await getPages({ siteIds: [siteId], maxDepth: 0 })
   const [rootFolder] = await getAssetFolders({ siteIds: [siteId], maxDepth: 0 })
   const versioned = await versionedService.get(rootPage.intDataId)
+  const extras: PageExtras = {
+    query: ctx.query,
+    pagePath: `/${newName}`,
+    name: newName,
+    linkId: rootPage.linkId
+  }
+  const migrated = await migratePage(versioned!.data, extras)
   let context: DuplicateContext
   const [newSiteId, newPageId, newFolderId] = await db.transaction(async db => {
     const newSiteId = await db.insert('INSERT INTO sites (name) VALUES (?)', [newName])
-    context = { oldSiteId: siteId, newSiteId: String(newSiteId), newSiteName: newName, userId }
-    const data = fixLinks(versioned?.data, context)
+    context = { oldSiteId: siteId, newSiteId: String(newSiteId), newSiteName: newName, userId, ctx }
+    const data = fixLinks(migrated, context)
     // create the site, get the internal id for the page template
     const templateInternalId = await db.getval('SELECT id FROM templates WHERE `key`=?', [data.templateKey])
     if (!templateInternalId) throw new Error(`${data.templateKey} is not a recognized template key.`)
@@ -371,7 +391,7 @@ export async function duplicateSite (siteId: string, newName: string, versionedS
     return [String(newSiteId), newPageId, newFolderId]
   })
   const intoPage = (await getPages({ internalIds: [newPageId] }))[0]!
-  await duplicateChildren(rootPage, intoPage, versionedService, context!)
+  await duplicateChildren(rootPage, intoPage, versionedService, '/', context!)
   const intoFolder = (await getAssetFolders({ internalIds: [newFolderId] }))[0]!
   await duplicateAssets(rootFolder, intoFolder, versionedService, context!)
   return newSiteId

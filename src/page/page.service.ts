@@ -1,16 +1,16 @@
 import { type ComponentData, type PageData, type PageExtras, type PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { DateTime } from 'luxon'
+import { type DateTime } from 'luxon'
 import db from 'mysql2-async/db'
 import { equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set, someAsync, stringify, unique } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, type Page, type PageFilter, PageResponse, PagesResponse,
   createPage, getPages, movePages, deletePages, renamePage, TemplateService, type TemplateFilter,
   getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage,
-  type Pagetree, PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
-  type Site, PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, getPagesByPath, parsePath,
-  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService, shiftPath
+  PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
+  PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, getPagesByPath, parsePath,
+  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService, shiftPath, systemContext
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -487,20 +487,9 @@ export class PageService extends DosGatoService<Page> {
     }
   }
 
-  async validatePageData (data: PageData, site: Site | undefined, pagetree: Pagetree | undefined, parent: Page | undefined, name: string, linkId?: string, pageId?: string) {
+  async validatePageData (data: PageData, extras: PageExtras) {
     const response = new PageResponse({ success: true })
-    const extras: PageExtras = {
-      query: this.ctx.query,
-      siteId: site?.id,
-      pagetreeId: pagetree?.id,
-      parentId: parent?.id,
-      pagePath: `${parent ? await this.getPath(parent) : ''}/${name}`,
-      pageId,
-      linkId,
-      name
-    }
-    const migrated = await migratePage(data, extras)
-    const messages = await validatePage(migrated, extras)
+    const messages = await validatePage(data, extras)
     for (const message of messages) {
       response.addMessage(message.message, message.path, message.type as MutationMessageType)
     }
@@ -515,14 +504,23 @@ export class PageService extends DosGatoService<Page> {
     await this.validatePageTemplates(data, { parent })
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const response = await this.validatePageData(data, site, pagetree, parent, name)
+    const extras = {
+      query: systemContext().query,
+      siteId: site.id,
+      pagetreeId: pagetree.id,
+      parentId: parent.id,
+      pagePath: `${await this.getPath(parent)}/${name}`,
+      name
+    }
+    const migrated = await migratePage(data, extras)
+    const response = await this.validatePageData(migrated, extras)
     const siblings = await this.raw.getPageChildren(parent, false)
     if (isBlank(name)) response.addMessage('Page name is required.', 'name')
     else if (siblings.some(p => p.name === name)) {
       response.addMessage(`Page name: ${name} already exists in this location.`, 'name')
     } else response.addMessage(`Page name: ${name} is available.`, 'name', MutationMessageType.success)
     if (!validateOnly && response.success) {
-      const pageInternalId = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, data, extra)
+      const pageInternalId = await createPage(this.svc(VersionedService), this.login, parent, aboveTarget, name, migrated, extra)
       this.loaders.clear()
       response.page = (await this.raw.findByInternalId(pageInternalId))
     }
@@ -537,12 +535,23 @@ export class PageService extends DosGatoService<Page> {
     const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const response = await this.validatePageData(data, site, pagetree, parent, page.name, page.linkId)
+    const extras: PageExtras = {
+      query: systemContext().query,
+      siteId: site.id,
+      pagetreeId: pagetree.id,
+      parentId: parent?.id,
+      pagePath: `${parent ? await this.getPath(parent) : ''}/${page.name}`,
+      name: page.name,
+      linkId: page.linkId,
+      pageId: page.id
+    }
+    const migrated = await migratePage(data, extras)
+    const response = await this.validatePageData(migrated, extras)
     if (!validateOnly && response.success) {
-      const indexes = getPageIndexes(data)
+      const indexes = getPageIndexes(migrated)
       await db.transaction(async db => {
-        await this.svc(VersionedService).update(page!.intDataId, data, indexes, { user: this.login, comment, version: dataVersion })
-        await db.update('UPDATE pages SET title=?, templateKey=? WHERE id=?', [data.title, data.templateKey, page!.internalId])
+        await this.svc(VersionedService).update(page!.intDataId, migrated, indexes, { user: this.login, comment, version: dataVersion })
+        await db.update('UPDATE pages SET title=?, templateKey=? WHERE id=?', [migrated.title, migrated.templateKey, page!.internalId])
       })
       this.loaders.clear()
       page = await this.raw.findById(dataId)
@@ -567,9 +576,8 @@ export class PageService extends DosGatoService<Page> {
     if (meta?.version === restoreVersion) response.addMessage('This is already the latest version.')
     if (!tmpl || !await this.svc(TemplateService).mayKeepOnPage(tmpl.key, page, tmpl)) response.addMessage('This version may not be restored because it uses a page template that is no longer available.')
     if (!validateOnly && response.success) {
-      const indexes = getPageIndexes(data)
       await db.transaction(async db => {
-        await this.svc(VersionedService).update(page!.intDataId, data, indexes, { user: this.login, comment: `Restored from ${DateTime.fromJSDate(dataToRestore.modified).toLocaleString(DateTime.DATETIME_SHORT)}.` }, db)
+        await this.svc(VersionedService).restore(page!.intDataId, { version: restoreVersion }, { user: this.login, tdb: db })
         await db.update('UPDATE pages SET title=?, templateKey=? WHERE id=?', [data.title, data.templateKey, page!.internalId])
       })
       this.loaders.clear()

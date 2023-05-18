@@ -9,7 +9,7 @@ import {
   getPageIndexes, GlobalRuleService, logMutation, makeSafe, numerate, Page, type PageRule,
   PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, type PagetreeType,
   SiteService, SiteServiceInternal, templateRegistry, VersionedService,
-  createPageInTransaction, getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput
+  createPageInTransaction, getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput, migratePage, systemContext
 } from '../internal.js'
 
 export interface PageExport {
@@ -125,7 +125,6 @@ export async function createPageRoutes (app: FastifyInstance) {
     if (existing) throw new HttpError(409, 'The site you are trying to import already exists, update the page instead.')
     const [existingPage] = await ctx.svc(PageServiceInternal).find({ legacyIds: [pageRecord.data.legacyId] })
     if (existingPage) throw new HttpError(400, `Another page has the legacy id ${pageRecord.data.legacyId}. Use /pages/update/:id instead.`)
-
     const site = await createSite(ctx.svc(VersionedService), user.id, makeSafe(pageRecord.name), pageRecord.data, { ...pick(pageRecord, 'linkId', 'createdAt', 'createdBy', 'modifiedAt', 'modifiedBy'), publishedAt: body?.publishedAt, publishedBy: body?.publishedBy })
     const pagetree = (await ctx.svc(PagetreeServiceInternal).findBySiteId(site.id))[0]
     return { id: site.id, name: site.name, pagetree: { id: pagetree.id, name: pagetree.name } }
@@ -172,23 +171,33 @@ export async function createPageRoutes (app: FastifyInstance) {
     }
     const pagetree = (await ctx.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
     const site = (await ctx.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const response = await svcPage.validatePageData(pageRecord.data, site, pagetree, page, pageRecord.name)
+    const parent = page.parentInternalId ? (await ctx.svc(PageServiceInternal).findByInternalId(page.parentInternalId)) : undefined
+    const extras = {
+      query: systemContext().query,
+      siteId: site.id,
+      pagetreeId: pagetree.id,
+      parentId: parent?.id,
+      pagePath: `${parent ? await ctx.svc(PageServiceInternal).getPath(parent) : ''}/${page.name}`,
+      name: page.name
+    }
+    const migrated = await migratePage(pageRecord.data, extras)
+    const response = await svcPage.validatePageData(pageRecord.data, extras)
     try {
-      await svcPage.validatePageTemplates(pageRecord.data, { page })
+      await svcPage.validatePageTemplates(migrated, { page })
     } catch (e: any) {
-      if (pageRecord.data.legacyId) response.addMessage(e.message)
+      if (migrated.legacyId) response.addMessage(e.message)
       else throw new HttpError(403, e.message)
     }
-    if (!response.success && !pageRecord.data.legacyId) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
+    if (!response.success && !migrated.legacyId) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
 
-    const indexes = getPageIndexes(pageRecord.data)
-    const modifiedBy = pageRecord.data.legacyId && isNotBlank(pageRecord.modifiedBy) ? pageRecord.modifiedBy : user.id
-    const modifiedAt = pageRecord.data.legacyId && isNotBlank(pageRecord.modifiedAt) ? new Date(pageRecord.modifiedAt) : undefined
+    const indexes = getPageIndexes(migrated)
+    const modifiedBy = migrated.legacyId && isNotBlank(pageRecord.modifiedBy) ? pageRecord.modifiedBy : user.id
+    const modifiedAt = migrated.legacyId && isNotBlank(pageRecord.modifiedAt) ? new Date(pageRecord.modifiedAt) : undefined
     const publishedAt = isNotBlank(body?.publishedAt) ? new Date(body.publishedAt) : undefined
     await db.transaction(async db => {
-      await versionedService.update(page.intDataId, pageRecord.data, indexes, { user: modifiedBy, date: modifiedAt }, db)
+      await versionedService.update(page.intDataId, migrated, indexes, { user: modifiedBy, date: modifiedAt }, db)
       if (publishedAt && modifiedAt && publishedAt >= modifiedAt) await versionedService.tag(page.intDataId, 'published', undefined, body.publishedBy ?? modifiedBy, publishedAt, db)
-      await db.update('UPDATE pages SET title=?, templateKey=? WHERE dataId=?', [pageRecord.data.title, pageRecord.data.templateKey, page.dataId])
+      await db.update('UPDATE pages SET title=?, templateKey=? WHERE dataId=?', [migrated.title, migrated.templateKey, page.dataId])
     }, { retries: 2 })
 
     return { id: page.id, linkId: page.linkId, messages: response.messages }
@@ -276,18 +285,27 @@ export async function createPageRoutes (app: FastifyInstance) {
 
     const pagetree = (await ctx.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const site = (await ctx.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const response = await svcPage.validatePageData(pageRecord.data, site, pagetree, parent, newPageName)
+    const extras = {
+      query: systemContext().query,
+      siteId: site.id,
+      pagetreeId: pagetree.id,
+      parentId: parent.id,
+      pagePath: `${await ctx.svc(PageServiceInternal).getPath(parent)}/${newPageName}`,
+      name: newPageName
+    }
+    const migrated = await migratePage(pageRecord.data, extras)
+    const response = await svcPage.validatePageData(migrated, extras)
     // at the time of writing this comment, template usage is approved for an entire pagetree, so
     // it should be safe to simply check if the targeted parent/sibling is allowed to use this template
     try {
-      await svcPage.validatePageTemplates(pageRecord.data, { parent })
+      await svcPage.validatePageTemplates(migrated, { parent })
     } catch (e: any) {
-      if (pageRecord.data.legacyId) response.addMessage(e.message)
+      if (migrated.legacyId) response.addMessage(e.message)
       else throw new HttpError(403, e.message)
     }
-    if (!response.success && !pageRecord.data.legacyId) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
+    if (!response.success && !migrated.legacyId) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
 
-    const pageInternalId = await createPage(ctx.svc(VersionedService), user.id, parent, above, newPageName, pageRecord.data, {
+    const pageInternalId = await createPage(ctx.svc(VersionedService), user.id, parent, above, newPageName, migrated, {
       ...body,
       ...pick(pageRecord, 'createdBy', 'createdAt', 'modifiedBy', 'modifiedAt', 'linkId')
     })

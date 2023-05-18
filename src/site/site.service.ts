@@ -1,4 +1,4 @@
-import { type PageData } from '@dosgato/templating'
+import { type PageExtras, type PageData } from '@dosgato/templating'
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import { nanoid } from 'nanoid'
@@ -9,7 +9,7 @@ import {
   getSitesByManagerInternalId, siteNameIsUnique, renameSite, setLaunchURL,
   type UpdateSiteManagementInput, updateSiteManagement, DeletedFilter,
   type CreatePageExtras, getSiteIdByLaunchUrl, type Organization, PageServiceInternal,
-  PagetreeServiceInternal
+  PagetreeServiceInternal, migratePage, systemContext
 } from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({
@@ -147,7 +147,14 @@ export class SiteService extends DosGatoService<Site> {
     }
     // validate root page data
     const linkId = extra?.linkId ?? nanoid(10)
-    const pageValidationResponse = await this.svc(PageService).validatePageData(data, undefined, undefined, undefined, name, linkId)
+    const extras: PageExtras = {
+      query: systemContext().query,
+      pagePath: `/${name}`,
+      name,
+      linkId
+    }
+    const migrated = await migratePage(data, extras)
+    const pageValidationResponse = await this.svc(PageService).validatePageData(migrated, extras)
     if (pageValidationResponse.hasErrors()) {
       // take these errors and add them to the site response
       for (const message of pageValidationResponse.messages) {
@@ -159,7 +166,7 @@ export class SiteService extends DosGatoService<Site> {
     }
     if (!validateOnly) {
       const versionedService = this.svc(VersionedService)
-      response.site = await createSite(versionedService, this.login, name, data, extra)
+      response.site = await createSite(versionedService, this.login, name, migrated, extra)
     }
     return response
   }

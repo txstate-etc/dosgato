@@ -4,7 +4,6 @@ import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-
 import jsonPatch from 'fast-json-patch'
 import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
-import { nanoid } from 'nanoid'
 import { createHash } from 'node:crypto'
 import { clone, intersect } from 'txstate-utils'
 import {
@@ -12,6 +11,7 @@ import {
   type SearchRule, type Tag, UpdateConflictError, type Versioned, type VersionedCommon,
   type VersionedStorage, type VersionStorage, type VersionFilter
 } from '../internal.js'
+import { DateTime } from 'luxon'
 const { applyPatch, compare } = jsonPatch
 
 const storageLoader = new PrimaryKeyLoader({
@@ -275,8 +275,8 @@ export class VersionedService extends BaseService {
    * Note that any numbers you passed in as indexes will have been stringified with
    * zerofill to 10 digits. This is to help normalize lexical vs numerical comparisons.
    */
-  async getIndexes (id: number, version: number) {
-    const indexrows = await db.getall<IndexJoinedStorage>('SELECT i.*, v.value, n.name FROM indexes i INNER JOIN indexnames n ON i.name_id=n.id INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? ORDER BY n.name, v.value', [id, version])
+  async getIndexes (id: number, version: number, tdb: Queryable = db) {
+    const indexrows = await tdb.getall<IndexJoinedStorage>('SELECT i.*, v.value, n.name FROM indexes i INNER JOIN indexnames n ON i.name_id=n.id INNER JOIN indexvalues v ON v.id=i.value_id WHERE i.id=? AND i.version=? ORDER BY n.name, v.value', [id, version])
     const indexhash: Record<string, IndexStringified> = {}
     for (const row of indexrows) {
       indexhash[row.name] ??= { name: row.name, values: [] }
@@ -420,11 +420,11 @@ export class VersionedService extends BaseService {
    * If you provide an indexes array, it will be used. Otherwise the indexes for the version
    * being restored will be restored as well.
    */
-  async restore (id: number, { tag, version }: { tag?: string, version?: number }, { indexes, user, comment }: { indexes?: Index[], user?: string, comment?: string } = {}) {
+  async restore (id: number, { tag, version }: { tag?: string, version?: number }, { indexes, user, comment, tdb }: { indexes?: Index[], user?: string, comment?: string, tdb?: Queryable } = {}) {
     const toberestored = await this.get(id, { tag, version })
     if (!toberestored) throw new NotFoundError('Could not restore version for non-existing id: ' + String(id))
-    indexes ??= await this.getIndexes(id, toberestored.version)
-    await this.update(id, toberestored.data, indexes, { user, comment: `restored from earlier version ${toberestored.version}${comment ? '\n' + comment : ''}` })
+    indexes ??= await this.getIndexes(id, toberestored.version, tdb)
+    await this.update(id, toberestored.data, indexes, { user, comment: comment ?? `Restored from ${DateTime.fromJSDate(toberestored.modified).toLocaleString(DateTime.DATETIME_SHORT)}.` }, tdb)
   }
 
   /**
