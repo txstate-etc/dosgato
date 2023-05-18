@@ -164,7 +164,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
           linkId: data.linkId
         }, { numerate: true })
         ids.push(asset.id)
-        await requestResizes(asset, { isMigration: isNotBlank(data[file.fieldname + '_legacyId']) })
+        await requestResizes(asset)
       }
     } else if (req.body?.url) {
       const file = await handleURLUpload(req.body.url, req.body.modifiedAt, req.body.auth)
@@ -181,7 +181,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
       }, { numerate: true })
       ids.push(asset.id)
       if (req.body.markAsDeleted) await deleteAsset(asset.internalId, user.internalId)
-      await requestResizes(asset, { isMigration: isNotBlank(req.body.legacyId) })
+      await requestResizes(asset)
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }

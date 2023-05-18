@@ -611,17 +611,18 @@ export async function undeleteAsset (id: number) {
   return await db.update('UPDATE assets SET deletedBy = null, deletedAt = null, deleteState = ? WHERE id = ?', [DeleteState.NOTDELETED, id])
 }
 
-export async function requestResizes (asset: Asset, opts?: { force?: boolean, isMigration?: boolean }) {
+export async function requestResizes (asset: Asset, opts?: { force?: boolean }) {
+  if (!asset.box?.width) return
   if (!opts?.force) {
     const resizes = await getResizes([asset.internalId])
     if (resizes.length) return
   } else {
     await db.delete('DELETE rr FROM requestedresizes rr INNER JOIN binaries b ON b.id=rr.binaryId WHERE b.shasum=? AND (rr.completed IS NOT NULL OR rr.withError=1)', [asset.checksum])
   }
-  await db.delete('DELETE FROM requestedresizes WHERE completed < NOW() - INTERVAL 1 HOUR')
   await db.insert(`
     INSERT INTO requestedresizes (binaryId)
     SELECT id FROM binaries WHERE shasum=?
     ON DUPLICATE KEY UPDATE binaryId=binaryId
   `, [asset.checksum])
+  await db.delete('DELETE FROM requestedresizes WHERE completed < NOW() - INTERVAL 1 HOUR')
 }
