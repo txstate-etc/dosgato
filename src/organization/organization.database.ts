@@ -17,6 +17,7 @@ export async function getOrganizations (filter?: { ids?: string[], internalIds?:
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`
   }
+  query += ' ORDER BY name'
   const orgs = await db.getall(query, binds)
   return orgs.map(org => new Organization(org))
 }
