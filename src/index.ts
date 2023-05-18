@@ -61,6 +61,7 @@ export class DGServer {
 
   async start (opts: DGStartOpts) {
     for (const template of opts.templates) templateRegistry.register(template)
+    templateRegistry.sortMigrations()
     const shouldResetDb = process.env.NODE_ENV === 'development' && process.env.RESET_DB_ON_STARTUP === 'true'
 
     if (shouldResetDb) await resetdb()
