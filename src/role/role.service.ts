@@ -308,12 +308,13 @@ export class RoleService extends DosGatoService<Role> {
       ...templateRules.map(async rule => await this.svc(TemplateRuleService).tooPowerful(rule))
     ])
     if (tooPowerful.some(b => b)) return false
-    if (isNotNull(role.siteId)) {
-      const manageAccess = await this.haveGlobalPerm('manageAccess')
-      if (manageAccess) return true
-      const managers = await this.svc(UserService).findSiteManagers(role.siteId)
-      return managers.some(m => m.id === this.login)
-    } else return await this.haveGlobalPerm('manageParentRoles')
+    // TODO: The logic we discussed when we were defining the manageAccess and manageParentRoles permissions
+    // was to check if the role was associated with a site (has a site ID)
+    // If it does not have a site ID, they can assign the role if they have the manageParentRoles permission
+    // It it does have a site ID, we let them assign the role if they have the manage Access permission OR they
+    // are a site manager. Until manageParentRoles is fully implemented, they can assign the role if they
+    // have the manageAccess permission.
+    return await this.haveGlobalPerm('manageAccess')
   }
 
   async mayCreateRules (role: Role) {
