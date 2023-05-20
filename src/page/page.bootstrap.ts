@@ -29,7 +29,7 @@ export async function bootstrap () {
 
           if (path.length === 1) {
             const resp = await ctx.svc(SiteService).create(path[0], pageRecord.data)
-            if (!resp.success) throw new Error(resp.messages[0]?.message)
+            if (!resp.success) throw new Error((resp.messages[0]?.message ?? '') + ' ' + (resp.messages[0]?.arg ?? ''))
           } else {
             const parentPath = `/${path.slice(0, -1).join('/')}`
             const name = path[path.length - 1]
