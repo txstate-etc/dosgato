@@ -385,7 +385,7 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
     INSERT INTO pages (name, pagetreeId, dataId, linkId, path, displayOrder, siteId, title, templateKey)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [newPageName, parent.pagetreeId, newDataId, newLinkId, parent.pathAsParent, displayOrder, parent.siteInternalId, pageData!.data.title, pageData!.data.templateKey])
   if (includeChildren) {
-    const children = (await db.getall('SELECT * FROM pages WHERE path = ?', [page.pathAsParent])).map(r => new Page(r))
+    const children = (await db.getall('SELECT * FROM pages WHERE path = ? AND deleteState != ?', [page.pathAsParent, DeleteState.DELETED])).map(r => new Page(r))
     const newParent = new Page(await db.getrow('SELECT * FROM pages WHERE id = ?', [newInternalId]))
     for (const child of children) {
       await handleCopy(db, versionedService, userId, child, newParent, child.displayOrder, true)
