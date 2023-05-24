@@ -131,6 +131,12 @@ export async function createPagetree (versionedService: VersionedService, user: 
     // create the root asset folder for the pagetree
     await db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?,?,?,?,?)', [site.id, pagetreeId, extra?.linkId ?? nanoid(10), '/', pagetreeName])
     await createSiteComment(site.id, `Added sandbox ${pagetreeName}.`, user.internalId, db)
+    // Insert the page template in the list of allowed page templates for the pagetree, unless it is already approved for the whole site.
+    const templateId = await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', [data.templateKey])
+    const siteAuthorization = await db.getval<number>('SELECT COUNT(*) FROM sites_templates WHERE siteId = ? AND templateId = ?', [site.id, templateId!])
+    if (siteAuthorization! === 0) {
+      await db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetreeId, templateId!])
+    }
     return new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE id=?', [pagetreeId]))
   })
 }
