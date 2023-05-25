@@ -400,7 +400,7 @@ export class VersionedService extends BaseService {
       const newversion = current.version + 1
       const undo = compare(data, currentdata)
       await db.update(`
-        UPDATE storage SET modified=?, version=?, data=?, modifiedBy=?, comment=? WHERE id=?
+        UPDATE storage SET modified=?, version=?, data=?, modifiedBy=?, comment=?, markedAt=NULL WHERE id=?
       `, [date ?? new Date(), newversion, JSON.stringify(data), user ?? '', comment ?? '', current.id])
       await db.insert(`
         INSERT INTO versions (id, version, date, markedAt, user, comment, \`undo\`)

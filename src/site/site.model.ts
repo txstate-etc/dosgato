@@ -22,7 +22,7 @@ export class LaunchURL {
     this.host = row.launchHost
     this.path = row.launchPath || '/'
     this.prefix = `https://${this.host}${this.path}`
-    this.enabled = row.launchEnabled
+    this.enabled = !!row.launchEnabled
   }
 }
 
