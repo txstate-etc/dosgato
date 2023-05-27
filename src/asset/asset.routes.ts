@@ -348,10 +348,6 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const prefix = folderPath.substring(1).split('/').slice(0, -1).join('.')
     for (const asset of assets) {
       archive.append(fileHandler.get(asset.checksum), { name: (prefix ? prefix + '.' : '') + getFolderPath(foldersByInternalId[asset.folderInternalId], foldersByInternalId).substring(1) + '/' + asset.filename })
-      await new Promise((resolve, reject) => {
-        archive.on('entry', resolve)
-        archive.on('error', reject)
-      })
     }
     await archive.finalize()
   })
