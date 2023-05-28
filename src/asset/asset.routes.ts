@@ -87,6 +87,7 @@ export async function handleURLUpload (url: string, modifiedAt?: string, auth?: 
     urlhash = createHash('sha1').update(url + modifiedAt).digest('hex')
     const existing = await db.getrow<{ checksum: string, mime: string, size: number, width?: number, height?: number }>('SELECT * FROM migratedurlinfo WHERE urlhash=UNHEX(?)', [urlhash])
     if (existing && await fileHandler.exists(existing.checksum)) {
+      console.info('skipping download of', url, 'because it was downloaded in a previous migration.')
       return {
         filename,
         name: makeSafeFilename(filename),
@@ -98,6 +99,7 @@ export async function handleURLUpload (url: string, modifiedAt?: string, auth?: 
       }
     }
   }
+  console.info('downloading', url)
   const resp = await fetch(url, {
     headers: {
       Authorization: auth ?? ''
