@@ -9,8 +9,9 @@ import { DateTime } from 'luxon'
 import { lookup } from 'mime-types'
 import db from 'mysql2-async/db'
 import probe from 'probe-image-size'
-import { Readable } from 'node:stream'
-import { type ReadableStream } from 'node:stream/web'
+import { type Readable } from 'node:stream'
+import { type IncomingMessage } from 'node:http'
+import { get } from 'node:https'
 import { groupby, isNotBlank, keyby, randomid } from 'txstate-utils'
 import {
   type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
@@ -100,16 +101,13 @@ export async function handleURLUpload (url: string, modifiedAt?: string, auth?: 
     }
   }
   console.info('downloading', url)
-  const resp = await fetch(url, {
-    headers: {
-      Authorization: auth ?? ''
-    }
-  })
-  if ((resp.status ?? 500) >= 400) throw new HttpError(resp.status ?? 500, `Target URL returned status ${resp.status}: ${await resp.text()}`)
-  const mimeGuess = resp.headers.get('content-type') ?? (lookup(url) || 'application/octet-stream')
-  const readStream = resp.body
-  if (!readStream) throw new Error('Unable to read from given URL.')
-  const file = await placeFile(Readable.fromWeb(readStream as ReadableStream), filename, mimeGuess)
+  const resp = await new Promise<IncomingMessage>((resolve, reject) => get(url, { headers: { Authorization: auth ?? '' } }, resolve).on('error', reject))
+  if ((resp.statusCode ?? 500) >= 400) {
+    resp.destroy()
+    throw new HttpError(resp.statusCode ?? 500, `Target URL returned status ${resp.statusCode!}`)
+  }
+  const mimeGuess = resp.headers['content-type'] ?? (lookup(url) || 'application/octet-stream')
+  const file = await placeFile(resp, filename, mimeGuess)
   if (urlhash) await db.insert('INSERT INTO migratedurlinfo (urlhash, checksum, mime, size, width, height) VALUES (UNHEX(?), ?, ?, ?, ?, ?) ON DUPLICATE KEY update checksum=checksum', [urlhash, file.checksum, file.mime, file.size, file.width ?? null, file.height ?? null])
   return file
 }
