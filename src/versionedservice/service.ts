@@ -399,14 +399,16 @@ export class VersionedService extends BaseService {
       const currentdata = JSON.parse(current.data)
       const newversion = current.version + 1
       const undo = compare(data, currentdata)
-      await db.update(`
-        UPDATE storage SET modified=?, version=?, data=?, modifiedBy=?, comment=?, markedAt=NULL WHERE id=?
-      `, [date ?? new Date(), newversion, JSON.stringify(data), user ?? '', comment ?? '', current.id])
-      await db.insert(`
-        INSERT INTO versions (id, version, date, markedAt, user, comment, \`undo\`)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `, [current.id, current.version, current.modified, current.markedAt ?? null, current.modifiedBy, current.comment, JSON.stringify(undo)])
-      await this._setIndexes(current.id, newversion, indexes, db)
+      if (undo.length) {
+        await db.update(`
+          UPDATE storage SET modified=?, version=?, data=?, modifiedBy=?, comment=?, markedAt=NULL WHERE id=?
+        `, [date ?? new Date(), newversion, JSON.stringify(data), user ?? '', comment ?? '', current.id])
+        await db.insert(`
+          INSERT INTO versions (id, version, date, markedAt, user, comment, \`undo\`)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [current.id, current.version, current.modified, current.markedAt ?? null, current.modifiedBy, current.comment, JSON.stringify(undo)])
+        await this._setIndexes(current.id, newversion, indexes, db)
+      }
     }
     if (tdb) await action(tdb)
     else await db.transaction(action, { retries: 2 })
