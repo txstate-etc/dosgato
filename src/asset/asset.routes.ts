@@ -11,7 +11,8 @@ import db from 'mysql2-async/db'
 import probe from 'probe-image-size'
 import { type Readable } from 'node:stream'
 import { type IncomingMessage } from 'node:http'
-import { get } from 'node:https'
+import { get as httpGet } from 'node:http'
+import { get as httpsGet } from 'node:https'
 import { groupby, isNotBlank, keyby, randomid } from 'txstate-utils'
 import {
   type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
@@ -101,6 +102,7 @@ export async function handleURLUpload (url: string, modifiedAt?: string, auth?: 
     }
   }
   console.info('downloading', url)
+  const get = url.startsWith('https:') ? httpsGet : httpGet
   const resp = await new Promise<IncomingMessage>((resolve, reject) => get(url, { headers: { Authorization: auth ?? '' } }, resolve).on('error', reject))
   if ((resp.statusCode ?? 500) >= 400) {
     resp.destroy()
