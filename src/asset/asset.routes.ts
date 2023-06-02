@@ -134,9 +134,17 @@ function getFolderPath (folder: AssetFolder, foldersByInternalId: Record<string,
   return (parent ? getFolderPath(parent, foldersByInternalId) : '') + '/' + folder.name
 }
 
+function safeParse <T = any> (json: string) {
+  try {
+    return JSON.parse(json) as T
+  } catch (e) {
+    return undefined
+  }
+}
+
 export async function createAssetRoutes (app: FastifyInstance) {
   await app.register(multipart, { limits: { fileSize: 2 * 1024 * 1024 * 1024 } })
-  app.post<{ Params: { folderId: string }, Body?: { url: string, uploadedFilename?: string, markAsDeleted?: boolean, legacyId?: string, auth?: string, modifiedBy?: string, modifiedAt?: string, createdBy?: string, createdAt?: string, linkId?: string } }>(
+  app.post<{ Params: { folderId: string }, Body?: { url: string, uploadedFilename?: string, markAsDeleted?: boolean, legacyId?: string, auth?: string, modifiedBy?: string, modifiedAt?: string, createdBy?: string, createdAt?: string, linkId?: string, meta?: any } }>(
     '/assets/:folderId', async (req, res) => {
     const startTime = new Date()
     const ctx = new Context(req)
@@ -163,7 +171,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
           createdAt: data.createdAt,
           modifiedBy: data.modifiedBy,
           modifiedAt: data.modifiedAt,
-          linkId: data.linkId
+          linkId: data.linkId,
+          meta: safeParse(data.meta) ?? {}
         }, { numerate: true })
         ids.push(asset.id)
         await requestResizes(asset)
@@ -179,7 +188,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
         createdAt: req.body.createdAt,
         modifiedBy: req.body.modifiedBy,
         modifiedAt: req.body.modifiedAt,
-        linkId: req.body.linkId
+        linkId: req.body.linkId,
+        meta: req.body.meta ?? {}
       }, { numerate: true })
       ids.push(asset.id)
       if (req.body.markAsDeleted) await deleteAsset(asset.internalId, user.internalId)
