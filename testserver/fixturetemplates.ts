@@ -7,7 +7,7 @@ export const PageTemplate1: APIPageTemplate = {
   name: 'pagetemplate1',
   areas: {
     links: ['keyc1'],
-    main: ['keyc2', 'keyc3', 'richtext', 'horizontalrule']
+    main: ['keyc2', 'keyc3', 'richtext', 'horizontalrule', 'textimage']
   },
   migrations: [],
   getLinks: (data: any) => [],
