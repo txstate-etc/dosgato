@@ -1,7 +1,7 @@
 import { type APIAnyTemplate, type FulltextGatheringFn, type LinkGatheringFn, type Migration, type ValidationFeedback } from '@dosgato/templating'
-import { Context, GQLServer, type GQLStartOpts } from '@txstate-mws/graphql-server'
+import { Context, GQLServer, type GQLStartOpts, gqlDevLogger } from '@txstate-mws/graphql-server'
 import { type FastifyInstance } from 'fastify'
-import { type FastifyTxStateOptions, devLogger } from 'fastify-txstate'
+import { type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
 import { type GraphQLError, type GraphQLScalarType } from 'graphql'
 import { DateTime } from 'luxon'
 import { Cache, isNotBlank } from 'txstate-utils'
@@ -55,7 +55,8 @@ export class DGServer {
   public app: FastifyInstance
 
   constructor (config?: FastifyTxStateOptions) {
-    this.gqlServer = new GQLServer({ ...config, logger: { ...devLogger, trace: () => {} }, bodyLimit: 10 * 1024 * 1024 })
+    const logger = { ...((process.env.NODE_ENV !== 'development' ? prodLogger : gqlDevLogger)), trace: () => {} }
+    this.gqlServer = new GQLServer({ logger, ...config, bodyLimit: 25 * 1024 * 1024 })
     this.app = this.gqlServer.app
   }
 
