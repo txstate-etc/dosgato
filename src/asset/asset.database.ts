@@ -415,7 +415,7 @@ export async function createAsset (versionedService: VersionedService, userId: s
       VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify({ width: args.width ?? undefined, height: args.height ?? undefined }), args.size])
     return await db.insert(`
       INSERT INTO assets (name, folderId, linkId, dataId, shasum)
-      VALUES(?, ?, ?, ?, ?)`, [args.name, folder.id, linkId, dataId, args.checksum])
+      VALUES(?, ?, ?, ?, ?)`, [name, folder.id, linkId, dataId, args.checksum])
   })
   return (await getAssets({ internalIds: [newInternalId] }))[0]
 }
