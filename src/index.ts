@@ -55,7 +55,7 @@ export class DGServer {
   public app: FastifyInstance
 
   constructor (config?: FastifyTxStateOptions) {
-    const logger = { ...((process.env.NODE_ENV !== 'development' ? prodLogger : gqlDevLogger)), trace: () => {} }
+    const logger = process.env.NODE_ENV !== 'development' ? prodLogger : { ...gqlDevLogger, trace: () => {} }
     this.gqlServer = new GQLServer({ logger, ...config, bodyLimit: 25 * 1024 * 1024 })
     this.app = this.gqlServer.app
   }
