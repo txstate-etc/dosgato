@@ -125,10 +125,10 @@ async function processFilters (filter?: AssetFolderFilter) {
     binds.push(filter.maxDepth)
   }
 
-  if (filter.childOfFolderInternalIds?.length) {
-    const ors = filter.childOfFolderInternalIds.map(id => 'assetfolders.path LIKE ?')
-    where.push(ors.join(' OR '))
-    binds.push(...filter.childOfFolderInternalIds.map(id => `%/${id}`))
+  // direct children of an id
+  if (filter.childOfFolderIds?.length) {
+    joins.set('parent', 'INNER JOIN assetfolders parent ON assetfolders.path = CONCAT(parent.path, "/", parent.id)')
+    where.push(`parent.id IN (${db.in(binds, filter.childOfFolderIds)})`)
   }
 
   if (filter.names?.length) {

@@ -25,11 +25,6 @@ describe('assetfolders', () => {
     const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id folders(filter: { deleteStates: [DELETED, ORPHAN_NOTDELETED, ORPHAN_MARKEDFORDELETE, ORPHAN_DELETED] }) { name } } } }`)
     expect(sites[0].rootAssetFolder.folders).to.deep.equal([{ name: 'folder-d' }])
   })
-  it('should retrieve asset folders\' parent folders', async () => {
-    const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id name folders(filter: { parentOfFolderIds: ["${folderhash['folder-f'].id}","${folderhash['folder-h'].id}","${folderhash['folder-j'].id}"] }) { id name } } } }`)
-    expect(sites[0].rootAssetFolder.folders).to.have.lengthOf(3)
-    expect(sites[0].rootAssetFolder.folders).to.have.deep.members([folderhash['folder-a'], folderhash['folder-c'], folderhash['folder-e']])
-  })
   it('should retrieve asset folders by child id', async () => {
     const { sites } = await query(`{ sites(filter: { ids: [${testSiteId}] }) { id rootAssetFolder { id name folders(recursive: true, filter: { childOfFolderIds: ["${folderhash['folder-a'].id}","${folderhash['folder-e'].id}"] }) { id name } } } }`)
     expect(sites[0].rootAssetFolder.folders).to.have.lengthOf(4)

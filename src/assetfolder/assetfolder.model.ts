@@ -80,15 +80,9 @@ export class AssetFolderFilter {
   @Field(type => [AssetFolderLinkInput], { nullable: true, description: 'Resolve asset folder links preferring id and falling back to path.' })
   links?: AssetFolderLinkInput[]
 
-  @Field(type => [ID], { nullable: true, description: 'Return folders that are parents of the given folder ids.' })
-  parentOfFolderIds?: string[]
-
-  parentOfFolderInternalIds?: number[]
-
-  @Field(type => [ID], { nullable: true, description: 'Return folders that are children of the given folder ids.' })
+  @Field(type => [ID], { nullable: true, description: 'Return folders that are direct children of the given folder ids.' })
   childOfFolderIds?: string[]
 
-  childOfFolderInternalIds?: number[]
   names?: string[]
   linkIds?: string[]
 

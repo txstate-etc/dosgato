@@ -104,30 +104,6 @@ export class AssetFolderServiceInternal extends BaseService {
   async processFolderFilters (filter?: AssetFolderFilter) {
     if (!filter) return filter
 
-    if (filter.parentOfFolderIds?.length) {
-      const folders = await this.loaders.loadMany(assetFolderByIdLoader, filter.parentOfFolderIds)
-      const parentIds = folders.map(f => f.parentInternalId).filter(isNotNull)
-      if (filter.internalIds?.length) {
-        filter.internalIds.push(...parentIds)
-        filter.internalIds = unique(filter.internalIds)
-      } else filter.internalIds = parentIds
-    }
-    if (filter.parentOfFolderInternalIds?.length) {
-      const folders = await this.findByInternalIds(filter.parentOfFolderInternalIds)
-      const parentIds = folders.map(f => f.parentInternalId).filter(isNotNull)
-      if (filter.internalIds?.length) {
-        filter.internalIds.push(...parentIds)
-        filter.internalIds = unique(filter.internalIds)
-      } else filter.internalIds = parentIds
-    }
-    if (filter.childOfFolderIds?.length) {
-      const folders = await this.loaders.loadMany(assetFolderByIdLoader, filter.childOfFolderIds)
-      const childFolders = (await mapConcurrent(folders, async (folder) => await this.getChildFolders(folder, false))).flat()
-      if (filter.internalIds?.length) {
-        filter.internalIds.push(...childFolders.map(f => f.internalId))
-      } else filter.internalIds = childFolders.map(f => f.internalId)
-    }
-
     if (filter.links?.length) {
       const pagetreeSvc = this.svc(PagetreeServiceInternal)
       const siteSvc = this.svc(SiteServiceInternal)
