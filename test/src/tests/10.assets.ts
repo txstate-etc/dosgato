@@ -123,6 +123,8 @@ describe('assets', () => {
   it('should get no assets when filtered by non-existing ancestor path', async () => {
     const resp = await query<{ assets: Asset[] }>('{ assets(filter: { beneath: ["/nonsense"] }) { id name path } }')
     expect(resp.assets.length).to.equal(0)
+    const resp2 = await query<{ assets: Asset[] }>('{ assets(filter: { beneath: ["/site1/nonsense"] }) { id name path } }')
+    expect(resp2.assets.length).to.equal(0)
   })
   it('should retrieve asset by link', async () => {
     const asset = allAssets.filter(a => a.site.name === 'site1').filter(a => a.filename === 'blankpdf.pdf')[0]

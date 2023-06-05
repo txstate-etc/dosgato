@@ -66,28 +66,27 @@ async function convertPathsToIDPaths (pathstrings: string[]) {
     assetsByNameAndFolderId[row.name.toLowerCase()] ??= {}
     assetsByNameAndFolderId[row.name.toLowerCase()][row.folderId] = row
   }
-  const ret: { folderIdPath: string, assetId?: number }[] = []
+  const ret: { folderIdPath?: string, assetId?: number }[] = []
   for (const entry of paths) {
     let lastpath = '/'
     let lastFolderId: number | undefined
     let assetId: number | undefined
-    let finished = false
+    let folderIdPath: string | undefined
     for (let i = 0; i < entry.length; i++) {
       const segment = entry[i]
       const folder = foldersByNameAndIDPath[segment]?.[lastpath]
       if (!folder) {
         if (i === entry.length - 1) {
           assetId = assetsByNameAndFolderId[segment]?.[lastFolderId!]?.id
-          finished = true
         }
         break
       } else {
         lastFolderId = folder.id
       }
       lastpath = `${folder.path}${folder.path === '/' ? '' : '/'}${folder.id}`
-      finished = (i === entry.length - 1)
+      if (i === entry.length - 1) folderIdPath = lastpath
     }
-    if ((finished && lastpath !== '/') || entry.length === 0) ret.push({ folderIdPath: lastpath, assetId })
+    if (folderIdPath || assetId) ret.push({ folderIdPath, assetId })
   }
   return ret
 }
@@ -124,13 +123,13 @@ async function processFilters (filter?: AssetFilter) {
     (async () => {
       // beneath a named path e.g. /site1/about
       if (filter.beneath?.length) {
-        const idpaths = await convertPathsToIDPaths(filter.beneath)
+        const idpaths = (await convertPathsToIDPaths(filter.beneath)).filter(p => p.folderIdPath)
         if (idpaths.length) {
           const mybinds: any[] = []
           const ors = idpaths.flatMap(p => ['assetfolders.path LIKE ?', 'assetfolders.path = ?'])
-          mybinds.push(...idpaths.flatMap(p => [`${p.folderIdPath}/%`, p.folderIdPath]))
+          mybinds.push(...idpaths.flatMap(p => [`${p.folderIdPath!}/%`, p.folderIdPath]))
           const subFolderIds = await db.getvals<number>(`SELECT id FROM assetfolders WHERE ${ors.join(' OR ')}`, mybinds)
-          filter.folderIds = intersect({ skipEmpty: true }, ['-1', ...idpaths.map(p => p.folderIdPath.split(/\//).slice(-1)[0]), ...subFolderIds.map(String)], filter.folderIds)
+          filter.folderIds = intersect({ skipEmpty: true }, ['-1', ...idpaths.map(p => p.folderIdPath!.split(/\//).slice(-1)[0]), ...subFolderIds.map(String)], filter.folderIds)
         } else {
           filter.folderIds = ['-1']
         }
@@ -139,8 +138,8 @@ async function processFilters (filter?: AssetFilter) {
     (async () => {
       // direct children of a named path e.g. /site1/about
       if (filter.parentPaths?.length) {
-        const idpaths = await convertPathsToIDPaths(filter.parentPaths)
-        where.push(`assets.folderId IN (${db.in(binds, ['-1', ...idpaths.map(p => p.folderIdPath.split(/\//).slice(-1)[0]).filter(isNotBlank)])})`)
+        const idpaths = (await convertPathsToIDPaths(filter.parentPaths)).filter(p => p.folderIdPath)
+        where.push(`assets.folderId IN (${db.in(binds, ['-1', ...idpaths.map(p => p.folderIdPath!.split(/\//).slice(-1)[0]).filter(isNotBlank)])})`)
       }
     })()
   ])

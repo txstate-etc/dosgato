@@ -99,6 +99,8 @@ describe('pages', () => {
   it('should get no pages when filtered by non-existing ancestor path', async () => {
     const resp = await query('{ pages(filter: { beneath: ["/nonsense"] }) { id name path } }')
     expect(resp.pages.length).to.equal(0)
+    const resp2 = await query('{ pages(filter: { beneath: ["/site3/nonsense"] }) { id name path } }')
+    expect(resp2.pages.length).to.equal(0)
   })
   it('should get pages by link when the linkId is valid', async () => {
     const { pages } = await query('{ pages(filter: { paths: ["site3/about"] }) { id path linkId site { id }, pagetree { id } } }')
