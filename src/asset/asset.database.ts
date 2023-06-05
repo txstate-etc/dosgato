@@ -125,18 +125,22 @@ async function processFilters (filter?: AssetFilter) {
       // beneath a named path e.g. /site1/about
       if (filter.beneath?.length) {
         const idpaths = await convertPathsToIDPaths(filter.beneath)
-        const mybinds: any[] = []
-        const ors = idpaths.flatMap(p => ['assetfolders.path LIKE ?', 'assetfolders.path = ?'])
-        mybinds.push(...idpaths.flatMap(p => [`${p.folderIdPath}/%`, p.folderIdPath]))
-        const subFolderIds = await db.getvals<number>(`SELECT id FROM assetfolders WHERE ${ors.join(' OR ')}`, mybinds)
-        filter.folderIds = intersect({ skipEmpty: true }, ['-1', ...idpaths.map(p => p.folderIdPath.split(/\//).slice(-1)[0]), ...subFolderIds.map(String)], filter.folderIds)
+        if (idpaths.length) {
+          const mybinds: any[] = []
+          const ors = idpaths.flatMap(p => ['assetfolders.path LIKE ?', 'assetfolders.path = ?'])
+          mybinds.push(...idpaths.flatMap(p => [`${p.folderIdPath}/%`, p.folderIdPath]))
+          const subFolderIds = await db.getvals<number>(`SELECT id FROM assetfolders WHERE ${ors.join(' OR ')}`, mybinds)
+          filter.folderIds = intersect({ skipEmpty: true }, ['-1', ...idpaths.map(p => p.folderIdPath.split(/\//).slice(-1)[0]), ...subFolderIds.map(String)], filter.folderIds)
+        } else {
+          filter.folderIds = ['-1']
+        }
       }
     })(),
     (async () => {
       // direct children of a named path e.g. /site1/about
       if (filter.parentPaths?.length) {
         const idpaths = await convertPathsToIDPaths(filter.parentPaths)
-        where.push(`assets.folderId IN (${db.in(binds, idpaths.map(p => p.folderIdPath.split(/\//).slice(-1)[0]))})`)
+        where.push(`assets.folderId IN (${db.in(binds, ['-1', ...idpaths.map(p => p.folderIdPath.split(/\//).slice(-1)[0]).filter(isNotBlank)])})`)
       }
     })()
   ])

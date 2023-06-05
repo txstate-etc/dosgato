@@ -170,7 +170,7 @@ async function processFilters (filter?: PageFilter) {
       // named paths e.g. /site1/about
       if (filter.paths?.length) {
         const idpaths = await convertPathsToIDPaths(filter.paths)
-        const ids = ['-1', ...idpaths.map(p => p.split(/\//).slice(-1)[0])]
+        const ids = ['-1', ...idpaths.map(p => p.split(/\//).slice(-1)[0]).filter(isNotBlank)]
         where.push(`pages.id IN (${db.in(binds, ids)})`)
       }
     })(),
@@ -179,15 +179,17 @@ async function processFilters (filter?: PageFilter) {
       if (filter.beneath?.length) {
         const idpaths = await convertPathsToIDPaths(filter.beneath)
         const ors = idpaths.flatMap(p => ['pages.path LIKE ?', 'pages.path = ?'])
-        binds.push(...idpaths.flatMap(p => [`${p}/%`, p]))
-        where.push(ors.join(' OR '))
+        if (ors.length) {
+          binds.push(...idpaths.flatMap(p => [`${p}/%`, p]))
+          where.push(ors.join(' OR '))
+        } else where.push('1=0')
       }
     })(),
     (async () => {
       // direct children of a named path e.g. /site1/about
       if (filter.parentPaths?.length) {
         const idpaths = await convertPathsToIDPaths(filter.parentPaths)
-        where.push(`pages.path IN (${db.in(binds, idpaths)})`)
+        where.push(`pages.path IN (${db.in(binds, ['-1', ...idpaths])})`)
       }
     })()
   ])

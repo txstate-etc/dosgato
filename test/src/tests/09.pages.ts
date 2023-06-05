@@ -88,6 +88,18 @@ describe('pages', () => {
     const resp2 = await query('{ pages(filter: { paths: ["site3-sandbox/about"] }) { id name } }')
     expect(resp2.pages).to.have.lengthOf(1)
   })
+  it('should get pages, filtered by ancestor path', async () => {
+    const resp = await query('{ pages(filter: { beneath: ["/site3"] }) { id name path } }')
+    expect(resp.pages.length).to.be.greaterThan(0)
+    for (const p of resp.pages) expect(p.path.startsWith('/site3/')).to.be.true
+    const resp2 = await query('{ pages(filter: { beneath: ["/site3-sandbox"] }) { id name path } }')
+    expect(resp2.pages.length).to.be.greaterThan(0)
+    for (const p of resp2.pages) expect(p.path.startsWith('/site3-sandbox/')).to.be.true
+  })
+  it('should get no pages when filtered by non-existing ancestor path', async () => {
+    const resp = await query('{ pages(filter: { beneath: ["/nonsense"] }) { id name path } }')
+    expect(resp.pages.length).to.equal(0)
+  })
   it('should get pages by link when the linkId is valid', async () => {
     const { pages } = await query('{ pages(filter: { paths: ["site3/about"] }) { id path linkId site { id }, pagetree { id } } }')
     const page = pages[0]

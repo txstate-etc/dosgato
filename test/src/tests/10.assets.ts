@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 import { expect } from 'chai'
 import { keyby } from 'txstate-utils'
 import { query } from '../common.js'
@@ -113,6 +114,15 @@ describe('assets', () => {
   it('should retrieve assets by path (case insensitive)', async () => {
     const { assets } = await query<{ assets: Asset[] }>('query getAssetByPath ($path: FilenameSafePath!) { assets(filter: { paths: [$path] }) { id name extension }}', { path: '/site1/BOBCAT' })
     expect(assets[0].name).to.equal('BobCAT')
+  })
+  it('should retrieve assets by ancestor path', async () => {
+    const resp = await query<{ assets: Asset[] }>('{ assets (filter: { beneath: ["/site1"] }) { id name path } }')
+    expect(resp.assets.length).to.be.greaterThan(0)
+    for (const a of resp.assets) expect(a.path.startsWith('/site1/')).to.be.true
+  })
+  it('should get no assets when filtered by non-existing ancestor path', async () => {
+    const resp = await query<{ assets: Asset[] }>('{ assets(filter: { beneath: ["/nonsense"] }) { id name path } }')
+    expect(resp.assets.length).to.equal(0)
   })
   it('should retrieve asset by link', async () => {
     const asset = allAssets.filter(a => a.site.name === 'site1').filter(a => a.filename === 'blankpdf.pdf')[0]
