@@ -277,6 +277,7 @@ export class AssetService extends DosGatoService<Asset> {
     if (isBlank(name)) return ValidatedResponse.error('Name is required.', 'name')
     const asset = await this.raw.findById(assetId)
     if (!asset) throw new Error('Asset not found.')
+    if (!await this.mayMove(asset)) throw new Error(`You are not permitted to rename asset ${asset.filename}.`)
     const folder = await this.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
     const [siblings, siblingFolders] = await Promise.all([
       this.raw.findByFolderInternalId(asset.folderInternalId),
@@ -297,13 +298,12 @@ export class AssetService extends DosGatoService<Asset> {
   async update (assetId: string, data: any, validateOnly?: boolean) {
     const asset = await this.raw.findById(assetId)
     if (!asset) throw new Error('Asset not found.')
-    const siblings = await this.raw.findByFolderInternalId(asset.folderInternalId)
-    const response = new AssetResponse({ asset })
+    if (!await this.mayUpdate(asset)) throw new Error(`You are not permitted to update asset ${asset.filename}.`)
+    const response = new AssetResponse({ asset, success: true })
     if (response.hasErrors() || validateOnly) return response
     await updateAssetMeta(this.svc(VersionedService), asset, data, this.login)
     this.loaders.clear()
     const newAsset = await this.raw.findById(assetId)
-    response.success = true
     response.asset = newAsset
     return response
   }
