@@ -138,11 +138,6 @@ export class DataResolver {
     return await ctx.svc(DataService).create(args, validateOnly)
   }
 
-  @Mutation(returns => DataResponse)
-  async renameDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string, @Arg('name') name: UrlSafeString, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
-    return await ctx.svc(DataService).rename(dataId, name as string, validateOnly)
-  }
-
   @Mutation(returns => DataResponse, { description: 'Update a data entry.' })
   async updateDataEntry (@Ctx() ctx: Context, @Arg('dataId', type => ID) dataId: string, @Arg('args', type => UpdateDataInput) args: UpdateDataInput, @Arg('validateOnly', { nullable: true }) validateOnly?: boolean) {
     return await ctx.svc(DataService).update(dataId, args, validateOnly)

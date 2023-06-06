@@ -217,7 +217,7 @@ async function updateSourceDisplayOrder (db: Queryable, data: Data, templateKey:
   }
 }
 
-export async function createDataEntry (versionedService: VersionedService, userId: string, args: CreateDataInput) {
+export async function createDataEntry (versionedService: VersionedService, userId: string, name: string, args: CreateDataInput) {
   const newInternalId = await db.transaction(async db => {
     const folder = args.folderId ? await db.getrow<{ id: number, siteId: number }>('SELECT id, siteId FROM datafolders WHERE guid = ?', [args.folderId]) : undefined
     const siteId = folder?.siteId ?? args.siteId
@@ -228,7 +228,7 @@ export async function createDataEntry (versionedService: VersionedService, userI
     const indexes = getDataIndexes(data)
     const dataId = await versionedService.create('data', data, indexes, userId, db)
     const columns = ['templateId', 'dataId', 'name', 'displayOrder']
-    const binds = [templateId, dataId, args.name, displayOrder]
+    const binds = [templateId, dataId, name, displayOrder]
     if (siteId) {
       columns.push('siteId')
       binds.push(siteId)

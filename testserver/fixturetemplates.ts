@@ -182,7 +182,8 @@ export const ColorData: APIDataTemplate = {
       errors.push({ path: 'title', message: 'Title is required' })
     }
     return errors
-  }
+  },
+  computeName: data => data.title
 }
 
 export const BuildingData: APIDataTemplate = {
@@ -209,7 +210,8 @@ export const BuildingData: APIDataTemplate = {
       errors.push({ path: 'floors', message: 'Building is too tall. Too many stairs to climb' })
     }
     return errors
-  }
+  },
+  computeName: data => data.name
 }
 
 export const ArticleData: APIDataTemplate = {
@@ -220,5 +222,6 @@ export const ArticleData: APIDataTemplate = {
   getLinks: (data: any) => [],
   getFulltext: (data: any) => {
     return [data.title, data.author]
-  }
+  },
+  computeName: data => data.title
 }

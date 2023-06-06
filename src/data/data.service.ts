@@ -8,7 +8,7 @@ import {
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, type UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, type MoveDataTarget, moveDataEntries,
   type DataFolder, type Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions,
-  DeleteState, popPath, DeleteStateAll, SiteRuleService, DataRuleService, shiftPath, systemContext
+  DeleteState, popPath, DeleteStateAll, SiteRuleService, DataRuleService, shiftPath, systemContext, numerateBasedOnExisting, UrlSafeString, makeSafe
 } from '../internal.js'
 import db from 'mysql2-async/db'
 
@@ -109,6 +109,21 @@ export class DataServiceInternal extends BaseService {
     return content.templateKey
   }
 
+  async getConflictNames (folderInternalId: number | undefined, siteId: string | undefined, templateKey: string, currentName?: string) {
+    const ret = new Set<string>()
+    if (folderInternalId) {
+      for (const d of await this.findByFolderInternalId(folderInternalId)) ret.add(d.name as string)
+    } else if (siteId) {
+      for (const d of await this.findBySiteId(siteId, { templateKeys: [templateKey] })) ret.add(d.name as string)
+      for (const f of await this.svc(DataFolderServiceInternal).findBySiteId(siteId, { templateKeys: [templateKey] })) ret.add(f.name as string)
+    } else {
+      for (const d of (await this.findByTemplate(templateKey, { global: true })).filter(d => d.folderInternalId == null)) ret.add(d.name as string)
+      for (const f of await this.svc(DataFolderServiceInternal).findByTemplateKey(templateKey, { global: true })) ret.add(f.name as string)
+    }
+    if (currentName) ret.delete(currentName)
+    return ret
+  }
+
   async processFilters (filter?: DataFilter) {
     if (filter?.links?.length) {
       const data = await this.findByIds(filter.links.map(l => l.id))
@@ -168,8 +183,10 @@ export class DataService extends DosGatoService<Data> {
     let site: Site | undefined
     let dataroot: DataRoot
     const template = await this.svc(TemplateService).findByKey(args.data.templateKey)
-    if (!template) throw new Error('Tried to create data with an unrecognized template.')
+    const tmpl = templateRegistry.getDataTemplate(args.data.templateKey)
+    if (!tmpl || !template) throw new Error('Tried to create data with an unrecognized template.')
     const response = new DataResponse({ success: true })
+    let siblings: (Data | DataFolder)[]
     if (args.folderId) {
       const folder = await this.svc(DataFolderServiceInternal).findById(args.folderId)
       if (!folder) throw new Error('Data cannot be created in a data folder that does not exist.')
@@ -179,40 +196,38 @@ export class DataService extends DosGatoService<Data> {
       }
       site = folder.siteId ? await this.svc(SiteServiceInternal).findById(folder.siteId) : undefined
       dataroot = new DataRoot(site, template)
-      const otherData = await this.raw.findByFolderInternalId(folder.internalId, { deleteStates: DeleteStateAll })
-      if (otherData.some(d => d.name === args.name)) {
-        response.addMessage('A data entry with this name already exists', 'args.name')
-      }
+      siblings = await this.raw.findByFolderInternalId(folder.internalId, { deleteStates: DeleteStateAll })
     } else if (args.siteId) {
       site = await this.svc(SiteServiceInternal).findById(args.siteId)
       if (!site) throw new Error('Data cannot be created in a site that does not exist.')
       dataroot = new DataRoot(site, template)
       if (!await this.svc(DataRootService).mayCreate(dataroot)) throw new Error(`Current user is not permitted to create data in site ${String(site.name)}.`)
-      const dataEntries = (await this.raw.findByDataRoot(dataroot, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId))
-      if (dataEntries.some(d => d.name === args.name)) {
-        response.addMessage('A data entry with this name already exists', 'args.name')
-      }
+      siblings = [
+        ...(await this.raw.findByDataRoot(dataroot, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId)),
+        ...await this.svc(DataFolderServiceInternal).findBySiteId(args.siteId, { templateKeys: [template.key] })
+      ]
     } else {
       // global data
       if (!(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to create global data entries.')
       dataroot = new DataRoot(undefined, template)
-      const dataEntries = (await this.raw.findByDataRoot(dataroot, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId) && isNull(d.siteId))
-      if (dataEntries.some(d => d.name === args.name)) {
-        response.addMessage('A data entry with this name already exists', 'args.name')
-      }
+      siblings = [
+        ...(await this.raw.findByDataRoot(dataroot, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId) && isNull(d.siteId)),
+        ...await this.svc(DataFolderServiceInternal).findByTemplateKey(template.key, { global: true })
+      ]
     }
     // validate data
-    const tmpl = templateRegistry.getDataTemplate(template.key)
     const systemCtx = systemContext()
     const migrated = await migrateData(systemCtx, args.data, dataroot.id, args.folderId)
-    const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId: dataroot.id, dataFolderId: args.folderId }) ?? []
+    const newName = makeSafe(tmpl.computeName(migrated) ?? 'item-1')
+    const finalName = numerateBasedOnExisting(newName, siblings.map(s => s.name as string))
+    const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId: dataroot.id, dataFolderId: args.folderId }, newName !== finalName) ?? []
     for (const message of messages) {
       response.addMessage(message.message, message.path && `args.data.${message.path}`, message.type as MutationMessageType)
     }
     if (validateOnly || response.hasErrors()) return response
     // passed validation, save it
     const versionedService = this.svc(VersionedService)
-    const data = await createDataEntry(versionedService, this.login, { ...args, data: migrated })
+    const data = await createDataEntry(versionedService, this.login, finalName, { ...args, data: migrated })
     response.success = true
     response.data = data
     return response
@@ -227,49 +242,22 @@ export class DataService extends DosGatoService<Data> {
     const folder = data.folderInternalId ? await this.svc(DataFolderServiceInternal).findByInternalId(data.folderInternalId) : undefined
     const systemCtx = systemContext()
     const migrated = await migrateData(systemCtx, args.data, dataRootId, folder?.id, data.id)
-    const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId, dataFolderId: folder?.id, dataId: data.id }) ?? []
+    const usedNames = await this.raw.getConflictNames(data.folderInternalId, data.siteId, data.templateKey, migrated.name as string)
+    const newName = makeSafe(tmpl.computeName(migrated) ?? 'item-1')
+    const finalName = numerateBasedOnExisting(newName, Array.from(usedNames))
+    const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId, dataFolderId: folder?.id, dataId: data.id }, newName !== finalName) ?? []
     const response = new DataResponse({ success: true })
     for (const message of messages) {
       response.addMessage(message.message, message.path && `args.data.${message.path}`, message.type as MutationMessageType)
     }
     if (validateOnly || response.hasErrors()) return response
     const indexes = getDataIndexes(migrated)
+    await renameDataEntry(dataId, finalName)
     await this.svc(VersionedService).update(data.intDataId, migrated, indexes, { user: this.login, comment: args.comment, version: args.dataVersion })
     this.loaders.clear()
     const updated = await this.raw.findById(dataId)
     response.success = true
     response.data = updated
-    return response
-  }
-
-  async rename (dataId: string, name: string, validateOnly?: boolean) {
-    const data = await this.raw.findById(dataId)
-    if (!data) throw new Error('Data entry to be renamed does not exist')
-    if (!(await this.mayUpdate(data))) throw new Error('Current user is not permitted to rename this data entry.')
-    const response = new DataResponse({ success: true })
-    if (name !== data.name) {
-      if (data.folderInternalId) {
-        const sameNameEntryInFolder = (await this.raw.findByFolderInternalId(data.folderInternalId, { deleteStates: DeleteStateAll })).find(d => d.name === name)
-        if (isNotNull(sameNameEntryInFolder)) {
-          response.addMessage('A data entry with this name already exists', 'name')
-        }
-      } else if (data.siteId) {
-        const sameNameEntryInSite = (await this.raw.findBySiteId(data.siteId, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId) && d.name === name)
-        if (sameNameEntryInSite.length) {
-          response.addMessage('A data entry with this name already exists', 'name')
-        }
-      } else {
-        // check the global entries that are not in a folder
-        const sameNameGlobal = (await this.raw.find({ global: true })).filter(d => isNull(d.folderInternalId) && d.name === name)
-        if (sameNameGlobal.length) {
-          response.addMessage('A data entry with this name already exists', 'name')
-        }
-      }
-    }
-    if (validateOnly || response.hasErrors()) return response
-    await renameDataEntry(dataId, name)
-    this.loaders.clear()
-    response.data = await this.raw.findById(dataId)
     return response
   }
 

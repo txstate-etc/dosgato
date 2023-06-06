@@ -97,9 +97,6 @@ export class DataFilter {
 
 @InputType()
 export class CreateDataInput {
-  @Field()
-  name!: UrlSafeString
-
   @Field(type => JsonData)
   data!: DataData
 

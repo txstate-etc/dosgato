@@ -42,6 +42,13 @@ const globalDataFoldersByTemplateIds = new OneToManyLoader({
   idLoader: dataFoldersByIdLoader
 })
 
+const dataFoldersByTemplateKeys = new OneToManyLoader({
+  fetch: async (templateKeys: string[], filter?: DataFolderFilter) => await getDataFolders({ ...filter, templateKeys }),
+  extractKey: f => f.templateKey,
+  keysFromFilter: (filter?: DataFolderFilter) => filter?.templateKeys ?? [],
+  idLoader: dataFoldersByIdLoader
+})
+
 export class DataFolderServiceInternal extends BaseService {
   async find (filter?: DataFolderFilter) {
     filter = await this.processFilters(filter)
@@ -63,6 +70,11 @@ export class DataFolderServiceInternal extends BaseService {
   async findBySiteId (siteId: string, filter?: DataFolderFilter) {
     filter = await this.processFilters(filter)
     return await this.loaders.get(dataFoldersBySiteIdLoader, filter).load(siteId)
+  }
+
+  async findByTemplateKey (templateKey: string, filter?: DataFolderFilter) {
+    filter = await this.processFilters(filter)
+    return await this.loaders.get(dataFoldersByTemplateKeys, filter).load(templateKey)
   }
 
   async findByDataRoot (dataroot: DataRoot, filter?: DataFolderFilter) {
