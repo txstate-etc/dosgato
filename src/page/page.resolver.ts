@@ -42,7 +42,7 @@ export class PageResolver {
     return await ctx.svc(PageService).getRootPage(page)
   }
 
-  @FieldResolver(returns => [Page], { description: 'Starts with the parent page and proceeds upward. Last element will be the pagetree\'s root page. Empty array if current page is the root page of a pagetree.' })
+  @FieldResolver(returns => [Page], { description: 'Starts with the root page and proceeds downward. Last element will be the page\'s parent. Empty array if current page is the root page of a pagetree.' })
   async ancestors (@Ctx() ctx: Context, @Root() page: Page) {
     return await ctx.svc(PageService).getPageAncestors(page)
   }
