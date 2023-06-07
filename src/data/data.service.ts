@@ -1,14 +1,14 @@
 /* eslint-disable no-trailing-spaces */
 import { BaseService, ValidatedResponse, type MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique, isNotNull, someAsync, eachConcurrent, intersect, isNull, keyby, isNotBlank, filterAsync } from 'txstate-utils'
+import { unique, isNotNull, someAsync, intersect, isNull, keyby, filterAsync } from 'txstate-utils'
 import {
   type Data, type DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, type CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, type UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, type MoveDataTarget, moveDataEntries,
   type DataFolder, type Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions,
-  DeleteState, popPath, DeleteStateAll, SiteRuleService, DataRuleService, shiftPath, systemContext, numerateBasedOnExisting, UrlSafeString, makeSafe
+  DeleteState, popPath, DeleteStateAll, SiteRuleService, DataRuleService, shiftPath, systemContext, makeSafe, numerateLoop
 } from '../internal.js'
 import db from 'mysql2-async/db'
 
@@ -219,7 +219,7 @@ export class DataService extends DosGatoService<Data> {
     const systemCtx = systemContext()
     const migrated = await migrateData(systemCtx, args.data, dataroot.id, args.folderId)
     const newName = makeSafe(tmpl.computeName(migrated) || 'item-1')
-    const finalName = numerateBasedOnExisting(newName, siblings.map(s => s.name as string))
+    const finalName = numerateLoop(newName, new Set(siblings.map(s => s.name as string)))
     const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId: dataroot.id, dataFolderId: args.folderId }, newName !== finalName) ?? []
     for (const message of messages) {
       response.addMessage(message.message, message.path && `args.data.${message.path}`, message.type as MutationMessageType)
@@ -244,7 +244,7 @@ export class DataService extends DosGatoService<Data> {
     const migrated = await migrateData(systemCtx, args.data, dataRootId, folder?.id, data.id)
     const usedNames = await this.raw.getConflictNames(data.folderInternalId, data.siteId, data.templateKey, data.name as string)
     const newName = makeSafe(tmpl.computeName(migrated) || 'item-1')
-    const finalName = numerateBasedOnExisting(newName, Array.from(usedNames))
+    const finalName = numerateLoop(newName, usedNames)
     const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId, dataFolderId: folder?.id, dataId: data.id }, newName !== finalName) ?? []
     const response = new DataResponse({ success: true })
     for (const message of messages) {

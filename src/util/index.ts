@@ -56,6 +56,12 @@ export function numerate (name: string) {
   return name.replace(/[._\s-]+$/, '') + '-1'
 }
 
+export function numerateLoop (name: string, usedNames: Set<string>) {
+  let finalName = name
+  while (usedNames.has(finalName)) finalName = numerate(finalName)
+  return finalName
+}
+
 export function numerateBasedOnExisting (base: string, usedNames: string[]) {
   let maxArchiveNum: number | undefined
   for (const n of usedNames) {
