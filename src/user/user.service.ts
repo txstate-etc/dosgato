@@ -251,8 +251,7 @@ export class UserService extends DosGatoService<User, User> {
   }
 
   protected async removeProperties (user: User) {
-    const currentUser = await this.currentUser()
-    if (user.id === currentUser!.id || await this.mayList()) return user
+    if (user.id === this.login || await this.mayList()) return user
     return new User({
       id: user.internalId,
       login: user.id,
