@@ -218,7 +218,7 @@ export class DataService extends DosGatoService<Data> {
     // validate data
     const systemCtx = systemContext()
     const migrated = await migrateData(systemCtx, args.data, dataroot.id, args.folderId)
-    const newName = makeSafe(tmpl.computeName(migrated) ?? 'item-1')
+    const newName = makeSafe(tmpl.computeName(migrated) || 'item-1')
     const finalName = numerateBasedOnExisting(newName, siblings.map(s => s.name as string))
     const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId: dataroot.id, dataFolderId: args.folderId }, newName !== finalName) ?? []
     for (const message of messages) {
@@ -242,8 +242,8 @@ export class DataService extends DosGatoService<Data> {
     const folder = data.folderInternalId ? await this.svc(DataFolderServiceInternal).findByInternalId(data.folderInternalId) : undefined
     const systemCtx = systemContext()
     const migrated = await migrateData(systemCtx, args.data, dataRootId, folder?.id, data.id)
-    const usedNames = await this.raw.getConflictNames(data.folderInternalId, data.siteId, data.templateKey, migrated.name as string)
-    const newName = makeSafe(tmpl.computeName(migrated) ?? 'item-1')
+    const usedNames = await this.raw.getConflictNames(data.folderInternalId, data.siteId, data.templateKey, data.name as string)
+    const newName = makeSafe(tmpl.computeName(migrated) || 'item-1')
     const finalName = numerateBasedOnExisting(newName, Array.from(usedNames))
     const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId, dataFolderId: folder?.id, dataId: data.id }, newName !== finalName) ?? []
     const response = new DataResponse({ success: true })
