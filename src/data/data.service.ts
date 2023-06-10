@@ -1,7 +1,7 @@
 /* eslint-disable no-trailing-spaces */
 import { BaseService, ValidatedResponse, type MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique, isNotNull, someAsync, intersect, isNull, keyby, filterAsync } from 'txstate-utils'
+import { unique, isNotNull, someAsync, intersect, isNull, keyby, filterAsync, isBlank } from 'txstate-utils'
 import {
   type Data, type DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, type CreateDataInput, SiteServiceInternal,
@@ -48,6 +48,11 @@ const dataByTemplateLoader = new OneToManyLoader({
   extractKey: (item: any) => item.templateKey
 })
 
+function safeComputedName (str: string | undefined) {
+  if (isBlank(str)) return 'item-1'
+  return makeSafe(str)
+}
+
 export class DataServiceInternal extends BaseService {
   async find (filter: DataFilter) {
     filter = await this.processFilters(filter)
@@ -84,6 +89,11 @@ export class DataServiceInternal extends BaseService {
   async findByDataRoot (dataroot: DataRoot, filter?: DataFilter) {
     if (dataroot.site) return await this.findBySiteId(dataroot.site.id, { ...filter, templateKeys: [dataroot.template.key] })
     else return await this.loaders.get(dataByTemplateLoader, { ...filter, global: true }).load(dataroot.template.key)
+  }
+
+  async isPublished (data: Data) {
+    const published = await this.svc(VersionedService).get(data.intDataId, { tag: 'published' })
+    return (typeof published) !== 'undefined'
   }
 
   async getPath (data: Data) {
@@ -179,6 +189,16 @@ export class DataService extends DosGatoService<Data> {
     return await this.raw.getPath(data)
   }
 
+  async getData (data: Data, opts?: { published?: boolean, version?: number, publishedIfNecessary?: boolean }) {
+    opts ??= {}
+    const mayViewLatest = await this.mayViewLatest(data)
+    opts.published = opts.published || (!mayViewLatest && opts.publishedIfNecessary)
+    if (!opts.published && !mayViewLatest) throw new Error('You are only permitted to view the published version of this data.')
+    const versioned = await this.svc(VersionedService).get(data.intDataId, { version: opts.version, tag: opts.published ? 'published' : undefined })
+    if (!versioned && opts.published) throw new Error('Requested the published version of a piece of data that has never been published.')
+    return versioned!.data
+  }
+
   async create (args: CreateDataInput, validateOnly?: boolean) {
     let site: Site | undefined
     let dataroot: DataRoot
@@ -218,7 +238,7 @@ export class DataService extends DosGatoService<Data> {
     // validate data
     const systemCtx = systemContext()
     const migrated = await migrateData(systemCtx, args.data, dataroot.id, args.folderId)
-    const newName = makeSafe(tmpl.computeName(migrated) || 'item-1')
+    const newName = safeComputedName(tmpl.computeName(migrated))
     const finalName = numerateLoop(newName, new Set(siblings.map(s => s.name as string)))
     const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId: dataroot.id, dataFolderId: args.folderId }, newName !== finalName) ?? []
     for (const message of messages) {
@@ -243,7 +263,7 @@ export class DataService extends DosGatoService<Data> {
     const systemCtx = systemContext()
     const migrated = await migrateData(systemCtx, args.data, dataRootId, folder?.id, data.id)
     const usedNames = await this.raw.getConflictNames(data.folderInternalId, data.siteId, data.templateKey, data.name as string)
-    const newName = makeSafe(tmpl.computeName(migrated) || 'item-1')
+    const newName = safeComputedName(tmpl.computeName(migrated))
     const finalName = numerateLoop(newName, usedNames)
     const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId, dataFolderId: folder?.id, dataId: data.id }, newName !== finalName) ?? []
     const response = new DataResponse({ success: true })
@@ -380,10 +400,12 @@ export class DataService extends DosGatoService<Data> {
       const siteRules = (await this.currentSiteRules()).filter(r => SiteRuleService.applies(r, data.siteId!))
       return siteRules.some(r => r.grants.delete)
     }
-    const [dataRules, dataPath] = await Promise.all([
+    const [dataRules, dataPath, isPublished] = await Promise.all([
       this.currentDataRules(),
-      this.raw.getPath(data)
+      this.raw.getPath(data),
+      this.raw.isPublished(data)
     ])
+    if (isPublished) return true
     const folderPathWithoutSite = popPath(shiftPath(dataPath))
     for (const r of dataRules) {
       if (!r.grants.view) continue
@@ -393,6 +415,10 @@ export class DataService extends DosGatoService<Data> {
       if (DataRuleService.appliesToPath(r, folderPathWithoutSite)) return true
     }
     return false
+  }
+
+  async mayViewLatest (data: Data) {
+    return await this.haveDataPerm(data, 'viewlatest')
   }
 
   async mayViewIndividual (data: Data) {

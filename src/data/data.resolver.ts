@@ -8,7 +8,7 @@ import {
   TemplateService, User, UserService, ObjectVersion, VersionedService, Data,
   DataFilter, DataPermission, DataPermissions, DataService, DataResponse, DataMultResponse,
   CreateDataInput, UpdateDataInput, DataRuleService, RoleService, MoveDataTarget,
-  UrlSafeString, DeleteStateRootDefault, SiteServiceInternal, DataFolderServiceInternal,
+  DeleteStateRootDefault, SiteServiceInternal, DataFolderServiceInternal,
   DataServiceInternal
 } from '../internal.js'
 
@@ -28,10 +28,10 @@ export class DataResolver {
   @FieldResolver(returns => JsonData)
   async data (@Ctx() ctx: Context, @Root() data: Data,
     @Arg('published', { nullable: true, description: 'Return the published version of the data.' }) published?: boolean,
+    @Arg('publishedIfNecessary', { nullable: true, description: 'Return the latest version unless the user is not allowed, then return the published version.' }) publishedIfNecessary?: boolean,
     @Arg('version', type => Int, { nullable: true }) version?: number
   ) {
-    const versioned = await ctx.svc(VersionedService).get(data.intDataId, { version, tag: published ? 'published' : undefined })
-    return versioned!.data
+    return await ctx.svc(DataService).getData(data, { published, version, publishedIfNecessary })
   }
 
   @FieldResolver(returns => Template, { description: 'Data are created with a template that defines the schema and provides an editing dialog. The template never changes (except as part of an upgrade task).' })
@@ -60,8 +60,7 @@ export class DataResolver {
 
   @FieldResolver(returns => Boolean, { description: 'True if the data entry has a version marked as published.' })
   async published (@Ctx() ctx: Context, @Root() data: Data) {
-    const published = await ctx.svc(VersionedService).get(data.intDataId, { tag: 'published' })
-    return (typeof published) !== 'undefined'
+    return await ctx.svc(DataServiceInternal).isPublished(data)
   }
 
   @FieldResolver(returns => DateTime, { nullable: true })
