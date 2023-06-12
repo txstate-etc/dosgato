@@ -7,7 +7,7 @@ export const PageTemplate1: APIPageTemplate = {
   name: 'pagetemplate1',
   areas: {
     links: ['keyc1'],
-    main: ['keyc2', 'keyc3', 'richtext', 'horizontalrule', 'textimage']
+    main: ['keyc2', 'keyc3', 'richtext', 'horizontalrule', 'textimage', 'columnlayout']
   },
   migrations: [],
   getLinks: (data: any) => [],
@@ -100,7 +100,7 @@ export const LinkComponent: APIComponentTemplate = {
 export const PanelComponent: APIComponentTemplate = {
   type: 'component',
   templateKey: 'keyc2',
-  name: 'Panel',
+  name: 'Panel Component',
   displayCategory: 'Containers',
   areas: {
     content: [
@@ -165,6 +165,16 @@ export const HorizontalRule: APIComponentTemplate = {
   type: 'component',
   templateKey: 'horizontalrule',
   name: 'Horizontal Rule'
+}
+
+export const ColumnLayout: APIComponentTemplate = {
+  type: 'component',
+  templateKey: 'columnlayout',
+  name: 'Column Layout',
+  areas: {
+    row: ['keyc2']
+  },
+  displayCategory: 'Containers'
 }
 
 export const ColorData: APIDataTemplate = {
