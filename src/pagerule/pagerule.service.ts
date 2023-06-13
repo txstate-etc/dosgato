@@ -165,7 +165,7 @@ export class PageRuleService extends DosGatoService<PageRule> {
   }
 
   static appliesToChildOfPath (rule: PageRule, pagePathWithoutSite: string) {
-    if (rule.path.startsWith(pagePathWithoutSite + '/')) return true
+    if (rule.path.startsWith(pagePathWithoutSite + (pagePathWithoutSite === '/' ? '' : '/'))) return true
     if (rule.mode === RulePathMode.SELFANDSUB && rule.path === pagePathWithoutSite) return true
     return false
   }
