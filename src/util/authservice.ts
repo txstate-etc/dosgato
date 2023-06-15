@@ -8,28 +8,31 @@ import {
   AssetRuleServiceInternal, DataRuleServiceInternal, GlobalRuleServiceInternal, GroupServiceInternal,
   UserServiceInternal, TemplateRuleServiceInternal, type DataRoot, type Group, PageServiceInternal,
   shiftPath, PageRule, RulePathMode, DataRule, SiteRule, AssetServiceInternal, AssetFolderServiceInternal,
-  DataServiceInternal, DataFolderServiceInternal, type GlobalRule
+  DataServiceInternal, DataFolderServiceInternal, type GlobalRule, AssetRule
 } from '../internal.js'
 
 const pageRuleCache = new Cache(async (netid: string, ctx: Context) => {
   if (netid === 'anonymous') return [new PageRule({ path: '/', mode: RulePathMode.SELFANDSUB, grants: new PageRuleGrants({}) })]
+  if (netid === 'render') return [new PageRule({ path: '/', mode: RulePathMode.SELFANDSUB, grants: new PageRuleGrants({ viewlatest: true }) })]
   const roles = await roleCache.get(netid, ctx)
   return (await Promise.all(roles.map(async r => await ctx.svc(PageRuleServiceInternal).findByRoleId(r.id)))).flat()
 }, { freshseconds: 5, staleseconds: 30 })
 
 const assetRuleCache = new Cache(async (netid: string, ctx: Context) => {
+  if (netid === 'render') return [new AssetRule({ path: '/', mode: RulePathMode.SELFANDSUB })]
   const roles = await roleCache.get(netid, ctx)
   return (await Promise.all(roles.map(async r => await ctx.svc(AssetRuleServiceInternal).findByRoleId(r.id)))).flat()
 }, { freshseconds: 5, staleseconds: 30 })
 
 const siteRuleCache = new Cache(async (netid: string, ctx: Context) => {
-  if (netid === 'anonymous') return [new SiteRule({ grants: new SiteRuleGrants({}) })]
+  if (netid === 'anonymous' || netid === 'render') return [new SiteRule({ grants: new SiteRuleGrants({}) })]
   const roles = await roleCache.get(netid, ctx)
   return (await Promise.all(roles.map(async r => await ctx.svc(SiteRuleServiceInternal).findByRoleId(r.id)))).flat()
 }, { freshseconds: 5, staleseconds: 30 })
 
 const dataRuleCache = new Cache(async (netid: string, ctx: Context) => {
   if (netid === 'anonymous') return [new DataRule({ path: '/', grants: new DataRuleGrants({}) })]
+  if (netid === 'render') return [new DataRule({ path: '/', grants: new DataRuleGrants({ viewlatest: true }) })]
   const roles = await roleCache.get(netid, ctx)
   return (await Promise.all(roles.map(async r => await ctx.svc(DataRuleServiceInternal).findByRoleId(r.id)))).flat()
 }, { freshseconds: 5, staleseconds: 30 })

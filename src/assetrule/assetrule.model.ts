@@ -4,8 +4,8 @@ import { Field, ID, InputType, ObjectType } from 'type-graphql'
 import { PagetreeType, RulePathMode, RuleType, UrlSafePath } from '../internal.js'
 
 interface AssetRuleRow {
-  id: number | string
-  roleId: number | string
+  id?: number | string
+  roleId?: number | string
   siteId?: number | string
   pagetreeType?: PagetreeType
   path: string
@@ -87,7 +87,7 @@ export class AssetRule {
   pagetreeType?: PagetreeType
 
   constructor (row: AssetRuleRow) {
-    this.id = optionalString(row.id)
+    this.id = optionalString(row.id)!
     this.roleId = String(row.roleId)
     this.siteId = optionalString(row.siteId)
     this.pagetreeType = row.pagetreeType
