@@ -10,6 +10,10 @@ export function getDataIndexes (data: DataData): Index[] {
     storage[index.name] ??= new Set()
     storage[index.name].add(index.value)
   }
+
+  const tags = templateRegistry.get(data.templateKey)?.getTags?.(data)?.filter(isNotBlank) ?? []
+  if (tags.length) storage.dg_tag = new Set(tags)
+
   const texts = (templateRegistry.get(data.templateKey).getFulltext?.(data) ?? []).filter(isNotBlank)
   storage.fulltext = new Set()
   const moreLinks = texts.flatMap(extractLinksFromText).flatMap(processLink)

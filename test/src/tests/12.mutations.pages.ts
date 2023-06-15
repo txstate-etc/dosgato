@@ -57,6 +57,13 @@ describe('pages mutations', () => {
   it('should not allow an unauthorized user to create a page', async () => {
     await expect(createPage('testpage2', testSite6PageRootId, 'keyp3', 'ed07')).to.be.rejected
   })
+  it('should create a page with tags and then retrieve it', async () => {
+    await createPage('tagtestpage', testSite6PageRootId, 'keyp1', undefined, { title: 'Test Tags' })
+    const { pages } = await query('{ pages (filter: { tagsAny: ["tagtest"] }) { id } }')
+    expect(pages).to.have.lengthOf(1)
+    const { pages: pages2 } = await query('{ pages (filter: { tagsAll: ["tagtest"] }) { id } }')
+    expect(pages2).to.have.lengthOf(1)
+  })
   it('should rename a page', async () => {
     const { page: testpage } = await createPage('testpage3', testSite6PageRootId, 'keyp3')
     const { renamePage: { success, page } } = await query('mutation UpdatePage ($name: UrlSafeString!, $pageId: ID!) {renamePage (name: $name, pageId: $pageId) { success page { id name } } }', { name: 'renamedtestpage3', pageId: testpage.id })

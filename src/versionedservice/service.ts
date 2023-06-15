@@ -183,6 +183,39 @@ export class VersionedService extends BaseService {
   }
 
   /**
+   * Indexed search where all index values must be present on a specified tag (or default latest).
+   */
+  async findAll (indexes: { indexName: string, value: string }[], opts?: { tdb?: Queryable, tag?: string }) {
+    if (indexes.length === 0) return []
+    opts ??= {}
+    opts.tdb ??= db
+    opts.tag ??= 'latest'
+
+    let where: string
+    let join = ''
+    const binds: any[] = []
+    if (opts.tag === 'latest') {
+      where = 's.version = i.version'
+    } else {
+      join = 'INNER JOIN tags t ON t.id=i.id AND t.version=i.version'
+      where = 't.tag = ?'
+      binds.push(opts.tag)
+    }
+
+    return await opts.tdb.getvals<string>(`
+      SELECT s.id
+      FROM storage s
+      INNER JOIN indexes i ON i.id=s.id
+      INNER JOIN indexnames n ON i.name_id=n.id
+      INNER JOIN indexvalues v ON i.value_id=v.id
+      ${join}
+      WHERE ${where} AND (n.name, v.value) IN (${db.in(binds, indexes.map(idx => [idx.indexName, idx.value]))})
+      GROUP BY s.id
+      HAVING COUNT(*) = ${indexes.length}
+    `, binds)
+  }
+
+  /**
    * Indexed search for objects.
    */
   async find (rules: SearchRule[], type?: string, tag = 'latest',

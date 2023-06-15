@@ -10,6 +10,10 @@ export function getPageIndexes (page: PageData): Index[] {
     storage[index.name] ??= new Set()
     storage[index.name].add(index.value)
   }
+
+  const tags = components.flatMap(c => templateRegistry.get(c.templateKey)?.getTags?.(c)?.filter(isNotBlank) ?? [])
+  if (tags.length) storage.dg_tag = new Set(tags)
+
   if (isNotBlank(page.legacyId)) storage.legacyId = new Set([page.legacyId])
   storage.template = new Set(components.map(c => c.templateKey).filter(isNotBlank))
   // storage.fulltext = new Set()

@@ -11,6 +11,7 @@ export const PageTemplate1: APIPageTemplate = {
   },
   migrations: [],
   getLinks: (data: any) => [],
+  getTags: (data: any) => data.title === 'Test Tags' ? ['tagtest'] : [],
   getFulltext: (data: any) => {
     return [data.title]
   },

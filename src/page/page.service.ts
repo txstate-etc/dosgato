@@ -162,7 +162,7 @@ export class PageServiceInternal extends BaseService {
   async processFilters (filter: PageFilter) {
     if (filter.legacyIds?.length) {
       const pages = await this.svc(VersionedService).find([{ indexName: 'legacyId', in: filter.legacyIds }], 'page', filter.published ? 'published' : 'latest')
-      if (!pages.length) filter.ids = ['-1']
+      if (!pages.length) filter.noresults = true
       else filter.ids = intersect({ skipEmpty: true }, filter.ids, pages)
     }
     if (filter.referencedByPageIds?.length) {
@@ -211,7 +211,7 @@ export class PageServiceInternal extends BaseService {
         return pages.find(p => p.length > 0)?.[0]
       }))
       const found = pages.filter(isNotNull)
-      if (!found.length) filter.internalIds = [-1]
+      if (!found.length) filter.noresults = true
       else filter.internalIds = intersect({ skipEmpty: true }, filter.internalIds, found.map(p => p.internalId))
     }
     if (filter.launchedUrls?.length) {
@@ -223,12 +223,23 @@ export class PageServiceInternal extends BaseService {
         const path = parsePath(parsed.pathname).path.substring(site.url!.path.length)
         return normalizePath('/' + [site.name, path].filter(isNotBlank).join('/'))
       }))).filter(isNotNull)
-      if (!paths.length) filter.internalIds = [-1]
+      if (!paths.length) filter.noresults = true
       filter.paths = intersect({ skipEmpty: true }, filter.paths, paths)
     }
     if (filter.templateKeys?.length) {
       const dataIds = await this.svc(VersionedService).find([{ in: filter.templateKeys, indexName: 'template' }], 'page', filter.published ? 'published' : 'latest')
-      filter.ids = intersect({ skipEmpty: true }, filter.ids, ['.never', ...dataIds])
+      if (!dataIds.length) filter.noresults = true
+      filter.ids = intersect({ skipEmpty: true }, filter.ids, dataIds)
+    }
+    if (filter.tagsAll?.length) {
+      const dataIds = await this.svc(VersionedService).findAll(filter.tagsAll.map(t => ({ indexName: 'dg_tag', value: t })))
+      if (!dataIds.length) filter.noresults = true
+      filter.ids = intersect({ skipEmpty: true }, filter.ids, dataIds)
+    }
+    if (filter.tagsAny?.length) {
+      const dataIds = await this.svc(VersionedService).find(filter.tagsAny.map(t => ({ indexName: 'dg_tag', equal: t })))
+      if (!dataIds.length) filter.noresults = true
+      filter.ids = intersect({ skipEmpty: true }, filter.ids, dataIds)
     }
     return filter
   }

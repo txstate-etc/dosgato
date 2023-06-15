@@ -137,6 +137,7 @@ export class PageFilter {
   internalIds?: number[]
   internalIdPaths?: string[]
   internalIdPathsRecursive?: string[]
+  noresults?: boolean
 
   @Field(type => [ID], { nullable: true })
   ids?: string[]
@@ -197,6 +198,12 @@ export class PageFilter {
 
   @Field(type => Boolean, { nullable: true, description: 'Only return pages the current user should see as an editor in the page list UI.' })
   viewForEdit?: boolean
+
+  @Field(type => [String], { nullable: true, description: 'Return pages whose latest or published version is tagged with one of the given tags. Tags are set by the getTags function in an API template definition.' })
+  tagsAny?: string[]
+
+  @Field(type => [String], { nullable: true, description: 'Return pages whose latest or published version is tagged with all of the given tags. Tags are set by the getTags function in an API template definition.' })
+  tagsAll?: string[]
 }
 
 @ObjectType()

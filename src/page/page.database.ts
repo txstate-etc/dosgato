@@ -182,7 +182,7 @@ async function processFilters (filter?: PageFilter) {
         if (ors.length) {
           binds.push(...idpaths.flatMap(p => [`${p}/%`, p]))
           where.push(ors.join(' OR '))
-        } else where.push('1=0')
+        } else filter.noresults = true
       }
     })(),
     (async () => {
@@ -220,6 +220,7 @@ async function processFilters (filter?: PageFilter) {
 
 export async function getPages (filter: PageFilter, tdb: Queryable = db) {
   const { binds, where, joins } = await processFilters(filter)
+  if (filter.noresults) return []
   const pages = await tdb.getall(`
     SELECT pages.*, pagetrees.type as pagetreeType, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned
     FROM pages
