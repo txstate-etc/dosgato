@@ -452,13 +452,22 @@ export class PageService extends DosGatoService<Page> {
 
   async copyPages (dataIds: string[], targetId: string, above?: boolean, includeChildren?: boolean) {
     const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (!pages.length) throw new Error('No valid pages selected.')
     const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
-    if (!(await this.mayCreate(parent))) {
+    if (!parent || !(await this.mayCreate(parent))) {
       throw new Error('You are not permitted to copy pages to this location.')
     }
     // Is this page allowed to be copied here?
     const pageData = await Promise.all(pages.map(async page => await this.raw.getData(page)))
-    await Promise.all(pageData.map(async d => { await this.validatePageTemplates(d, { parent }) }))
+    const templateKeys = pageData.map(d => d.templateKey)
+    const templates = await Promise.all(templateKeys.map(async k => await this.svc(TemplateServiceInternal).findByKey(k)))
+    const templateByKey = keyby(templates.filter(isNotNull), 'key')
+    const tmplSvc = this.svc(TemplateService)
+    await Promise.all(templateKeys.map(async templateKey => {
+      if (!templateByKey[templateKey]) throw new Error(`Template with key ${templateKey} is not valid and may not be copied.`)
+      if (!await tmplSvc.mayUseOnPage(templateByKey[templateKey], parent)) throw new Error(`Template "${templateByKey[templateKey].name}" may not be copied to that location.`)
+    }))
+
     const newPage = await copyPages(this.svc(VersionedService), this.login, pages, parent, aboveTarget, includeChildren)
     return new PageResponse({ success: true, page: newPage })
   }
