@@ -2,6 +2,7 @@ import { type APITemplateType, type APIAnyTemplate, type APIPageTemplate, type A
 import { DateTime } from 'luxon'
 import { isNotEmpty, isNotNull, sortby } from 'txstate-utils'
 import { TemplateArea } from '../internal.js'
+import { existsSync, readFileSync } from 'node:fs'
 
 interface HasHydratedAreas {
   getLinks: (data: any) => LinkDefinition[]
@@ -20,7 +21,7 @@ class TemplateRegistry {
   protected migrations: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
   public migrationsForward: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
   public migrationsBackward: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
-  public currentSchemaVersion!: DateTime
+  public currentSchemaVersion = existsSync('/.builddate') ? DateTime.fromMillis(Number(readFileSync('/.builddate', 'ascii').trim())) : DateTime.local()
 
   register (template: APIAnyTemplate) {
     this.currentSchemaVersion = DateTime.fromMillis(Math.max(this.currentSchemaVersion?.toMillis() ?? 0, ...(template.migrations ?? []).map(m => m.createdAt.getTime())))
