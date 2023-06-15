@@ -189,14 +189,23 @@ export class DataService extends DosGatoService<Data> {
     return await this.raw.getPath(data)
   }
 
+  getDataRootId (data: Data) {
+    return `${data.siteId ?? 'global'}-${data.templateId}`
+  }
+
   async getData (data: Data, opts?: { published?: boolean, version?: number, publishedIfNecessary?: boolean }) {
     opts ??= {}
     const mayViewLatest = await this.mayViewLatest(data)
     opts.published = opts.published || (!mayViewLatest && opts.publishedIfNecessary)
     if (!opts.published && !mayViewLatest) throw new Error('You are only permitted to view the published version of this data.')
-    const versioned = await this.svc(VersionedService).get(data.intDataId, { version: opts.version, tag: opts.published ? 'published' : undefined })
+    const [versioned, folder] = await Promise.all([
+      this.svc(VersionedService).get(data.intDataId, { version: opts.version, tag: opts.published ? 'published' : undefined }),
+      data.folderInternalId ? this.svc(DataFolderServiceInternal).findByInternalId(data.folderInternalId) : undefined
+    ])
     if (!versioned && opts.published) throw new Error('Requested the published version of a piece of data that has never been published.')
-    return versioned!.data
+    if (!versioned) return undefined
+    const migrated = await migrateData(this.ctx, versioned.data, this.getDataRootId(data), folder?.id, data.id)
+    return migrated
   }
 
   async create (args: CreateDataInput, validateOnly?: boolean) {
