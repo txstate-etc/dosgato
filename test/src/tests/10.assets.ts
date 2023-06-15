@@ -68,7 +68,6 @@ describe('assets', () => {
     const aList = await query<{ assets: Asset[] }>('{ assets { id mime name filename path checksum box { width height } resizes { width height mime } folder { id } site { id, name } } }')
     // Rename bobcat.jpg asset to bobCAT.jpg
     const asset = aList.assets.filter(a => a.site.name === 'site1').filter(a => a.filename === 'bobcat.jpg')[0]
-    console.log(`bobcat asset: ${JSON.stringify(asset)}`)
     const resp = await query('mutation renameAsset ($id: ID!, $name: FilenameSafeString!) { renameAsset (assetId: $id, name: $name) { asset { id name } } }', {
       id: asset.id,
       name: 'BobCAT'

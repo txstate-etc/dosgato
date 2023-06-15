@@ -2,8 +2,8 @@ import { AuthError, AuthorizedService, MockContext, type Context } from '@txstat
 import { Cache, keyby } from 'txstate-utils'
 import {
   type Asset, type AssetFolder, type Data, type DataFolder, type Page, type Site, type Template,
-  AssetRuleService, type AssetRuleGrants, DataRuleService, DataRuleGrants, type GlobalRuleGrants,
-  PageRuleService, PageRuleGrants, SiteRuleGrants, SiteRuleService, TemplateRuleService,
+  AssetRuleService, type AssetRuleGrants, DataRuleService, type DataRuleGrants, type GlobalRuleGrants,
+  PageRuleService, type PageRuleGrants, type SiteRuleGrants, SiteRuleService, TemplateRuleService,
   type TemplateRuleGrants, RoleServiceInternal, SiteRuleServiceInternal, PageRuleServiceInternal,
   AssetRuleServiceInternal, DataRuleServiceInternal, GlobalRuleServiceInternal, GroupServiceInternal,
   UserServiceInternal, TemplateRuleServiceInternal, type DataRoot, type Group, PageServiceInternal,
@@ -12,8 +12,8 @@ import {
 } from '../internal.js'
 
 const pageRuleCache = new Cache(async (netid: string, ctx: Context) => {
-  if (netid === 'anonymous') return [new PageRule({ path: '/', mode: RulePathMode.SELFANDSUB, grants: new PageRuleGrants({}) })]
-  if (netid === 'render') return [new PageRule({ path: '/', mode: RulePathMode.SELFANDSUB, grants: new PageRuleGrants({ viewlatest: true }) })]
+  if (netid === 'anonymous') return [new PageRule({ path: '/', mode: RulePathMode.SELFANDSUB })]
+  if (netid === 'render') return [new PageRule({ path: '/', mode: RulePathMode.SELFANDSUB, viewlatest: true })]
   const roles = await roleCache.get(netid, ctx)
   return (await Promise.all(roles.map(async r => await ctx.svc(PageRuleServiceInternal).findByRoleId(r.id)))).flat()
 }, { freshseconds: 5, staleseconds: 30 })
@@ -25,14 +25,14 @@ const assetRuleCache = new Cache(async (netid: string, ctx: Context) => {
 }, { freshseconds: 5, staleseconds: 30 })
 
 const siteRuleCache = new Cache(async (netid: string, ctx: Context) => {
-  if (netid === 'anonymous' || netid === 'render') return [new SiteRule({ grants: new SiteRuleGrants({}) })]
+  if (netid === 'anonymous' || netid === 'render') return [new SiteRule({})]
   const roles = await roleCache.get(netid, ctx)
   return (await Promise.all(roles.map(async r => await ctx.svc(SiteRuleServiceInternal).findByRoleId(r.id)))).flat()
 }, { freshseconds: 5, staleseconds: 30 })
 
 const dataRuleCache = new Cache(async (netid: string, ctx: Context) => {
-  if (netid === 'anonymous') return [new DataRule({ path: '/', grants: new DataRuleGrants({}) })]
-  if (netid === 'render') return [new DataRule({ path: '/', grants: new DataRuleGrants({ viewlatest: true }) })]
+  if (netid === 'anonymous') return [new DataRule({ path: '/' })]
+  if (netid === 'render') return [new DataRule({ path: '/', viewlatest: true })]
   const roles = await roleCache.get(netid, ctx)
   return (await Promise.all(roles.map(async r => await ctx.svc(DataRuleServiceInternal).findByRoleId(r.id)))).flat()
 }, { freshseconds: 5, staleseconds: 30 })
@@ -167,7 +167,10 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   protected async haveDataPerm (item: Data, grant: keyof DataRuleGrants) {
     // if siteId is null it's global data and governed by GlobalRules.manageGlobalData instead
     // of DataRules
-    if (!item.siteId) return await this.haveGlobalPerm('manageGlobalData')
+    if (!item.siteId) {
+      if (grant === 'viewlatest' && this.login === 'render') return true
+      return await this.haveGlobalPerm('manageGlobalData')
+    }
 
     const [rules, dataPath] = await Promise.all([
       this.currentDataRules(),
