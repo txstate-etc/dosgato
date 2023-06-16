@@ -59,8 +59,8 @@ export async function placeFile (readStream: Readable, filename: string, mimeGue
   })
   const { checksum, size } = await fileHandler.put(fileTypePassthru)
   let { mime } = fileTypePassthru.fileType ?? { mime: mimeGuess }
-  if (mime === 'application/x-cfb' || mime.startsWith('plain/text')) mime = mimeGuess // npm file-type library not good at distinguishing old MS Office formats
-  if (mimeGuess === 'image/svg+xml' && mime === 'application/xml') mime = mimeGuess
+  if (mime === 'application/x-cfb' || mime.startsWith('plain/text')) mime = mimeGuess.split(';')[0] // npm file-type library not good at distinguishing old MS Office formats
+  if (mimeGuess.startsWith('image/svg+xml') && mime === 'application/xml') mime = mimeGuess.split(';')[0]
 
   const name = makeSafeFilename(filename)
 
