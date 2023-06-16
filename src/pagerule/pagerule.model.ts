@@ -72,7 +72,7 @@ export class PageRuleGrants extends PageRuleGrantsBase {
     if (row) {
       this.view = true
       this.viewForEdit = true // any rule grants read-only access to the published version in edit
-      this.viewlatest = this.update || this.publish || row.viewlatest
+      this.viewlatest = this.update || this.publish || !!row.viewlatest
     }
   }
 }
