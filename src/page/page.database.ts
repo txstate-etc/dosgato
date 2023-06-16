@@ -3,7 +3,7 @@ import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, unique, sortby } from 'txstate-utils'
-import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault } from '../internal.js'
+import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath } from '../internal.js'
 import { type PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 
@@ -372,26 +372,41 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
   })
 }
 
-async function handleCopy (db: Queryable, versionedService: VersionedService, userId: string, page: Page, parent: Page, displayOrder: number, includeChildren?: boolean) {
-  const pageData = await versionedService.get<PageData>(page.intDataId)
-  delete pageData!.data.legacyId
-  const pageIndexes = await versionedService.getIndexes(page.intDataId, pageData!.version)
-  const newDataId = await versionedService.create('page', pageData!.data, pageIndexes, userId, db)
+async function handleCopy (db: Queryable, versionedService: VersionedService, userId: string, page: Page, parent: Page, parentPath: string, displayOrder: number, includeChildren?: boolean) {
   let newPageName = page.name
   const pagesWithName = new Set(await db.getvals<string>('SELECT name FROM pages WHERE name LIKE ? AND path = ?', [`${String(page.name)}%`, parent.pathAsParent]))
   while (pagesWithName.has(newPageName)) newPageName = numerate(newPageName)
+  const newPagePath = appendPath(parentPath, newPageName)
+
+  const pageData = await versionedService.get<PageData>(page.intDataId)
+  if (!pageData) throw new Error('Tried to copy a page with corrupted data.')
+  delete pageData.data.legacyId
+  const extras = {
+    query: systemContext().query,
+    siteId: page.siteId,
+    pagetreeId: page.pagetreeId,
+    parentId: parent.id,
+    pagePath: newPagePath,
+    name: newPageName
+  }
+  const migrated = await migratePage(pageData.data, extras)
+  const components = collectComponents(migrated)
+  const workspace = {}
+  for (const c of components) templateRegistry.getPageOrComponentTemplate(c.templateKey)?.onCopy?.(c, true, workspace)
+  const pageIndexes = getPageIndexes(migrated)
+  const newDataId = await versionedService.create('page', migrated, pageIndexes, userId, db)
 
   // only generate a new linkId when copying within a pagetree or when the target pagetree has
   // the linkId already, otherwise re-use it so copying pages into a sandbox will maintain links
   const newLinkId = page.pagetreeId === parent.pagetreeId || await db.getval('SELECT linkId FROM pages WHERE pagetreeId=?', [parent.pagetreeId]) ? nanoid(10) : page.linkId
   const newInternalId = await db.insert(`
     INSERT INTO pages (name, pagetreeId, dataId, linkId, path, displayOrder, siteId, title, templateKey)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [newPageName, parent.pagetreeId, newDataId, newLinkId, parent.pathAsParent, displayOrder, parent.siteInternalId, pageData!.data.title, pageData!.data.templateKey])
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [newPageName, parent.pagetreeId, newDataId, newLinkId, parent.pathAsParent, displayOrder, parent.siteInternalId, migrated.title, migrated.templateKey])
   if (includeChildren) {
     const children = (await db.getall('SELECT * FROM pages WHERE path = ? AND deleteState != ?', [page.pathAsParent, DeleteState.DELETED])).map(r => new Page(r))
     const newParent = new Page(await db.getrow('SELECT * FROM pages WHERE id = ?', [newInternalId]))
     for (const child of children) {
-      await handleCopy(db, versionedService, userId, child, newParent, child.displayOrder, true)
+      await handleCopy(db, versionedService, userId, child, newParent, newPagePath, child.displayOrder, true)
     }
   }
   return newDataId
@@ -400,6 +415,13 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
 export async function copyPages (versionedService: VersionedService, userId: string, pages: Page[], parent: Page, aboveTarget?: Page, includeChildren?: boolean) {
   return await db.transaction(async db => {
     [parent, aboveTarget, ...pages] = await refetch(db, parent, aboveTarget, ...pages)
+    let parentPath = '/'
+    if (parent.pathSplit.length) {
+      const binds: any[] = []
+      const ancestors = await db.getall(`SELECT id, name FROM pages WHERE id IN (${db.in(binds, parent.pathSplit)})`, binds)
+      const ancestorsById = keyby(ancestors, 'id')
+      parentPath = '/' + parent.pathSplit.map(id => ancestorsById[id].name).join('/')
+    }
 
     if (aboveTarget && parent.internalId !== aboveTarget.parentInternalId) {
       throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
@@ -411,7 +433,7 @@ export async function copyPages (versionedService: VersionedService, userId: str
 
     let i = 0
     for (const page of pages) {
-      await handleCopy(db, versionedService, userId, page, parent, displayOrder + i, includeChildren)
+      await handleCopy(db, versionedService, userId, page, parent, parentPath, displayOrder + i, includeChildren)
       i++
     }
     return parent

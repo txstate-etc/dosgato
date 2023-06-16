@@ -10,7 +10,7 @@ import {
   getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage,
   PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
   PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, getPagesByPath, parsePath,
-  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService, shiftPath, systemContext
+  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService, shiftPath, systemContext, collectComponents
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -693,7 +693,7 @@ export class PageService extends DosGatoService<Page> {
     return response
   }
 
-  async addComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, data: ComponentData, comment?: string, validateOnly?: boolean) {
+  async addComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, data: ComponentData, isCopy?: boolean, comment?: string, validateOnly?: boolean) {
     if (!data.templateKey) throw new Error('Component must have a templateKey.')
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
@@ -755,6 +755,12 @@ export class PageService extends DosGatoService<Page> {
     await Promise.all(templateKeys.map(async templateKey => {
       if (!await this.svc(TemplateService).mayUseOnPage(templateByKey[templateKey], page!)) throw new Error(`Template ${templateKey} is not approved for use in this site or pagetree.`)
     }))
+
+    // run the template's onCopy routine to regenerate unique ids
+    if (isCopy) {
+      const workspace = {}
+      for (const c of collectComponents(migratedComponent)) templateRegistry.getComponentTemplate(c.templateKey).onCopy?.(c, false, workspace)
+    }
 
     // run validations only on the new component and any areas beneath it
     const response = new PageResponse({ success: true })
