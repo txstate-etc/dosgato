@@ -283,10 +283,12 @@ export class AssetService extends DosGatoService<Asset> {
       this.raw.findByFolderInternalId(asset.folderInternalId),
       this.svc(AssetFolderServiceInternal).getChildFolders(folder!)
     ])
-    const response = new AssetResponse({ asset })
-    if (siblings.some(s => s.name === name) || siblingFolders.some(f => f.name === name)) response.addMessage('That name is already taken.', 'name')
+    const response = new AssetResponse({ asset, success: true })
+    if (asset.name === name) {
+      /* no message at all - avoid giving them a "success" message when the rename won't do anything */
+    } else if (siblings.some(s => s.name === name) || siblingFolders.some(f => f.name === name)) response.addMessage('That name is already taken.', 'name')
     else response.addMessage(`Name: ${name} is available.`, 'name', MutationMessageType.success)
-    if (response.hasErrors() || validateOnly) return response
+    if (response.hasErrors() || validateOnly || asset.name === name) return response
     await renameAsset(assetId, name, folder!.path)
     this.loaders.clear()
     const newAsset = await this.raw.findById(assetId)
