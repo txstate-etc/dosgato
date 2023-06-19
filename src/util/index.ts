@@ -27,7 +27,7 @@ export function parsePath (path: string) {
 }
 
 export function normalizeHost (host: string) {
-  return host
+  return host.toLocaleLowerCase()
 }
 
 export function appendPath (a: string, b: string) {
