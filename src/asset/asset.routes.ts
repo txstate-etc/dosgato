@@ -13,11 +13,11 @@ import { type Readable } from 'node:stream'
 import { type IncomingMessage } from 'node:http'
 import { get as httpGet } from 'node:http'
 import { get as httpsGet } from 'node:https'
-import { groupby, isNotBlank, keyby, randomid } from 'txstate-utils'
+import { groupby, isBlank, isNotBlank, keyby, randomid } from 'txstate-utils'
 import {
   type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
   AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler, getEnabledUser, GlobalRuleService, logMutation,
-  makeSafeFilename, type PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService, parsePath, deleteAsset
+  makeSafeFilename, PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService, parsePath, deleteAsset
 } from '../internal.js'
 
 interface RootAssetFolder {
@@ -303,6 +303,51 @@ export async function createAssetRoutes (app: FastifyInstance) {
     void res.header('Content-Length', chosen.size)
     void res.header('ETag', resizeEtag)
     void res.header('Cache-Control', hasChecksum ? 'max-age=31536000, immutable' : `public, max-age=${String(5 * 60)}`)
+
+    return await res.status(200).send(fileHandler.get(chosen.checksum))
+  })
+  app.get<{ Params: { id: string, '*': string } }>('/assets/legacy/:id/*', async (req, res) => {
+    const ctx = new Context(req)
+    const [asset] = await ctx.svc(AssetServiceInternal).find({ legacyIds: [req.params.id], pagetreeTypes: [PagetreeType.PRIMARY] })
+    if (!asset) throw new HttpError(404)
+    await ctx.waitForAuth()
+    if (!await ctx.svc(AssetService).mayViewIndividual(asset)) throw new HttpError(404)
+
+    const resizes = await ctx.svc(AssetService).getResizes(asset)
+
+    const formats: Record<string, boolean> = {
+      ...keyby((req.headers.accept?.split(',') ?? []).map(t => t.split(';')[0])),
+      'image/jpeg': true,
+      'image/png': true,
+      'image/gif': true
+    }
+
+    let chosen: Asset | AssetResize = asset
+    for (const resize of resizes) {
+      const chosenWidth = 'width' in chosen ? chosen.width : (chosen.box?.width ?? 0)
+      if (formats[resize.mime] && resize.width >= chosenWidth) chosen = resize
+    }
+
+    recordDownload(chosen.checksum)
+
+    const etag = req.headers['if-none-match']
+    const assetEtag = `"${chosen.checksum}"`
+    if (etag && assetEtag === etag) return await res.status(304).send()
+
+    const data = await ctx.svc(VersionedService).get(asset.intDataId)
+    const modifiedAt = DateTime.fromJSDate(data!.modified)
+    const ifsince = req.headers['if-modified-since'] ? DateTime.fromHTTP(req.headers['if-modified-since']) : undefined
+    if (ifsince?.isValid && modifiedAt <= ifsince) return await res.status(304).send()
+
+    let filename = req.params['*'].split('/').slice(-1)[0]
+    if (isBlank(filename)) filename = asset.filename
+
+    void res.header('Last-Modified', modifiedAt.toHTTP())
+    void res.header('ETag', assetEtag)
+    void res.header('Cache-Control', `public, max-age=${String(5 * 60)}`)
+    void res.header('Content-Type', chosen.mime)
+    void res.header('Content-Disposition', 'attachment;filename=' + filename)
+    void res.header('Content-Length', chosen.size)
 
     return await res.status(200).send(fileHandler.get(chosen.checksum))
   })
