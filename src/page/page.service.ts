@@ -411,7 +411,7 @@ export class PageService extends DosGatoService<Page> {
       this.checkPerm(page, 'unpublish', false),
       this.isPublished(page)
     ])
-    return checkPerm && (isPublished || parentBeingUnpublished)
+    return checkPerm && (isPublished || !!parentBeingUnpublished)
   }
 
   async mayMove (page: Page) {
