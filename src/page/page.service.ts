@@ -405,13 +405,13 @@ export class PageService extends DosGatoService<Page> {
     return true
   }
 
-  async mayUnpublish (page: Page) {
+  async mayUnpublish (page: Page, parentBeingUnpublished?: boolean) {
     if (!page.parentInternalId) return false // root page of a site/pagetree cannot be unpublished - the site launch should be disabled instead
     const [checkPerm, isPublished] = await Promise.all([
       this.checkPerm(page, 'unpublish', false),
       this.isPublished(page)
     ])
-    return checkPerm && isPublished
+    return checkPerm && (isPublished || parentBeingUnpublished)
   }
 
   async mayMove (page: Page) {
@@ -1012,14 +1012,18 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async unpublishPages (dataIds: string[]) {
-    let pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     const children = (await Promise.all(pages.flatMap(async (page) => await this.getPageChildren(page, true)))).flat()
-    pages = [...pages, ...children]
-    if (await someAsync(pages, async (page: Page) => !(await this.mayUnpublish(page)))) {
-      throw new Error('Current user is not permitted to unpublish one or more pages')
+    const childrenById = keyby(children, 'id')
+    const actualParents = pages.filter(p => !childrenById[p.id])
+    const mayUnpublishPromises: Promise<boolean>[] = []
+    mayUnpublishPromises.push(...actualParents.map(async page => !!await this.mayUnpublish(page, false)))
+    mayUnpublishPromises.push(...children.map(async page => !!await this.mayUnpublish(page, true)))
+    if (await someAsync(mayUnpublishPromises, async promise => !await promise)) {
+      throw new Error('Current user is not permitted to unpublish one or more pages.')
     }
     await db.transaction(async db => {
-      await this.svc(VersionedService).removeTags(pages.map(p => p.intDataId), ['published'], db)
+      await this.svc(VersionedService).removeTags([...actualParents, ...children].map(p => p.intDataId), ['published'], db)
     })
     this.loaders.clear()
     return new ValidatedResponse({ success: true })
