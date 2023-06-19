@@ -196,15 +196,15 @@ export class SiteService extends DosGatoService<Site> {
     if (!site) throw new Error('Site does not exist')
     if (!(await this.mayLaunch(site))) throw new Error('Current user is not authorized to update the public URL for this site')
     const response = new SiteResponse({ success: true })
-    // TODO: What other validation is needed? Host and path are not required. What if they enter a path but no host?
     if (isBlank(host) && enabled) {
       response.addMessage('A site with no host cannot be live.', 'enabled')
     }
     if (isNotBlank(host)) {
-      host = host.replace(/^https?:\/\//i, '')
+      host = host.replace(/^https?:\/\//i, '').toLocaleLowerCase()
     }
     if (isNotBlank(path)) {
       path = (path.startsWith('/') ? '' : '/') + path + (path.endsWith('/') ? '' : '/')
+      path = path.toLocaleLowerCase()
     }
     if (validateOnly || response.hasErrors()) return response
     const currentUser = await this.currentUser()
