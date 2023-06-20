@@ -339,7 +339,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const ifsince = req.headers['if-modified-since'] ? DateTime.fromHTTP(req.headers['if-modified-since']) : undefined
     if (ifsince?.isValid && modifiedAt <= ifsince) return await res.status(304).send()
 
-    let filename = req.params['*'].split('/').slice(-1)[0]
+    let filename = makeSafeFilename(req.params['*'].split('/').slice(-1)[0])
     if (isBlank(filename)) filename = asset.filename
 
     void res.header('Last-Modified', modifiedAt.toHTTP())
@@ -374,7 +374,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const ifsince = req.headers['if-modified-since'] ? DateTime.fromHTTP(req.headers['if-modified-since']) : undefined
     if (ifsince?.isValid && modifiedAt <= ifsince) return await res.status(304).send()
 
-    const filename = req.params['*'].split('/').slice(-1)[0]
+    const filename = makeSafeFilename(req.params['*'].split('/').slice(-1)[0])
 
     void res.header('Last-Modified', modifiedAt.toHTTP())
     void res.header('ETag', assetEtag)
