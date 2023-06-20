@@ -69,8 +69,8 @@ describe('sites mutations', () => {
     const { sites } = await query(`{ sites(filter: { ids: [${siteH.id}] }) { launched url { host path prefix } } }`)
     expect(sites[0].launched).to.be.true
     expect(sites[0].url.host).to.equal('www.example.com')
-    expect(sites[0].url.path).to.equal('/departmentH/')
-    expect(sites[0].url.prefix).to.equal('https://www.example.com/departmentH/')
+    expect(sites[0].url.path).to.equal('/departmenth/')
+    expect(sites[0].url.prefix).to.equal('https://www.example.com/departmenth/')
   })
   it('should delete a site', async () => {
     const { site: siteI } = await createSite('newsiteI', 'keyp1')

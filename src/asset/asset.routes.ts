@@ -2,7 +2,7 @@ import multipart from '@fastify/multipart'
 import { Context } from '@txstate-mws/graphql-server'
 import archiver from 'archiver'
 import { createHash } from 'crypto'
-import type { FastifyInstance, FastifyRequest } from 'fastify'
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { HttpError } from 'fastify-txstate'
 import { fileTypeStream } from 'file-type'
 import { DateTime } from 'luxon'
@@ -306,7 +306,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
 
     return await res.status(200).send(fileHandler.get(chosen.checksum))
   })
-  app.get<{ Params: { id: string, '*': string } }>('/assets/legacy/:id/*', async (req, res) => {
+  async function handleLegacy (req: FastifyRequest<{ Params: { id: string, '*'?: string } }>, res: FastifyReply) {
     const ctx = new Context(req)
     const [asset] = await ctx.svc(AssetServiceInternal).find({ legacyIds: [req.params.id], pagetreeTypes: [PagetreeType.PRIMARY] })
     if (!asset) throw new HttpError(404)
@@ -339,7 +339,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const ifsince = req.headers['if-modified-since'] ? DateTime.fromHTTP(req.headers['if-modified-since']) : undefined
     if (ifsince?.isValid && modifiedAt <= ifsince) return await res.status(304).send()
 
-    let filename = makeSafeFilename(req.params['*'].split('/').slice(-1)[0])
+    let filename = makeSafeFilename(req.params['*']?.split('/').slice(-1)[0] ?? '')
     if (isBlank(filename)) filename = asset.filename
 
     void res.header('Last-Modified', modifiedAt.toHTTP())
@@ -350,7 +350,9 @@ export async function createAssetRoutes (app: FastifyInstance) {
     void res.header('Content-Length', chosen.size)
 
     return await res.status(200).send(fileHandler.get(chosen.checksum))
-  })
+  }
+  app.get<{ Params: { id: string } }>('/assets/legacy/:id', handleLegacy)
+  app.get<{ Params: { id: string, '*': string } }>('/assets/legacy/:id/*', handleLegacy)
   app.get<{ Params: { id: string, '*': string }, Querystring: { admin?: 1 } }>(
     '/assets/:id/*', async (req, res) => {
     const ctx = new Context(req)
