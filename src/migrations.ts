@@ -28,6 +28,13 @@ const dgMigrations: DBMigration[] = [
     run: async db => {
       await db.execute('CREATE UNIQUE INDEX `data_UNIQUE` ON `assets`(`dataId`)')
     }
+  },
+  {
+    id: 20230620100000,
+    description: 'index completed on requestedresizes',
+    run: async db => {
+      await db.execute('CREATE INDEX `completed_idx` ON `requestedresizes`(`completed`)')
+    }
   }
 ]
 
