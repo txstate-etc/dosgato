@@ -3,7 +3,7 @@ import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mw
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { type DateTime } from 'luxon'
 import db from 'mysql2-async/db'
-import { equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set, someAsync, stringify, unique } from 'txstate-utils'
+import { equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set, someAsync, sortby, stringify, unique } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, type Page, type PageFilter, PageResponse, PagesResponse,
   createPage, getPages, movePages, deletePages, renamePage, TemplateService, type TemplateFilter,
@@ -208,7 +208,7 @@ export class PageServiceInternal extends BaseService {
           )
         }
         const pages = await Promise.all(lookups)
-        return pages.find(p => p.length > 0)?.[0]
+        return sortby(pages.flat(), 'published', true)[0]
       }))
       const found = pages.filter(isNotNull)
       if (!found.length) filter.noresults = true
@@ -363,8 +363,7 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async isPublished (page: Page) {
-    const tag = await this.svc(VersionedService).getTag(page.intDataId, 'published')
-    return !!tag
+    return page.published
   }
 
   async isLive (page: Page) {

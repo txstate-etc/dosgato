@@ -209,8 +209,9 @@ async function processFilters (filter?: PageFilter) {
 
   // published
   if (filter.published) {
-    joins.set('tags', 'INNER JOIN tags ON tags.id=pages.dataId')
-    where.push('tags.tag="published"')
+    where.push('tags.tag IS NOT NULL')
+  } else if (filter.published === false) {
+    where.push('tags.tag IS NULL')
   }
 
   // pages, assets, data referenced TODO
@@ -222,10 +223,11 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db) {
   const { binds, where, joins } = await processFilters(filter)
   if (filter.noresults) return []
   const pages = await tdb.getall(`
-    SELECT pages.*, pagetrees.type as pagetreeType, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned
+    SELECT pages.*, pagetrees.type as pagetreeType, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned, tags.tag as published
     FROM pages
     INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id
     INNER JOIN sites ON pages.siteId = sites.id
+    LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
     ${joins.size ? Array.from(joins.values()).join('\n') : ''}
     ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
     ORDER BY pages.\`path\`, pages.displayOrder, pages.name`, binds)

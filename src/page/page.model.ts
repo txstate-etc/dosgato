@@ -101,6 +101,7 @@ export class Page {
   templateKey: string
   pagetreeType: PagetreeType
   orphaned: boolean
+  published: boolean
 
   // this is a helper property for determining whether templates can be kept on a page
   // see TemplateService.mayKeepOnPage()
@@ -129,6 +130,7 @@ export class Page {
     this.deleteState = row.deleteState
     this.pagetreeType = row.pagetreeType
     this.orphaned = !!row.orphaned
+    this.published = !!row.published
   }
 }
 
