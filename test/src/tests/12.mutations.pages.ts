@@ -374,10 +374,16 @@ describe('pages mutations', () => {
   })
   it('should publish a page', async () => {
     const { page: testpage } = await createPage('testpage9', testSite6PageRootId, 'keyp3')
+    const { pages: beforePages } = await query(`{ pages(filter: { ids: ["${testpage.id}"], published: true }) { id name published }}`)
+    const { pages: beforePages2 } = await query(`{ pages(filter: { ids: ["${testpage.id}"], published: false }) { id name published }}`)
+    expect(beforePages).to.have.lengthOf(0)
+    expect(beforePages2).to.have.lengthOf(1)
+    expect(beforePages2[0].published).to.be.false
     const { publishPages: { success } } = await query('mutation PublishPages ($pageIds: [ID!]!, $includeChildren: Boolean) {publishPages (pageIds: $pageIds, includeChildren: $includeChildren) { success } }', { pageIds: [testpage.id] })
     expect(success).to.be.true
-    const { pages } = await query(`{ pages(filter: { ids: ["${testpage.id}"] }) { id name published }}`)
-    expect(pages[0].published).to.be.true
+    const { pages: afterPages } = await query(`{ pages(filter: { ids: ["${testpage.id}"], published: true }) { id name published }}`)
+    expect(afterPages).to.have.lengthOf(1)
+    expect(afterPages[0].published).to.be.true
   })
   it('should publish multiple pages', async () => {
     const { page: testpageA } = await createPage('testpage9a', testSite6PageRootId, 'keyp3')

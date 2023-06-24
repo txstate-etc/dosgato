@@ -67,7 +67,6 @@ describe('pages', () => {
       expect([pagetree1.id, pagetree3.id]).to.include(page.pagetree.id)
     }
   })
-  it.skip('should get pages, filtered by "published" property', async () => {})
   it.skip('should get pages, filtered by referencedByPageIds', async () => {})
   it('should get pages, filtered by site ID', async () => {
     const { sites } = await query('{ sites { id name } }')

@@ -445,8 +445,8 @@ export class PageService extends DosGatoService<Page> {
     // the current person can't use
     // therefore, skipping template validity check
 
-    const newPages = await movePages(pages, parent, aboveTarget)
-    return new PagesResponse({ success: true, pages: newPages })
+    const newPageIds = await movePages(pages, parent, aboveTarget)
+    return new PagesResponse({ success: true, pages: await getPages({ internalIds: newPageIds }) })
   }
 
   async copyPages (dataIds: string[], targetId: string, above?: boolean, includeChildren?: boolean) {

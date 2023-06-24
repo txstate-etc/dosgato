@@ -210,8 +210,6 @@ async function processFilters (filter?: PageFilter) {
   // published
   if (filter.published) {
     where.push('tags.tag IS NOT NULL')
-  } else if (filter.published === false) {
-    where.push('tags.tag IS NULL')
   }
 
   // pages, assets, data referenced TODO
@@ -223,7 +221,7 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db) {
   const { binds, where, joins } = await processFilters(filter)
   if (filter.noresults) return []
   const pages = await tdb.getall(`
-    SELECT pages.*, pagetrees.type as pagetreeType, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned, tags.tag as published
+    SELECT pages.*, pagetrees.type as pagetreeType, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned, tags.tag IS NOT NULL as published
     FROM pages
     INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id
     INNER JOIN sites ON pages.siteId = sites.id
@@ -337,7 +335,7 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
     filteredPages = sortby(filteredPages, 'displayOrder')
 
     // numerate page names as required
-    let binds: (string | number)[] = [parent.path + '/' + String(parent.internalId)]
+    const binds: (string | number)[] = [parent.path + '/' + String(parent.internalId)]
     const usednames = new Set<string>(await db.getvals(`SELECT name FROM pages WHERE path=? AND id NOT IN (${db.in(binds, filteredPages.map(p => p.internalId))})`, binds))
     const newnames = new Map<string, string>()
     for (const p of filteredPages) {
@@ -368,9 +366,7 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
     }
 
     // return the newly updated pages
-    binds = []
-    const updatedPages = await db.getall(`SELECT * FROM pages WHERE id IN (${db.in(binds, filteredPages.map(p => p.internalId))})`, binds)
-    return updatedPages.map(p => new Page(p))
+    return filteredPages.map(p => p.internalId)
   })
 }
 
