@@ -24,7 +24,6 @@ class TemplateRegistry {
   public currentSchemaVersion = existsSync('/.builddate') ? DateTime.fromMillis(Number(readFileSync('/.builddate', 'ascii').trim())) : DateTime.local()
 
   register (template: APIAnyTemplate) {
-    this.currentSchemaVersion = DateTime.fromMillis(Math.max(this.currentSchemaVersion?.toMillis() ?? 0, ...(template.migrations ?? []).map(m => m.createdAt.getTime())))
     const hydrated: AnyTemplate = { ...template, hydratedAreas: {} } as AnyTemplate
     if ('areas' in template && template.areas != null) {
       for (const key of Object.keys(template.areas)) {

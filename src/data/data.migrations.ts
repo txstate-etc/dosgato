@@ -18,7 +18,7 @@ import { templateRegistry } from '../internal.js'
  */
 export async function migrateData (ctx: Context, data: DataData, dataRootId: string, dataFolderId?: string, dataId?: string, toSchemaVersion = templateRegistry.currentSchemaVersion) {
   let migrated = clone(data)
-  const fromSchemaVersionMillis = DateTime.fromFormat(migrated.savedAtVersion, 'yLLddHHmmss').toMillis()
+  const fromSchemaVersionMillis = DateTime.fromFormat(migrated.savedAtVersion, 'yLLddHHmmss', { zone: 'UTC' }).toMillis()
   const toSchemaVersionMillis = toSchemaVersion.toMillis()
   const backward = fromSchemaVersionMillis > toSchemaVersionMillis
   const tmpl = templateRegistry.getDataTemplate(migrated.templateKey)
@@ -33,6 +33,6 @@ export async function migrateData (ctx: Context, data: DataData, dataRootId: str
     const migrate = backward ? migration.down : migration.up
     migrated = await migrate(migrated, { query: ctx.query, dataRootId, dataFolderId, dataId })
   }
-  migrated.savedAtVersion = toSchemaVersion.toFormat('yLLddHHmmss')
+  migrated.savedAtVersion = toSchemaVersion.toUTC().toFormat('yLLddHHmmss')
   return migrated
 }

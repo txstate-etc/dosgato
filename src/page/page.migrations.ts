@@ -39,7 +39,7 @@ async function processMigration (templateKey: string, migrate: ComponentMigratio
  */
 export async function migratePage (page: PageData, extras: PageExtras, toSchemaVersion = templateRegistry.currentSchemaVersion) {
   let data = clone(page)
-  const fromSchemaVersionMillis = DateTime.fromFormat(data.savedAtVersion, 'yLLddHHmmss').toMillis()
+  const fromSchemaVersionMillis = DateTime.fromFormat(data.savedAtVersion, 'yLLddHHmmss', { zone: 'UTC' }).toMillis()
   const toSchemaVersionMillis = toSchemaVersion.toMillis()
   const backward = fromSchemaVersionMillis > toSchemaVersionMillis
 
@@ -52,6 +52,6 @@ export async function migratePage (page: PageData, extras: PageExtras, toSchemaV
     if (migration.templateKey === data.templateKey) data = await (migrate as PageMigration['up'])(data, extras)
     else if (!migration.isPage) data = await processMigration(migration.templateKey, migrate as ComponentMigrationFn, data, [], { ...extras, page: data, path: '' }) as PageData
   }
-  data.savedAtVersion = toSchemaVersion.toFormat('yLLddHHmmss')
+  data.savedAtVersion = toSchemaVersion.toUTC().toFormat('yLLddHHmmss')
   return data
 }
