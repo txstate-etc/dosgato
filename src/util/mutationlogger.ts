@@ -7,6 +7,6 @@ export async function logMutation (queryTime: number, operationName: string, que
     await db.insert(`
       INSERT INTO mutationlog (userId, query, mutation, variables)
       SELECT id, ?, ?, ? FROM users WHERE login=?
-    `, [query, operationName, stringify({ ...variables, ...(variables?.data ? { data: 'redacted' } : {}) }), auth.sub])
+    `, [query, operationName, stringify({ ...variables, ...(variables?.data ? { data: 'redacted' } : {}) }), auth.sub ?? auth.client_id])
   }
 }

@@ -4,7 +4,7 @@ import { type FastifyInstance } from 'fastify'
 import { type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
 import { type GraphQLError, type GraphQLScalarType } from 'graphql'
 import { DateTime } from 'luxon'
-import { Cache, isNotBlank } from 'txstate-utils'
+import { Cache, isBlank, isNotBlank } from 'txstate-utils'
 import { type NonEmptyArray } from 'type-graphql'
 import { migrations, resetdb } from './migrations.js'
 import {
@@ -23,7 +23,7 @@ import {
   AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler,
   FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes,
   SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
-  duplicateSite, createUser, systemContext
+  duplicateSite, createUser, systemContext, UserService
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -31,7 +31,7 @@ const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
 })
 
 async function updateLogin (queryTime: number, operationName: string, query: string, auth: any, variables: any, data: any, errors?: GraphQLError[]) {
-  await loginCache.get(auth.sub, Number(auth.iat))
+  await loginCache.get(auth.sub ?? auth.client_id, Number(auth.iat))
 }
 
 export interface AssetMeta <DataType = any> {
@@ -90,6 +90,7 @@ export class DGServer {
         return userId + '-' + trainingSite
       }
       const createTrainingSite = new Cache(async (userId: string) => {
+        if (isBlank(userId) || ['anonymous', 'render'].includes(userId)) return
         const ctx = systemContext()
         try {
           let user = await ctx.svc(UserServiceInternal).findById(userId)
@@ -124,7 +125,7 @@ export class DGServer {
       this.app.addHook('onRequest', async req => {
         const ctx = new Context(req)
         await ctx.waitForAuth()
-        if (ctx.auth?.sub && ctx.auth.sub !== 'anonymous') await createTrainingSite.get(ctx.auth.sub)
+        await createTrainingSite.get(ctx.svc(UserService).login)
       })
     }
 
@@ -197,10 +198,10 @@ export class DGServer {
       ...opts,
       send401: true,
       send403: async (ctx: Context) => {
-        if (!ctx.auth?.sub) return true
-        if (ctx.auth.sub === 'anonymous' || ctx.auth.sub === 'render') return false
-        const user = await ctx.svc(UserServiceInternal).findById(ctx.auth?.sub)
-        return !user || user.disabled
+        const userSvc = ctx.svc(UserService)
+        if (['anonymous', 'render'].includes(userSvc.login)) return false
+        const user = await userSvc.currentUser()
+        return (!user || user.disabled)
       },
       resolvers,
       scalarsMap,

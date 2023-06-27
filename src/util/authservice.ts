@@ -8,7 +8,7 @@ import {
   AssetRuleServiceInternal, DataRuleServiceInternal, GlobalRuleServiceInternal, GroupServiceInternal,
   UserServiceInternal, TemplateRuleServiceInternal, type DataRoot, type Group, PageServiceInternal,
   shiftPath, PageRule, RulePathMode, DataRule, SiteRule, AssetServiceInternal, AssetFolderServiceInternal,
-  DataServiceInternal, DataFolderServiceInternal, type GlobalRule, AssetRule
+  DataServiceInternal, DataFolderServiceInternal, type GlobalRule, AssetRule, UserService
 } from '../internal.js'
 
 const pageRuleCache = new Cache(async (netid: string, ctx: Context) => {
@@ -66,12 +66,13 @@ const roleCache = new Cache(async (netid: string, ctx: Context) => {
   return await ctx.svc(RoleServiceInternal).findByUserId(netid)
 }, { freshseconds: 5, staleseconds: 10 })
 
-export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ sub: string }, ObjType, RedactedType> {
-  protected get login () {
-    return this.auth?.sub ?? 'anonymous'
+export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ sub?: string, client_id?: string }, ObjType, RedactedType> {
+  get login () {
+    return this.auth?.sub ?? this.auth?.client_id ?? 'anonymous'
   }
 
-  protected async currentUser () {
+  async currentUser () {
+    if (['render', 'anonymous'].includes(this.login)) return undefined
     return await this.svc(UserServiceInternal).findById(this.login)
   }
 
@@ -222,8 +223,7 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
 
 export async function getEnabledUser (ctx: Context) {
   await ctx.waitForAuth()
-  if (!ctx.auth?.sub) throw new AuthError()
-  const user = await ctx.svc(UserServiceInternal).findById(ctx.auth.sub)
+  const user = await ctx.svc(UserService).currentUser()
   if (!user || user.disabled) throw new AuthError()
   return user
 }
