@@ -578,6 +578,7 @@ export async function fixtures () {
     }
   ]
   await createPage('sitemap', site3SiteMapLinkId, pagetree3, site3pagetree3Root, 2, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Site Map', areas: { main: [] } }, indexes)
+  await createPage('about-my-parrot', nanoid(10), pagetree3, site3pagetree3Root, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'About My Parrot', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
 
   /* Site 3, Sandbox Pages */
   const site3SandboxRootLinkId = nanoid(10)

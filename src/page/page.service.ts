@@ -10,7 +10,7 @@ import {
   getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage,
   PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
   PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, getPagesByPath, parsePath,
-  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService, shiftPath, systemContext, collectComponents
+  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService, shiftPath, systemContext, collectComponents, makePathSafe
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -221,7 +221,7 @@ export class PageServiceInternal extends BaseService {
         if (!site) return undefined
         const parsed = new URL(launchUrl)
         const path = parsePath(parsed.pathname).path.substring(site.url!.path.length)
-        return normalizePath('/' + [site.name, path].filter(isNotBlank).join('/'))
+        return makePathSafe(normalizePath('/' + [site.name, path].filter(isNotBlank).join('/')))
       }))).filter(isNotNull)
       if (!paths.length) filter.noresults = true
       filter.paths = intersect({ skipEmpty: true }, filter.paths, paths)

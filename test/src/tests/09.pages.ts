@@ -162,6 +162,10 @@ describe('pages', () => {
     ;({ pages } = await query('{ pages(filter: { launchedUrls: ["https://www.example.com/site3/"] }) { id name } }'))
     expect(pages.length).to.be.greaterThan(0)
   })
+  it('should get pages filtered by launched URL, forgiving about making the path safe', async () => {
+    const { pages } = await query('{ pages(filter: { launchedUrls: ["https://www.example.com/site3/about_my-parrot.html"] }) { id name } }')
+    expect(pages.length).to.equal(1)
+  })
   it('should get the ancestors for a page', async () => {
     const resp = await query('{ pages(filter: {deleteStates: [NOTDELETED, MARKEDFORDELETE]}) { name ancestors { id name } } }')
     const peoplePage = resp.pages.find((p: any) => p.name === 'people')
