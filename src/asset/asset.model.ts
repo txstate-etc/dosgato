@@ -325,7 +325,7 @@ export class AssetLinkInput {
   @Field(type => ID)
   siteId!: string
 
-  @Field()
+  @Field(type => FilenameSafePath)
   path!: string
 
   @Field()

@@ -262,7 +262,7 @@ export class PageLinkInput {
   @Field()
   linkId!: string
 
-  @Field()
+  @Field(type => UrlSafePath)
   path!: string
 
   @Field(type => LinkInputContext, { nullable: true, description: 'Context information for where this link was placed. If the link is on a sandbox page, for instance, we would want to look up this link in the sandbox pagetree instead of the main pagetree. If no context is specified, links will only be found in the PRIMARY pagetree.' })
