@@ -533,11 +533,11 @@ async function copyAsset (a: AssetRowWithPagetreeId, targetrow: AssetFolderRow, 
 
 async function copyFolder (f: AssetFolderRow, targetrow: AssetFolderRow, user: string, versionedService: VersionedService, db: Queryable) {
   const linkId = f.pagetreeId === targetrow.pagetreeId || await db.getval('SELECT linkId FROM assetfolders WHERE pagetreeId=?', [targetrow.pagetreeId]) ? nanoid(10) : f.linkId
-  const newFolderId = await db.insert('INSERT INTO assetfolders (siteId, linkId, path, name) VALUES (?, ?, ?, ?)', [targetrow.siteId, linkId, makeParentPath(targetrow), f.name])
+  const newFolderId = await db.insert('INSERT INTO assetfolders (siteId, linkId, path, name, pagetreeId) VALUES (?, ?, ?, ?, ?)', [targetrow.siteId, linkId, makeParentPath(targetrow), f.name, targetrow.pagetreeId])
   const newFolderRow = await db.getrow('SELECT * FROM assetfolders WHERE id = ?', [newFolderId])
-  const assets = await db.getall<AssetRowWithPagetreeId>('SELECT a.*, f.pagetreeId FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE a.folderId = ?', [f.id])
+  const assets = await db.getall<AssetRowWithPagetreeId>('SELECT a.*, f.pagetreeId FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE a.folderId = ? AND a.deleteState = ?', [f.id, DeleteState.NOTDELETED])
   for (const a of assets) await copyAsset(a, newFolderRow, user, versionedService, db)
-  const folders = await db.getall<AssetFolderRow>('SELECT * FROM assetfolders WHERE path = ?', [makeParentPath(f)])
+  const folders = await db.getall<AssetFolderRow>('SELECT * FROM assetfolders WHERE path = ? AND deleteState = ?', [makeParentPath(f), DeleteState.NOTDELETED])
   for (const cf of folders) await copyFolder(cf, newFolderRow, user, versionedService, db)
 }
 
