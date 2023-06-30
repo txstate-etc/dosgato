@@ -4,7 +4,6 @@ import archiver from 'archiver'
 import { createHash } from 'crypto'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { HttpError } from 'fastify-txstate'
-import { fileTypeStream } from 'file-type'
 import { DateTime } from 'luxon'
 import { lookup } from 'mime-types'
 import db from 'mysql2-async/db'
@@ -14,6 +13,7 @@ import { type IncomingMessage } from 'node:http'
 import { get as httpGet } from 'node:http'
 import { get as httpsGet } from 'node:https'
 import { groupby, isBlank, isNotBlank, keyby, randomid } from 'txstate-utils'
+import { WASMagic } from 'wasmagic'
 import {
   type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
   AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler, getEnabledUser, GlobalRuleService, logMutation,
@@ -50,17 +50,35 @@ interface RootAssetFolder {
     undelete: boolean
   }
 }
+
+const magicPromise = WASMagic.create()
 export async function placeFile (readStream: Readable, filename: string, mimeGuess: string) {
-  const fileTypePassthru = await fileTypeStream(readStream)
-  const metadataPromise = probe(fileTypePassthru, true)
-  readStream.on('limit', () => {
-    (fileTypePassthru as any).truncated = true
-    fileTypePassthru.emit('error', new Error('Max file size limit reached.'))
+  const magic = await magicPromise
+  const bufs: Buffer[] = []
+  let isDetected = false
+  let curSize = 0
+  let mime = mimeGuess
+  readStream.on('data', (chunk: Buffer) => {
+    if (!isDetected) {
+      bufs.push(chunk)
+      curSize += chunk.length
+      if (curSize >= 1024) {
+        const received = Buffer.concat(bufs)
+        mime = magic.getMime(received)
+        isDetected = true
+      }
+    }
   })
-  const { checksum, size } = await fileHandler.put(fileTypePassthru)
-  let { mime } = fileTypePassthru.fileType ?? { mime: mimeGuess }
-  if (mime === 'application/x-cfb' || mime.startsWith('plain/text')) mime = mimeGuess // npm file-type library not good at distinguishing old MS Office formats
-  if (mimeGuess.startsWith('image/svg+xml') && mime === 'application/xml') mime = mimeGuess
+  const metadataPromise = probe(readStream, true)
+  readStream.on('limit', () => {
+    (readStream as any).truncated = true
+    readStream.emit('error', new Error('Max file size limit reached.'))
+  })
+  const { checksum, size } = await fileHandler.put(readStream)
+  if (mime.startsWith('plain/text') || mime === 'application/octet-stream') mime = mimeGuess
+  // lots of old MS office documents identify as openxml in libmagic but the extension is more reliable
+  // e.g. xlsm, xltx
+  if (mime.startsWith('application/vnd.openxml') && mimeGuess.startsWith('application/vnd.')) mime = mimeGuess
 
   const name = makeSafeFilename(filename)
 

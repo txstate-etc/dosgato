@@ -64,7 +64,7 @@ class FileSystemHandler implements FileHandler {
   async remove (checksum: string) {
     const filepath = this.#getFileLocation(checksum)
     try {
-      await unlink(filepath); return
+      await unlink(filepath)
     } catch (e: any) {
       if (e.code === 'ENOENT') console.warn('Tried to delete file with checksum', checksum, 'but it did not exist.')
       else console.warn(e)

@@ -414,8 +414,8 @@ export async function createAsset (versionedService: VersionedService, userId: s
       await db.getval<number>('SELECT COUNT(*) FROM assets INNER JOIN assetfolders ON assets.folderId=assetfolders.id WHERE assets.linkId=? AND assetfolders.pagetreeId=?', [linkId, folder.pagetreeId])
     ) linkId = nanoid(10)
     await db.insert(`
-      INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)
-      VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify({ width: args.width ?? undefined, height: args.height ?? undefined }), args.size])
+      INSERT INTO binaries (shasum, mime, meta, bytes)
+      VALUES(?, ?, ?, ?) ON DUPLICATE KEY UPDATE mime=VALUES(mime)`, [args.checksum, args.mime, stringify({ width: args.width ?? undefined, height: args.height ?? undefined }), args.size])
     return await db.insert(`
       INSERT INTO assets (name, folderId, linkId, dataId, shasum)
       VALUES(?, ?, ?, ?, ?)`, [name, folder.id, linkId, dataId, args.checksum])
@@ -428,8 +428,8 @@ export async function replaceAsset (versionedService: VersionedService, userId: 
     const data = await versionedService.get(Number(args.assetId))
     if (!data) throw new Error('Asset to be updated had no backing data.')
     await db.insert(`
-    INSERT IGNORE INTO binaries (shasum, mime, meta, bytes)
-    VALUES(?, ?, ?, ?)`, [args.checksum, args.mime, stringify(pick(args, 'width', 'height')), args.size])
+    INSERT INTO binaries (shasum, mime, meta, bytes)
+    VALUES(?, ?, ?, ?) ON DUPLICATE KEY UPDATE mime=VALUES(mime)`, [args.checksum, args.mime, stringify(pick(args, 'width', 'height')), args.size])
     const newData = { ...data.data, shasum: args.checksum, uploadedFilename: args.filename, meta: args.meta }
     await versionedService.update(Number(args.assetId), newData, getIndexes(newData), { user: userId }, db)
     const modifiedBy = data.data.legacyId ? (args.modifiedBy ?? userId) : userId
