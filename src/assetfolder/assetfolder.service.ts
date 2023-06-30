@@ -367,6 +367,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   }
 
   async mayUndelete (folder: AssetFolder) {
-    return await this.haveAssetFolderPerm(folder, 'undelete')
+    if (folder.deleteState === DeleteState.NOTDELETED || folder.orphaned) return false
+    return folder.deleteState === DeleteState.MARKEDFORDELETE ? await this.haveAssetFolderPerm(folder, 'delete') : await this.haveAssetFolderPerm(folder, 'undelete')
   }
 }

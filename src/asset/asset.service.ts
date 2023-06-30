@@ -420,6 +420,7 @@ export class AssetService extends DosGatoService<Asset> {
   }
 
   async mayUndelete (asset: Asset) {
-    return await this.haveAssetPerm(asset, 'undelete')
+    if (asset.deleteState === DeleteState.NOTDELETED || asset.orphaned) return false
+    return asset.deleteState === DeleteState.MARKEDFORDELETE ? await this.haveAssetPerm(asset, 'delete') : await this.haveAssetPerm(asset, 'undelete')
   }
 }

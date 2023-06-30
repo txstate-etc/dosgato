@@ -426,7 +426,7 @@ export class PageService extends DosGatoService<Page> {
 
   async mayUndelete (page: Page) {
     if (page.deleteState === DeleteState.NOTDELETED || page.orphaned) return false
-    return await this.havePagePerm(page, 'undelete')
+    return page.deleteState === DeleteState.MARKEDFORDELETE ? await this.havePagePerm(page, 'delete') : await this.havePagePerm(page, 'undelete')
   }
 
   /**

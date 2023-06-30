@@ -464,8 +464,8 @@ export class DataService extends DosGatoService<Data> {
   }
 
   async mayUndelete (data: Data) {
-    if (data.deleteState === DeleteState.NOTDELETED) return false
-    return await this.haveDataPerm(data, 'undelete')
+    if (data.deleteState === DeleteState.NOTDELETED || data.orphaned) return false
+    return data.deleteState === DeleteState.MARKEDFORDELETE ? await this.haveDataPerm(data, 'delete') : await this.haveDataPerm(data, 'undelete')
   }
 
   async mayCreateGlobal () {
