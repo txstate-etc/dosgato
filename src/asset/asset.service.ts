@@ -144,12 +144,12 @@ export class AssetServiceInternal extends BaseService {
       const pagetreeSvc = this.svc(PagetreeServiceInternal)
       const siteSvc = this.svc(SiteServiceInternal)
       const pages = await Promise.all(filter.links.map(async l => {
-        const lookups: Promise<Asset[]>[] = []
+        const lookups: Promise<(Asset | undefined)[]>[] = []
         const [contextPagetree, targetSite] = await Promise.all([
           l.context ? pagetreeSvc.findById(l.context.pagetreeId) : undefined,
           siteSvc.findById(l.siteId)
         ])
-        if (contextPagetree?.siteId === l.siteId) {
+        if (contextPagetree) {
           // the link is targeting the same site as the context, so we need to look for the link in
           // the same pagetree as the context
           // if we don't find the link in our pagetree, we do NOT fall back to the primary page tree,
@@ -159,7 +159,8 @@ export class AssetServiceInternal extends BaseService {
             this.loaders.get(assetsByPathLoader, { pagetreeIds: [contextPagetree.id] }).load(l.path.replace(/^\/[^/]+/, `/${contextPagetree.name}`)),
             this.loaders.get(assetsByChecksumLoader, { pagetreeIds: [contextPagetree.id] }).load(l.checksum)
           )
-        } else {
+        }
+        if (contextPagetree?.siteId !== l.siteId) {
           // the link is cross-site, so we only look in the primary tree in the site the link was targeting
           // we do NOT fall back to finding the linkId in other sites that the link did not originally
           // point at
@@ -175,8 +176,8 @@ export class AssetServiceInternal extends BaseService {
             this.loaders.get(assetsByChecksumLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.checksum)
           )
         }
-        const pages = await Promise.all(lookups)
-        return pages.find(p => p.length > 0)?.[0]
+        const assets = await Promise.all(lookups)
+        return sortby(assets.flat().filter(isNotNull), a => a.siteId === contextPagetree?.siteId, true)[0]
       }))
 
       const found = pages.filter(isNotNull)

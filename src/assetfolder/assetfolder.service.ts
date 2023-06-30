@@ -1,6 +1,6 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { isNull, isNotNull, unique, mapConcurrent, intersect, isBlank, filterAsync } from 'txstate-utils'
+import { isNull, isNotNull, intersect, isBlank, filterAsync, sortby } from 'txstate-utils'
 import {
   AssetService, DosGatoService, getAssetFolders, type AssetFolder, AssetServiceInternal,
   type CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
@@ -108,21 +108,22 @@ export class AssetFolderServiceInternal extends BaseService {
       const pagetreeSvc = this.svc(PagetreeServiceInternal)
       const siteSvc = this.svc(SiteServiceInternal)
       const folders = await Promise.all(filter.links.map(async l => {
-        const lookups: Promise<AssetFolder[]>[] = []
+        const lookups: Promise<(AssetFolder | undefined)[]>[] = []
         const [contextPagetree, targetSite] = await Promise.all([
           l.context ? pagetreeSvc.findById(l.context.pagetreeId) : undefined,
           siteSvc.findById(l.siteId)
         ])
-        if (contextPagetree?.siteId === l.siteId) {
-          // the link is targeting the same site as the context, so we need to look for the link in
-          // the same pagetree as the context
+        if (contextPagetree) {
+          // always look to see if the link might be targeting something in the context pagetree, in case
+          // pages and their assets were copied together to another site.
           // if we don't find the link in our pagetree, we do NOT fall back to the primary page tree,
           // we WANT the user to see a broken link in their sandbox because it will break when they go live
           lookups.push(
             this.loaders.get(foldersByLinkIdLoader, { pagetreeIds: [contextPagetree.id] }).load(l.linkId),
             this.loaders.get(foldersByPathLoader, { pagetreeIds: [contextPagetree.id] }).load(l.path.replace(/^\/[^/]+/, `/${contextPagetree.name}`))
           )
-        } else {
+        }
+        if (contextPagetree?.siteId !== l.siteId) {
           // the link is cross-site, so we only look in the primary tree in the site the link was targeting
           // we do NOT fall back to finding the linkId in other sites that the link did not originally
           // point at
@@ -135,11 +136,11 @@ export class AssetFolderServiceInternal extends BaseService {
           const lookuppath = l.path.replace(/^\/[^/]+/, `/${resolvedTargetSite?.name}`)
           lookups.push(
             this.loaders.get(foldersByLinkIdLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.linkId),
-            this.loaders.get(foldersByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.path)
+            this.loaders.get(foldersByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(lookuppath)
           )
         }
-        const pages = await Promise.all(lookups)
-        return pages.find(p => p.length > 0)?.[0]
+        const folders = await Promise.all(lookups)
+        return sortby(folders.flat().filter(isNotNull), f => f.siteId === contextPagetree?.siteId, true)[0]
       }))
       const found = folders.filter(isNotNull)
       if (!found.length) filter.internalIds = [-1]

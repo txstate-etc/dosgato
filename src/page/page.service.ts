@@ -177,21 +177,22 @@ export class PageServiceInternal extends BaseService {
       const pagetreeSvc = this.svc(PagetreeServiceInternal)
       const siteSvc = this.svc(SiteServiceInternal)
       const pages = await Promise.all(filter.links.map(async l => {
-        const lookups: Promise<Page[]>[] = []
+        const lookups: Promise<(Page | undefined)[]>[] = []
         const [contextPagetree, targetSite] = await Promise.all([
           l.context ? pagetreeSvc.findById(l.context.pagetreeId) : undefined,
           siteSvc.findById(l.siteId)
         ])
-        if (contextPagetree?.siteId === l.siteId) {
-          // the link is targeting the same site as the context, so we need to look for the link in
-          // the same pagetree as the context
+        if (contextPagetree) {
+          // always look to see if the link might be targeting something in the context pagetree, in case
+          // multiple pages were copied together to another site.
           // if we don't find the link in our pagetree, we do NOT fall back to the primary page tree,
           // we WANT the user to see a broken link in their sandbox because it will break when they go live
           lookups.push(
             this.loaders.get(pagesByLinkIdLoader, { pagetreeIds: [contextPagetree.id] }).load(l.linkId),
             this.loaders.get(pagesByPathLoader, { pagetreeIds: [contextPagetree.id] }).load(l.path.replace(/^\/[^/]+/, `/${contextPagetree.name}`))
           )
-        } else {
+        }
+        if (contextPagetree?.siteId !== l.siteId) {
           // the link is cross-site, so we only look in the primary tree in the site the link was targeting
           // we do NOT fall back to finding the linkId in other sites that the link did not originally
           // point at
@@ -208,7 +209,7 @@ export class PageServiceInternal extends BaseService {
           )
         }
         const pages = await Promise.all(lookups)
-        return sortby(pages.flat(), 'published', true)[0]
+        return sortby(pages.flat().filter(isNotNull), p => p.siteId === contextPagetree?.siteId, true, 'published', true)[0]
       }))
       const found = pages.filter(isNotNull)
       if (!found.length) filter.noresults = true

@@ -1,6 +1,6 @@
 {
   "name": "@dosgato/api",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "A CMS designed for large institutions with thousands of editors and hundreds of subsites.",
   "type": "module",
   "exports": {
@@ -14,14 +14,14 @@
     "archiver": "^5.3.1",
     "dataloader-factory": "^4.4.3",
     "fast-json-patch": "^3.1.0",
-    "file-type": "^18.0.0",
     "luxon": "^3.0.3",
     "mime-types": "^2.1.35",
     "mysql2-async": "^1.1.10",
     "nanoid": "^4.0.0",
     "probe-image-size": "^7.2.3",
     "txstate-utils": "^1.8.9",
-    "type-graphql": "^1.1.1"
+    "type-graphql": "^1.1.1",
+    "wasmagic": "^0.0.28"
   },
   "devDependencies": {
     "@types/archiver": "^5.3.1",
