@@ -3,6 +3,7 @@ import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { isNotBlank, keyby } from 'txstate-utils'
 import { AssetFolder, type AssetFolderFilter, type CreateAssetFolderInput, DeleteState, normalizePath, processDeletedFilters } from '../internal.js'
+import { DateTime } from 'luxon'
 
 export interface AssetFolderRow {
   id: number
@@ -166,7 +167,7 @@ export async function getAssetFoldersByPath (paths: string[], filter: AssetFolde
 
 async function checkForNameConflict (folderId: string, name: string, db: Queryable) {
   const parent = new AssetFolder(await db.getrow('SELECT * from assetfolders WHERE id = ? FOR UPDATE', [folderId]))
-  const siblings = await db.getall('SELECT * FROM assetfolders WHERE path=?', [parent.path + '/' + parent.id])
+  const siblings = await db.getall('SELECT * FROM assetfolders WHERE path=?', [parent.path + (parent.path === '/' ? '' : '/') + parent.id])
   const assets = await db.getall('SELECT * FROM assets WHERE folderId=?', [parent.id])
   if (siblings.some(s => s.name === name) || assets.some(a => a.name === name)) throw new NameConflictError()
   return parent
@@ -200,10 +201,11 @@ export async function deleteAssetFolder (id: number, userInternalId: number) {
 }
 
 export async function finalizeAssetFolderDeletion (id: number, userInternalId: number) {
+  const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
   await db.transaction(async db => {
     const folderIds = await db.getvals<number>('SELECT id FROM assetfolders WHERE id = ? OR path like ?', [id, `%/${id}%`])
     const binds: number[] = [userInternalId, DeleteState.DELETED]
-    await db.update(`UPDATE assetfolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE id IN (${db.in(binds, folderIds)})`, binds)
+    await db.update(`UPDATE assetfolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, folderIds)})`, binds)
     await db.update(`UPDATE assets SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE folderId IN (${db.in([], folderIds)})`, binds)
   })
 }
