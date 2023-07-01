@@ -70,6 +70,8 @@ const downloadsByResizeIdLoader = new OneToManyLoader({
   extractKey: dr => dr.relatedId
 })
 
+const primaryOrSandbox: Record<PagetreeType, boolean> = { [PagetreeType.SANDBOX]: true, [PagetreeType.PRIMARY]: true, [PagetreeType.ARCHIVE]: false }
+
 export class AssetServiceInternal extends BaseService {
   async find (filter: AssetFilter) {
     const assets = await getAssets(await this.processAssetFilters(filter))
@@ -396,7 +398,7 @@ export class AssetService extends DosGatoService<Asset> {
   }
 
   async mayViewIndividual (asset: Asset) {
-    return (!asset.orphaned && asset.pagetreeType === PagetreeType.PRIMARY && asset.deleteState === DeleteState.NOTDELETED) || await this.mayView(asset)
+    return (!asset.orphaned && primaryOrSandbox[asset.pagetreeType] && asset.deleteState === DeleteState.NOTDELETED) || await this.mayView(asset)
   }
 
   /**
