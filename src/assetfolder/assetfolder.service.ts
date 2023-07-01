@@ -307,7 +307,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   async undelete (folderId: string) {
     const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Folder to be restored does not exist')
-    if (!(await this.haveAssetFolderPerm(folder, 'undelete'))) throw new Error(`Current user is not permitted to restore folder ${String(folder.name)}.`)
+    if (!await this.mayUndelete(folder)) throw new Error(`Current user is not permitted to restore folder ${String(folder.name)}.`)
     try {
       await undeleteAssetFolder(folder.internalId)
       this.loaders.clear()

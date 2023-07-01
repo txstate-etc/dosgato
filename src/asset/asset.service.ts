@@ -355,7 +355,7 @@ export class AssetService extends DosGatoService<Asset> {
   async undelete (dataId: string) {
     const asset = await this.loaders.get(assetsByIdLoader).load(dataId)
     if (!asset) throw new Error('Asset to be restored does not exist')
-    if (!(await this.haveAssetPerm(asset, 'undelete'))) throw new Error(`Current user is not permitted to restore asset ${String(asset.name)}.${asset.extension}.`)
+    if (!await this.mayUndelete(asset)) throw new Error(`Current user is not permitted to restore asset ${String(asset.name)}.${asset.extension}.`)
     await undeleteAsset(asset.internalId)
     this.loaders.clear()
     const restoredAsset = await this.loaders.get(assetsByIdLoader).load(dataId)

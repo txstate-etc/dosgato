@@ -284,6 +284,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   }
 
   async mayUndelete (folder: DataFolder) {
-    return await this.haveDataFolderPerm(folder, 'undelete')
+    if (folder.deleteState === DeleteState.NOTDELETED || folder.orphaned) return false
+    return folder.deleteState === DeleteState.MARKEDFORDELETE ? await this.haveDataFolderPerm(folder, 'delete') : await this.haveDataFolderPerm(folder, 'undelete')
   }
 }
