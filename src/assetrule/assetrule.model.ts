@@ -58,7 +58,7 @@ export class AssetRuleGrants extends AssetRuleGrantsBase {
     super(row)
     if (row) {
       this.view = true // every rule grants view access
-      this.viewForEdit = this.create || this.update || this.move || this.delete || this.undelete
+      this.viewForEdit = true // any rule grants viewForEdit
     }
   }
 }
