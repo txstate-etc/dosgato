@@ -18,6 +18,9 @@ function processFilters (filter: DataRuleFilter) {
     if (siteIds.length) ors.push(`datarules.siteId IN (${db.in(binds, siteIds)})`)
     where.push(ors.join('OR'))
   }
+  if (filter?.global != null) {
+    where.push('datarules.isGlobal = ' + String(Number(filter.global)))
+  }
   if (filter?.templateIds?.length) {
     const ors = []
     if (filter.templateIds.some(id => !id)) ors.push('datarules.templateID IS NULL')
@@ -32,7 +35,7 @@ export async function getDataRules (filter: DataRuleFilter) {
   const { binds, where } = processFilters(filter)
   const rules = await db.getall(`SELECT * FROM datarules
                                  WHERE (${where.join(') AND (')})
-                                 ORDER BY siteId, path`, binds)
+                                 ORDER BY siteId, isGlobal, path`, binds)
   return rules.map(row => new DataRule(row))
 }
 
@@ -43,6 +46,8 @@ export async function createDataRule (args: CreateDataRuleInput) {
     throw new Error('Must include a role ID when creating an asset rule')
   }
   binds.push(args.roleId)
+  columns.push('isGlobal')
+  binds.push(args.global ?? 0)
   if (args.siteId) {
     columns.push('siteId')
     binds.push(args.siteId)
@@ -97,6 +102,12 @@ export async function updateDataRule (args: UpdateDataRuleInput) {
     binds.push(args.siteId)
   } else {
     binds.push(null)
+  }
+  updates.push('isGlobal = ?')
+  if (args.global) {
+    binds.push(1)
+  } else {
+    binds.push(0)
   }
   updates.push('templateId = ?')
   if (args.templateId) {

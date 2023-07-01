@@ -76,6 +76,9 @@ export class DataRule {
   @Field({ description: 'Folder to which this rule should apply. We take a path so that it could apply to the same folder name in multiple sites or multiple template types, if site or template is left null.' })
   path: string
 
+  @Field({ description: 'The rule only applies to global data.' })
+  global: boolean
+
   templateId?: string
   roleId: string
   siteId?: string
@@ -87,6 +90,7 @@ export class DataRule {
     this.templateId = optionalString(row.templateId)
     this.grants = new DataRuleGrants(row)
     this.path = row.path
+    this.global = row.isGlobal
   }
 }
 
@@ -95,6 +99,7 @@ export class DataRuleFilter {
   ids?: string[]
   roleIds?: string[]
   siteIds?: (string | null)[]
+  global?: boolean
   templateIds?: (string | null)[]
 }
 
@@ -105,6 +110,9 @@ export class CreateDataRuleInput {
 
   @Field({ nullable: true })
   siteId?: string
+
+  @Field({ nullable: true })
+  global?: boolean
 
   @Field({ nullable: true })
   templateId?: string
@@ -123,6 +131,9 @@ export class UpdateDataRuleInput {
 
   @Field({ nullable: true })
   siteId?: string
+
+  @Field({ nullable: true })
+  global?: boolean
 
   @Field({ nullable: true })
   templateId?: string

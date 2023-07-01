@@ -1,5 +1,5 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { Cache, filterAsync, isNotNull } from 'txstate-utils'
+import { Cache, filterAsync, isNotNull, pick } from 'txstate-utils'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   tooPowerfulHelper, DosGatoService, type Data, type DataFolder, getDataRules, DataRule,
@@ -101,7 +101,8 @@ export class DataRuleService extends DosGatoService<DataRule> {
     if (!role) throw new Error('Role to be modified does not exist.')
     if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const response = new DataRuleResponse({ success: true })
-    const newRule = new DataRule({ id: '0', roleId: args.roleId, siteId: args.siteId, templateId: args.templateId, path: args.path ?? '/', ...args.grants })
+    const newRule = new DataRule({ id: '0', ...pick(args, 'roleId', 'siteId', 'global', 'templateId'), path: args.path ?? '/', ...args.grants })
+    if (newRule.global && newRule.siteId) throw new Error('A rule that is limited to global data and also limited to a site cannot logically exist.')
     if (await this.tooPowerful(newRule)) response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')
     if (isNotNull(args.path)) {
       args.path = (args.path.startsWith('/') ? '' : '/') + args.path
@@ -133,10 +134,12 @@ export class DataRuleService extends DosGatoService<DataRule> {
       id: '0',
       roleId: rule.roleId,
       siteId: args.siteId,
+      global: args.global,
       templateId: args.templateId,
       path: args.path ?? '/',
       ...updatedGrants
     })
+    if (newRule.global && newRule.siteId) throw new Error('A rule that is limited to global data and also limited to a site cannot logically exist.')
     const response = new DataRuleResponse({ success: true })
     if (await this.tooPowerful(newRule)) response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
     if (validateOnly || response.hasErrors()) return response
@@ -167,7 +170,7 @@ export class DataRuleService extends DosGatoService<DataRule> {
   }
 
   static appliesToSiteAndTemplate (r: DataRule, item: Data | DataFolder) {
-    if (!item.siteId && r.siteId) return false
+    if (item.siteId && r.global) return false
     if (r.siteId && r.siteId !== item.siteId) return false
     if (r.templateId && r.templateId !== item.templateId) return false
     return true
@@ -184,8 +187,9 @@ export class DataRuleService extends DosGatoService<DataRule> {
     return folderPath.startsWith(rule.path)
   }
 
-  asOrMorePowerful (ruleA: DataRule, ruleB: DataRule) { // is ruleA equal or more powerful than ruleB?
-    if (ruleA.siteId && ruleA.siteId !== ruleB.siteId) return false
+  asOrMorePowerful (ruleA: DataRule, ruleB: DataRule) { // is ruleB unnecessary when ruleA is in effect?
+    if (ruleA.global && ruleB.siteId) return false
+    if (ruleA.siteId && (ruleA.siteId !== ruleB.siteId || ruleB.global)) return false
     return ruleB.path.startsWith(ruleA.path)
   }
 

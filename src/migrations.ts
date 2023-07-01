@@ -35,6 +35,14 @@ const dgMigrations: DBMigration[] = [
     run: async db => {
       await db.execute('CREATE INDEX `completed_idx` ON `requestedresizes`(`completed`)')
     }
+  },
+  {
+    id: 20230701053000,
+    description: 'add global flag to datarules and index on binaries.mime',
+    run: async db => {
+      await db.execute('ALTER TABLE datarules ADD COLUMN isGlobal TINYINT UNSIGNED NOT NULL DEFAULT 0')
+      await db.execute('CREATE INDEX `mime_idx` ON `binaries`(`mime`)')
+    }
   }
 ]
 
