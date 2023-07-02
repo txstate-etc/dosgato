@@ -37,7 +37,7 @@ export class Template {
   @Field(type => TemplateType)
   type: TemplateType
 
-  @Field({ nullable: true, description: 'If type is `data` then when true data of this type may only be added at the global leve. When false data may be added to each site. If type is not `data` this will be null.' })
+  @Field({ nullable: true, description: 'If type is `data` then when true data of this type may only be added at the global level. When false data may be added to each site. If type is not `data` this will be null.' })
   global?: boolean
 
   @Field({ description: 'This template may be used on any site. It does not require site-by-site permission.' })

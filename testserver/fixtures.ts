@@ -637,7 +637,7 @@ export async function fixtures () {
     db.insert('INSERT INTO datafolders (name, guid, templateId) VALUES (?,?,?)', ['globaldatafolder', nanoid(10), articleTemplate!]),
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deleteState, deletedAt, deletedBy) VALUES (?,?,?,?,2,NOW(),?)', ['deletedfolder', nanoid(10), site2, datatemplate1!, su03]),
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site5datafolder1', nanoid(10), site5, datatemplate1!]),
-    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site5datafolder2', nanoid(10), site5, datatemplate2!]),
+    db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site5datafolder2', nanoid(10), site5, datatemplate1!]),
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId, deleteState, deletedAt, deletedBy) VALUES (?,?,?,?,2,NOW(),?)', ['site5datafolder3', nanoid(10), site5, datatemplate1!, su01]),
     db.insert('INSERT INTO datafolders (name, guid, templateId) VALUES (?,?,?)', ['globalcolordata', nanoid(10), datatemplate1!]),
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['deletedsitedata', nanoid(10), deletedsite, datatemplate1!])

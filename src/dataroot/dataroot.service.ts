@@ -34,7 +34,7 @@ export class DataRootService extends DosGatoService<DataRoot> {
         sites = this.allSites
       }
       sitesById = keyby(sites, 'id')
-      for (const site of sites) pairs.push(...templates.map(t => ({ siteId: site.id, templateId: t.id })))
+      for (const site of sites) pairs.push(...templates.filter(t => !t.global).map(t => ({ siteId: site.id, templateId: t.id })))
     }
     pairs = intersect({ skipEmpty: true }, pairs, idPairs)
     const filledPairs = pairs.map(p => ({ site: sitesById[p.siteId ?? ''], template: this.templatesById!.get(p.templateId) }))
