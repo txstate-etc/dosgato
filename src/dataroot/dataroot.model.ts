@@ -37,6 +37,9 @@ export class DataRootFilter {
 
   @Field(type => Boolean, { nullable: true, description: 'true -> return only dataroots that are not associated with a site; false -> return only dataroots that are associated with a site; null -> return global and non-global dataroots' })
   global?: boolean
+
+  @Field(type => Boolean, { nullable: true, description: 'Return dataroots the current user should see in the data management UI.' })
+  viewForEdit?: boolean
 }
 
 @ObjectType()

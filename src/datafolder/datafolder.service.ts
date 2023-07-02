@@ -1,13 +1,13 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { PrimaryKeyLoader, OneToManyLoader } from 'dataloader-factory'
-import { filterAsync, intersect, isNotBlank, isNotNull, keyby, someAsync } from 'txstate-utils'
+import { filterAsync, intersect, isNotNull, keyby, someAsync } from 'txstate-utils'
 import {
   type DataFolder, type DataFolderFilter, DosGatoService, getDataFolders,
   type CreateDataFolderInput, createDataFolder, DataFolderResponse,
   renameDataFolder, deleteDataFolder, undeleteDataFolders, TemplateService, TemplateType,
   DataFoldersResponse, moveDataFolders, DataRoot, DataRootService,
   folderNameUniqueInDataRoot, TemplateServiceInternal, VersionedService, SiteServiceInternal,
-  DeleteStateAll, finalizeDataFolderDeletion, DataRuleService, DeleteState, SiteRuleService
+  DeleteStateAll, finalizeDataFolderDeletion, DataRuleService, DeleteState
 } from '../internal.js'
 
 const dataFoldersByIdLoader = new PrimaryKeyLoader({
@@ -32,13 +32,6 @@ const dataFoldersBySiteIdLoader = new OneToManyLoader({
   },
   extractKey: (d: DataFolder) => d.siteId!,
   keysFromFilter: (filter: DataFolderFilter | undefined) => filter?.siteIds ?? [],
-  idLoader: dataFoldersByIdLoader
-})
-
-const globalDataFoldersByTemplateIds = new OneToManyLoader({
-  fetch: async (templateIds: string[], filter?: DataFolderFilter) => await getDataFolders({ ...filter, templateIds, global: true }),
-  extractKey: f => f.templateId,
-  keysFromFilter: (filter?: DataFolderFilter) => filter?.templateIds ?? [],
   idLoader: dataFoldersByIdLoader
 })
 
@@ -78,8 +71,9 @@ export class DataFolderServiceInternal extends BaseService {
   }
 
   async findByDataRoot (dataroot: DataRoot, filter?: DataFolderFilter) {
-    if (dataroot.site) return await this.findBySiteId(dataroot.site.id, { ...filter, templateIds: [dataroot.template.id] })
-    else return await this.loaders.get(globalDataFoldersByTemplateIds, filter).load(dataroot.template.id)
+    return dataroot.site
+      ? await this.findBySiteId(dataroot.site.id, { ...filter, templateIds: [dataroot.template.id] })
+      : await this.findByTemplateKey(dataroot.template.key, { ...filter, global: true })
   }
 
   async getPath (folder: DataFolder) {
@@ -152,7 +146,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
       const dataroots = await this.svc(DataRootService).findBySite(site, { templateKeys: [template.key] })
       if (!(await this.haveDataRootPerm(dataroots[0], 'create'))) throw new Error(`Current user is not permitted to create datafolders in ${site.name}.`)
     } else {
-      if (!(await this.haveGlobalPerm('manageGlobalData'))) throw new Error('Current user is not permitted to create global data folders.')
+      if (!(await this.mayCreateGlobal(template.id))) throw new Error('Current user is not permitted to create global data folders.')
     }
     const response = new DataFolderResponse({ success: true })
     if (!(await folderNameUniqueInDataRoot(args.name as string, template.id, args.siteId))) {
@@ -185,6 +179,11 @@ export class DataFolderService extends DosGatoService<DataFolder> {
     if (await someAsync(dataFolders, async (d: DataFolder) => !(await this.mayMove(d)))) {
       throw new Error('Current user is not permitted to move one or more data folders')
     }
+    const templateKeys = dataFolders.map(d => d.templateKey)
+    if (new Set(templateKeys).size > 1) {
+      throw new Error('Data entries being moved must all have the same template.')
+    }
+    const template = (await this.svc(TemplateService).findByKey(templateKeys[0]))!
     if (siteId) {
       const site = await this.svc(SiteServiceInternal).findById(siteId)
       if (!site) throw new Error('Data folders cannot be moved to a site that does not exist.')
@@ -194,7 +193,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
         throw new Error('Current user is not permitted to move folders to this site.')
       }
     } else {
-      if (!(await this.haveGlobalPerm('manageGlobalData'))) throw new Error('Current user is not permitted to add global data folders')
+      if (!(await this.mayCreateGlobal(template.id))) throw new Error('Current user is not permitted to add global data folders')
     }
     try {
       await moveDataFolders(dataFolders.map((f: DataFolder) => f.id), siteId)
@@ -246,19 +245,14 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   }
 
   async mayView (folder: DataFolder) {
-    if (!folder.siteId) return await this.haveGlobalPerm('manageGlobalData')
-    if (folder.orphaned) {
-      const siteRules = (await this.currentSiteRules()).filter(r => SiteRuleService.applies(r, folder.siteId!))
-      return siteRules.some(r => r.grants.delete)
-    }
     const dataRules = await this.currentDataRules()
     const dataPathWithoutSite = `/${folder.name as string}`
     for (const r of dataRules) {
       if (!r.grants.view) continue
-      if (!DataRuleService.appliesToSiteAndTemplate(r, folder)) continue
       if (folder.deleteState === DeleteState.DELETED && !r.grants.undelete) continue
       if (folder.deleteState === DeleteState.MARKEDFORDELETE && !r.grants.delete) continue
-      if (DataRuleService.appliesToPath(r, dataPathWithoutSite)) return true
+      if (!DataRuleService.applies(r, folder, dataPathWithoutSite)) continue
+      return true
     }
     return false
   }
@@ -286,5 +280,9 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   async mayUndelete (folder: DataFolder) {
     if (folder.deleteState === DeleteState.NOTDELETED || folder.orphaned) return false
     return folder.deleteState === DeleteState.MARKEDFORDELETE ? await this.haveDataFolderPerm(folder, 'delete') : await this.haveDataFolderPerm(folder, 'undelete')
+  }
+
+  async mayCreateGlobal (templateId: string) {
+    return (await this.currentDataRules()).some(r => DataRuleService.appliesRaw(r, templateId, '/'))
   }
 }

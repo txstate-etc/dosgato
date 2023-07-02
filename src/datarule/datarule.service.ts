@@ -169,6 +169,13 @@ export class DataRuleService extends DosGatoService<DataRule> {
     return this.appliesToSiteAndTemplate(rule, itemOrFolder) && this.appliesToPath(rule, pathWithoutSite)
   }
 
+  static appliesRaw (r: DataRule, templateId: string, pathWithoutSite: string, siteId?: string) {
+    if (siteId && r.global) return false
+    if (r.siteId && r.siteId !== siteId) return false
+    if (r.templateId && r.templateId !== templateId) return false
+    return this.appliesToPath(r, pathWithoutSite)
+  }
+
   static appliesToSiteAndTemplate (r: DataRule, item: Data | DataFolder) {
     if (item.siteId && r.global) return false
     if (r.siteId && r.siteId !== item.siteId) return false

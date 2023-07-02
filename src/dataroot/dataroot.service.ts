@@ -1,4 +1,4 @@
-import { intersect, isNotNull, keyby } from 'txstate-utils'
+import { filterAsync, intersect, isNotNull, keyby } from 'txstate-utils'
 import { type DataFolder, DataRoot, type DataRootFilter, DosGatoService, type Site, SiteServiceInternal, type Template, TemplateService, TemplateType } from '../internal.js'
 
 export class DataRootService extends DosGatoService<DataRoot> {
@@ -39,7 +39,7 @@ export class DataRootService extends DosGatoService<DataRoot> {
     pairs = intersect({ skipEmpty: true }, pairs, idPairs)
     const filledPairs = pairs.map(p => ({ site: sitesById[p.siteId ?? ''], template: this.templatesById!.get(p.templateId) }))
     const dataRoots = filledPairs.filter(p => p.template).map(p => new DataRoot(p.site, p.template!))
-    return await this.removeUnauthorized(dataRoots)
+    return filter.viewForEdit ? await filterAsync(dataRoots, async dr => await this.mayViewForEdit(dr)) : await this.removeUnauthorized(dataRoots)
   }
 
   async findBySite (site: Site, filter?: DataRootFilter) {

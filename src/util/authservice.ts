@@ -166,13 +166,6 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async haveDataPerm (item: Data, grant: keyof DataRuleGrants) {
-    // if siteId is null it's global data and governed by GlobalRules.manageGlobalData instead
-    // of DataRules
-    if (!item.siteId) {
-      if (grant === 'viewlatest' && this.login === 'render') return true
-      return await this.haveGlobalPerm('manageGlobalData')
-    }
-
     const [rules, dataPath] = await Promise.all([
       this.currentDataRules(),
       this.svc(DataServiceInternal).getPath(item)
@@ -185,8 +178,6 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async haveDataFolderPerm (folder: DataFolder, grant: keyof DataRuleGrants) {
-    if (!folder.siteId) return await this.haveGlobalPerm('manageGlobalData')
-
     const [rules, folderPath] = await Promise.all([
       this.currentDataRules(),
       this.svc(DataFolderServiceInternal).getPath(folder)
@@ -199,12 +190,12 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected async haveDataRootPerm (dataroot: DataRoot, grant: keyof DataRuleGrants) {
-    if (!dataroot.site) return await this.haveGlobalPerm('manageGlobalData')
     const rules = await this.currentDataRules()
     return rules.some(r => {
       if (r.path !== '/') return false
       if (!r.grants[grant]) return false
-      if (r.siteId && (r.siteId !== dataroot.site!.id)) return false
+      if (r.global && dataroot.site) return false
+      if (r.siteId && (r.siteId !== dataroot.site?.id)) return false
       if (r.templateId && (r.templateId !== dataroot.template.id)) return false
       return true
     })

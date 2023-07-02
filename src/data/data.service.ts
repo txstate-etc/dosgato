@@ -1,14 +1,14 @@
 /* eslint-disable no-trailing-spaces */
 import { BaseService, ValidatedResponse, type MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique, isNotNull, someAsync, intersect, isNull, keyby, filterAsync, isBlank } from 'txstate-utils'
+import { isNotNull, someAsync, intersect, isNull, keyby, filterAsync, isBlank } from 'txstate-utils'
 import {
   type Data, type DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, type CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, type UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, type MoveDataTarget, moveDataEntries,
   type DataFolder, type Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions,
-  DeleteState, popPath, DeleteStateAll, SiteRuleService, DataRuleService, shiftPath, systemContext, makeSafe, numerateLoop
+  DeleteState, popPath, DeleteStateAll, DataRuleService, shiftPath, systemContext, makeSafe, numerateLoop
 } from '../internal.js'
 import db from 'mysql2-async/db'
 
@@ -237,7 +237,7 @@ export class DataService extends DosGatoService<Data> {
       ]
     } else {
       // global data
-      if (!(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to create global data entries.')
+      if (!(await this.mayCreateGlobal(template.id))) throw new Error('Current user is not permitted to create global data entries.')
       dataroot = new DataRoot(undefined, template)
       siblings = [
         ...(await this.raw.findByDataRoot(dataroot, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId) && isNull(d.siteId)),
@@ -295,34 +295,44 @@ export class DataService extends DosGatoService<Data> {
     if (await someAsync(data, async (d: Data) => !(await this.mayMove(d)))) {
       throw new Error('You are not permitted to move one or more data entries.')
     }
-    const templateKeys = await Promise.all(data.map(async d => await this.raw.getTemplateKey(d)))
-    if (unique(templateKeys).length > 1) {
+
+    const templateKeys = data.map(d => d.templateKey)
+    if (new Set(templateKeys).size > 1) {
       throw new Error('Data entries being moved must all have the same template.')
     }
-    const template = await this.svc(TemplateService).findByKey(templateKeys[0])
+    const template = (await this.svc(TemplateService).findByKey(templateKeys[0]))!
+
     let folder: DataFolder | undefined
-    if (target.folderId) {
-      folder = await this.svc(DataFolderServiceInternal).findById(target.folderId)
-      if (!folder) throw new Error('Data cannot be moved to a data folder that does not exist.')
-      if (!(await this.svc(DataFolderService).mayCreate(folder))) throw new Error(`You are not permitted to move data to folder ${String(folder.name)}.`)
-      if (folder.templateId !== template!.id) throw new Error('Data can only be moved to a folder using the same template.')
-    }
     let site: Site | undefined
-    if (target.siteId) {
-      site = await this.svc(SiteServiceInternal).findById(target.siteId)
-      if (!site) throw new Error('Data cannot be moved to a site that does not exist.')
-      const dataroot = new DataRoot(site, template!)
-      if (!(await this.svc(DataRootService).mayCreate(dataroot))) {
-        throw new Error(`Current user is not permitted to move data to this site ${String(site.name)}.`)
-      }
-    }
     let aboveTarget: Data | undefined
     if (target.aboveTarget) {
       aboveTarget = await this.raw.findById(target.aboveTarget)
       if (!aboveTarget) throw new Error('Data entry cannot be moved above a data entry that does not exist.')
+      if (aboveTarget.folderInternalId) {
+        folder = await this.svc(DataFolderServiceInternal).findByInternalId(aboveTarget.folderInternalId)
+      } else if (aboveTarget.siteId) {
+        site = await this.svc(SiteServiceInternal).findById(aboveTarget.siteId)
+      }
+    } else if (target.folderId) {
+      folder = await this.svc(DataFolderServiceInternal).findById(target.folderId)
+      if (!folder) throw new Error('Data cannot be moved to a data folder that does not exist.')
+    } else if (target.siteId) {
+      site = await this.svc(SiteServiceInternal).findById(target.siteId)
+      if (!site) throw new Error('Data cannot be moved to a site that does not exist.')
+    }
+
+    if (folder) {
+      if (!(await this.svc(DataFolderService).mayCreate(folder))) throw new Error(`You are not permitted to move data to folder ${String(folder.name)}.`)
+      if (folder.templateId !== template.id) throw new Error('Data can only be moved to a folder using the same template.')
+    }
+    if (site) {
+      const dataroot = new DataRoot(site, template)
+      if (!(await this.svc(DataRootService).mayCreate(dataroot))) {
+        throw new Error(`Current user is not permitted to move data to this site ${String(site.name)}.`)
+      }
     }
     // if none of these are provided, they are moving the data to global data
-    if (!target.folderId && !target.siteId && !target.aboveTarget && !(await this.mayCreateGlobal())) throw new Error('Current user is not permitted to update global data entries.')
+    if (!folder && !site && !(await this.mayCreateGlobal(template.id))) throw new Error('Current user is not permitted to update global data entries.')
 
     const versionedService = this.svc(VersionedService)
     await moveDataEntries(versionedService, data.map(d => d.dataId), templateKeys[0], target)
@@ -405,10 +415,6 @@ export class DataService extends DosGatoService<Data> {
   }
 
   async mayView (data: Data) {
-    if (data.orphaned) {
-      const siteRules = (await this.currentSiteRules()).filter(r => SiteRuleService.applies(r, data.siteId!))
-      return siteRules.some(r => r.grants.delete)
-    }
     const [dataRules, dataPath, isPublished] = await Promise.all([
       this.currentDataRules(),
       this.raw.getPath(data),
@@ -435,7 +441,7 @@ export class DataService extends DosGatoService<Data> {
   }
 
   async mayViewManagerUI () {
-    return await this.haveGlobalPerm('manageGlobalData') || (await this.currentDataRules()).some(r => r.grants.viewForEdit)
+    return (await this.currentDataRules()).some(r => r.grants.viewForEdit)
   }
 
   async mayViewForEdit (data: Data) {
@@ -468,7 +474,7 @@ export class DataService extends DosGatoService<Data> {
     return data.deleteState === DeleteState.MARKEDFORDELETE ? await this.haveDataPerm(data, 'delete') : await this.haveDataPerm(data, 'undelete')
   }
 
-  async mayCreateGlobal () {
-    return await this.haveGlobalPerm('manageGlobalData')
+  async mayCreateGlobal (templateId: string) {
+    return (await this.currentDataRules()).some(r => DataRuleService.appliesRaw(r, templateId, '/'))
   }
 }

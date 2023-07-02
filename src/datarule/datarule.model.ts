@@ -57,7 +57,7 @@ export class DataRuleGrants extends DataRuleGrantsBase {
     if (row) {
       this.view = true
       this.viewlatest = this.update || this.publish || !!row.viewlatest
-      this.viewForEdit = this.create || this.update || this.move || this.delete || this.undelete || this.publish || this.unpublish
+      this.viewForEdit = true
     }
   }
 }
