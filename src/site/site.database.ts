@@ -313,17 +313,16 @@ function fixLinks (obj: any, context: DuplicateContext) {
 
 async function duplicateChildren (page: Page, into: Page, versionedService: VersionedService, path: string, context: DuplicateContext) {
   const children = await getPages({ internalIdPaths: ['/' + [...page.pathSplit, page.internalId].join('/')], deleteStates: [DeleteStateInput.NOTDELETED] })
-  const pagePath = path + '/' + page.name
   for (const child of children) {
-    const versioned = await versionedService.get(page.intDataId)
+    const childPath = path + '/' + child.name
+    const versioned = await versionedService.get(child.intDataId)
     const extras: PageExtras = {
       query: context.ctx.query,
-      pagePath,
-      name: page.name,
-      linkId: page.linkId,
-      pageId: page.id,
-      pagetreeId: page.pagetreeId,
-      siteId: page.siteId
+      pagePath: childPath,
+      name: child.name,
+      linkId: child.linkId,
+      pagetreeId: child.pagetreeId,
+      siteId: child.siteId
     }
     const migrated = await migratePage(versioned!.data, extras)
     const data = fixLinks(migrated, context)
@@ -335,7 +334,7 @@ async function duplicateChildren (page: Page, into: Page, versionedService: Vers
     await db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?) ON DUPLICATE KEY UPDATE siteId=siteId', [context.newSiteId, templateInternalId])
     const newPageId = await createPage(versionedService, context.userId, into, undefined, child.name, data, { linkId: child.linkId })
     const newPage = (await getPages({ internalIds: [newPageId] }))[0]!
-    await duplicateChildren(child, newPage, versionedService, pagePath, context)
+    await duplicateChildren(child, newPage, versionedService, childPath, context)
   }
 }
 
@@ -391,7 +390,7 @@ export async function duplicateSite (siteId: string, newName: string, versionedS
     return [String(newSiteId), newPageId, newFolderId]
   })
   const intoPage = (await getPages({ internalIds: [newPageId] }))[0]!
-  await duplicateChildren(rootPage, intoPage, versionedService, '/', context!)
+  await duplicateChildren(rootPage, intoPage, versionedService, '/' + rootPage.name, context!)
   const intoFolder = (await getAssetFolders({ internalIds: [newFolderId] }))[0]!
   await duplicateAssets(rootFolder, intoFolder, versionedService, context!)
   return newSiteId
