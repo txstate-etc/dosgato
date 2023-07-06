@@ -607,7 +607,8 @@ export async function deleteAsset (id: number, userInternalId: number) {
 }
 
 export async function finalizeAssetDeletion (id: number, userInternalId: number) {
-  return await db.update('UPDATE assets SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [userInternalId, DeleteState.DELETED, id])
+  const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
+  return await db.update(`UPDATE assets SET deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id = ?`, [userInternalId, DeleteState.DELETED, id])
 }
 
 export async function undeleteAsset (id: number) {
