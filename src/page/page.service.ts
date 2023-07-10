@@ -179,7 +179,8 @@ export class PageServiceInternal extends BaseService {
       const pagetreeSvc = this.svc(PagetreeServiceInternal)
       const siteSvc = this.svc(SiteServiceInternal)
       const pages = await Promise.all(filter.links.map(async l => {
-        const lookups: Promise<(Page | undefined)[]>[] = []
+        const linkPathSplit = l.path.split('/').filter(isNotBlank)
+        const lookups: (Promise<(Page | undefined)[]> | undefined)[] = []
         const [contextPagetree, targetSite] = await Promise.all([
           l.context ? pagetreeSvc.findById(l.context.pagetreeId) : undefined,
           siteSvc.findById(l.siteId)
@@ -191,7 +192,7 @@ export class PageServiceInternal extends BaseService {
           // we WANT the user to see a broken link in their sandbox because it will break when they go live
           lookups.push(
             this.loaders.get(pagesByLinkIdLoader, { pagetreeIds: [contextPagetree.id] }).load(l.linkId),
-            this.loaders.get(pagesByPathLoader, { pagetreeIds: [contextPagetree.id] }).load(l.path.replace(/^\/[^/]+/, `/${contextPagetree.name}`))
+            contextPagetree.siteId === l.siteId || contextPagetree.name.startsWith(linkPathSplit[0]) ? this.loaders.get(pagesByPathLoader, { pagetreeIds: [contextPagetree.id] }).load(l.path.replace(/^\/([^/]+)/, `/${contextPagetree.name}`)) : undefined
           )
         }
         if (contextPagetree?.siteId !== l.siteId) {
@@ -202,7 +203,7 @@ export class PageServiceInternal extends BaseService {
           // ignoring the link's siteId leads to madness because we could have multiple sites that all have
           // pages with the same linkId, and now I have to try to pick: do I prefer launched sites? published
           // pages? etc
-          const resolvedTargetSite = targetSite ?? await siteSvc.findByName(l.path.split('/')[1])
+          const resolvedTargetSite = targetSite ?? await siteSvc.findByName(linkPathSplit[0])
           if (!resolvedTargetSite || resolvedTargetSite.deleted) return undefined
           const lookuppath = l.path.replace(/^\/[^/]+/, `/${resolvedTargetSite?.name}`)
           lookups.push(
@@ -211,7 +212,7 @@ export class PageServiceInternal extends BaseService {
           )
         }
         const pages = await Promise.all(lookups)
-        return sortby(pages.flat().filter(isNotNull), p => p.siteId === contextPagetree?.siteId, true, 'published', true)[0]
+        return sortby(pages.flat().filter(isNotNull), p => p.siteId === l.siteId, true, 'published', true, p => p.linkId === l.linkId, true)[0]
       }))
       const found = pages.filter(isNotNull)
       if (!found.length) filter.noresults = true
