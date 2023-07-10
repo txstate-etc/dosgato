@@ -1,4 +1,4 @@
-import { type PageData } from '@dosgato/templating'
+import { type PageData, makeSafe } from '@dosgato/templating'
 import { Context } from '@txstate-mws/graphql-server'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { HttpError } from 'fastify-txstate'
@@ -6,7 +6,7 @@ import db from 'mysql2-async/db'
 import { groupby, isNotBlank, pick } from 'txstate-utils'
 import {
   createPage, type CreatePageInput, createPagetree, createSite, DeleteState, getEnabledUser,
-  getPageIndexes, GlobalRuleService, logMutation, makeSafe, numerate, Page, type PageRule,
+  getPageIndexes, GlobalRuleService, logMutation, numerate, Page, type PageRule,
   PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, type PagetreeType,
   SiteService, SiteServiceInternal, templateRegistry, VersionedService,
   createPageInTransaction, getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput, migratePage, systemContext

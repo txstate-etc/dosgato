@@ -1,11 +1,7 @@
+import { makePathSafe } from '@dosgato/templating'
 import { GraphQLScalarType, Kind } from 'graphql'
-import { makeSafe } from '../internal.js'
 
 export class UrlSafePath extends String {}
-
-export function makePathSafe (path: string) {
-  return path.split('/').map(makeSafe).join('/')
-}
 
 export const UrlSafePathScalar = new GraphQLScalarType({
   name: 'UrlSafePath',

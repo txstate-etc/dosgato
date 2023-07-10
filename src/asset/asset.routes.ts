@@ -1,3 +1,4 @@
+import { makeSafeFilename } from '@dosgato/templating'
 import multipart from '@fastify/multipart'
 import { Context } from '@txstate-mws/graphql-server'
 import archiver from 'archiver'
@@ -17,7 +18,7 @@ import { WASMagic } from 'wasmagic'
 import {
   type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
   AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler, getEnabledUser, GlobalRuleService, logMutation,
-  makeSafeFilename, PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService, parsePath, deleteAsset
+  PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService, parsePath, deleteAsset
 } from '../internal.js'
 
 interface RootAssetFolder {
