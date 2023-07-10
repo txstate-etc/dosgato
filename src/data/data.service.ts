@@ -1,5 +1,4 @@
 /* eslint-disable no-trailing-spaces */
-import { makeSafe } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, type MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { isNotNull, someAsync, intersect, isNull, keyby, filterAsync, isBlank } from 'txstate-utils'
@@ -9,7 +8,7 @@ import {
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, type UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, type MoveDataTarget, moveDataEntries,
   type DataFolder, type Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions,
-  DeleteState, popPath, DeleteStateAll, DataRuleService, shiftPath, systemContext, numerateLoop
+  DeleteState, popPath, DeleteStateAll, DataRuleService, shiftPath, systemContext, makeSafe, numerateLoop
 } from '../internal.js'
 import db from 'mysql2-async/db'
 

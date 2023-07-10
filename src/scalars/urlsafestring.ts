@@ -1,5 +1,8 @@
-import { makeSafe } from '@dosgato/templating'
 import { GraphQLScalarType, Kind } from 'graphql'
+
+export function makeSafe (str: string) {
+  return str.normalize('NFKD').toLocaleLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-/, '').replace(/-$/, '')
+}
 
 export class UrlSafeString extends String {}
 
