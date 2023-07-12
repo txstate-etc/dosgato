@@ -101,11 +101,12 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
     const response = new ValidatedResponse()
     if (rules.some((r: AssetRule) => {
       if (r.siteId !== args.siteId) return false
+      if (r.pagetreeType !== args.pagetreeType) return false
       if (!args.path) {
         return r.path === '/'
       } else return r.path === args.path
     })) {
-      response.addMessage('The proposed rule has the same site and path as an existing rule for this role.', undefined, MutationMessageType.error)
+      response.addMessage('The proposed rule has the same site, pagetree type, and path as an existing rule for this role.', undefined, MutationMessageType.error)
     }
     if (await this.tooPowerful(newRule)) {
       response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.', undefined, MutationMessageType.error)
