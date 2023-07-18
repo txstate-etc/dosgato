@@ -430,7 +430,7 @@ export async function replaceAsset (versionedService: VersionedService, userId: 
     await db.insert(`
     INSERT INTO binaries (shasum, mime, meta, bytes)
     VALUES(?, ?, ?, ?) ON DUPLICATE KEY UPDATE mime=VALUES(mime)`, [args.checksum, args.mime, stringify(pick(args, 'width', 'height')), args.size])
-    const newData = { ...data.data, shasum: args.checksum, uploadedFilename: args.filename, meta: args.meta }
+    const newData = { ...data.data, shasum: args.checksum, uploadedFilename: args.filename }
     await versionedService.update(Number(args.assetId), newData, getIndexes(newData), { user: userId }, db)
     const modifiedBy = data.data.legacyId ? (args.modifiedBy ?? userId) : userId
     const modifiedAt = data.data.legacyId ? (args.modifiedAt ?? undefined) : undefined
