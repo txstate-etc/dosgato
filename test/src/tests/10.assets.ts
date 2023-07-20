@@ -146,14 +146,14 @@ describe('assets', () => {
     }
   })
   it('should retrieve assets by bytes (greater than)', async () => {
-    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsBySize ($size: Int!) { assets(filter: { bytes: $size }) { id name extension filename size checksum site { id name }}}', { size: 1265 })
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsBySize ($size: LargeInt!) { assets(filter: { bytes: $size }) { id name extension filename size checksum site { id name }}}', { size: 1265 })
     // { "id": "FNliuvzd-U", "filename": "bobcat.jpg", "size": 3793056, "site": { "id": "7", "name": "site1"}}
     expect(assets.length).to.be.greaterThan(0)
     const site1Filenames = assets.filter(a => a.site.name === 'site1').map(a => a.filename)
     expect(site1Filenames).to.contain('BobCAT.jpg')
   })
   it('should retrieve assets by bytes (less than)', async () => {
-    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsBySize ($size: Int!) { assets(filter: { bytes: $size }) { id name extension filename size checksum site { id name }}}', { size: -1265 })
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsBySize ($size: LargeInt!) { assets(filter: { bytes: $size }) { id name extension filename size checksum site { id name }}}', { size: -1265 })
     // { "id": "3fg2JqZ2Kv", "filename": "blankpdf.pdf", "size": 1264, "site": { "id": "7", "name": "site1"}},
     // { "id": "zgc7eUI06H", "filename": "blankpdf.pdf", "size": 1264, "site": { "id": "2", "name": "site8"}}
     expect(assets.length).to.be.greaterThan(1)

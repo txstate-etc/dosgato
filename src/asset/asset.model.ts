@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 import { extension } from 'mime-types'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
-import { DeleteState, DeleteStateInput, FilenameSafePath, FilenameSafeString, JsonData, LinkInputContext, PagetreeType, UrlSafePath } from '../internal.js'
+import { DeleteState, DeleteStateInput, FilenameSafePath, FilenameSafeString, JsonData, LargeInt, LinkInputContext, PagetreeType, UrlSafePath } from '../internal.js'
 
 const resizeMimeToExt: Record<string, string> = {
   'image/jpg': 'jpg',
@@ -48,7 +48,7 @@ export class Asset {
   @Field({ description: 'Filename that will be used when downloading the asset. Includes the extension.' })
   filename: string
 
-  @Field(type => Int, { description: 'Filesize in bytes.' })
+  @Field(type => LargeInt, { description: 'Filesize in bytes.' })
   size: number
 
   @Field({ description: 'The mime type for this asset, e.g. "text/plain".' })
@@ -164,7 +164,7 @@ export class AssetFilter {
   @Field(type => [UrlSafePath], { nullable: true, description: 'Return assets that are direct children of any of the given paths.' })
   parentPaths?: string[]
 
-  @Field(type => Int, { nullable: true, description: 'Return assets with filesize greater than the given size, in bytes. Use a negative number for less than.' })
+  @Field(type => LargeInt, { nullable: true, description: 'Return assets with filesize greater than the given size, in bytes. Use a negative number for less than.' })
   bytes?: number
 
   @Field({ nullable: true, description: 'true -> return assets referenced by any page, false -> return assets not referenced by any page, null -> return all assets' })
