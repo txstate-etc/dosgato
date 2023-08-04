@@ -429,6 +429,18 @@ describe('pages mutations', () => {
       expect(p.published).to.be.false
     }
   })
+  it('should unpublish a page with a subpage marked for deletion', async () => {
+    const { page: testpageA } = await createPage('testpage11d', testSite6PageRootId, 'keyp3')
+    const { page: testpageB } = await createPage('testpage11e', testpageA.id, 'keyp3')
+    await query('mutation PublishPages ($pageIds: [ID!]!) {publishPages (pageIds: $pageIds) { success } }', { pageIds: [testpageA.id], includeChildren: true })
+    await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpageB.id] })
+    const { unpublishPages: { success } } = await query('mutation UnpublishPages ($pageIds: [ID!]!) { unpublishPages (pageIds: $pageIds) { success } }', { pageIds: [testpageA.id] })
+    expect(success).to.be.true
+    const { pages } = await query(`{ pages(filter: { ids: ["${testpageA.id}", "${testpageB.id}"] }) { id name published }}`)
+    for (const p of pages) {
+      expect(p.published).to.be.false
+    }
+  })
   it('should not allow an unauthorized user to unpublish a page', async () => {
     const { page: testpage } = await createPage('testpage12a', testSite6PageRootId, 'keyp3')
     await query('mutation PublishPages ($pageIds: [ID!]!) {publishPages (pageIds: $pageIds) { success } }', { pageIds: [testpage.id] })
