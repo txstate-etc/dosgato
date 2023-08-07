@@ -41,13 +41,42 @@ export interface AssetMeta <DataType = any> {
   getFulltext: FulltextGatheringFn<DataType>
 }
 
+export interface DGUser {
+  login: string
+  firstname: string
+  lastname: string
+  email: string
+  enabled?: boolean
+  groups?: string[]
+}
+
 export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
   templates: APIAnyTemplate[]
   fixtures?: () => Promise<void>
   migrations?: DBMigration[]
   resolvers?: any[]
   assetMeta?: AssetMeta
-  userLookup?: (userIds: string[]) => Promise<{ firstname: string, lastname: string, email: string, enabled?: boolean, groups?: string[] }[]>
+  /**
+   * Provide a function that can look up users in your IdM.
+   *
+   * Return object should be a map of input strings and results. For instance, if we are batching two
+   * searches the input might be ['john.smith', 'jane.williams'] and the return should be
+   * { 'john.smith': { ... John's details ... }, 'jane.williams': { ... Jane's details ... } }
+   *
+   * It's the responsibility of the implementation to do the work as efficiently as it can.
+   */
+  userLookup?: (logins: string[]) => Promise<Record<string, DGUser>>
+  /**
+   * Provide a function that can search for users
+   *
+   * This will be connected to the admin UI so that you can search your IdM for users when creating
+   * a Dos Gato user. Login, name and email will be fetched automatically instead of making the administrator
+   * type it all out.
+   *
+   * If this function is provided, userLookup will be used instead (meaning only full logins will show results).
+   * If neither is provided, the feature will be disabled.
+   */
+  userSearch?: (search: string) => Promise<DGUser[]>
 }
 
 export class DGServer {
@@ -85,6 +114,12 @@ export class DGServer {
     await createAssetRoutes(this.app)
     await createPageRoutes(this.app)
     await createCommentRoutes(this.app)
+    this.app.get<{ Querystring: { q: string } }>('/usersearch', async (req, res) => {
+      if ((!opts.userLookup && !opts.userSearch) || isBlank(req.query.q)) return []
+      return (opts.userSearch
+        ? await opts.userSearch(req.query.q)
+        : await opts.userLookup!([req.query.q])) ?? []
+    })
     if (process.env.DOSGATO_TRAINING_SITES) {
       function trainingSiteName (userId: string, trainingSite: string) {
         return userId + '-' + trainingSite
@@ -95,7 +130,7 @@ export class DGServer {
         try {
           let user = await ctx.svc(UserServiceInternal).findById(userId)
           if (!user) {
-            const details = opts.userLookup ? (await opts.userLookup([userId]))[0] : { firstname: 'Training', lastname: 'User', email: '', enabled: true }
+            const details = (opts.userLookup ? (await opts.userLookup([userId]))[userId] : undefined) ?? { firstname: 'Training', lastname: 'User', email: '', enabled: true }
             if (details.enabled !== false) {
               const internalId = await createUser(userId, details.firstname, details.lastname, details.email, true, false)
               user = await ctx.svc(UserServiceInternal).findByInternalId(internalId)
