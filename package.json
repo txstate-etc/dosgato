@@ -1,6 +1,6 @@
 {
   "name": "@dosgato/api",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "A CMS designed for large institutions with thousands of editors and hundreds of subsites.",
   "type": "module",
   "exports": {
@@ -29,8 +29,8 @@
     "@types/mime-types": "^2.1.1",
     "@types/node": "^18.7.14",
     "@types/probe-image-size": "^7.2.0",
-    "eslint-config-standard-with-typescript": "^34.0.0",
-    "nodemon": "^2.0.12",
+    "eslint-config-standard-with-typescript": "^37.0.0",
+    "nodemon": "^3.0.1",
     "ts-node": "^10.1.0",
     "typescript": "^5.0.2"
   },
@@ -39,7 +39,7 @@
     "test": "./test.sh",
     "build": "rm -rf dist && tsc",
     "buildrun": "cd testserver; tsc",
-    "lint": "eslint --ignore-path .gitignore .",
+    "lint": "eslint --ignore-path .gitignore",
     "start:dev": "nodemon",
     "start": "node --no-warnings --enable-source-maps ./dist/testserver/run.js"
   },
