@@ -65,7 +65,7 @@ export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
    *
    * It's the responsibility of the implementation to do the work as efficiently as it can.
    */
-  userLookup?: (logins: string[]) => Promise<Record<string, DGUser>>
+  userLookup?: (logins: string[]) => Promise<Record<string, DGUser | undefined>>
   /**
    * Provide a function that can search for users
    *
