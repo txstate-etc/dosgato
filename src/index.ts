@@ -1,4 +1,4 @@
-import { type APIAnyTemplate, type FulltextGatheringFn, type LinkGatheringFn, type Migration, type ValidationFeedback } from '@dosgato/templating'
+import type { APIAnyTemplate, FulltextGatheringFn, LinkGatheringFn, Migration, ValidationFeedback, PageData } from '@dosgato/templating'
 import { Context, GQLServer, type GQLStartOpts, gqlDevLogger } from '@txstate-mws/graphql-server'
 import { type FastifyInstance } from 'fastify'
 import { type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
@@ -23,7 +23,7 @@ import {
   AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler,
   FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes,
   SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
-  duplicateSite, createUser, systemContext, UserService
+  duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -77,6 +77,21 @@ export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
    * If neither is provided, the feature will be disabled.
    */
   userSearch?: (search: string) => Promise<DGUser[]>
+  /**
+   * Provide a function to protect certain pages from being deleted, unpublished, moved, renamed, or having their template
+   * changed. Editing and publishing are unaffected, and creating/copying/importing is possible
+   * unless the path already exists.
+   *
+   * This is useful if you want to ensure that sites maintain mandatory pages like /404 or /sitemap, but you
+   * want editors to have freedom to customize those pages.
+   *
+   * Return true if the given operation should be blocked. 'into' means that a page is being created
+   * or moved underneath the page.
+   *
+   * Blocking an operation will mean that even a system administrator will be unable to complete the operation, so be
+   * sure to inspect the `roles` array if you want to allow operations for superuser or other roles (by name).
+   */
+  protectPage?: (page: { id: string, name: string, path: string, templateKey: string, pagetreeType: PagetreeType, roles: Role[] }, operation: 'move' | 'delete' | 'rename' | 'changetemplate' | 'unpublish' | 'into') => boolean
 }
 
 export class DGServer {
