@@ -84,8 +84,8 @@ export class SiteResolver {
 
   @FieldResolver(returns => Organization, { nullable: true })
   async organization (@Ctx() ctx: Context, @Root() site: Site) {
-    if (!await ctx.svc(SiteService).mayViewForEdit(site)) return undefined
-    return await ctx.svc(OrganizationService).findByInternalId(site.organizationId)
+    if (!site.organizationId || !await ctx.svc(SiteService).mayViewForEdit(site)) return undefined
+    return await ctx.svc(OrganizationService).findById(site.organizationId)
   }
 
   @FieldResolver(returns => [User])

@@ -65,8 +65,8 @@ async function processFilters (filter?: SiteFilter) {
   } else {
     where.push('sites.deletedAt IS NULL')
   }
-  if (filter?.organizationInternalIds) {
-    where.push(`sites.organizationId IN (${db.in(binds, filter.organizationInternalIds)})`)
+  if (filter?.organizationIds) {
+    where.push(`sites.organizationId IN (${db.in(binds, filter.organizationIds)})`)
   }
   if (filter?.ownerInternalIds) {
     where.push(`sites.ownerId IN (${db.in(binds, filter.ownerInternalIds)})`)
@@ -212,7 +212,7 @@ export async function updateSiteManagement (site: Site, args: UpdateSiteManageme
     // Handle organization updates
     let newOrganization: { id: number, name: string } | undefined
     if (args.organizationId) {
-      newOrganization = await db.getrow<{ id: number, name: string }>('SELECT id, name FROM organizations WHERE externalId = ?', [args.organizationId])
+      newOrganization = await db.getrow<{ id: number, name: string }>('SELECT id, name FROM organizations WHERE id = ?', [args.organizationId])
     }
     updates.push('organizationId = ?')
     binds.push(newOrganization?.id ?? null)

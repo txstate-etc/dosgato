@@ -14,11 +14,12 @@ export class Organization {
   @Field()
   name: string
 
-  internalId: number
+  @Field(type => ID, { nullable: true })
+  externalId: string
 
   constructor (row: any) {
-    this.internalId = row.id
-    this.id = row.externalId
+    this.id = String(row.id)
+    this.externalId = row.externalId
     this.name = row.name
   }
 }
@@ -28,7 +29,11 @@ export class OrganizationFilter {
   @Field(type => [ID], { nullable: true })
   ids?: string[]
 
-  internalIds?: number[]
+  @Field(type => [ID], { nullable: true })
+  externalIds?: number[]
+
+  @Field({ nullable: true })
+  search?: string
 }
 
 @ObjectType()

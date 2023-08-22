@@ -35,7 +35,7 @@ export class Site {
   name: string
 
   primaryPagetreeId: string
-  organizationId?: number
+  organizationId?: string
   ownerId?: number
 
   @Field({ nullable: true, description: 'URL outside the editing host that points to this site. Null if the site is not launched.' })
@@ -54,7 +54,7 @@ export class Site {
     this.name = row.name
     if (row.launchHost) this.url = new LaunchURL(row)
     this.primaryPagetreeId = String(row.primaryPagetreeId)
-    this.organizationId = row.organizationId
+    this.organizationId = optionalString(row.organizationId)
     this.ownerId = row.ownerId
     this.deleted = isNotNull(row.deletedAt)
     this.deletedAt = DateTime.fromJSDate(row.deletedAt)
@@ -86,7 +86,7 @@ export class SiteFilter {
 
   managerInternalIds?: number[]
 
-  organizationInternalIds?: number[]
+  organizationIds?: string[]
 }
 
 @InputType()

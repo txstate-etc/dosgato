@@ -28,8 +28,8 @@ const sitesByNameLoader = new PrimaryKeyLoader({
 sitesByIdLoader.addIdLoader(sitesByNameLoader)
 
 const siteByOrganizationIdLoader = new OneToManyLoader({
-  fetch: async (organizationInternalIds: number[], filter?: SiteFilter) => {
-    return await getSites({ ...filter, organizationInternalIds })
+  fetch: async (organizationIds: string[], filter?: SiteFilter) => {
+    return await getSites({ ...filter, organizationIds })
   },
   extractKey: (item: Site) => item.organizationId!,
   idLoader: [sitesByIdLoader, sitesByNameLoader]
@@ -77,7 +77,7 @@ export class SiteServiceInternal extends BaseService {
   }
 
   async findByOrganization (org: Organization, filter?: SiteFilter) {
-    return await this.loaders.get(siteByOrganizationIdLoader, filter).load(org.internalId)
+    return await this.loaders.get(siteByOrganizationIdLoader, filter).load(org.id)
   }
 
   async findByTemplateId (templateId: string, atLeastOneTree?: boolean) {
