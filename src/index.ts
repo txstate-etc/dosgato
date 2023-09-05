@@ -91,7 +91,7 @@ export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
    * Blocking an operation will mean that even a system administrator will be unable to complete the operation, so be
    * sure to inspect the `roles` array if you want to allow operations for superuser or other roles (by name).
    */
-  protectPage?: (page: { id: string, name: string, path: string, templateKey: string, pagetreeType: PagetreeType, roles: Role[] }, operation: 'move' | 'delete' | 'rename' | 'changetemplate' | 'unpublish' | 'into') => boolean
+  restrictPageOperation?: (page: { id: string, name: string, path: string, templateKey: string, pagetreeType: PagetreeType, roles: Role[] }, operation: 'move' | 'delete' | 'rename' | 'changetemplate' | 'unpublish' | 'into') => boolean
 }
 
 export class DGServer {
