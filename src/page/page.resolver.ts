@@ -84,6 +84,7 @@ export class PageResolver {
     @Arg('version', type => Int, { nullable: true, description: 'Return the specified version of the data. Ignored when published arg is true. Default is latest and may fail if user has improper permissions.' }) version?: number,
     @Arg('schemaversion', { nullable: true, description: 'Specify the preferred schema version. The API will perform any necessary migrations on the data prior to return. Default is the latest schemaversion.' }) schemaversion?: DateTime
   ) {
+    if (!paths.length) return {}
     const data = await ctx.svc(PageService).getData(page, version, published, schemaversion)
     return paths.reduce<Record<string, any>>((ret, path) => { ret[path] = get(data, path); return ret }, {})
   }
