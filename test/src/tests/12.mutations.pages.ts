@@ -59,10 +59,12 @@ describe('pages mutations', () => {
   })
   it('should create a page with tags and then retrieve it', async () => {
     await createPage('tagtestpage', testSite6PageRootId, 'keyp1', undefined, { title: 'Test Tags' })
-    const { pages } = await query('{ pages (filter: { tagsAny: ["tagtest"] }) { id } }')
+    const { pages } = await query<{ pages: { id: string, tags: string[] }[] }>('{ pages (filter: { tagsAny: ["tagtest"] }) { id tags } }')
     expect(pages).to.have.lengthOf(1)
-    const { pages: pages2 } = await query('{ pages (filter: { tagsAll: ["tagtest"] }) { id } }')
+    expect(pages[0].tags).to.deep.equal(['tagtest'])
+    const { pages: pages2 } = await query<{ pages: { id: string, tags: string[] }[] }>('{ pages (filter: { tagsAll: ["tagtest"] }) { id tags } }')
     expect(pages2).to.have.lengthOf(1)
+    expect(pages2[0].tags).to.deep.equal(['tagtest'])
   })
   it('should rename a page', async () => {
     const { page: testpage } = await createPage('testpage3', testSite6PageRootId, 'keyp3')

@@ -88,6 +88,11 @@ export class PageResolver {
     return paths.reduce<Record<string, any>>((ret, path) => { ret[path] = get(data, path); return ret }, {})
   }
 
+  @FieldResolver(returns => [String], { description: 'Returns a list of all the tags this page was given by its page template\'s getTags function.' })
+  async tags (@Ctx() ctx: Context, @Root() page: Page) {
+    return await ctx.svc(PageService).getTags(page)
+  }
+
   @FieldResolver(returns => [Template], { description: 'All templates that are approved for use on this page or by the authenticated user.' })
   async templates (@Ctx() ctx: Context, @Root() page: Page, @Arg('filter', { nullable: true }) filter?: TemplateFilter) {
     return await ctx.svc(PageService).getApprovedTemplates(page, filter)

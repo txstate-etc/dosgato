@@ -312,6 +312,10 @@ export class PageService extends DosGatoService<Page> {
     return await this.raw.getPath(page)
   }
 
+  async getTags (page: Page) {
+    return await this.svc(VersionedService).getCurrentIndexValues(page.intDataId, 'dg_tag')
+  }
+
   async getData (page: Page, version?: number, published?: boolean, toSchemaVersion = templateRegistry.currentSchemaVersion) {
     if (!published && !await this.mayViewLatest(page)) throw new Error('User is only permitted to see the published version of this page.')
     return await this.raw.getData(page, version, published, toSchemaVersion)

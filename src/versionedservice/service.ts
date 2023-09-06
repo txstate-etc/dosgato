@@ -88,6 +88,21 @@ const tagsLoader = new OneToManyLoader({
   extractKey: tag => ({ id: tag.id, version: tag.version })
 })
 
+const indexValueLoader = new ManyJoinedLoader({
+  fetch: async (ids: number[], indexname: string) => {
+    const binds: any[] = [indexname]
+    const rows = await db.getall<{ id: number, value: string }>(`
+      SELECT DISTINCT s.id, iv.value
+      FROM storage s
+      INNER JOIN indexes i ON i.id=s.id AND i.version=s.version
+      INNER JOIN indexnames idxn ON idxn.id=i.name_id
+      INNER JOIN indexvalues iv ON iv.id=i.value_id
+      WHERE idxn.name=? AND s.id IN (${db.in(binds, ids)})
+    `, binds)
+    return rows.map(r => ({ key: r.id, value: r.value }))
+  }
+})
+
 const versionsByNumberLoader = new OneToManyLoader({
   fetch: async (keys: { id: number, version: number, current: number }[]) => {
     const binds: (string | number)[] = []
@@ -316,6 +331,10 @@ export class VersionedService extends BaseService {
       indexhash[row.name].values.push(row.value)
     }
     return Object.values(indexhash)
+  }
+
+  async getCurrentIndexValues (id: number, idxName: string) {
+    return await this.loaders.get(indexValueLoader, idxName).load(id)
   }
 
   /**
