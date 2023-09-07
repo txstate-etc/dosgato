@@ -312,8 +312,8 @@ export class PageService extends DosGatoService<Page> {
     return await this.raw.getPath(page)
   }
 
-  async getTags (page: Page) {
-    return await this.svc(VersionedService).getCurrentIndexValues(page.intDataId, 'dg_tag')
+  async getTags (page: Page, published?: boolean) {
+    return await this.svc(VersionedService).getCurrentIndexValues(page.intDataId, 'dg_tag', published)
   }
 
   async getData (page: Page, version?: number, published?: boolean, toSchemaVersion = templateRegistry.currentSchemaVersion) {

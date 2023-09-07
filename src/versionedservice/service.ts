@@ -89,12 +89,19 @@ const tagsLoader = new OneToManyLoader({
 })
 
 const indexValueLoader = new ManyJoinedLoader({
-  fetch: async (ids: number[], indexname: string) => {
-    const binds: any[] = [indexname]
+  fetch: async (ids: number[], filters: { indexName: string, published?: boolean }) => {
+    const binds: any[] = [filters.indexName]
     const rows = await db.getall<{ id: number, value: string }>(`
       SELECT DISTINCT s.id, iv.value
       FROM storage s
-      INNER JOIN indexes i ON i.id=s.id AND i.version=s.version
+      ${filters.published
+      ? `
+        INNER JOIN tags t ON t.id=s.id AND t.name='published'
+        INNER JOIN indexes i ON i.id=s.id AND i.version=t.version
+        `
+      : `
+        INNER JOIN indexes i ON i.id=s.id AND i.version=s.version
+      `}
       INNER JOIN indexnames idxn ON idxn.id=i.name_id
       INNER JOIN indexvalues iv ON iv.id=i.value_id
       WHERE idxn.name=? AND s.id IN (${db.in(binds, ids)})
@@ -333,8 +340,8 @@ export class VersionedService extends BaseService {
     return Object.values(indexhash)
   }
 
-  async getCurrentIndexValues (id: number, idxName: string) {
-    return await this.loaders.get(indexValueLoader, idxName).load(id)
+  async getCurrentIndexValues (id: number, idxName: string, published?: boolean) {
+    return await this.loaders.get(indexValueLoader, { indexName: idxName, published }).load(id)
   }
 
   /**
