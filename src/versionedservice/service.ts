@@ -96,7 +96,7 @@ const indexValueLoader = new ManyJoinedLoader({
       FROM storage s
       ${filters.published
       ? `
-        INNER JOIN tags t ON t.id=s.id AND t.name='published'
+        INNER JOIN tags t ON t.id=s.id AND t.tag='published'
         INNER JOIN indexes i ON i.id=s.id AND i.version=t.version
         `
       : `
