@@ -182,7 +182,7 @@ export class VersionedService extends BaseService {
       versioned = clone(versioned)
       const versionEntries = await this.loaders.get(versionsByNumberLoader).load({ id, version, current: versioned.version })
       for (const entry of versionEntries) {
-        applyPatch(versioned.data, entry.undo)
+        applyPatch(versioned.data, clone(entry.undo))
       }
       const lastEntry = versionEntries[versionEntries.length - 1]
       versioned.modified = lastEntry.date
