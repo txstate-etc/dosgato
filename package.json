@@ -21,7 +21,7 @@
     "probe-image-size": "^7.2.3",
     "txstate-utils": "^1.8.9",
     "type-graphql": "^1.1.1",
-    "wasmagic": "^0.0.28"
+    "wasmagic": "^0.0.29"
   },
   "devDependencies": {
     "@types/archiver": "^5.3.1",

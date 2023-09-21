@@ -65,8 +65,14 @@ export async function placeFile (readStream: Readable, filename: string, mimeGue
       if (curSize >= 1024) {
         const received = Buffer.concat(bufs)
         mime = magic.getMime(received)
-        isDetected = true
+        isDetected = mime !== 'application/x-ole-storage' || curSize > 20971520
       }
+    }
+  })
+  readStream.on('close', () => {
+    if (!isDetected) {
+      const received = Buffer.concat(bufs)
+      mime = magic.getMime(received)
     }
   })
   const metadataPromise = probe(readStream, true)
@@ -78,6 +84,7 @@ export async function placeFile (readStream: Readable, filename: string, mimeGue
   if (mime.startsWith('plain/text') || mime === 'application/octet-stream') mime = mimeGuess
   // lots of old MS office documents identify as openxml in libmagic but the extension is more reliable
   // e.g. xlsm, xltx
+  if (mime.startsWith('application/x-ole-storage') && mimeGuess.startsWith('application/msword')) mime = mimeGuess
   if (mime.startsWith('application/vnd.openxml') && mimeGuess.startsWith('application/vnd.')) mime = mimeGuess
 
   const name = makeSafeFilename(filename)
