@@ -216,7 +216,7 @@ export async function updateSiteManagement (site: Site, args: UpdateSiteManageme
     }
     updates.push('organizationId = ?')
     binds.push(newOrganization?.id ?? null)
-    if (site.organizationId !== newOrganization?.id) {
+    if (site.organizationId !== String(newOrganization?.id)) {
       if (site.organizationId) {
         const formerOrganization = await db.getval<string>('SELECT name FROM organizations WHERE id = ?', [site.organizationId])
         auditComments.push(`Removed organization ${formerOrganization!}.`)
