@@ -413,7 +413,8 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async mayUnpublish (page: Page, parentBeingUnpublished?: boolean) {
-    if (!page.parentInternalId) return false // root page of a site/pagetree cannot be unpublished - the site launch should be disabled instead
+    // root page of a site/pagetree cannot be unpublished if the site is live
+    if (!page.parentInternalId && (await this.isLive(page))) return false
     const [checkPerm, isPublished] = await Promise.all([
       this.checkPerm(page, 'unpublish', !!parentBeingUnpublished),
       this.isPublished(page)
