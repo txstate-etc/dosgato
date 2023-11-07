@@ -59,6 +59,11 @@ export class AssetResolver {
     return versioned!.data
   }
 
+  @FieldResolver(returns => Boolean)
+  async corrupt (@Ctx() ctx: Context, @Root() asset: Asset) {
+    return await ctx.svc(AssetService).getCorrupted(asset)
+  }
+
   @FieldResolver(returns => String, { description: 'The file name of the file when it was uploaded.' })
   async uploadedFilename (@Ctx() ctx: Context, @Root() asset: Asset) {
     const data = await ctx.svc(AssetService).getData(asset)

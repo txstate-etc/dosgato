@@ -7,7 +7,7 @@ import {
   deleteAsset, undeleteAsset, getResizesById, VersionedService, getDownloads, type DownloadsFilter,
   getResizeDownloads, type AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion,
   renameAsset, updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal, DeleteStateAll,
-  getAssetsByPath, PagetreeType, SiteRuleService, DeleteState, AssetRuleService, shiftPath
+  getAssetsByPath, PagetreeType, SiteRuleService, DeleteState, AssetRuleService, shiftPath, fileHandler
 } from '../internal.js'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
@@ -241,6 +241,15 @@ export class AssetService extends DosGatoService<Asset> {
 
   async getData (asset: Asset) {
     return await this.raw.getData(asset) as { legacyId?: string, shasum: string, uploadedFilename: string }
+  }
+
+  async getCorrupted (asset: Asset) {
+    try {
+      const size = await fileHandler.fileSize(asset.checksum)
+      return asset.size !== size
+    } catch {
+      return true
+    }
   }
 
   async getDownloads (asset: Asset, filter?: DownloadsFilter) {

@@ -1,6 +1,6 @@
 import { createHash } from 'crypto'
 import { createReadStream, createWriteStream } from 'fs'
-import { access, constants, mkdir, rename, unlink } from 'fs/promises'
+import { access, constants, mkdir, rename, unlink, stat } from 'fs/promises'
 import { nanoid } from 'nanoid'
 import { dirname } from 'path'
 import { type Readable } from 'stream'
@@ -43,6 +43,12 @@ class FileSystemHandler implements FileHandler {
   async exists (checksum: string) {
     const filepath = this.#getFileLocation(checksum)
     return (await rescue(access(filepath, constants.R_OK), false)) ?? true
+  }
+
+  async fileSize (checksum: string) {
+    const filepath = this.#getFileLocation(checksum)
+    const info = await stat(filepath)
+    return info.size
   }
 
   async put (stream: Readable) {
