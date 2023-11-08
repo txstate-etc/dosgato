@@ -4,6 +4,28 @@ import { optionalString, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql'
 import { DeletedFilter, UrlSafeString } from '../internal.js'
 
+export enum LaunchState {
+  PRELAUNCH = 0,
+  LAUNCHED = 1,
+  DECOMMISSIONED = 2
+}
+
+registerEnumType(LaunchState, {
+  name: 'LaunchState',
+  description: 'Determine whether a site has not been launched yet, is currently launched, or is decommissioned.',
+  valuesConfig: {
+    PRELAUNCH: { description: 'Site is not currently live' },
+    LAUNCHED: { description: 'The site is live' },
+    DECOMMISSIONED: { description: 'The site is not live and has been decommissioned' }
+  }
+})
+
+@InputType()
+class LaunchStateInput {
+  @Field(type => LaunchState)
+  launchState?: LaunchState
+}
+
 @ObjectType()
 export class LaunchURL {
   @Field({ description: 'No protocol. Example: www.txstate.edu' })
@@ -15,14 +37,14 @@ export class LaunchURL {
   @Field({ description: 'Full URL prefix for this site. Always ends with a slash.' })
   prefix: string
 
-  @Field({ description: 'When false the site should not be considered to be live. We are just saving the URL it was/will be hosted at, for future reference.' })
-  enabled: boolean
+  @Field({ description: 'A site can be pre-launch, launched, or decommissioned. If it is not launched, we are just saving the URL it was/will be hosted at, for future reference.' })
+  enabled: LaunchState
 
   constructor (row: any) {
     this.host = row.launchHost
     this.path = row.launchPath || '/'
     this.prefix = `https://${this.host}${this.path}`
-    this.enabled = !!row.launchEnabled
+    this.enabled = row.launchEnabled
   }
 }
 
@@ -49,6 +71,9 @@ export class Site {
 
   deletedBy?: number
 
+  @Field({ description: 'Indicates whether this site is pre-launch, launched, or decommissioned.' })
+  launchState: LaunchState
+
   constructor (row: any) {
     this.id = String(row.id)
     this.name = row.name
@@ -59,6 +84,7 @@ export class Site {
     this.deleted = isNotNull(row.deletedAt)
     this.deletedAt = DateTime.fromJSDate(row.deletedAt)
     this.deletedBy = row.deletedBy
+    this.launchState = row.launchEnabled
   }
 }
 

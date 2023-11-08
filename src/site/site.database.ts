@@ -8,7 +8,7 @@ import { unique, keyby, isNotNull, Cache, isNotBlank, intersect, stringify } fro
 import {
   Site, type SiteFilter, PagetreeType, type VersionedService, createSiteComment, type UpdateSiteManagementInput,
   DeletedFilter, normalizeHost, parsePath, type CreatePageExtras, createVersionedPage, getPages, type Page, createPage,
-  type AssetFolder, getAssetFolders, getAssets, createAsset, createAssetFolder, DeleteStateInput, migratePage
+  type AssetFolder, getAssetFolders, getAssets, createAsset, createAssetFolder, DeleteStateInput, migratePage, LaunchState
 } from '../internal.js'
 
 const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.launchEnabled', 'sites.primaryPagetreeId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
@@ -53,7 +53,7 @@ async function processFilters (filter?: SiteFilter) {
     if (filter.launched) {
       where.push('sites.launchEnabled = 1')
     } else {
-      where.push('sites.launchEnabled = 0')
+      where.push('sites.launchEnabled != 1') // pre-launch or decommissioned
     }
   }
   if (filter?.deleted) {
@@ -183,12 +183,16 @@ export async function renameSite (site: Site, name: string, currentUserInternalI
   })
 }
 
-export async function setLaunchURL (site: Site, host: string | undefined, path: string | undefined, enabled: boolean, currentUserInternalId: number) {
+export async function setLaunchURL (site: Site, host: string | undefined, path: string | undefined, enabled: LaunchState, currentUserInternalId: number) {
   await db.transaction(async db => {
     const fetchedSite = new Site(await db.getrow('SELECT * FROM sites WHERE id = ?', [site.id]))
-    await db.update('UPDATE sites SET launchHost = ?, launchPath = ?, launchEnabled = ? WHERE id = ?', [host ?? null, path ?? null, enabled && !!host, site.id])
+    let finalEnabled = enabled
+    if (enabled === LaunchState.LAUNCHED && !host) {
+      finalEnabled = LaunchState.PRELAUNCH
+    }
+    await db.update('UPDATE sites SET launchHost = ?, launchPath = ?, launchEnabled = ? WHERE id = ?', [(isNotBlank(host) ? host : null), (isNotBlank(path) ? path : '/'), finalEnabled, site.id])
     if (isNotNull(fetchedSite.url)) {
-      if (fetchedSite.url.host !== host || fetchedSite.url.path !== path) {
+      if (host && (fetchedSite.url.host !== host || fetchedSite.url.path !== path)) {
         await createSiteComment(site.id, `Public URL ${host ? `updated to https://${host}${path ?? ''}` : 'removed'}`, currentUserInternalId, db)
       }
     } else {
@@ -196,8 +200,14 @@ export async function setLaunchURL (site: Site, host: string | undefined, path: 
         await createSiteComment(site.id, `Public URL updated to https://${host}${path ?? ''}`, currentUserInternalId, db)
       }
     }
-    if (!!fetchedSite.url?.enabled !== enabled) {
-      await createSiteComment(site.id, `${site.name} is ${enabled ? '' : ' no longer '} live`, currentUserInternalId, db)
+    if (fetchedSite.url?.enabled !== finalEnabled) {
+      if (finalEnabled === LaunchState.PRELAUNCH) {
+        await createSiteComment(site.id, `${site.name} is now in the pre-launch state`, currentUserInternalId, db)
+      } else if (finalEnabled === LaunchState.LAUNCHED) {
+        await createSiteComment(site.id, `${site.name} is now live`, currentUserInternalId, db)
+      } else {
+        await createSiteComment(site.id, `${site.name} has been decommissioned`, currentUserInternalId, db)
+      }
     }
   })
   await sitesByUrlCache.clear()

@@ -53,6 +53,7 @@ interface RootPage {
   site: {
     id: string
     name: string
+    launchState: number
   }
   permissions: {
     create: boolean
@@ -358,10 +359,10 @@ export async function createPageRoutes (app: FastifyInstance) {
     await getEnabledUser(ctx)
     const pageSvc = ctx.svc(PageService)
     const [pages, pageRules] = await Promise.all([
-      db.getall<{ id: number, linkId: string, dataId: number, name: string, path: string, title: string, templateKey: string, siteId: number, siteName: string, pagetreeId: number, deleteState: DeleteState, pagetreeName: string, pagetreeType: PagetreeType, modifiedBy: string, modified: Date, version: number, published: 0 | 1, publishedAt?: Date, hasUnpublishedChanges: boolean }>(`
+      db.getall<{ id: number, linkId: string, dataId: number, name: string, path: string, title: string, templateKey: string, siteId: number, siteName: string, siteLaunchState: number, pagetreeId: number, deleteState: DeleteState, pagetreeName: string, pagetreeType: PagetreeType, modifiedBy: string, modified: Date, version: number, published: 0 | 1, publishedAt?: Date, hasUnpublishedChanges: boolean }>(`
         SELECT p.*, pt.name AS pagetreeName, pt.type as pagetreeType, st.modifiedBy, st.modified, st.version,
           t.id IS NOT NULL as published, t.date as publishedAt, (t.version IS NULL OR t.version != st.version) as hasUnpublishedChanges,
-          s.name as siteName
+          s.name as siteName, s.launchEnabled as siteLaunchState
         FROM pages p
         INNER JOIN sites s ON p.siteId = s.id
         INNER JOIN pagetrees pt ON p.pagetreeId = pt.id
@@ -441,7 +442,8 @@ export async function createPageRoutes (app: FastifyInstance) {
       },
       site: {
         id: String(p.siteId),
-        name: p.siteName
+        name: p.siteName,
+        launchState: p.siteLaunchState
       },
       published: !!p.published,
       publishedAt: p.publishedAt?.toISOString(),

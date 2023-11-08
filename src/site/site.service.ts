@@ -9,7 +9,7 @@ import {
   getSitesByManagerInternalId, siteNameIsUnique, renameSite, setLaunchURL,
   type UpdateSiteManagementInput, updateSiteManagement, DeletedFilter,
   type CreatePageExtras, getSiteIdByLaunchUrl, type Organization, PageServiceInternal,
-  PagetreeServiceInternal, migratePage, systemContext
+  PagetreeServiceInternal, migratePage, systemContext, LaunchState
 } from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({
@@ -191,12 +191,12 @@ export class SiteService extends DosGatoService<Site> {
     return response
   }
 
-  async setLaunchURL (siteId: string, host: string | undefined, path: string | undefined, enabled = true, validateOnly = false) {
+  async setLaunchURL (siteId: string, host: string | undefined, path: string | undefined, enabled = LaunchState.PRELAUNCH, validateOnly = false) {
     const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site does not exist')
     if (!(await this.mayLaunch(site))) throw new Error('Current user is not authorized to update the public URL for this site')
     const response = new SiteResponse({ success: true })
-    if (isBlank(host) && enabled) {
+    if (isBlank(host) && enabled === LaunchState.LAUNCHED) {
       response.addMessage('A site with no host cannot be live.', 'enabled')
     }
     if (isNotBlank(host)) {

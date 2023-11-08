@@ -64,13 +64,29 @@ describe('sites mutations', () => {
   })
   it('should add a launch URL to a site', async () => {
     const { site: siteH } = await createSite('newsiteH', 'keyp1')
-    const { setLaunchURL: { success } } = await query('mutation SetLaunchURL ($id: ID!, $host: String!, $path: String!, $enabled: Boolean!, $validateOnly: Boolean) { setLaunchURL (siteId:$id, host: $host, path: $path, enabled: $enabled, validateOnly: $validateOnly) { success } }', { id: siteH.id, host: 'www.example.com', path: '/departmentH/', enabled: true, validateOnly: false })
+    const { setLaunchURL: { success } } = await query('mutation SetLaunchURL ($id: ID!, $host: String!, $path: String!, $enabled: LaunchState!, $validateOnly: Boolean) { setLaunchURL (siteId:$id, host: $host, path: $path, enabled: $enabled, validateOnly: $validateOnly) { success } }', { id: siteH.id, host: 'www.example.com', path: '/departmentH/', enabled: 'LAUNCHED', validateOnly: false })
     expect(success).to.be.true
     const { sites } = await query(`{ sites(filter: { ids: [${siteH.id}] }) { launched url { host path prefix } } }`)
     expect(sites[0].launched).to.be.true
     expect(sites[0].url.host).to.equal('www.example.com')
     expect(sites[0].url.path).to.equal('/departmenth/')
     expect(sites[0].url.prefix).to.equal('https://www.example.com/departmenth/')
+  })
+  it('should not allow a site to be launched with no host', async () => {
+    const { site: siteHH } = await createSite('newsiteHH', 'keyp1')
+    const { setLaunchURL: { success, messages } } = await query(`
+      mutation SetLaunchURL ($id: ID!, $host: String!, $path: String!, $enabled: LaunchState!, $validateOnly: Boolean) {
+        setLaunchURL (siteId:$id, host: $host, path: $path, enabled: $enabled, validateOnly: $validateOnly) {
+          success
+          messages {
+            arg
+            message
+          }
+        }
+      }`, { id: siteHH.id, host: '', path: '/', enabled: 'LAUNCHED', validateOnly: false })
+      expect(success).to.be.false
+      expect(messages.length).to.be.greaterThan(0)
+      expect(messages[0].arg).to.equal('enabled')
   })
   it('should delete a site', async () => {
     const { site: siteI } = await createSite('newsiteI', 'keyp1')

@@ -10,7 +10,7 @@ import {
   getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage,
   PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
   PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, getPagesByPath, parsePath,
-  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService, shiftPath, systemContext, collectComponents, makePathSafe
+  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService, shiftPath, systemContext, collectComponents, makePathSafe, LaunchState
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -380,7 +380,7 @@ export class PageService extends DosGatoService<Page> {
       this.isPublished(page),
       this.svc(SiteServiceInternal).findById(String(page.siteInternalId))
     ])
-    return published && site?.url != null && site.url.enabled
+    return published && site?.url != null && site.url.enabled === LaunchState.LAUNCHED
   }
 
   isOrphanedOrDeleted (page: Page, acceptPendingDelete?: boolean) {

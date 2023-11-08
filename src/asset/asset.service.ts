@@ -7,7 +7,7 @@ import {
   deleteAsset, undeleteAsset, getResizesById, VersionedService, getDownloads, type DownloadsFilter,
   getResizeDownloads, type AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion,
   renameAsset, updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal, DeleteStateAll,
-  getAssetsByPath, PagetreeType, SiteRuleService, DeleteState, AssetRuleService, shiftPath, fileHandler
+  getAssetsByPath, PagetreeType, SiteRuleService, DeleteState, AssetRuleService, shiftPath, fileHandler, LaunchState
 } from '../internal.js'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
@@ -407,7 +407,7 @@ export class AssetService extends DosGatoService<Asset> {
   }
 
   async mayViewIndividual (asset: Asset) {
-    return (!asset.orphaned && primaryOrSandbox[asset.pagetreeType] && asset.deleteState === DeleteState.NOTDELETED) || await this.mayView(asset)
+    return (!asset.orphaned && asset.launchState !== LaunchState.DECOMMISSIONED && primaryOrSandbox[asset.pagetreeType] && asset.deleteState === DeleteState.NOTDELETED) || await this.mayView(asset)
   }
 
   /**

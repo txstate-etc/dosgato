@@ -446,7 +446,7 @@ describe('pages mutations', () => {
   it('should not unpublish a live root page', async () => {
     const { createSite: { site } } = await query('mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name rootPage { id } } } }', { name: 'unpublishtestsite_a', data: { templateKey: 'keyp1', savedAtVersion: '20220801120000', title: 'Root Page Title' } })
     await query('mutation PublishPages ($pageIds: [ID!]!, $includeChildren: Boolean) {publishPages (pageIds: $pageIds, includeChildren: $includeChildren) { success } }', { pageIds: [site.rootPage.id] })
-    await query('mutation SetLaunchURL ($id: ID!, $host: String!, $path: String!, $enabled: Boolean!, $validateOnly: Boolean) { setLaunchURL (siteId:$id, host: $host, path: $path, enabled: $enabled, validateOnly: $validateOnly) { success } }', { id: site.id, host: 'www.example.com', path: '/unpublishtestsite_a/', enabled: true, validateOnly: false })
+    await query('mutation SetLaunchURL ($id: ID!, $host: String!, $path: String!, $enabled: LaunchState!, $validateOnly: Boolean) { setLaunchURL (siteId:$id, host: $host, path: $path, enabled: $enabled, validateOnly: $validateOnly) { success } }', { id: site.id, host: 'www.example.com', path: '/unpublishtestsite_a/', enabled: 'LAUNCHED', validateOnly: false })
     try {
       await query('mutation UnpublishPages ($pageIds: [ID!]!) { unpublishPages (pageIds: $pageIds) { success } }', { pageIds: [site.rootPage.id] })
       expect.fail('Unpublishing a live root page should throw.')

@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 import { extension } from 'mime-types'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
-import { DeleteState, DeleteStateInput, FilenameSafePath, FilenameSafeString, JsonData, LargeInt, LinkInputContext, PagetreeType, UrlSafePath } from '../internal.js'
+import { DeleteState, DeleteStateInput, FilenameSafePath, FilenameSafeString, JsonData, LargeInt, LaunchState, LinkInputContext, PagetreeType, UrlSafePath } from '../internal.js'
 
 const resizeMimeToExt: Record<string, string> = {
   'image/jpg': 'jpg',
@@ -81,6 +81,9 @@ export class Asset {
   siteId: string
   pagetreeId: string
 
+  @Field({ description: 'Indicates whether this asset belongs to a site that is pre-launch, launched, or decommissioned.' })
+  launchState: LaunchState
+
   stringMeta: string | object // mysql returns object, mariadb returns string
   parsedMeta: any
   get meta (): any | undefined {
@@ -121,6 +124,7 @@ export class Asset {
     this.orphaned = !!row.orphaned
     this.pagetreeId = String(row.pagetreeId)
     this.siteId = String(row.siteId)
+    this.launchState = row.launchEnabled
   }
 }
 

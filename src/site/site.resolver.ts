@@ -8,7 +8,7 @@ import {
   TemplateFilter, TemplateService, User, UserService, Site, SiteFilter, SitePermission, SitePermissions,
   SiteResponse, UpdateSiteManagementInput, SiteService, AssetRuleService, PageRuleService, SiteRuleService,
   DataRuleService, RoleService, DataRoot, DataRootService, DataRootFilter, SiteComment, SiteCommentService,
-  JsonData, UrlSafeString, PagetreeServiceInternal, RoleFilter
+  JsonData, UrlSafeString, PagetreeServiceInternal, RoleFilter, LaunchState
 } from '../internal.js'
 
 @Resolver(of => Site)
@@ -100,7 +100,7 @@ export class SiteResolver {
 
   @FieldResolver(returns => Boolean, { description: 'True if the site has been launched (i.e. is available on a specified URL outside the editing host.' })
   async launched (@Ctx() ctx: Context, @Root() site: Site) {
-    return !!site.url?.enabled
+    return site.launchState === LaunchState.LAUNCHED
   }
 
   @FieldResolver(returns => [SiteComment], { description: 'Returns comments about a site' })
@@ -140,7 +140,7 @@ export class SiteResolver {
     @Arg('siteId', type => ID) siteId: string,
     @Arg('host', { nullable: true }) host: string,
     @Arg('path', { nullable: true }) path: string,
-    @Arg('enabled', { nullable: true, description: 'Default is true.', defaultValue: true }) enabled: boolean,
+    @Arg('enabled', type => LaunchState, { nullable: true, description: 'Default is PRELAUNCH.', defaultValue: LaunchState.PRELAUNCH }) enabled: LaunchState,
     @Arg('validateOnly', { nullable: true }) validateOnly?: boolean
   ) {
     return await ctx.svc(SiteService).setLaunchURL(siteId, host, path, enabled, validateOnly)
