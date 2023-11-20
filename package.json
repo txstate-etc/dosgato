@@ -1,6 +1,6 @@
 {
   "name": "@dosgato/api",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "description": "A CMS designed for large institutions with thousands of editors and hundreds of subsites.",
   "type": "module",
   "exports": {
@@ -9,27 +9,27 @@
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@dosgato/templating": "^1.0.3",
-    "@fastify/multipart": "^7.2.0",
+    "@fastify/multipart": "^8.0.0",
     "@txstate-mws/graphql-server": "^2.1.4",
-    "archiver": "^5.3.1",
+    "archiver": "^6.0.1",
     "dataloader-factory": "^4.5.0",
     "fast-json-patch": "^3.1.0",
     "luxon": "^3.0.3",
     "mime-types": "^2.1.35",
-    "mysql2-async": "^1.1.10",
-    "nanoid": "^4.0.0",
+    "mysql2-async": "^2.0.0",
+    "nanoid": "^5.0.0",
     "probe-image-size": "^7.2.3",
     "txstate-utils": "^1.8.9",
     "type-graphql": "^1.1.1",
-    "wasmagic": "^0.0.29"
+    "wasmagic": "^0.0.32"
   },
   "devDependencies": {
-    "@types/archiver": "^5.3.1",
+    "@types/archiver": "^6.0.1",
     "@types/luxon": "^3.0.1",
     "@types/mime-types": "^2.1.1",
     "@types/node": "^18.7.14",
     "@types/probe-image-size": "^7.2.0",
-    "eslint-config-standard-with-typescript": "^37.0.0",
+    "eslint-config-standard-with-typescript": "^39.0.0",
     "nodemon": "^3.0.1",
     "ts-node": "^10.1.0",
     "typescript": "^5.0.2"
