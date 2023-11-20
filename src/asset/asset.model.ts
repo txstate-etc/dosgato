@@ -5,13 +5,14 @@ import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { DeleteState, DeleteStateInput, FilenameSafePath, FilenameSafeString, JsonData, LargeInt, LaunchState, LinkInputContext, PagetreeType, UrlSafePath } from '../internal.js'
 
-const resizeMimeToExt: Record<string, string> = {
+const mimeToExtOverrides: Record<string, string> = {
   'image/jpg': 'jpg',
   'image/jpeg': 'jpg',
   'image/gif': 'gif',
   'image/png': 'png',
   'image/avif': 'avif',
-  'image/webp': 'webp'
+  'image/webp': 'webp',
+  'image/x-eps': 'eps'
 }
 
 @ObjectType({ description: 'Asset attributes only available for visual inline assets like images, animated GIFS, or videos.' })
@@ -108,7 +109,7 @@ export class Asset {
     this.linkId = row.linkId
     this.size = row.filesize
     this.mime = row.mime // should be detected upon upload
-    this.extension = extension(this.mime) || ''
+    this.extension = mimeToExtOverrides[this.mime] ?? (extension(this.mime) || '')
     if (this.extension === 'jpeg') this.extension = 'jpg'
     this.filename = [this.name as string, this.extension].filter(isNotBlank).join('.')
     this.folderInternalId = row.folderId
@@ -309,7 +310,7 @@ export class AssetResize {
     this.size = row.bytes
     this.checksum = row.shasum
     this.mime = row.mime
-    this.extension = resizeMimeToExt[this.mime] ?? 'jpg'
+    this.extension = mimeToExtOverrides[this.mime] ?? 'jpg'
     this.width = row.width
     this.height = row.height
     this.quality = row.quality
