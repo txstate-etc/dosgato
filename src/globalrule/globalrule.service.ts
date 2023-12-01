@@ -88,7 +88,13 @@ export class GlobalRuleService extends DosGatoService<GlobalRule> {
   }
 
   async tooPowerful (rule: GlobalRule) {
-    const grants = await this.currentGlobalGrants()
+    const grants = await this.currentGlobalGrants() ?? {
+      manageAccess: false,
+      manageGlobalData: false,
+      manageParentRoles: false,
+      manageTemplates: false,
+      createSites: false
+    }
     return (rule.grants.createSites && !grants.createSites) ||
     (rule.grants.manageAccess && !grants.manageAccess) ||
     (rule.grants.manageGlobalData && !grants.manageGlobalData) ||
