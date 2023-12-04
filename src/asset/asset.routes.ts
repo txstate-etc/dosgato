@@ -17,7 +17,7 @@ import { WASMagic } from 'wasmagic'
 import {
   type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
   AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler, getEnabledUser, GlobalRuleService, logMutation,
-  makeSafeFilename, PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService, parsePath, deleteAsset
+  makeSafeFilename, PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService, parsePath, deleteAsset, LaunchState
 } from '../internal.js'
 
 interface RootAssetFolder {
@@ -41,6 +41,7 @@ interface RootAssetFolder {
   site: {
     id: string
     name: string
+    launchEnabled: number
   }
   permissions: {
     create: boolean
@@ -440,8 +441,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
     await getEnabledUser(ctx)
     const folderSvc = ctx.svc(AssetFolderService)
     const [folders, assetRules] = await Promise.all([
-      db.getall<{ id: number, linkId: string, name: string, path: string, deleteState: DeleteState, siteId: number, siteName: string, pagetreeId: number, pagetreeName: string, pagetreeType: PagetreeType }>(`
-        SELECT f.*, pt.name AS pagetreeName, pt.type as pagetreeType, s.name as siteName
+      db.getall<{ id: number, linkId: string, name: string, path: string, deleteState: DeleteState, siteId: number, siteName: string, launchEnabled: LaunchState, pagetreeId: number, pagetreeName: string, pagetreeType: PagetreeType }>(`
+        SELECT f.*, pt.name AS pagetreeName, pt.type as pagetreeType, s.name as siteName, s.launchEnabled as launchEnabled
         FROM assetfolders f
         INNER JOIN sites s ON f.siteId = s.id
         INNER JOIN pagetrees pt ON f.pagetreeId = pt.id
@@ -510,7 +511,8 @@ export async function createAssetRoutes (app: FastifyInstance) {
       },
       site: {
         id: String(f.siteId),
-        name: f.siteName
+        name: f.siteName,
+        launchEnabled: f.launchEnabled
       },
       folders: childFoldersByPath['/' + String(f.id)]?.map(f => ({ id: String(f.id) })) ?? [],
       assets: childAssetsById[f.id]?.map(a => ({ id: String(a.dataId) })) ?? [],
