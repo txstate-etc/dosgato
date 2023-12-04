@@ -41,9 +41,10 @@ describe('users', () => {
     expect(found).to.be.false
   })
   it('should retrieve trained users', async () => {
-    const { users } = await query('{ users(filter: { trained: true }) { id, firstname, lastname, trained } }')
+    const { trainings } = await query<{ trainings: { id: string, name: string }[] }>('{ trainings { id name } }')
+    const { users } = await query('query getUsersWithTraining ($trainingIds: [ID!]!) { users(filter: { trainingAny: $trainingIds }) { id, firstname, lastname, trainings { id name } } }', { trainingIds: trainings.map(t => t.id) })
     for (const user of users) {
-      expect(user.trained).to.be.true
+      expect(user.trainings.length).to.be.greaterThan(0)
     }
     const found = users.some((user: any) => {
       return user.id === 'ed04'
@@ -51,9 +52,10 @@ describe('users', () => {
     expect(found).to.be.false
   })
   it('should retrieve untrained users', async () => {
-    const { users } = await query('{ users(filter: { trained: false }) { id, firstname, lastname, trained } }')
+    const { trainings } = await query<{ trainings: { id: string, name: string }[] }>('{ trainings { id name } }')
+    const { users } = await query('query getUsersWithoutTraining ($trainingIds: [ID!]!) { users(filter: { trainingNone: $trainingIds }) { id, firstname, lastname, trainings { id name } } }', { trainingIds: trainings.map(t => t.id) })
     for (const user of users) {
-      expect(user.trained).to.be.false
+      expect(user.trainings.length).to.equal(0)
     }
     const found = users.some((user: any) => {
       return user.id === 'ed04'

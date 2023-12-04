@@ -11,17 +11,17 @@ import { VersionedService, type Index } from '../src/internal.js'
 export async function fixtures () {
   console.info('running fixtures()')
   const [su01, su02, su03, ed01, ed02, ed03, ed04, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18] = await Promise.all([
-    db.insert('INSERT INTO users (login, firstname, lastname, email, trained, lastlogin, lastlogout, disabledAt) VALUES ("su01", "Michael", "Scott", "su01@example.com", true, null, null, null)'),
-    db.insert('INSERT INTO users (login, firstname, lastname, email, trained, lastlogin, lastlogout, disabledAt) VALUES ("su02", "Elizabeth", "Bennet", "su02@example.com", true, null, null, null)'),
-    db.insert('INSERT INTO users (login, firstname, lastname, email, trained, lastlogin, lastlogout, disabledAt) VALUES ("su03", "Marge", "Simpson", "su03@example.com", true, "2021-09-01 12:43:00", "2021-09-01 16:28:00", null)'),
-    db.insert('INSERT INTO users (login, firstname, lastname, email, trained, lastlogin, lastlogout, disabledAt) VALUES ("ed01", "Draco", "Malfoy", "ed01@example.com", true, "2021-07-15 11:15:00", "2021-07-15 13:07:00", null)'),
-    db.insert('INSERT INTO users (login, firstname, lastname, email, trained, lastlogin, lastlogout, disabledAt) VALUES ("ed02", "Forrest", "Gump", "ed02@example.com", true, "2021-02-01 08:23:00", "2021-02-01 11:33:00", null)'),
-    db.insert('INSERT INTO users (login, firstname, lastname, email, trained, lastlogin, lastlogout, disabledAt) VALUES ("ed03", "Luke", "Skywalker", "ed03@example.com", true, null, null, null)'),
-    db.insert('INSERT INTO users (login, firstname, lastname, email, trained, lastlogin, lastlogout, disabledAt) VALUES ("ed04", "Katniss", "Everdeen", "ed04@example.com", false, null, null, null)'),
-    db.insert('INSERT INTO users (login, firstname, lastname, email, trained, lastlogin, lastlogout, disabledAt) VALUES ("ed05", "Jean", "Valjean", "ed05@example.com", true, null, null, null)'),
-    db.insert('INSERT INTO users (login, firstname, lastname, email, trained, lastlogin, lastlogout, disabledAt) VALUES ("ed06", "Daniel", "Tiger", "ed06@example.com", true, null, null, null)'),
-    db.insert('INSERT INTO users (login, firstname, lastname, email, trained, lastlogin, lastlogout, disabledAt) VALUES ("ed07", "Jack", "Skellington", "ed07@example.com", true, null, null, null)'),
-    db.insert('INSERT INTO users (login, firstname, lastname, email, trained, lastlogin, lastlogout, disabledAt) VALUES("ed08", "Inactive", "User", "ed08@example.com", true, null, null, "2021-08-22 15:02:00")'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("su01", "Michael", "Scott", "su01@example.com", null, null, null)'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("su02", "Elizabeth", "Bennet", "su02@example.com", null, null, null)'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("su03", "Marge", "Simpson", "su03@example.com", "2021-09-01 12:43:00", "2021-09-01 16:28:00", null)'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("ed01", "Draco", "Malfoy", "ed01@example.com", "2021-07-15 11:15:00", "2021-07-15 13:07:00", null)'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("ed02", "Forrest", "Gump", "ed02@example.com", "2021-02-01 08:23:00", "2021-02-01 11:33:00", null)'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("ed03", "Luke", "Skywalker", "ed03@example.com", null, null, null)'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("ed04", "Katniss", "Everdeen", "ed04@example.com", null, null, null)'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("ed05", "Jean", "Valjean", "ed05@example.com", null, null, null)'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("ed06", "Daniel", "Tiger", "ed06@example.com", null, null, null)'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("ed07", "Jack", "Skellington", "ed07@example.com", null, null, null)'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES("ed08", "Inactive", "User", "ed08@example.com", null, null, "2021-08-22 15:02:00")'),
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("ed09", "Oscar", "Grouch", "ed09@example.com")'),
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("ed10", "Testuser", "Mutations", "ed10@example.com")'),
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("ed11", "Test", "Assetrules", "ed11@example.com")'),
@@ -34,6 +34,11 @@ export async function fixtures () {
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("ed18", "Test", "PageRoles2", "ed18@example.com")'),
     db.insert('INSERT INTO users (login, lastname, email, system) VALUES ("service1", "ServiceAccount1", "sa1@example.com", true)')
   ])
+
+  const basicId = await db.getval('SELECT MIN(id) FROM trainings')
+  const binds: any[] = []
+  await db.insert(`INSERT INTO users_trainings (userId, trainingId) VALUES ${db.in(binds, [su01, su02, su03, ed01, ed02, ed03, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18].map(lgn => [lgn, basicId]))}`, binds)
+
   const [group1, group2, group3, group4, group5, group6, group7] = await Promise.all([
     db.insert('INSERT INTO groups (name) VALUES ("group1")'),
     db.insert('INSERT INTO groups (name) VALUES ("group2")'),

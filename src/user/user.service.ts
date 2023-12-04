@@ -1,11 +1,10 @@
-
-import { BaseService, MutationMessageType } from '@txstate-mws/graphql-server'
+import { BaseService, MutationMessageType, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { isNotBlank, isNotNull, someAsync, unique, isBlank } from 'txstate-utils'
 import {
   DosGatoService, GroupService, User, type UserFilter, UserResponse, getUsers, createUser,
   getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId, UsersResponse,
-  type UpdateUserInput, updateUser, disableUsers, enableUsers, getUsersManagingGroups, SiteRuleService
+  type UpdateUserInput, updateUser, disableUsers, enableUsers, getUsersManagingGroups, SiteRuleService, getTrainingsForUsers, addTrainings
 } from '../internal.js'
 
 const usersByInternalIdLoader = new PrimaryKeyLoader({
@@ -45,6 +44,10 @@ const usersBySiteIdLoader = new ManyJoinedLoader({
 const usersManagingGroupId = new ManyJoinedLoader({
   fetch: async (groupIds: string[], direct?: boolean) => await getUsersManagingGroups(groupIds, direct),
   idLoader: usersByInternalIdLoader
+})
+
+const trainingsByUserInternalIdLoader = new ManyJoinedLoader({
+  fetch: async (userInternalIds: number[]) => await getTrainingsForUsers(userInternalIds)
 })
 
 export class UserServiceInternal extends BaseService {
@@ -114,6 +117,10 @@ export class UserServiceInternal extends BaseService {
   async findById (id: string) {
     return await this.loaders.get(usersByIdLoader).load(id)
   }
+
+  async getTrainings (id: number) {
+    return await this.loaders.get(trainingsByUserInternalIdLoader).load(id)
+  }
 }
 
 export class UserService extends DosGatoService<User, User> {
@@ -161,7 +168,7 @@ export class UserService extends DosGatoService<User, User> {
     return await this.removeUnauthorized(await this.raw.findById(id))
   }
 
-  async createUser (id: string, lastname: string, email: string, firstname: string | undefined, trained: boolean | undefined, system: boolean | undefined, validateOnly?: boolean) {
+  async createUser (id: string, lastname: string, email: string, firstname: string | undefined, trainings: string[] | undefined, system: boolean | undefined, validateOnly?: boolean) {
     if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create users.')
     const response = new UserResponse({ success: true })
     const existing = await this.raw.findById(id)
@@ -172,7 +179,7 @@ export class UserService extends DosGatoService<User, User> {
       response.addMessage('Please enter a valid email address.', 'email')
     }
     if (validateOnly || response.hasErrors()) return response
-    await createUser(id, firstname ?? '', lastname, email, !!trained, !!system)
+    await createUser(id, firstname ?? '', lastname, email, trainings, !!system)
     this.loaders.clear()
     response.user = await this.raw.findById(id)
     return response
@@ -196,12 +203,18 @@ export class UserService extends DosGatoService<User, User> {
     }
     if (response.hasErrors()) return response
     if (!validateOnly) {
-      await updateUser(id, args.firstname, args.lastname, args.email, args.trained)
+      await updateUser(id, args.firstname, args.lastname, args.email, args.trainings)
       this.loaders.clear()
       response.success = true
       response.user = await this.raw.findById(id)
     }
     return response
+  }
+
+  async addTrainings (trainingId: string, userIds: string[]) {
+    if (!(await this.haveGlobalPerm('manageAccess'))) throw new Error('Current user is not permitted to add trainings.')
+    await addTrainings(trainingId, userIds.filter(isNotBlank))
+    return new ValidatedResponse({ success: true })
   }
 
   async disableUsers (ids: string[]) {

@@ -147,7 +147,7 @@ export class DGServer {
           if (!user) {
             const details = (opts.userLookup ? (await opts.userLookup([userId]))[userId] : undefined) ?? { firstname: 'Training', lastname: 'User', email: '', enabled: true }
             if (details.enabled !== false) {
-              const internalId = await createUser(userId, details.firstname, details.lastname, details.email, true, false)
+              const internalId = await createUser(userId, details.firstname, details.lastname, details.email, [], false)
               user = await ctx.svc(UserServiceInternal).findByInternalId(internalId)
             }
           }

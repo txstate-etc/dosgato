@@ -34,9 +34,6 @@ export class User {
   disabledAt?: DateTime
 
   @Field()
-  trained: boolean
-
-  @Field()
   system: boolean
 
   @Field({ nullable: true })
@@ -53,7 +50,6 @@ export class User {
     this.email = row.email
     this.disabledAt = row.disabledAt ? DateTime.fromJSDate(row.disabledAt) : undefined
     this.disabled = this.disabledAt != null
-    this.trained = !!row.trained
     this.system = !!row.system
     this.lastlogin = row.lastlogin ? DateTime.fromJSDate(row.lastlogin) : undefined
     this.lastlogout = row.lastlogout ? DateTime.fromJSDate(row.lastlogout) : undefined
@@ -63,6 +59,7 @@ export class User {
 @InputType()
 export class UserFilter {
   internalIds?: number[]
+  noresults?: boolean
 
   @Field(type => [ID], { nullable: true, description: 'Accepts a special value \'self\' to represent the currently authenticated user.' })
   ids?: string[]
@@ -70,8 +67,14 @@ export class UserFilter {
   @Field({ nullable: true, description: 'true -> enabled users, false -> disabled users, null -> all users' })
   enabled?: boolean
 
-  @Field({ nullable: true, description: 'true -> trained users, false -> untrained users, null -> all users' })
-  trained?: boolean
+  @Field(type => [ID], { nullable: true, description: 'Include users who have completed at least one of the specified trainings.' })
+  trainingAny?: string[]
+
+  @Field(type => [ID], { nullable: true, description: 'Include users who have completed all of the specified trainings.' })
+  trainingAll?: string[]
+
+  @Field(type => [ID], { nullable: true, description: 'Include users who have not completed any one of the specified trainings.' })
+  trainingNone?: string[]
 
   @Field({ nullable: true, description: 'true -> system users, false -> non-system users, null -> all users' })
   system?: boolean
@@ -91,8 +94,8 @@ export class UpdateUserInput {
   @Field({ nullable: true })
   email!: string
 
-  @Field({ nullable: true })
-  trained!: boolean
+  @Field(type => [ID], { nullable: true })
+  trainings!: string[]
 }
 
 @ObjectType()
@@ -119,3 +122,17 @@ export class UsersResponse extends ValidatedResponse {
 
 @ObjectType()
 export class UserPermissions {}
+
+@ObjectType()
+export class Training {
+  @Field(type => ID)
+  id: string
+
+  @Field()
+  name: string
+
+  constructor (row: any) {
+    this.id = String(row.id)
+    this.name = row.name
+  }
+}

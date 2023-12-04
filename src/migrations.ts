@@ -43,6 +43,46 @@ const dgMigrations: DBMigration[] = [
       await db.execute('ALTER TABLE datarules ADD COLUMN isGlobal TINYINT UNSIGNED NOT NULL DEFAULT 0')
       await db.execute('CREATE INDEX `mime_idx` ON `binaries`(`mime`)')
     }
+  },
+  {
+    id: 20231130103000,
+    description: 'add trainings table and users_trainings table',
+    run: async db => {
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS trainings (
+          id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+          name VARCHAR(50) NOT NULL,
+          PRIMARY KEY (id),
+          UNIQUE name_idx (name)
+        )
+        ENGINE = InnoDB
+        DEFAULT CHARACTER SET = utf8mb4
+        DEFAULT COLLATE = utf8mb4_general_ci
+      `)
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS users_trainings (
+          userId MEDIUMINT UNSIGNED NOT NULL,
+          trainingId SMALLINT UNSIGNED NOT NULL,
+          recordedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (userId, trainingId),
+          INDEX trainingId_idx (trainingId),
+          CONSTRAINT FK_users_trainings_user FOREIGN KEY (userId) REFERENCES users (\`id\`),
+          CONSTRAINT FK_users_trainings_training FOREIGN KEY (trainingId) REFERENCES trainings (\`id\`)
+        )
+        ENGINE = InnoDB
+        DEFAULT CHARACTER SET = utf8mb4
+        DEFAULT COLLATE = utf8mb4_general_ci
+      `)
+      const basicId = await db.insert('INSERT INTO trainings (name) VALUES (?)', ['basic'])
+      await db.insert('INSERT INTO users_trainings (userId, trainingId) SELECT u.id, ' + basicId + ' FROM users u WHERE u.trained = 1')
+    }
+  },
+  {
+    id: 20231130110000,
+    description: 'remove user has been trained boolean from users table',
+    run: async db => {
+      await db.execute('ALTER TABLE users DROP COLUMN trained')
+    }
   }
 ]
 
@@ -93,6 +133,8 @@ export async function resetdb () {
       db.execute('DROP TABLE IF EXISTS users_roles'),
       db.execute('DROP TABLE IF EXISTS groups_roles'),
       db.execute('DROP TABLE IF EXISTS users_groups'),
+      db.execute('DROP TABLE IF EXISTS users_trainings'),
+      db.execute('DROP TABLE IF EXISTS trainings'),
       db.execute('DROP TABLE IF EXISTS siterules'),
       db.execute('DROP TABLE IF EXISTS groups_groups'),
       db.execute('DROP TABLE IF EXISTS assets'),

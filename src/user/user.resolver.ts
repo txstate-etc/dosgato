@@ -2,7 +2,7 @@ import { Context } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
   Group, GroupService, Role, RoleService, User, UserFilter, Site,
-  UserPermissions, UserResponse, UpdateUserInput, UserService, UsersResponse, SiteFilter, SiteServiceInternal
+  UserPermissions, UserResponse, UpdateUserInput, UserService, UsersResponse, SiteFilter, SiteServiceInternal, Training, UserServiceInternal, getAllTrainings
 } from '../internal.js'
 
 @Resolver(of => User)
@@ -10,6 +10,11 @@ export class UserResolver {
   @Query(returns => [User])
   async users (@Ctx() ctx: Context, @Arg('filter') filter: UserFilter) {
     return await ctx.svc(UserService).find(filter)
+  }
+
+  @Query(returns => [Training], { name: 'trainings' })
+  async trainingsQuery (@Ctx() ctx: Context) {
+    return await getAllTrainings()
   }
 
   @FieldResolver(returns => [Group], { description: 'Groups related to the user, either directly or through a subgroup membership.' })
@@ -20,6 +25,11 @@ export class UserResolver {
   @FieldResolver(returns => [Role], { description: 'Roles assigned to the user, either directly or through a group.' })
   async roles (@Ctx() ctx: Context, @Root() user: User, @Arg('direct', { nullable: true, description: 'true -> only roles the user has directly, false -> only roles the user has indirectly and not directly, null -> all roles the user has.' }) direct: boolean) {
     return await ctx.svc(RoleService).findByUserId(user.id, direct)
+  }
+
+  @FieldResolver(returns => [Training], { description: 'Trainings the user has successfully completed.' })
+  async trainings (@Ctx() ctx: Context, @Root() user: User) {
+    return await ctx.svc(UserServiceInternal).getTrainings(user.internalId)
   }
 
   @FieldResolver(returns => [Site], { description: 'Sites owned by the user' })
@@ -43,11 +53,16 @@ export class UserResolver {
     @Arg('firstname', type => String, { nullable: true }) firstname: string | undefined,
     @Arg('lastname') lastname: string,
     @Arg('email') email: string,
-    @Arg('trained', type => Boolean, { nullable: true }) trained: boolean | undefined,
+    @Arg('trainings', type => [ID], { nullable: true }) trainings: string[] | undefined,
     @Arg('system', type => Boolean, { nullable: true }) system: boolean | undefined,
     @Arg('validateOnly', { nullable: true }) validateOnly?: boolean
   ) {
-    return await ctx.svc(UserService).createUser(userId, lastname, email, firstname, trained, system, validateOnly)
+    return await ctx.svc(UserService).createUser(userId, lastname, email, firstname, trainings, system, validateOnly)
+  }
+
+  @Mutation(returns => UserResponse)
+  async updateTraining (@Ctx() ctx: Context, @Arg('trainingId', type => ID) trainingId: string, @Arg('userIds', type => [ID]) userIds: string[]) {
+    return await ctx.svc(UserService).addTrainings(trainingId, userIds)
   }
 
   @Mutation(returns => UserResponse)
