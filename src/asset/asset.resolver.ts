@@ -6,7 +6,7 @@ import {
   AssetFolder, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
   RoleService, AssetResponse, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site,
-  Pagetree, AssetFolderServiceInternal, DeleteStateRootDefault, FilenameSafeString, PagetreeServiceInternal, SiteServiceInternal, AssetServiceInternal
+  Pagetree, AssetFolderServiceInternal, DeleteStateRootDefault, FilenameSafeString, PagetreeServiceInternal, SiteServiceInternal, AssetServiceInternal, AssetsResponse
 } from '../internal.js'
 
 @Resolver(of => Asset)
@@ -174,19 +174,34 @@ export class AssetResolver {
     return await ctx.svc(AssetService).copy(targetFolderId, assetIds, folderIds)
   }
 
-  @Mutation(returns => AssetResponse)
+  @Mutation(returns => AssetsResponse)
+  async deleteAssets (@Ctx() ctx: Context, @Arg('assetIds', type => [ID]) assetIds: string[]) {
+    return await ctx.svc(AssetService).deleteAssets(assetIds)
+  }
+
+  @Mutation(returns => AssetsResponse)
+  async finalizeDeleteAssets(@Ctx() ctx: Context, @Arg('assetIds', type => [ID]) assetIds: string[]) {
+    return await ctx.svc(AssetService).finalizeDeletion(assetIds)
+  }
+
+  @Mutation(returns => AssetsResponse)
+  async undeleteAssets (@Ctx() ctx: Context, @Arg('assetIds', type => [ID]) assetIds: string[]) {
+    return await ctx.svc(AssetService).undelete(assetIds)
+  }
+
+  @Mutation(returns => AssetResponse, { deprecationReason: 'Use deleteAssets instead.'})
   async deleteAsset (@Ctx() ctx: Context, @Arg('assetId', type => ID) assetId: string) {
     return await ctx.svc(AssetService).delete(assetId)
   }
 
-  @Mutation(returns => AssetResponse)
+  @Mutation(returns => AssetResponse, { deprecationReason: 'Use finalizeDeleteAssets instead.'})
   async finalizeAssetDeletion (@Ctx() ctx: Context, @Arg('assetId', type => ID) assetId: string) {
-    return await ctx.svc(AssetService).finalizeDeletion(assetId)
+    return await ctx.svc(AssetService).finalizeDeletion([assetId])
   }
 
-  @Mutation(returns => AssetResponse)
+  @Mutation(returns => AssetResponse, { deprecationReason: 'Use undeleteAssets instead.'})
   async undeleteAsset (@Ctx() ctx: Context, @Arg('assetId', type => ID) assetId: string) {
-    return await ctx.svc(AssetService).undelete(assetId)
+    return await ctx.svc(AssetService).undelete([assetId])
   }
 }
 

@@ -233,6 +233,17 @@ export class AssetResponse extends ValidatedResponse {
 }
 
 @ObjectType()
+export class AssetsResponse extends ValidatedResponse {
+  @Field(type => [Asset])
+  assets: Asset[]
+
+  constructor (config?: ValidatedResponseArgs & { assets?: Asset[] }) {
+    super(config ?? {})
+    this.assets = config?.assets ?? []
+  }
+}
+
+@ObjectType()
 export class AssetPermissions {}
 
 export enum AssetPermission {

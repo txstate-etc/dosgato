@@ -607,13 +607,20 @@ export async function deleteAsset (id: number, userInternalId: number) {
   return await db.update('UPDATE assets SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [userInternalId, DeleteState.MARKEDFORDELETE, id])
 }
 
-export async function finalizeAssetDeletion (id: number, userInternalId: number) {
-  const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
-  return await db.update(`UPDATE assets SET deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id = ?`, [userInternalId, DeleteState.DELETED, id])
+export async function deleteAssets (ids: number[], userInternalId: number) {
+  const binds: string[] = []
+  return await db.update(`UPDATE assets SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id IN (${db.in(binds, ids)})`, [userInternalId, DeleteState.MARKEDFORDELETE, ...binds])
 }
 
-export async function undeleteAsset (id: number) {
-  return await db.update('UPDATE assets SET deletedBy = null, deletedAt = null, deleteState = ? WHERE id = ?', [DeleteState.NOTDELETED, id])
+export async function finalizeAssetDeletion (ids: number[], userInternalId: number) {
+  const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
+  const binds: string [] = []
+  return await db.update(`UPDATE assets SET deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, ids)})`, [userInternalId, DeleteState.DELETED, ...binds])
+}
+
+export async function undeleteAssets (ids: number[]) {
+  const binds: string[] = []
+  return await db.update(`UPDATE assets SET deletedBy = null, deletedAt = null, deleteState = ? WHERE id IN (${db.in(binds, ids)})`, [DeleteState.NOTDELETED, ...binds])
 }
 
 export async function requestResizes (asset: Asset, opts?: { force?: boolean }) {

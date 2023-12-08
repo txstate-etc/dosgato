@@ -1,13 +1,13 @@
 import { BaseService, type Context, MutationMessageType, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { filterAsync, intersect, isBlank, isNotNull, sortby } from 'txstate-utils'
+import { filterAsync, intersect, isBlank, isNotNull, someAsync, sortby } from 'txstate-utils'
 import {
   type Asset, type AssetFilter, getAssets, type AssetFolder, AssetFolderService, appendPath, getResizes,
   DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
-  deleteAsset, undeleteAsset, getResizesById, VersionedService, getDownloads, type DownloadsFilter,
+  deleteAsset, undeleteAssets, getResizesById, VersionedService, getDownloads, type DownloadsFilter,
   getResizeDownloads, type AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion,
   renameAsset, updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal, DeleteStateAll,
-  getAssetsByPath, PagetreeType, SiteRuleService, DeleteState, AssetRuleService, shiftPath, fileHandler, LaunchState
+  getAssetsByPath, PagetreeType, SiteRuleService, DeleteState, AssetRuleService, shiftPath, fileHandler, LaunchState, deleteAssets, AssetsResponse
 } from '../internal.js'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
@@ -352,25 +352,44 @@ export class AssetService extends DosGatoService<Asset> {
     }
   }
 
-  async finalizeDeletion (dataId: string) {
-    const asset = await this.loaders.get(assetsByIdLoader).load(dataId)
-    if (!asset) throw new Error('Asset to be deleted does not exist')
-    if (!(await this.haveAssetPerm(asset, 'delete'))) throw new Error(`Current user is not permitted to delete asset ${String(asset.name)}.${asset.extension}.`)
+  async deleteAssets (dataIds: string[]) {
+    const assets = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(assets, async (asset: Asset) => !(await this.haveAssetPerm(asset, 'delete')))) {
+      throw new Error('Current user is not permitted to delete one or more assets')
+    }
     const currentUser = await this.currentUser()
-    await finalizeAssetDeletion(asset.internalId, currentUser!.internalId)
-    this.loaders.clear()
-    const deletedAsset = await this.loaders.get(assetsByIdLoader).load(dataId)
-    return new AssetResponse({ asset: deletedAsset, success: true })
+    try {
+      await deleteAssets(assets.map(a => a.internalId), currentUser!.internalId)
+      this.loaders.clear()
+      const deleted = await this.raw.findByIds(assets.map(a => a.id))
+      return new AssetsResponse({ success: true, assets: deleted })
+    } catch (err: any) {
+      console.error(err)
+      throw new Error('An unknown error ocurred while trying to delete assets.')
+    }
   }
 
-  async undelete (dataId: string) {
-    const asset = await this.loaders.get(assetsByIdLoader).load(dataId)
-    if (!asset) throw new Error('Asset to be restored does not exist')
-    if (!await this.mayUndelete(asset)) throw new Error(`Current user is not permitted to restore asset ${String(asset.name)}.${asset.extension}.`)
-    await undeleteAsset(asset.internalId)
+  async finalizeDeletion (dataIds: string[]) {
+    const assets = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(assets, async (asset: Asset) => !(await this.haveAssetPerm(asset, 'delete')))) {
+      throw new Error('Current user is not permitted to delete one or more assets')
+    }
+    const currentUser = await this.currentUser()
+    await finalizeAssetDeletion(assets.map(a => a.internalId), currentUser!.internalId)
     this.loaders.clear()
-    const restoredAsset = await this.loaders.get(assetsByIdLoader).load(dataId)
-    return new AssetResponse({ asset: restoredAsset, success: true })
+    const deletedAssets = await this.raw.findByIds(assets.map(a => a.id))
+    return new AssetsResponse({ assets: deletedAssets, success: true })
+  }
+
+  async undelete (dataIds: string[]) {
+    const assets = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    if (await someAsync(assets, async (asset: Asset) => !(await this.mayUndelete(asset)))) {
+      throw new Error('Current user is not permitted to restore one or more assets')
+    }
+    await undeleteAssets(assets.map(a => a.internalId))
+    this.loaders.clear()
+    const restoredAssets = await this.raw.findByIds(assets.map(a => a.id))
+    return new AssetsResponse({ assets: restoredAssets, success: true })
   }
 
   async mayViewManagerUI () {

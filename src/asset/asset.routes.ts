@@ -17,7 +17,7 @@ import { WASMagic } from 'wasmagic'
 import {
   type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
   AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler, getEnabledUser, GlobalRuleService, logMutation,
-  makeSafeFilename, PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService, parsePath, deleteAsset, LaunchState
+  makeSafeFilename, PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService, parsePath, deleteAssets, LaunchState
 } from '../internal.js'
 
 interface RootAssetFolder {
@@ -219,7 +219,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
         meta: req.body.meta ?? {}
       }, { numerate: true })
       ids.push(asset.id)
-      if (req.body.markAsDeleted) await deleteAsset(asset.internalId, user.internalId)
+      if (req.body.markAsDeleted) await deleteAssets([asset.internalId], user.internalId)
       await requestResizes(asset)
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')

@@ -107,7 +107,51 @@ describe('asset mutations', () => {
   })
   it.skip('should move an asset', async () => {})
   it.skip('should copy an asset', async () => {})
-  it.skip('should delete an asset', async () => {})
-  it.skip('should finalize deletion of an asset', async () => {})
-  it.skip('should an asset to the undeleted state', async () => {})
+  it('should delete assets', async () => {
+    const { createSite: { site: siteC } } = await query('mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name rootAssetFolder { id } } } }', { name: 'assetTestSiteC', data: { templateKey: 'keyp1', savedAtVersion: '20231208120000', title: 'Site C Test Title' } })
+    const siteCAssetRootId = siteC.rootAssetFolder.id
+    const results = await Promise.all([
+      postMultipart(`/assets/${siteCAssetRootId}`, {}, '/usr/app/files/blank.jpg', 'su01'),
+      postMultipart(`/assets/${siteCAssetRootId}`, {}, '/usr/app/files/blankpdf.pdf', 'su01')
+    ])
+    const assetIds: string[] = [results[0].ids, results[1].ids].flat()
+    const { deleteAssets: { success, assets }} = await query('mutation DeleteAssets ($assetIds: [ID!]!) {deleteAssets (assetIds: $assetIds) { success assets { id name deleted deletedAt deletedBy { id firstname lastname } deleteState } } }', { assetIds })
+    expect(success).to.be.true
+    for (const a of assets) {
+      expect(a.deleteState).to.equal(1)
+      expect(a.deleted).to.be.true
+    }
+  })
+  it('should finalize deletion of assets', async () => {
+    const { createSite: { site: siteD } } = await query('mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name rootAssetFolder { id } } } }', { name: 'assetTestSiteD', data: { templateKey: 'keyp1', savedAtVersion: '20231208120000', title: 'Site D Test Title' } })
+    const siteDAssetRootId = siteD.rootAssetFolder.id
+    const results = await Promise.all([
+      postMultipart(`/assets/${siteDAssetRootId}`, {}, '/usr/app/files/blank.jpg', 'su01'),
+      postMultipart(`/assets/${siteDAssetRootId}`, {}, '/usr/app/files/blankpdf.pdf', 'su01')
+    ])
+    const assetIds: string[] = [results[0].ids, results[1].ids].flat()
+    await query('mutation DeleteAssets ($assetIds: [ID!]!) {deleteAssets (assetIds: $assetIds) { success assets { id name deleted deletedAt deletedBy { id firstname lastname } deleteState } } }', { assetIds })
+    const { finalizeDeleteAssets: { success, assets }} = await query('mutation FinalizeDeleteAssets ($assetIds: [ID!]!) {finalizeDeleteAssets (assetIds: $assetIds) { success assets { id name deleted deleteState } } }', { assetIds })
+    expect(success).to.be.true
+    for (const a of assets) {
+      expect(a.deleteState).to.equal(2)
+    }
+  })
+  it('should restore assets to the undeleted state', async () => {
+    const { createSite: { site: siteE } } = await query('mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name rootAssetFolder { id } } } }', { name: 'assetTestSiteE', data: { templateKey: 'keyp1', savedAtVersion: '20231208120000', title: 'Site E Test Title' } })
+    const siteEAssetRootId = siteE.rootAssetFolder.id
+    const results = await Promise.all([
+      postMultipart(`/assets/${siteEAssetRootId}`, {}, '/usr/app/files/blank.jpg', 'su01'),
+      postMultipart(`/assets/${siteEAssetRootId}`, {}, '/usr/app/files/blankpdf.pdf', 'su01')
+    ])
+    const assetIds: string[] = [results[0].ids, results[1].ids].flat()
+    await query('mutation DeleteAssets ($assetIds: [ID!]!) {deleteAssets (assetIds: $assetIds) { success assets { id name deleted deletedAt deletedBy { id firstname lastname } deleteState } } }', { assetIds })
+    const { undeleteAssets: { success, assets }} = await query('mutation UndeleteAssets ($assetIds: [ID!]!) { undeleteAssets (assetIds: $assetIds) { success assets {id name deleted deleteState deletedAt } } }', { assetIds })
+    expect(success).to.be.true
+    for (const a of assets) {
+      expect(a.deleteState).to.equal(0)
+      expect(a.deleted).to.be.false
+      expect(a.deletedAt).to.be.null
+    }
+  })
 })
