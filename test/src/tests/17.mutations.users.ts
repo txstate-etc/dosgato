@@ -5,7 +5,30 @@ import { query, queryAs } from '../common.js'
 
 chai.use(chaiAsPromised)
 
+async function createUser (id: string, firstname: string | undefined, lastname: string, email: string, trainings: string[], system: boolean) {
+  const { createUser: { success, user, messages }} = await query(`
+      mutation CreateUser ($userId: ID!, $firstname: String, $lastname: String!, $email: String!, $trainings: [ID!]!, $system: Boolean!, $validateOnly: Boolean) {
+        createUser (userId: $userId, firstname: $firstname, lastname: $lastname, email: $email, trainings: $trainings, system: $system, validateOnly: $validateOnly) {
+          success
+          user { id }
+          messages { message }
+        }
+      }`, { userId: id, firstname, lastname, email, trainings, system })
+  return { success, user, messages }
+}
+
 describe('users mutations', () => {
+  it('should create a user', async () => {
+    const { user, success } = await createUser('newuser1', 'New', 'User-One', 'newuser1@email.com', [], false)
+    expect (success).to.be.true
+    expect(user?.id).to.equal('newuser1')
+  })
+  it('should create a system user with no first name', async () => {
+    const { success } = await createUser('systemuser1', undefined, 'System-One', 'systemuser1@email.com', [], true)
+    expect(success).to.be.true
+    const { users } = await query('{ users(filter: { system: true }) { id } }')
+    expect(users).to.deep.include({ id: 'systemuser1' })
+  })
   it('should update a user\'s name', async () => {
     const { updateUser: { success } } = await query('mutation UpdateUser ($id: ID!, $input: UpdateUserInput!) { updateUser (userId: $id, args: $input) { success user { id firstname lastname } } }', { id: 'ed10', input: { firstname: 'Updated', lastname: 'Username', email: 'ed10@example.com' } })
     expect(success).to.be.true
