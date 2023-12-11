@@ -6,7 +6,7 @@ import { query, queryAs } from '../common.js'
 chai.use(chaiAsPromised)
 
 async function createUser (id: string, firstname: string | undefined, lastname: string, email: string, trainings: string[], system: boolean) {
-  const { createUser: { success, user, messages }} = await query(`
+  const { createUser: { success, user, messages } } = await query(`
       mutation CreateUser ($userId: ID!, $firstname: String, $lastname: String!, $email: String!, $trainings: [ID!]!, $system: Boolean!, $validateOnly: Boolean) {
         createUser (userId: $userId, firstname: $firstname, lastname: $lastname, email: $email, trainings: $trainings, system: $system, validateOnly: $validateOnly) {
           success
@@ -20,7 +20,7 @@ async function createUser (id: string, firstname: string | undefined, lastname: 
 describe('users mutations', () => {
   it('should create a user', async () => {
     const { user, success } = await createUser('newuser1', 'New', 'User-One', 'newuser1@email.com', [], false)
-    expect (success).to.be.true
+    expect(success).to.be.true
     expect(user?.id).to.equal('newuser1')
   })
   it('should create a system user with no first name', async () => {
