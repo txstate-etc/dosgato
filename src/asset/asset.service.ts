@@ -7,7 +7,8 @@ import {
   deleteAsset, undeleteAssets, getResizesById, VersionedService, getDownloads, type DownloadsFilter,
   getResizeDownloads, type AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion,
   renameAsset, updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal, DeleteStateAll,
-  getAssetsByPath, PagetreeType, SiteRuleService, DeleteState, AssetRuleService, shiftPath, fileHandler, LaunchState, deleteAssets, AssetsResponse
+  getAssetsByPath, PagetreeType, SiteRuleService, DeleteState, AssetRuleService, shiftPath, fileHandler,
+  LaunchState, deleteAssets, AssetsResponse, templateRegistry
 } from '../internal.js'
 
 const thumbnailMimes = new Set(['image/jpg', 'image/jpeg', 'image/gif', 'image/png'])
@@ -314,6 +315,8 @@ export class AssetService extends DosGatoService<Asset> {
     if (!asset) throw new Error('Asset not found.')
     if (!await this.mayUpdate(asset)) throw new Error(`You are not permitted to update asset ${asset.filename}.`)
     const response = new AssetResponse({ asset, success: true })
+    const errors = await templateRegistry.serverConfig.assetMeta?.validation?.(data, { path: await this.getPath(asset) })
+    for (const err of errors ?? []) response.addMessage(err.message, err.path, err.type as MutationMessageType)
     if (response.hasErrors() || validateOnly) return response
     await updateAssetMeta(this.svc(VersionedService), asset, data, this.login)
     this.loaders.clear()

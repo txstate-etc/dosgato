@@ -268,7 +268,7 @@ export class RoleService extends DosGatoService<Role> {
   protected currentRolesSet?: Set<string>
   async mayView (role: Role): Promise<boolean> {
     if (await this.haveGlobalPerm('manageAccess')) return true
-    return (await this.currentRoles()).some(r => r.id === role.id)
+    return this.currentRoles.some(r => r.id === role.id)
   }
 
   async mayViewManagerUI () {

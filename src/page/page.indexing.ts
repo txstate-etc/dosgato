@@ -1,6 +1,6 @@
 import { extractLinksFromText, getKeywords, type PageData } from '@dosgato/templating'
 import { isNotBlank, isNotNull } from 'txstate-utils'
-import { processLink, templateRegistry, type Index, collectComponents } from '../internal.js'
+import { processLink, templateRegistry, type Index, collectComponents, type SingleValueIndex } from '../internal.js'
 
 export function getPageIndexes (page: PageData): Index[] {
   const storage: Record<string, Set<string>> = {}
@@ -28,6 +28,15 @@ export function getPageIndexes (page: PageData): Index[] {
     // later - maybe send it to another system like elasticsearch that's more accustomed to fulltext indexing
     // const words = texts.flatMap(t => getKeywords(t))
     // for (const word of words) storage.fulltext.add(word)
+  }
+  return Object.keys(storage).map(k => ({ name: k, values: Array.from(storage[k]) }))
+}
+
+export function singleValueIndexesToIndexes (svIndexes: SingleValueIndex[]) {
+  const storage: Record<string, Set<string>> = {}
+  for (const index of svIndexes) {
+    storage[index.name] ??= new Set()
+    storage[index.name].add(index.value)
   }
   return Object.keys(storage).map(k => ({ name: k, values: Array.from(storage[k]) }))
 }

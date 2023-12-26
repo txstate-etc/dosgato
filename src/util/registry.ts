@@ -1,8 +1,9 @@
 import { type APITemplateType, type APIAnyTemplate, type APIPageTemplate, type APIComponentTemplate, type APIDataTemplate, type ComponentData, type LinkDefinition, type Migration } from '@dosgato/templating'
 import { DateTime } from 'luxon'
-import { isNotEmpty, isNotNull, sortby } from 'txstate-utils'
-import { TemplateArea } from '../internal.js'
+import { sortby } from 'txstate-utils'
+import { TemplateArea, parseLinks } from '../internal.js'
 import { existsSync, readFileSync } from 'node:fs'
+import { type DGStartOpts } from '../index.js'
 
 interface HasHydratedAreas {
   getLinks: (data: any) => LinkDefinition[]
@@ -14,6 +15,7 @@ type PageTemplate = Omit<APIPageTemplate, 'getLinks'> & HasHydratedAreas
 type ComponentTemplate = Omit<APIComponentTemplate, 'getLinks'> & HasHydratedAreas
 type DataTemplate = Omit<APIDataTemplate, 'getLinks'> & HasHydratedAreas
 type AnyTemplate = PageTemplate | ComponentTemplate | DataTemplate
+export type DGRestrictOperations = 'move' | 'delete' | 'rename' | 'changetemplate' | 'unpublish' | 'into'
 
 class TemplateRegistry {
   protected byType: { page: PageTemplate[], component: ComponentTemplate[], data: DataTemplate[] } = { page: [], component: [], data: [] }
@@ -22,6 +24,7 @@ class TemplateRegistry {
   public migrationsForward: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
   public migrationsBackward: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
   public currentSchemaVersion = existsSync('/.builddate') ? DateTime.fromMillis(Number(readFileSync('/.builddate', 'ascii').trim())) : DateTime.local()
+  public serverConfig!: Omit<DGStartOpts, 'templates'>
 
   register (template: APIAnyTemplate) {
     const hydrated: AnyTemplate = { ...template, hydratedAreas: {} } as AnyTemplate
@@ -31,15 +34,7 @@ class TemplateRegistry {
       }
     }
     const originalGetLinks = template.getLinks ?? (() => [])
-    hydrated.getLinks = (data: ComponentData) => originalGetLinks(data).filter(isNotEmpty).map(l => {
-      try {
-        return typeof l === 'string' ? JSON.parse(l) as LinkDefinition : l
-      } catch (e: any) {
-        if (typeof l === 'string' && l.startsWith('http')) return { type: 'url', url: l } as LinkDefinition
-        console.warn('Encountered unparseable link', l, 'in a component of type', data.templateKey)
-        return undefined
-      }
-    }).filter(isNotNull)
+    hydrated.getLinks = (data: ComponentData) => parseLinks(originalGetLinks(data))
     if (template.type === 'page') hydrated.disallowSet = new Set(template.disallowComponents ?? [])
     this.byType[template.type].push(hydrated as any)
     this.byKey[template.templateKey] = hydrated

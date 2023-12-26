@@ -10,7 +10,8 @@ import {
   getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage,
   PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
   PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, getPagesByPath, parsePath,
-  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService, shiftPath, systemContext, collectComponents, makePathSafe, LaunchState
+  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService,
+  shiftPath, systemContext, collectComponents, makePathSafe, LaunchState, type DGRestrictOperations
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -393,9 +394,28 @@ export class PageService extends DosGatoService<Page> {
     return await this.havePagePerm(page, perm)
   }
 
+  opRestricted (page: Page, operation: DGRestrictOperations) {
+    return templateRegistry.serverConfig.restrictPageOperation?.({
+      id: page.id,
+      name: page.name,
+      path: page.path,
+      templateKey: page.templateKey,
+      pagetreeType: page.pagetreeType,
+      roles: this.currentRoles
+    }, operation)
+  }
+
   // authenticated user may create pages underneath given page
   async mayCreate (page: Page) {
-    return await this.checkPerm(page, 'create', false)
+    const restricted = templateRegistry.serverConfig.restrictPageOperation?.({
+      id: page.id,
+      name: page.name,
+      path: page.path,
+      templateKey: page.templateKey,
+      pagetreeType: page.pagetreeType,
+      roles: this.currentRoles
+    }, 'into')
+    return !this.opRestricted(page, 'into') && await this.checkPerm(page, 'create', false)
   }
 
   async mayUpdate (page: Page) {
@@ -415,6 +435,7 @@ export class PageService extends DosGatoService<Page> {
   async mayUnpublish (page: Page, parentBeingUnpublished?: boolean) {
     // root page of a site/pagetree cannot be unpublished if the site is live
     if (!page.parentInternalId && (await this.isLive(page))) return false
+    if (this.opRestricted(page, 'unpublish')) return false
     const [checkPerm, isPublished] = await Promise.all([
       this.checkPerm(page, 'unpublish', !!parentBeingUnpublished),
       this.isPublished(page)
@@ -424,11 +445,13 @@ export class PageService extends DosGatoService<Page> {
 
   async mayMove (page: Page) {
     if (!page.parentInternalId) return false // root page of a site/pagetree cannot be moved
+    if (this.opRestricted(page, 'move')) return false
     return await this.checkPerm(page, 'move', false)
   }
 
   async mayDelete (page: Page) {
     if (!page.parentInternalId) return false // root page of a site/pagetree cannot be deleted
+    if (this.opRestricted(page, 'delete')) return false
     return await this.checkPerm(page, 'delete', true)
   }
 
@@ -894,7 +917,7 @@ export class PageService extends DosGatoService<Page> {
   async changePageTemplate (dataId: string, templateKey: string, dataVersion?: number, comment?: string, validateOnly?: boolean) {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (this.opRestricted(page, 'changetemplate') || !(await this.mayUpdate(page))) throw new Error("You are not permitted to change this page's template.")
     const pageData = await this.raw.getData(page, dataVersion)
 
     const extras = await this.raw.pageExtras(page)
@@ -921,7 +944,7 @@ export class PageService extends DosGatoService<Page> {
   async renamePage (dataId: string, name: string, validateOnly?: boolean) {
     const page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot rename a page that does not exist.')
-    if (!(await this.mayMove(page))) throw new Error('Current user is not permitted to rename this page')
+    if (this.opRestricted(page, 'rename') || !(await this.mayMove(page))) throw new Error('You are not permitted to rename this page.')
     const response = new PageResponse({ success: true })
     if (isNotNull(page.parentInternalId)) {
       const parent = await this.raw.findByInternalId(page.parentInternalId)

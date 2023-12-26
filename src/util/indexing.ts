@@ -1,5 +1,5 @@
 import { type LinkDefinition } from '@dosgato/templating'
-import { ensureString, stringify } from 'txstate-utils'
+import { ensureString, isNotNull } from 'txstate-utils'
 
 export function getHostname (urlString: string) {
   if (!urlString) return undefined
@@ -57,4 +57,16 @@ export function processLink (link: LinkDefinition) {
     else ret = [{ name: 'link_hostname', value: hostname }]
   }
   return ret.map(l => ({ ...l, value: ensureString(l.value) }) as SingleValueIndex)
+}
+
+export function parseLinks (links?: (LinkDefinition | string | undefined)[], templateKey?: string) {
+  return (links ?? []).filter(isNotNull).map(l => {
+    try {
+      return typeof l === 'string' ? JSON.parse(l) as LinkDefinition : l
+    } catch (e: any) {
+      if (typeof l === 'string' && l.startsWith('http')) return { type: 'url', url: l } as LinkDefinition
+      console.warn('Encountered unparseable link', l, 'in a component of type', templateKey ?? 'unknown')
+      return undefined
+    }
+  }).filter(isNotNull)
 }

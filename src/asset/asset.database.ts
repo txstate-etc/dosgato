@@ -4,7 +4,8 @@ import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { intersect, isBlank, isNotBlank, isNotNull, keyby, pick, stringify } from 'txstate-utils'
-import { Asset, type AssetFilter, AssetResize, type VersionedService, AssetFolder, fileHandler, DownloadRecord, type DownloadsFilter, DownloadsResolution, type AssetFolderRow, DeleteState, processDeletedFilters, normalizePath, AssetServiceInternal, numerate, NameConflictError } from '../internal.js'
+import { Asset, type AssetFilter, AssetResize, type VersionedService, AssetFolder, fileHandler, DownloadRecord, type DownloadsFilter, DownloadsResolution, type AssetFolderRow, DeleteState, processDeletedFilters, normalizePath, AssetServiceInternal, numerate, NameConflictError, templateRegistry, processLink, singleValueIndexesToIndexes, parseLinks } from '../internal.js'
+import { extractLinksFromText } from '@dosgato/templating'
 
 export interface AssetInput {
   name: string
@@ -382,8 +383,12 @@ export async function compressDownloads () {
 }
 
 export function getIndexes (data: any) {
-  const indexes = data.legacyId ? [{ name: 'legacyId', values: [data.legacyId] }] : []
-  return indexes
+  const indexes = data.legacyId ? [{ name: 'legacyId', value: data.legacyId }] : []
+  const texts = templateRegistry.serverConfig.assetMeta?.getFulltext?.(data)?.filter(isNotBlank) ?? []
+  const links = parseLinks(templateRegistry.serverConfig.assetMeta?.getLinks?.(data)).flatMap(processLink)
+  const moreLinks = texts.flatMap(extractLinksFromText).flatMap(processLink)
+
+  return singleValueIndexesToIndexes(indexes.concat(links).concat(moreLinks))
 }
 
 export async function createAsset (versionedService: VersionedService, userId: string, args: CreateAssetInput, opts?: { numerate?: boolean }) {

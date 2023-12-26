@@ -1,10 +1,10 @@
-import type { APIAnyTemplate, FulltextGatheringFn, LinkGatheringFn, Migration, ValidationFeedback, PageData } from '@dosgato/templating'
+import type { APIAnyTemplate, FulltextGatheringFn, LinkGatheringFn, Migration, ValidationFeedback } from '@dosgato/templating'
 import { Context, GQLServer, type GQLStartOpts, gqlDevLogger } from '@txstate-mws/graphql-server'
 import { type FastifyInstance } from 'fastify'
 import { type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
 import { type GraphQLError, type GraphQLScalarType } from 'graphql'
 import { DateTime } from 'luxon'
-import { Cache, isBlank, isNotBlank } from 'txstate-utils'
+import { Cache, isBlank, isNotBlank, omit } from 'txstate-utils'
 import { type NonEmptyArray } from 'type-graphql'
 import { migrations, resetdb } from './migrations.js'
 import {
@@ -23,7 +23,7 @@ import {
   AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler,
   FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes,
   SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
-  duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role
+  duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role, PageService, type DGRestrictOperations
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -35,10 +35,10 @@ async function updateLogin (queryTime: number, operationName: string, query: str
 }
 
 export interface AssetMeta <DataType = any> {
-  validation: (data: DataType, extras: { path: string }) => Promise<ValidationFeedback[]>
-  migrations: Migration<any, { path: string }>[]
-  getLinks: LinkGatheringFn<DataType>
-  getFulltext: FulltextGatheringFn<DataType>
+  validation?: (data: DataType, extras: { path: string }) => Promise<ValidationFeedback[]>
+  migrations?: Migration<any, { path: string }>[]
+  getLinks?: LinkGatheringFn<DataType>
+  getFulltext?: FulltextGatheringFn<DataType>
 }
 
 export interface DGUser {
@@ -73,7 +73,7 @@ export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
    * a Dos Gato user. Login, name and email will be fetched automatically instead of making the administrator
    * type it all out.
    *
-   * If this function is provided, userLookup will be used instead (meaning only full logins will show results).
+   * If this function is not provided, userLookup will be used instead (meaning only full logins will show results).
    * If neither is provided, the feature will be disabled.
    */
   userSearch?: (search: string) => Promise<DGUser[]>
@@ -91,7 +91,7 @@ export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
    * Blocking an operation will mean that even a system administrator will be unable to complete the operation, so be
    * sure to inspect the `roles` array if you want to allow operations for superuser or other roles (by name).
    */
-  restrictPageOperation?: (page: { id: string, name: string, path: string, templateKey: string, pagetreeType: PagetreeType, roles: Role[] }, operation: 'move' | 'delete' | 'rename' | 'changetemplate' | 'unpublish' | 'into') => boolean
+  restrictPageOperation?: (page: { id: string, name: string, path: string, templateKey: string, pagetreeType: PagetreeType, roles: Role[] }, operation: DGRestrictOperations) => boolean
 }
 
 export class DGServer {
@@ -105,6 +105,7 @@ export class DGServer {
   }
 
   async start (opts: DGStartOpts) {
+    templateRegistry.serverConfig = omit(opts, 'templates')
     for (const template of opts.templates) templateRegistry.register(template)
     templateRegistry.sortMigrations()
     const shouldResetDb = process.env.NODE_ENV === 'development' && process.env.RESET_DB_ON_STARTUP === 'true'
@@ -175,6 +176,7 @@ export class DGServer {
       this.app.addHook('onRequest', async req => {
         const ctx = new Context(req)
         await ctx.waitForAuth()
+        await ctx.svc(PageService).loadRoles()
         await createTrainingSite.get(ctx.svc(UserService).login)
       })
     }
