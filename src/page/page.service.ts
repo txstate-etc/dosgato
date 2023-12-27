@@ -400,21 +400,12 @@ export class PageService extends DosGatoService<Page> {
       name: page.name,
       path: page.path,
       templateKey: page.templateKey,
-      pagetreeType: page.pagetreeType,
-      roles: this.currentRoles
-    }, operation)
+      pagetreeType: page.pagetreeType
+    }, operation, this.currentRoles())
   }
 
   // authenticated user may create pages underneath given page
   async mayCreate (page: Page) {
-    const restricted = templateRegistry.serverConfig.restrictPageOperation?.({
-      id: page.id,
-      name: page.name,
-      path: page.path,
-      templateKey: page.templateKey,
-      pagetreeType: page.pagetreeType,
-      roles: this.currentRoles
-    }, 'into')
     return !this.opRestricted(page, 'into') && await this.checkPerm(page, 'create', false)
   }
 

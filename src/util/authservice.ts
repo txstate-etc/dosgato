@@ -67,8 +67,6 @@ const roleCache = new Cache(async (netid: string, ctx: Context) => {
 }, { freshseconds: 5, staleseconds: 10 })
 
 export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedService<{ sub?: string, client_id?: string }, ObjType, RedactedType> {
-  protected currentRoles!: Role[]
-
   get login () {
     return this.auth?.sub ?? this.auth?.client_id ?? 'anonymous'
   }
@@ -79,7 +77,11 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   async loadRoles () {
-    this.currentRoles = await roleCache.get(this.login, this.ctx)
+    (this.ctx as any).currentRoles = await roleCache.get(this.login, this.ctx)
+  }
+
+  currentRoles (): Role[] {
+    return (this.ctx as any).currentRoles
   }
 
   protected async currentGroups () {
