@@ -1,14 +1,14 @@
 /* eslint-disable no-trailing-spaces */
 import { BaseService, ValidatedResponse, type MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { isNotNull, someAsync, intersect, isNull, keyby, filterAsync, isBlank } from 'txstate-utils'
+import { isNotNull, intersect, isNull, keyby, isBlank } from 'txstate-utils'
 import {
   type Data, type DataFilter, getData, VersionedService, appendPath, DosGatoService,
   DataFolderServiceInternal, DataFolderService, type CreateDataInput, SiteServiceInternal,
   createDataEntry, DataResponse, DataMultResponse, templateRegistry, type UpdateDataInput, getDataIndexes,
   renameDataEntry, deleteDataEntries, undeleteDataEntries, type MoveDataTarget, moveDataEntries,
   type DataFolder, type Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions,
-  DeleteState, popPath, DeleteStateAll, DataRuleService, shiftPath, systemContext, makeSafe, numerateLoop
+  DeleteState, popPath, DeleteStateAll, DataRuleService, systemContext, makeSafe, numerateLoop
 } from '../internal.js'
 import db from 'mysql2-async/db'
 
@@ -91,11 +91,6 @@ export class DataServiceInternal extends BaseService {
     else return await this.loaders.get(dataByTemplateLoader, { ...filter, global: true }).load(dataroot.template.key)
   }
 
-  async isPublished (data: Data) {
-    const published = await this.svc(VersionedService).get(data.intDataId, { tag: 'published' })
-    return (typeof published) !== 'undefined'
-  }
-
   async getPath (data: Data) {
     if (!data.folderInternalId) {
       if (!data.siteId) return appendPath('/global', data.name as string)
@@ -161,28 +156,28 @@ export class DataService extends DosGatoService<Data> {
 
   async find (filter: DataFilter) {
     const data = await this.raw.find(filter)
-    if (filter?.links?.length || filter?.paths?.length || filter?.ids?.length) return await filterAsync(data, async f => await this.mayViewIndividual(f))
-    return await this.removeUnauthorized(data)
+    if (filter?.links?.length || filter?.paths?.length || filter?.ids?.length) return data.filter(f => this.mayViewIndividual(f))
+    return this.removeUnauthorized(data)
   }
 
   async findByIds (ids: string[]) {
-    return await this.removeUnauthorized(await this.raw.findByIds(ids))
+    return this.removeUnauthorized(await this.raw.findByIds(ids))
   }
 
   async findByFolderInternalId (folderId: number, filter?: DataFilter) {
-    return await this.removeUnauthorized(await this.raw.findByFolderInternalId(folderId, filter))
+    return this.removeUnauthorized(await this.raw.findByFolderInternalId(folderId, filter))
   }
 
   async findBySiteId (siteId: string, filter?: DataFilter) {
-    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId, filter))
+    return this.removeUnauthorized(await this.raw.findBySiteId(siteId, filter))
   }
 
   async findByTemplate (key: string, filter?: DataFilter) {
-    return await this.removeUnauthorized(await this.raw.findByTemplate(key, filter))
+    return this.removeUnauthorized(await this.raw.findByTemplate(key, filter))
   }
 
   async findByDataRoot (dataroot: DataRoot, filter?: DataFilter) {
-    return await this.removeUnauthorized(await this.raw.findByDataRoot(dataroot, filter))
+    return this.removeUnauthorized(await this.raw.findByDataRoot(dataroot, filter))
   }
 
   async getPath (data: Data) {
@@ -195,8 +190,8 @@ export class DataService extends DosGatoService<Data> {
 
   async getData (data: Data, opts?: { published?: boolean, version?: number, publishedIfNecessary?: boolean }) {
     opts ??= {}
-    const mayViewLatest = await this.mayViewLatest(data)
-    opts.published = opts.published || (!mayViewLatest && opts.publishedIfNecessary)
+    const mayViewLatest = this.mayViewLatest(data)
+    opts.published = !!opts.published || (!mayViewLatest && opts.publishedIfNecessary)
     if (!opts.published && !mayViewLatest) throw new Error('You are only permitted to view the published version of this data.')
     const [versioned, folder] = await Promise.all([
       this.svc(VersionedService).get(data.intDataId, { version: opts.version, tag: opts.published ? 'published' : undefined }),
@@ -219,7 +214,7 @@ export class DataService extends DosGatoService<Data> {
     if (args.folderId) {
       const folder = await this.svc(DataFolderServiceInternal).findById(args.folderId)
       if (!folder) throw new Error('Data cannot be created in a data folder that does not exist.')
-      if (!(await this.svc(DataFolderService).mayCreate(folder))) throw new Error(`Current user is not permitted to create data in folder ${String(folder.name)}`)
+      if (!this.svc(DataFolderService).mayCreate(folder)) throw new Error(`Current user is not permitted to create data in folder ${String(folder.name)}`)
       if (folder.templateId !== template.id) {
         throw new Error('Data cannot be created in a folder using a different data template.')
       }
@@ -230,7 +225,7 @@ export class DataService extends DosGatoService<Data> {
       site = await this.svc(SiteServiceInternal).findById(args.siteId)
       if (!site) throw new Error('Data cannot be created in a site that does not exist.')
       dataroot = new DataRoot(site, template)
-      if (!await this.svc(DataRootService).mayCreate(dataroot)) throw new Error(`Current user is not permitted to create data in site ${String(site.name)}.`)
+      if (!this.svc(DataRootService).mayCreate(dataroot)) throw new Error(`Current user is not permitted to create data in site ${String(site.name)}.`)
       siblings = [
         ...(await this.raw.findByDataRoot(dataroot, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId)),
         ...await this.svc(DataFolderServiceInternal).findBySiteId(args.siteId, { templateKeys: [template.key] })
@@ -265,7 +260,7 @@ export class DataService extends DosGatoService<Data> {
   async update (dataId: string, args: UpdateDataInput, validateOnly?: boolean) {
     const data = await this.raw.findById(dataId)
     if (!data) throw new Error('Data entry to be updated does not exist')
-    if (!(await this.mayUpdate(data))) throw new Error('Current user is not permitted to update this data entry.')
+    if (!this.mayUpdate(data)) throw new Error('Current user is not permitted to update this data entry.')
     const tmpl = templateRegistry.getDataTemplate(args.data.templateKey)
     const dataRootId = `${data.siteId ?? 'global'}-${args.data.templateKey}`
     const folder = data.folderInternalId ? await this.svc(DataFolderServiceInternal).findByInternalId(data.folderInternalId) : undefined
@@ -292,7 +287,7 @@ export class DataService extends DosGatoService<Data> {
 
   async move (dataIds: string[], target: MoveDataTarget) {
     const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(data, async (d: Data) => !(await this.mayMove(d)))) {
+    if (data.some(d => !this.mayMove(d))) {
       throw new Error('You are not permitted to move one or more data entries.')
     }
 
@@ -322,12 +317,12 @@ export class DataService extends DosGatoService<Data> {
     }
 
     if (folder) {
-      if (!(await this.svc(DataFolderService).mayCreate(folder))) throw new Error(`You are not permitted to move data to folder ${String(folder.name)}.`)
+      if (!this.svc(DataFolderService).mayCreate(folder)) throw new Error(`You are not permitted to move data to folder ${String(folder.name)}.`)
       if (folder.templateId !== template.id) throw new Error('Data can only be moved to a folder using the same template.')
     }
     if (site) {
       const dataroot = new DataRoot(site, template)
-      if (!(await this.svc(DataRootService).mayCreate(dataroot))) {
+      if (!this.svc(DataRootService).mayCreate(dataroot)) {
         throw new Error(`Current user is not permitted to move data to this site ${String(site.name)}.`)
       }
     }
@@ -343,7 +338,7 @@ export class DataService extends DosGatoService<Data> {
 
   async publish (dataIds: string[]) {
     let data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(data, async (d: Data) => !(await this.mayPublish(d)))) {
+    if (data.some(d => !this.mayPublish(d))) {
       throw new Error('You are not permitted to publish one or more data entries.')
     }
     data = data.filter(d => !d.deleted)
@@ -356,7 +351,7 @@ export class DataService extends DosGatoService<Data> {
 
   async unpublish (dataIds: string[]) {
     const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(data, async (d: Data) => !(await this.mayUnpublish(d)))) {
+    if (data.some(d => !this.mayUnpublish(d))) {
       throw new Error('You are not permitted to unpublish one or more data entries.')
     }
     await this.svc(VersionedService).removeTags(data.map(d => d.intDataId), ['published'])
@@ -366,12 +361,11 @@ export class DataService extends DosGatoService<Data> {
 
   async delete (dataIds: string[]) {
     const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(data, async (d: Data) => !(await this.mayDelete(d)))) {
+    if (data.some(d => !this.mayDelete(d))) {
       throw new Error('You are not permitted to delete one or more data entries.')
     }
-    const currentUser = await this.currentUser()
     try {
-      await deleteDataEntries(this.svc(VersionedService), data, currentUser!.internalId)
+      await deleteDataEntries(this.svc(VersionedService), data, this.ctx.authInfo.user!.internalId)
       this.loaders.clear()
       const updated = await this.raw.findByIds(data.map(d => d.dataId))
       return new DataMultResponse({ success: true, data: updated })
@@ -383,11 +377,10 @@ export class DataService extends DosGatoService<Data> {
 
   async publishDataEntryDeletions (dataIds: string[]) {
     const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(data, async (d: Data) => !(await this.mayDelete(d)))) {
+    if (data.some(d => !this.mayDelete(d))) {
       throw new Error('Current user is not permitted to delete one or more data entries.')
     }
-    const currentUser = await this.currentUser()
-    await publishDataEntryDeletions(data, currentUser!.internalId)
+    await publishDataEntryDeletions(data, this.ctx.authInfo.user!.internalId)
     this.loaders.clear()
     const updated = await this.raw.findByIds(data.map(d => d.dataId))
     return new DataMultResponse({ success: true, data: updated })
@@ -395,7 +388,7 @@ export class DataService extends DosGatoService<Data> {
 
   async undelete (dataIds: string[]) {
     const data = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(data, async (d: Data) => !(await this.mayUndelete(d)))) {
+    if (data.some(d => !this.mayUndelete(d))) {
       throw new Error('Current user is not permitted to restore one or more data entries')
     }
     try {
@@ -414,15 +407,10 @@ export class DataService extends DosGatoService<Data> {
     return !!tag
   }
 
-  async mayView (data: Data) {
-    const [dataRules, dataPath, isPublished] = await Promise.all([
-      this.currentDataRules(),
-      this.raw.getPath(data),
-      this.raw.isPublished(data)
-    ])
-    if (isPublished) return true
-    const folderPathWithoutSite = popPath(shiftPath(dataPath))
-    for (const r of dataRules) {
+  mayView (data: Data) {
+    if (data.published) return true
+    const folderPathWithoutSite = popPath(data.resolvedPathWithoutSitename)
+    for (const r of this.ctx.authInfo.dataRules) {
       if (!r.grants.view) continue
       if (!DataRuleService.appliesToSiteAndTemplate(r, data)) continue
       if (data.deleteState === DeleteState.DELETED && !r.grants.undelete) continue
@@ -432,49 +420,48 @@ export class DataService extends DosGatoService<Data> {
     return false
   }
 
-  async mayViewLatest (data: Data) {
-    return await this.haveDataPerm(data, 'viewlatest')
+  mayViewLatest (data: Data) {
+    return this.haveDataPerm(data, 'viewlatest')
   }
 
-  async mayViewIndividual (data: Data) {
-    return (!data.orphaned && data.deleteState === DeleteState.NOTDELETED) || await this.mayView(data)
+  mayViewIndividual (data: Data) {
+    return (!data.orphaned && data.deleteState === DeleteState.NOTDELETED) || this.mayView(data)
   }
 
-  async mayViewManagerUI () {
-    return (await this.currentDataRules()).some(r => r.grants.viewForEdit)
+  mayViewManagerUI () {
+    return this.ctx.authInfo.dataRules.some(r => r.grants.viewForEdit)
   }
 
-  async mayViewForEdit (data: Data) {
-    return await this.haveDataPerm(data, 'viewForEdit')
+  mayViewForEdit (data: Data) {
+    return this.haveDataPerm(data, 'viewForEdit')
   }
 
-  async mayUpdate (data: Data) {
-    return await this.haveDataPerm(data, 'update')
+  mayUpdate (data: Data) {
+    return this.haveDataPerm(data, 'update')
   }
 
-  async mayMove (data: Data) {
-    return await this.haveDataPerm(data, 'move')
+  mayMove (data: Data) {
+    return this.haveDataPerm(data, 'move')
   }
 
-  async mayPublish (data: Data) {
-    return await this.haveDataPerm(data, 'publish')
+  mayPublish (data: Data) {
+    return this.haveDataPerm(data, 'publish')
   }
 
-  async mayUnpublish (data: Data) {
-    if (!await this.isPublished(data)) return false
-    return await this.haveDataPerm(data, 'unpublish')
+  mayUnpublish (data: Data) {
+    return data.published && this.haveDataPerm(data, 'unpublish')
   }
 
-  async mayDelete (data: Data) {
-    return await this.haveDataPerm(data, 'delete')
+  mayDelete (data: Data) {
+    return this.haveDataPerm(data, 'delete')
   }
 
-  async mayUndelete (data: Data) {
+  mayUndelete (data: Data) {
     if (data.deleteState === DeleteState.NOTDELETED || data.orphaned) return false
-    return data.deleteState === DeleteState.MARKEDFORDELETE ? await this.haveDataPerm(data, 'delete') : await this.haveDataPerm(data, 'undelete')
+    return data.deleteState === DeleteState.MARKEDFORDELETE ? this.haveDataPerm(data, 'delete') : this.haveDataPerm(data, 'undelete')
   }
 
   async mayCreateGlobal (templateId: string) {
-    return (await this.currentDataRules()).some(r => DataRuleService.appliesRaw(r, templateId, '/'))
+    return this.ctx.authInfo.dataRules.some(r => DataRuleService.appliesRaw(r, templateId, '/'))
   }
 }

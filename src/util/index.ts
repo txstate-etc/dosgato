@@ -2,6 +2,7 @@ import path from 'path'
 import { isNotBlank } from 'txstate-utils'
 
 export * from './authservice.js'
+export * from './context.js'
 export * from './indexing.js'
 export * from './migrations.js'
 export * from './registry.js'
@@ -45,6 +46,10 @@ export function popPath (path: string) {
  */
 export function shiftPath (path: string) {
   return '/' + path.split('/').slice(2).join('/')
+}
+
+export function ensureEndSlash (path: string) {
+  return path.endsWith('/') ? path : path + '/'
 }
 
 export function basename (p: string) {

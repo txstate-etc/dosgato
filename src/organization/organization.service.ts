@@ -26,23 +26,23 @@ export class OrganizationService extends DosGatoService<Organization> {
   raw = this.svc(OrganizationServiceInternal)
 
   async find (filter?: OrganizationFilter) {
-    return await this.removeUnauthorized(await this.raw.find(filter))
+    return this.removeUnauthorized(await this.raw.find(filter))
   }
 
   async findById (id: string) {
-    return await this.removeUnauthorized(await this.raw.findById(id))
+    return this.removeUnauthorized(await this.raw.findById(id))
   }
 
-  async mayView (org: Organization) {
-    return await this.svc(SiteService).mayViewManagerUI()
+  mayView (org: Organization) {
+    return this.svc(SiteService).mayViewManagerUI()
   }
 
-  async mayCreate () {
-    return (await this.currentSiteRules()).some(r => r.grants.governance)
+  mayCreate () {
+    return this.ctx.authInfo.siteRules.some(r => r.grants.governance)
   }
 
   async create (name: string, externalId?: string) {
-    if (!await this.mayCreate()) throw new Error('You are not permitted to create organizations.')
+    if (!this.mayCreate()) throw new Error('You are not permitted to create organizations.')
     const internalId = await createOrganization(name, externalId)
     return new OrganizationResponse({ success: true, organization: await this.raw.findById(String(internalId)) })
   }

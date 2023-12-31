@@ -1,7 +1,7 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
-  getGlobalRules, GlobalRule, DosGatoService, tooPowerfulHelper, RoleService,
+  getGlobalRules, GlobalRule, DosGatoService, RoleService,
   type CreateGlobalRuleInput, createGlobalRule, GlobalRuleResponse, type UpdateGlobalRuleInput,
   updateGlobalRule, deleteGlobalRule, RoleServiceInternal
 } from '../internal.js'
@@ -32,20 +32,20 @@ export class GlobalRuleService extends DosGatoService<GlobalRule> {
   raw = this.svc(GlobalRuleServiceInternal)
 
   async findById (ruleId: string) {
-    return await this.removeUnauthorized(await this.raw.findById(ruleId))
+    return this.removeUnauthorized(await this.raw.findById(ruleId))
   }
 
   async findByRoleId (roleId: string) {
-    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId))
+    return this.removeUnauthorized(await this.raw.findByRoleId(roleId))
   }
 
   async create (args: CreateGlobalRuleInput, validateOnly?: boolean) {
     const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
-    if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
+    if (!this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const response = new GlobalRuleResponse({ success: true })
     const newRule = new GlobalRule({ roleId: args.roleId, ...args.grants })
-    if (await this.tooPowerful(newRule)) response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')
+    if (this.tooPowerful(newRule)) response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')
     if (validateOnly || response.hasErrors()) return response
     const ruleId = await createGlobalRule(args)
     this.loaders.clear()
@@ -65,7 +65,7 @@ export class GlobalRuleService extends DosGatoService<GlobalRule> {
       ...updatedGrants
     })
     const response = new GlobalRuleResponse({ success: true })
-    if (await this.tooPowerful(newRule)) response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
+    if (this.tooPowerful(newRule)) response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
     if (validateOnly || response.hasErrors()) return response
     await updateGlobalRule(args)
     this.loaders.clear()
@@ -87,14 +87,8 @@ export class GlobalRuleService extends DosGatoService<GlobalRule> {
     }
   }
 
-  async tooPowerful (rule: GlobalRule) {
-    const grants = await this.currentGlobalGrants() ?? {
-      manageAccess: false,
-      manageGlobalData: false,
-      manageParentRoles: false,
-      manageTemplates: false,
-      createSites: false
-    }
+  tooPowerful (rule: GlobalRule) {
+    const grants = this.ctx.authInfo.globalGrants
     return (rule.grants.createSites && !grants.createSites) ||
     (rule.grants.manageAccess && !grants.manageAccess) ||
     (rule.grants.manageGlobalData && !grants.manageGlobalData) ||
@@ -104,16 +98,15 @@ export class GlobalRuleService extends DosGatoService<GlobalRule> {
 
   async mayWrite (rule: GlobalRule) {
     const role = await this.svc(RoleService).findById(rule.id)
-    return await this.svc(RoleService).mayUpdate(role!)
+    return this.svc(RoleService).mayUpdate(role!)
   }
 
-  async mayView (rule: GlobalRule) {
-    if (await this.haveGlobalPerm('manageAccess')) return true
-    const role = await this.svc(RoleService).findById(rule.roleId)
-    return !!role
+  mayView (rule: GlobalRule) {
+    // rules can only be viewed underneath roles, so the role's mayView function can be relied upon here
+    return true
   }
 
-  async mayOverrideStamps () {
-    return await this.haveGlobalPerm('createSites')
+  mayOverrideStamps () {
+    return this.haveGlobalPerm('createSites')
   }
 }

@@ -102,6 +102,8 @@ export class Page {
   pagetreeType: PagetreeType
   orphaned: boolean
   published: boolean
+  resolvedPath!: string
+  resolvedPathWithoutSitename!: string
 
   // this is a helper property for determining whether templates can be kept on a page
   // see TemplateService.mayKeepOnPage()

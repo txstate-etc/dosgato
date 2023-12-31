@@ -2,13 +2,13 @@ import { type PageExtras, type PageData } from '@dosgato/templating'
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import { nanoid } from 'nanoid'
-import { filterAsync, isBlank, isNotBlank } from 'txstate-utils'
+import { isBlank, isNotBlank } from 'txstate-utils'
 import {
   type Site, type SiteFilter, getSites, getSitesByTemplate, undeleteSite, DosGatoService,
   createSite, VersionedService, SiteResponse, deleteSite, PageService,
   getSitesByManagerInternalId, siteNameIsUnique, renameSite, setLaunchURL,
   type UpdateSiteManagementInput, updateSiteManagement, DeletedFilter,
-  type CreatePageExtras, getSiteIdByLaunchUrl, type Organization, PageServiceInternal,
+  type CreatePageExtras, getSiteIdByLaunchUrl, type Organization,
   PagetreeServiceInternal, migratePage, systemContext, LaunchState
 } from '../internal.js'
 
@@ -107,40 +107,40 @@ export class SiteServiceInternal extends BaseService {
 export class SiteService extends DosGatoService<Site> {
   raw = this.svc(SiteServiceInternal)
 
-  async postFilter (sites: Site[], filter?: SiteFilter) {
-    return filter?.viewForEdit ? await filterAsync(sites, async s => await this.mayViewForEdit(s)) : sites
+  postFilter (sites: Site[], filter?: SiteFilter) {
+    return filter?.viewForEdit ? sites.filter(s => this.mayViewForEdit(s)) : sites
   }
 
   async find (filter?: SiteFilter) {
-    return await this.postFilter(await this.removeUnauthorized(await this.raw.find(filter)), filter)
+    return this.postFilter(this.removeUnauthorized(await this.raw.find(filter)), filter)
   }
 
   async findById (siteId: string) {
-    return await this.removeUnauthorized(await this.raw.findById(siteId))
+    return this.removeUnauthorized(await this.raw.findById(siteId))
   }
 
   async findByOrganization (org: Organization, filter?: SiteFilter) {
-    return await this.postFilter(await this.removeUnauthorized(await this.raw.findByOrganization(org, filter)), filter)
+    return this.postFilter(this.removeUnauthorized(await this.raw.findByOrganization(org, filter)), filter)
   }
 
   async findByTemplateId (templateId: string, atLeastOneTree?: boolean) {
-    return await this.removeUnauthorized(await this.raw.findByTemplateId(templateId, atLeastOneTree))
+    return this.removeUnauthorized(await this.raw.findByTemplateId(templateId, atLeastOneTree))
   }
 
   async findByPagetreeId (pagetreeId: string) {
-    return await this.removeUnauthorized(await this.raw.findByPagetreeId(pagetreeId))
+    return this.removeUnauthorized(await this.raw.findByPagetreeId(pagetreeId))
   }
 
   async findByOwnerInternalId (ownerInternalId: number, filter?: SiteFilter) {
-    return await this.postFilter(await this.removeUnauthorized(await this.raw.findByOwnerInternalId(ownerInternalId, filter)), filter)
+    return this.postFilter(this.removeUnauthorized(await this.raw.findByOwnerInternalId(ownerInternalId, filter)), filter)
   }
 
   async findByManagerInternalId (managerInternalId: number, filter?: SiteFilter) {
-    return await this.postFilter(await this.removeUnauthorized(await this.raw.findByManagerInternalId(managerInternalId, filter)), filter)
+    return this.postFilter(this.removeUnauthorized(await this.raw.findByManagerInternalId(managerInternalId, filter)), filter)
   }
 
   async create (name: string, data: PageData, validateOnly?: boolean, extra?: CreatePageExtras) {
-    if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create sites.')
+    if (!this.mayCreate()) throw new Error('You are not permitted to create sites.')
     const response = new SiteResponse({ success: true })
     if (!(await siteNameIsUnique(name))) {
       response.addMessage(`Site ${name} already exists.`, 'name')
@@ -174,7 +174,7 @@ export class SiteService extends DosGatoService<Site> {
   async rename (siteId: string, name: string, validateOnly: boolean = false) {
     const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site to be renamed does not exist.')
-    if (!(await this.mayRename(site))) throw new Error('Current user is not authorized to rename this site')
+    if (!this.mayRename(site)) throw new Error('You are not authorized to rename this site')
     const response = new SiteResponse({ success: true })
     if (name !== site.name && !(await siteNameIsUnique(name))) {
       response.addMessage(`Site ${name} already exists.`, 'name')
@@ -183,8 +183,7 @@ export class SiteService extends DosGatoService<Site> {
       return response
     }
     if (!validateOnly) {
-      const currentUser = await this.currentUser()
-      await renameSite(site, name, currentUser!.internalId)
+      await renameSite(site, name, this.ctx.authInfo.user!.internalId)
       this.loaders.clear()
       response.site = await this.raw.findById(siteId)
     }
@@ -194,7 +193,7 @@ export class SiteService extends DosGatoService<Site> {
   async setLaunchURL (siteId: string, host: string | undefined, path: string | undefined, enabled = LaunchState.PRELAUNCH, validateOnly = false) {
     const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site does not exist')
-    if (!(await this.mayLaunch(site))) throw new Error('Current user is not authorized to update the public URL for this site')
+    if (!this.mayLaunch(site)) throw new Error('You are not authorized to update the public URL for this site')
     const response = new SiteResponse({ success: true })
     if (isBlank(host) && enabled === LaunchState.LAUNCHED) {
       response.addMessage('A site with no host cannot be live.', 'enabled')
@@ -207,8 +206,7 @@ export class SiteService extends DosGatoService<Site> {
       path = path.toLocaleLowerCase()
     }
     if (validateOnly || response.hasErrors()) return response
-    const currentUser = await this.currentUser()
-    await setLaunchURL(site, host, path, enabled, currentUser!.internalId)
+    await setLaunchURL(site, host, path, enabled, this.ctx.authInfo.user!.internalId)
     this.loaders.clear()
     response.site = await this.raw.findById(siteId)
     return response
@@ -217,12 +215,11 @@ export class SiteService extends DosGatoService<Site> {
   async updateSiteManagement (siteId: string, args: UpdateSiteManagementInput, validateOnly?: boolean) {
     const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site does not exist')
-    if (!(await this.mayManageGovernance(site))) throw new Error('Current user is not authorized to update the organization, owner, or managers for this site')
+    if (!this.mayManageGovernance(site)) throw new Error('You are not authorized to update the organization, owner, or managers for this site')
     const response = new SiteResponse({ success: true })
     // TODO: Any validations needed?
     if (!validateOnly) {
-      const currentUser = await this.currentUser()
-      await updateSiteManagement(site, args, currentUser!.internalId)
+      await updateSiteManagement(site, args, this.ctx.authInfo.user!.internalId)
       this.loaders.clear()
       response.site = await this.raw.findById(siteId)
     }
@@ -232,10 +229,9 @@ export class SiteService extends DosGatoService<Site> {
   async delete (siteId: string) {
     const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site to be deleted does not exist.')
-    if (!(await this.mayDelete(site))) throw new Error('Current user is not permitted to delete this site.')
-    const currentUser = await this.currentUser()
+    if (!this.mayDelete(site)) throw new Error('You are not permitted to delete this site.')
     try {
-      await deleteSite(site, currentUser!.internalId)
+      await deleteSite(site, this.ctx.authInfo.user!.internalId)
       this.loaders.clear()
       const deletedSite = await this.raw.findById(siteId)
       return new SiteResponse({ success: true, site: deletedSite })
@@ -248,7 +244,7 @@ export class SiteService extends DosGatoService<Site> {
   async undelete (siteId: string) {
     const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site to be restored does not exist.')
-    if (!(await this.mayUndelete(site))) throw new Error('Current user is not permitted to restore this site.')
+    if (!this.mayUndelete(site)) throw new Error('You are not permitted to restore this site.')
     try {
       await undeleteSite(site)
       this.loaders.clear()
@@ -260,49 +256,46 @@ export class SiteService extends DosGatoService<Site> {
     }
   }
 
-  async mayView (site: Site) {
-    const [viewForEdit, pages] = await Promise.all([
-      this.mayViewForEdit(site),
-      this.svc(PageServiceInternal).findByPagetreeId(site.primaryPagetreeId, { maxDepth: 0 })
-    ])
-    if (viewForEdit) return true
-    return await this.havePagePerm(pages[0]!, 'viewForEdit')
+  mayView (site: Site) {
+    if (this.mayViewForEdit(site)) return true
+    // visible if any page in the site is visible
+    return this.ctx.authInfo.pageRules.some(r => r.grants.viewForEdit && (!r.siteId || r.siteId === site.id))
   }
 
-  async mayViewForEdit (site: Site) {
-    return await this.haveSitePerm(site, 'viewForEdit')
+  mayViewForEdit (site: { id: string }) {
+    return this.haveGlobalPerm('manageAccess') || this.haveSitePerm(site, 'viewForEdit')
   }
 
-  async mayViewManagerUI () {
-    if (await this.haveGlobalPerm('createSites')) return true
-    return (await this.currentSiteRules()).some(r => r.grants.viewForEdit)
+  mayViewManagerUI () {
+    if (this.haveGlobalPerm('createSites')) return true
+    return this.ctx.authInfo.siteRules.some(r => r.grants.viewForEdit)
   }
 
-  async mayCreate () {
-    return await this.haveGlobalPerm('createSites')
+  mayCreate () {
+    return this.haveGlobalPerm('createSites')
   }
 
-  async mayLaunch (site: Site) {
-    return await this.haveSitePerm(site, 'launch')
+  mayLaunch (site: Site) {
+    return this.haveSitePerm(site, 'launch')
   }
 
-  async mayRename (site: Site) {
-    return await this.haveSitePerm(site, 'rename')
+  mayRename (site: Site) {
+    return this.haveSitePerm(site, 'rename')
   }
 
-  async mayManageGovernance (site: Site) {
-    return await this.haveSitePerm(site, 'governance')
+  mayManageGovernance (site: Site) {
+    return this.haveSitePerm(site, 'governance')
   }
 
-  async mayManageState (site: Site) {
-    return await this.haveSitePerm(site, 'manageState')
+  mayManageState (site: Site) {
+    return this.haveSitePerm(site, 'manageState')
   }
 
-  async mayDelete (site: Site) {
-    return await this.haveSitePerm(site, 'delete')
+  mayDelete (site: Site) {
+    return this.haveSitePerm(site, 'delete')
   }
 
-  async mayUndelete (site: Site) {
-    return await this.haveSitePerm(site, 'delete')
+  mayUndelete (site: Site) {
+    return this.haveSitePerm(site, 'delete')
   }
 }

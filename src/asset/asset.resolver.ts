@@ -6,7 +6,8 @@ import {
   AssetFolder, Role, JsonData, User, UserService, ObjectVersion, VersionedService,
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
   RoleService, AssetResponse, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site,
-  Pagetree, AssetFolderServiceInternal, DeleteStateRootDefault, FilenameSafeString, PagetreeServiceInternal, SiteServiceInternal, AssetServiceInternal, AssetsResponse
+  Pagetree, AssetFolderServiceInternal, DeleteStateRootDefault, FilenameSafeString,
+  PagetreeServiceInternal, SiteServiceInternal, AssetServiceInternal, AssetsResponse
 } from '../internal.js'
 
 @Resolver(of => Asset)
@@ -47,8 +48,8 @@ export class AssetResolver {
   }
 
   @FieldResolver(returns => String)
-  async path (@Ctx() ctx: Context, @Root() asset: Asset) {
-    return await ctx.svc(AssetService).getPath(asset)
+  path (@Ctx() ctx: Context, @Root() asset: Asset) {
+    return asset.resolvedPath
   }
 
   @FieldResolver(returns => JsonData)
@@ -180,7 +181,7 @@ export class AssetResolver {
   }
 
   @Mutation(returns => AssetsResponse)
-  async finalizeDeleteAssets(@Ctx() ctx: Context, @Arg('assetIds', type => [ID]) assetIds: string[]) {
+  async finalizeDeleteAssets (@Ctx() ctx: Context, @Arg('assetIds', type => [ID]) assetIds: string[]) {
     return await ctx.svc(AssetService).finalizeDeletion(assetIds)
   }
 
@@ -189,17 +190,17 @@ export class AssetResolver {
     return await ctx.svc(AssetService).undelete(assetIds)
   }
 
-  @Mutation(returns => AssetResponse, { deprecationReason: 'Use deleteAssets instead.'})
+  @Mutation(returns => AssetResponse, { deprecationReason: 'Use deleteAssets instead.' })
   async deleteAsset (@Ctx() ctx: Context, @Arg('assetId', type => ID) assetId: string) {
     return await ctx.svc(AssetService).delete(assetId)
   }
 
-  @Mutation(returns => AssetResponse, { deprecationReason: 'Use finalizeDeleteAssets instead.'})
+  @Mutation(returns => AssetResponse, { deprecationReason: 'Use finalizeDeleteAssets instead.' })
   async finalizeAssetDeletion (@Ctx() ctx: Context, @Arg('assetId', type => ID) assetId: string) {
     return await ctx.svc(AssetService).finalizeDeletion([assetId])
   }
 
-  @Mutation(returns => AssetResponse, { deprecationReason: 'Use undeleteAssets instead.'})
+  @Mutation(returns => AssetResponse, { deprecationReason: 'Use undeleteAssets instead.' })
   async undeleteAsset (@Ctx() ctx: Context, @Arg('assetId', type => ID) assetId: string) {
     return await ctx.svc(AssetService).undelete([assetId])
   }
@@ -208,28 +209,28 @@ export class AssetResolver {
 @Resolver(of => AssetPermissions)
 export class AssetPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may view this asset in the asset manager UI.' })
-  async viewForEdit (@Ctx() ctx: Context, @Root() asset: Asset) {
-    return await ctx.svc(AssetService).mayViewForEdit(asset)
+  viewForEdit (@Ctx() ctx: Context, @Root() asset: Asset) {
+    return ctx.svc(AssetService).mayViewForEdit(asset)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may update this asset but not necessarily move it.' })
-  async update (@Ctx() ctx: Context, @Root() asset: Asset) {
-    return await ctx.svc(AssetService).mayUpdate(asset)
+  update (@Ctx() ctx: Context, @Root() asset: Asset) {
+    return ctx.svc(AssetService).mayUpdate(asset)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may move this asset beneath a folder for which they have the `create` permission.' })
-  async move (@Ctx() ctx: Context, @Root() asset: Asset) {
-    return await ctx.svc(AssetService).mayMove(asset)
+  move (@Ctx() ctx: Context, @Root() asset: Asset) {
+    return ctx.svc(AssetService).mayMove(asset)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may soft-delete this asset.' })
-  async delete (@Ctx() ctx: Context, @Root() asset: Asset) {
-    return await ctx.svc(AssetService).mayDelete(asset)
+  delete (@Ctx() ctx: Context, @Root() asset: Asset) {
+    return ctx.svc(AssetService).mayDelete(asset)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may undelete this asset. Returns false when the asset is not deleted.' })
-  async undelete (@Ctx() ctx: Context, @Root() asset: Asset) {
-    return await ctx.svc(AssetService).mayUndelete(asset)
+  undelete (@Ctx() ctx: Context, @Root() asset: Asset) {
+    return ctx.svc(AssetService).mayUndelete(asset)
   }
 }
 

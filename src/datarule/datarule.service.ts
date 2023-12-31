@@ -1,10 +1,10 @@
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { Cache, filterAsync, isNotNull, pick } from 'txstate-utils'
+import { Cache, isNotNull, pick } from 'txstate-utils'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import {
   tooPowerfulHelper, DosGatoService, type Data, type DataFolder, getDataRules, DataRule,
   createDataRule, type CreateDataRuleInput, updateDataRule, type UpdateDataRuleInput, deleteDataRule,
-  RoleService, type DataRuleFilter, DataRuleResponse, RoleServiceInternal, DataServiceInternal, DataFolderService, shiftPath, DataFolderServiceInternal
+  RoleService, type DataRuleFilter, DataRuleResponse, RoleServiceInternal, DataServiceInternal, shiftPath, DataFolderServiceInternal
 } from '../internal.js'
 
 const dataRulesByIdLoader = new PrimaryKeyLoader({
@@ -30,7 +30,7 @@ const dataRulesByTemplateLoader = new OneToManyLoader({
   extractKey: (r: DataRule) => String(r.templateId!)
 })
 
-const dataRulesForAllSitesCache = new Cache(async () => await getDataRules({ siteIds: [null] }), { freshseconds: 3 })
+const dataRulesForAllSitesCache = new Cache(async () => await getDataRules({ siteIds: [null], global: false }), { freshseconds: 3 })
 const dataRulesForAllTemplatesCache = new Cache(async () => await getDataRules({ templateIds: [null] }), { freshseconds: 3 })
 
 export class DataRuleServiceInternal extends BaseService {
@@ -42,8 +42,8 @@ export class DataRuleServiceInternal extends BaseService {
     return await this.loaders.get(dataRulesByRoleLoader, filter).load(roleId)
   }
 
-  async findBySiteId (siteId?: string) {
-    const dataRulesForSite = siteId ? await this.loaders.get(dataRulesBySiteLoader).load(siteId) : []
+  async findBySiteId (siteId: string) {
+    const dataRulesForSite = await this.loaders.get(dataRulesBySiteLoader).load(siteId)
     const globalRules = await dataRulesForAllSitesCache.get()
     return [...dataRulesForSite, ...globalRules]
   }
@@ -81,29 +81,29 @@ export class DataRuleService extends DosGatoService<DataRule> {
   }
 
   async findByRoleId (roleId: string, filter?: DataRuleFilter) {
-    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
+    return this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
   }
 
-  async findBySiteId (siteId?: string) {
-    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId))
+  async findBySiteId (siteId: string) {
+    return this.removeUnauthorized(await this.raw.findBySiteId(siteId))
   }
 
   async findByDataEntry (data: Data) {
-    return await this.removeUnauthorized(await this.raw.findByDataEntry(data))
+    return this.removeUnauthorized(await this.raw.findByDataEntry(data))
   }
 
   async findByDataFolder (folder: DataFolder) {
-    return await this.removeUnauthorized(await this.raw.findByDataFolder(folder))
+    return this.removeUnauthorized(await this.raw.findByDataFolder(folder))
   }
 
   async create (args: CreateDataRuleInput, validateOnly?: boolean) {
     const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
-    if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
+    if (!this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const response = new DataRuleResponse({ success: true })
     const newRule = new DataRule({ id: '0', ...pick(args, 'roleId', 'siteId', 'global', 'templateId'), path: args.path ?? '/', ...args.grants })
     if (newRule.global && newRule.siteId) throw new Error('A rule that is limited to global data and also limited to a site cannot logically exist.')
-    if (await this.tooPowerful(newRule)) response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')
+    if (this.tooPowerful(newRule)) response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')
     if (isNotNull(args.path)) {
       args.path = (args.path.startsWith('/') ? '' : '/') + args.path
       if (args.path !== '/' && args.path.endsWith('/')) {
@@ -141,7 +141,7 @@ export class DataRuleService extends DosGatoService<DataRule> {
     })
     if (newRule.global && newRule.siteId) throw new Error('A rule that is limited to global data and also limited to a site cannot logically exist.')
     const response = new DataRuleResponse({ success: true })
-    if (await this.tooPowerful(newRule)) response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
+    if (this.tooPowerful(newRule)) response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
     if (validateOnly || response.hasErrors()) return response
     await updateDataRule(args)
     this.loaders.clear()
@@ -184,34 +184,32 @@ export class DataRuleService extends DosGatoService<DataRule> {
   }
 
   static appliesToPath (r: DataRule, dataPathWithoutSite: string) {
-    return dataPathWithoutSite.startsWith(r.path)
+    return dataPathWithoutSite.startsWith(r.pathSlash)
   }
 
   async appliesToFolder (rule: DataRule, folder: DataFolder) {
     if (!folder.siteId && rule.siteId) return false
     if (rule.siteId && rule.siteId !== folder.siteId) return false
-    const folderPath = `/${folder.name as string}`
-    return folderPath.startsWith(rule.path)
+    return folder.resolvedPath.startsWith(rule.pathSlash)
   }
 
   asOrMorePowerful (ruleA: DataRule, ruleB: DataRule) { // is ruleB unnecessary when ruleA is in effect?
     if (ruleA.global && ruleB.siteId) return false
     if (ruleA.siteId && (ruleA.siteId !== ruleB.siteId || ruleB.global)) return false
-    return ruleB.path.startsWith(ruleA.path)
+    return ruleB.pathSlash.startsWith(ruleA.pathSlash)
   }
 
-  async tooPowerful (rule: DataRule) {
-    return tooPowerfulHelper(rule, await this.currentDataRules(), this.asOrMorePowerful)
+  tooPowerful (rule: DataRule) {
+    return tooPowerfulHelper(rule, this.ctx.authInfo.dataRules, this.asOrMorePowerful)
   }
 
   async mayWrite (rule: DataRule) {
     const role = await this.svc(RoleServiceInternal).findById(rule.id)
-    return await this.svc(RoleService).mayUpdate(role!)
+    return this.svc(RoleService).mayUpdate(role!)
   }
 
-  async mayView (rule: DataRule) {
-    if (await this.haveGlobalPerm('manageAccess')) return true
-    const role = await this.svc(RoleService).findById(rule.roleId)
-    return !!role
+  mayView (rule: DataRule) {
+    // rules can only be viewed underneath roles, so the role's mayView function can be relied upon here
+    return true
   }
 }

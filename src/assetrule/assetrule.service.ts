@@ -1,6 +1,6 @@
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { Cache, filterAsync, isNotNull } from 'txstate-utils'
+import { Cache, isNotNull } from 'txstate-utils'
 import {
   type Asset, AssetRule, AssetRuleResponse, type AssetRuleFilter, type AssetFolder,
   comparePathsWithMode, createAssetRule, type CreateAssetRuleInput, DosGatoService,
@@ -73,29 +73,29 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
   raw = this.svc(AssetRuleServiceInternal)
 
   async findById (ruleId: string) {
-    return await this.removeUnauthorized(await this.raw.findById(ruleId))
+    return this.removeUnauthorized(await this.raw.findById(ruleId))
   }
 
   async findByRoleId (roleId: string, filter?: AssetRuleFilter) {
-    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
+    return this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
   }
 
   async findBySiteId (siteId?: string) {
-    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId))
+    return this.removeUnauthorized(await this.raw.findBySiteId(siteId))
   }
 
   async findByAsset (asset: Asset) {
-    return await this.removeUnauthorized(await this.raw.findByAsset(asset))
+    return this.removeUnauthorized(await this.raw.findByAsset(asset))
   }
 
   async findByAssetFolder (folder: AssetFolder) {
-    return await this.removeUnauthorized(await this.raw.findByAssetFolder(folder))
+    return this.removeUnauthorized(await this.raw.findByAssetFolder(folder))
   }
 
   async create (args: CreateAssetRuleInput, validateOnly?: boolean) {
     const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
-    if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
+    if (!this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new AssetRule({ id: '0', roleId: args.roleId, siteId: args.siteId, path: args.path ?? '/', mode: args.mode ?? RulePathMode.SELFANDSUB, ...args.grants })
     const rules = await this.findByRoleId(args.roleId)
     const response = new ValidatedResponse()
@@ -108,7 +108,7 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
     })) {
       response.addMessage('The proposed rule has the same site, pagetree type, and path as an existing rule for this role.', undefined, MutationMessageType.error)
     }
-    if (await this.tooPowerful(newRule)) {
+    if (this.tooPowerful(newRule)) {
       response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.', undefined, MutationMessageType.error)
     }
     if (isNotNull(args.path)) {
@@ -154,7 +154,7 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
       ...updatedGrants
     })
     const response = new AssetRuleResponse({ success: true })
-    if (await this.tooPowerful(newRule)) {
+    if (this.tooPowerful(newRule)) {
       response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
     }
     if (response.hasErrors()) return response
@@ -212,18 +212,17 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
     return comparePathsWithMode(ruleA, ruleB)
   }
 
-  async tooPowerful (rule: AssetRule) {
-    return tooPowerfulHelper(rule, await this.currentAssetRules(), this.asOrMorePowerful)
+  tooPowerful (rule: AssetRule) {
+    return tooPowerfulHelper(rule, this.ctx.authInfo.assetRules, this.asOrMorePowerful)
   }
 
-  async mayView (rule: AssetRule) {
-    if (await this.haveGlobalPerm('manageAccess')) return true
-    const role = await this.svc(RoleService).findById(rule.roleId)
-    return !!role
+  mayView (rule: AssetRule) {
+    // rules can only be viewed underneath roles, so the role's mayView function can be relied upon here
+    return true
   }
 
   async mayWrite (rule: AssetRule) {
     const role = await this.svc(RoleService).findById(rule.id)
-    return await this.svc(RoleService).mayUpdate(role!)
+    return this.svc(RoleService).mayUpdate(role!)
   }
 }

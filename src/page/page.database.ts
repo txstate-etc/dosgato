@@ -3,7 +3,7 @@ import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, unique, sortby } from 'txstate-utils'
-import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath } from '../internal.js'
+import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath, shiftPath } from '../internal.js'
 import { type PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 
@@ -30,11 +30,11 @@ export interface UpdatePageExtras extends UpdatePageInput {
   modifiedAt?: string
 }
 
-async function convertPathsToIDPaths (pathstrings: string[]) {
+async function convertPathsToIDPaths (pathstrings: string[], tdb: Queryable = db) {
   const paths = pathstrings.map(normalizePath).map(p => p.split(/\//).filter(isNotBlank))
   const names = new Set<string>(paths.flat())
   const binds: string[] = []
-  const rows = names.size ? await db.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM pages WHERE name IN (${db.in(binds, Array.from(names))})`, binds) : []
+  const rows = names.size ? await tdb.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM pages WHERE name IN (${db.in(binds, Array.from(names))})`, binds) : []
   const rowsByNameAndIDPath: Record<string, Record<string, typeof rows[number]>> = {}
   for (const row of rows) {
     rowsByNameAndIDPath[row.name] ??= {}
@@ -112,7 +112,7 @@ export function processDeletedFilters (filter: any, tableName: string, orphansJo
   return { binds, where, joins }
 }
 
-async function processFilters (filter?: PageFilter) {
+async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
   const { binds, where, joins } = processDeletedFilters(
     filter,
     'pages',
@@ -169,7 +169,7 @@ async function processFilters (filter?: PageFilter) {
     (async () => {
       // named paths e.g. /site1/about
       if (filter.paths?.length) {
-        const idpaths = await convertPathsToIDPaths(filter.paths)
+        const idpaths = await convertPathsToIDPaths(filter.paths, tdb)
         const ids = ['-1', ...idpaths.map(p => p.split(/\//).slice(-1)[0]).filter(isNotBlank)]
         where.push(`pages.id IN (${db.in(binds, ids)})`)
       }
@@ -177,7 +177,7 @@ async function processFilters (filter?: PageFilter) {
     (async () => {
       // beneath a named path e.g. /site1/about
       if (filter.beneath?.length) {
-        const idpaths = await convertPathsToIDPaths(filter.beneath)
+        const idpaths = await convertPathsToIDPaths(filter.beneath, tdb)
         const ors = idpaths.flatMap(p => ['pages.path LIKE ?', 'pages.path = ?'])
         if (ors.length) {
           binds.push(...idpaths.flatMap(p => [`${p}/%`, p]))
@@ -188,7 +188,7 @@ async function processFilters (filter?: PageFilter) {
     (async () => {
       // direct children of a named path e.g. /site1/about
       if (filter.parentPaths?.length) {
-        const idpaths = await convertPathsToIDPaths(filter.parentPaths)
+        const idpaths = await convertPathsToIDPaths(filter.parentPaths, tdb)
         where.push(`pages.path IN (${db.in(binds, ['-1', ...idpaths])})`)
       }
     })()
@@ -218,9 +218,9 @@ async function processFilters (filter?: PageFilter) {
 }
 
 export async function getPages (filter: PageFilter, tdb: Queryable = db) {
-  const { binds, where, joins } = await processFilters(filter)
+  const { binds, where, joins } = await processFilters(filter, tdb)
   if (filter.noresults) return []
-  const pages = await tdb.getall(`
+  const pagerows = await tdb.getall(`
     SELECT pages.*, pagetrees.type as pagetreeType, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned, tags.tag IS NOT NULL as published
     FROM pages
     INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id
@@ -229,7 +229,19 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db) {
     ${joins.size ? Array.from(joins.values()).join('\n') : ''}
     ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
     ORDER BY pages.\`path\`, pages.displayOrder, pages.name`, binds)
-  return pages.map(p => new Page(p))
+  const pages = pagerows.map(p => new Page(p))
+  const ancestorIds = new Set<number>()
+  for (const p of pages) {
+    for (const id of p.pathSplit) ancestorIds.add(id)
+  }
+  const abinds: number[] = []
+  const ancestorrows = ancestorIds.size ? await tdb.getall<{ id: number, name: string }>(`SELECT id, name FROM pages WHERE id IN (${db.in(abinds, Array.from(ancestorIds))})`, abinds) : []
+  const namesById = keyby(ancestorrows, 'id')
+  for (const p of pages) {
+    p.resolvedPath = `/${p.pathSplit.map(id => namesById[id].name).join('/')}${p.pathSplit.length ? '/' : ''}${p.name}`
+    p.resolvedPathWithoutSitename = shiftPath(p.resolvedPath)
+  }
+  return pages
 }
 
 export async function getPagesByPath (paths: string[], filter: PageFilter) {
@@ -357,10 +369,11 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
 
     // correct the path column for pages and all their descendants
     for (const p of filteredPages) {
-      const descendants = (await db.getall('SELECT * FROM pages WHERE id=? OR path LIKE ?', [p.internalId, p.pathAsParent + '%'])).map(r => new Page(r))
+      const descendants = await db.getall<{ id: string, name: string, internalId: number, path: string }>('SELECT dataId as id, name, id as internalId, path FROM pages WHERE id=? OR path LIKE ?', [p.internalId, p.pathAsParent + '%'])
       const pathsize = p.pathSplit.length
       for (const d of descendants) {
-        const newPath = `/${[...parent.pathSplit, parent.internalId, ...d.pathSplit.slice(pathsize)].join('/')}`
+        const dpathSplit = d.path.split(/\//).filter(isNotBlank)
+        const newPath = `/${[...parent.pathSplit, parent.internalId, ...dpathSplit.slice(pathsize)].join('/')}`
         await db.update('UPDATE pages SET name=?, path=? WHERE id=?', [newnames.get(d.id) ?? d.name, newPath, d.internalId])
       }
     }
@@ -401,8 +414,8 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
     INSERT INTO pages (name, pagetreeId, dataId, linkId, path, displayOrder, siteId, title, templateKey)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [newPageName, parent.pagetreeId, newDataId, newLinkId, parent.pathAsParent, displayOrder, parent.siteInternalId, migrated.title, migrated.templateKey])
   if (includeChildren) {
-    const children = (await db.getall('SELECT * FROM pages WHERE path = ? AND deleteState != ?', [page.pathAsParent, DeleteState.DELETED])).map(r => new Page(r))
-    const newParent = new Page(await db.getrow('SELECT * FROM pages WHERE id = ?', [newInternalId]))
+    const children = await getPages({ internalIdPaths: [page.pathAsParent], deleteStates: [DeleteStateInput.NOTDELETED] }, db)
+    const newParent = (await getPages({ internalIds: [newInternalId] }, db))[0]
     for (const child of children) {
       await handleCopy(db, versionedService, userId, child, newParent, newPagePath, child.displayOrder, true)
     }

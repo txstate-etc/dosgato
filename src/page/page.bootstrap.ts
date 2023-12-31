@@ -1,8 +1,7 @@
-import { MockContext } from '@txstate-mws/graphql-server'
 import { readdir, readFile } from 'fs/promises'
 import { createReadStream } from 'fs'
 import { groupby, rescue, sortby } from 'txstate-utils'
-import { SiteService, type PageExport, PageService, PageServiceInternal, createAsset, placeFile, VersionedService, AssetFolderServiceInternal, requestResizes } from '../internal.js'
+import { SiteService, type PageExport, PageService, PageServiceInternal, createAsset, placeFile, VersionedService, AssetFolderServiceInternal, requestResizes, DGMockContext } from '../internal.js'
 import { lookup } from 'mime-types'
 
 async function gatherFiles (path: string) {
@@ -22,7 +21,8 @@ export async function bootstrap () {
   for (let i = 2; i < 100 && filesByLength[String(i)]; i++) {
     await Promise.all(sortby(filesByLength[i], 'name').map(async file => {
       try {
-        const ctx = new MockContext({ sub: 'su01' })
+        const ctx = new DGMockContext({ sub: 'su01' })
+        await ctx.waitForAuth()
         if (file.name.endsWith('.json')) {
           const path = file.name.split('.').slice(0, -1)
           const pageRecord: PageExport = JSON.parse(await readFile(file.fpath, { encoding: 'utf8' }))

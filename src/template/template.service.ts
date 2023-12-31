@@ -1,6 +1,6 @@
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
-import { isNotNull, isNull, stringify, unique, mapConcurrent } from 'txstate-utils'
+import { isNotNull, stringify, unique, mapConcurrent } from 'txstate-utils'
 import {
   type Template, type TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
   DosGatoService, authorizeForPagetrees, authorizeForSite, setUniversal, PagetreeServiceInternal,
@@ -83,27 +83,27 @@ export class TemplateService extends DosGatoService<Template> {
   raw = this.svc(TemplateServiceInternal)
 
   async find (filter?: TemplateFilter) {
-    return await this.removeUnauthorized(await this.raw.find(filter))
+    return this.removeUnauthorized(await this.raw.find(filter))
   }
 
   async findById (id: string) {
-    return await this.removeUnauthorized(await this.raw.findById(id))
+    return this.removeUnauthorized(await this.raw.findById(id))
   }
 
   async findByKey (key: string) {
-    return await this.removeUnauthorized(await this.raw.findByKey(key))
+    return this.removeUnauthorized(await this.raw.findByKey(key))
   }
 
   async findByKeys (keys: string[]) {
-    return await this.removeUnauthorized(await this.raw.findByKeys(keys))
+    return this.removeUnauthorized(await this.raw.findByKeys(keys))
   }
 
   async findBySiteId (siteId: string, filter?: TemplateFilter) {
-    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId, filter))
+    return this.removeUnauthorized(await this.raw.findBySiteId(siteId, filter))
   }
 
   async findByPagetreeId (pagetreeId: string, filter?: TemplateFilter) {
-    return await this.removeUnauthorized(await this.raw.findByPagetreeId(pagetreeId, filter))
+    return this.removeUnauthorized(await this.raw.findByPagetreeId(pagetreeId, filter))
   }
 
   async authorizeForPagetrees (templateKey: string, pagetreeIds: string[]) {
@@ -113,15 +113,14 @@ export class TemplateService extends DosGatoService<Template> {
       return await this.svc(PagetreeServiceInternal).findById(id)
     })).filter(isNotNull)
     const response: ValidatedResponse = new ValidatedResponse({ success: true })
-    if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to authorize this template for this pagetree.')
+    if (!this.mayAssign(template)) throw new Error('Current user is not permitted to authorize this template for this pagetree.')
     if (unique(pagetrees.map(p => p.siteId)).length > 1) {
       response.addMessage('Pagetrees must belong to the same site', 'pagetreeIds')
     }
     if (response.hasErrors()) {
       return response
     }
-    const currentUser = await this.currentUser()
-    await authorizeForPagetrees(template, pagetrees, currentUser!.internalId)
+    await authorizeForPagetrees(template, pagetrees, this.ctx.authInfo.user!.internalId)
     this.loaders.clear()
     return response
   }
@@ -133,9 +132,8 @@ export class TemplateService extends DosGatoService<Template> {
     ])
     if (!template) throw new Error('Template to be authorized does not exist')
     if (!site) throw new Error('Cannot authorize template for a site that does not exist')
-    if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to authorize this template for this site')
-    const currentUser = await this.currentUser()
-    await authorizeForSite(template, site, currentUser!.internalId)
+    if (!this.mayAssign(template)) throw new Error('Current user is not permitted to authorize this template for this site')
+    await authorizeForSite(template, site, this.ctx.authInfo.user!.internalId)
     this.loaders.clear()
     return new ValidatedResponse({ success: true })
   }
@@ -147,9 +145,8 @@ export class TemplateService extends DosGatoService<Template> {
     ])
     if (!template) throw new Error('Template to be authorized does not exist')
     if (!site) throw new Error('Cannot authorize template for a site that does not exist')
-    if (!(await this.mayAssign(template))) throw new Error('Current user is not permitted to deauthorize this template for this site')
-    const currentUser = await this.currentUser()
-    await deauthorizeTemplate(template, site, currentUser!.internalId)
+    if (!this.mayAssign(template)) throw new Error('Current user is not permitted to deauthorize this template for this site')
+    await deauthorizeTemplate(template, site, this.ctx.authInfo.user!.internalId)
     this.loaders.clear()
     return new ValidatedResponse({ success: true })
   }
@@ -157,7 +154,7 @@ export class TemplateService extends DosGatoService<Template> {
   async setUniversal (templateId: string, universal: boolean) {
     const template = await this.raw.findByKey(templateId)
     if (!template) throw new Error('Template to be modified does not exist')
-    if (!(await this.maySetUniversal(template))) throw new Error('Current user is not permitted to change whether or not this template is universal.')
+    if (!this.maySetUniversal(template)) throw new Error('Current user is not permitted to change whether or not this template is universal.')
     try {
       await setUniversal(template.id, universal)
       await universalTemplateCache.refresh()
@@ -168,22 +165,20 @@ export class TemplateService extends DosGatoService<Template> {
     }
   }
 
-  async mayView (template: Template) {
+  mayView (template: Template) {
     return true
   }
 
-  // TODO: Can we remove these two methods?
-
-  async mayAssign (template: Template) {
-    return await this.haveGlobalPerm('manageTemplates')
+  mayAssign (template: Template) {
+    return this.haveGlobalPerm('manageTemplates')
   }
 
-  async maySetUniversal (template: Template) {
-    return await this.haveGlobalPerm('manageTemplates')
+  maySetUniversal (template: Template) {
+    return this.haveGlobalPerm('manageTemplates')
   }
 
-  async mayManage () {
-    return await this.haveGlobalPerm('manageTemplates')
+  mayManage () {
+    return this.haveGlobalPerm('manageTemplates')
   }
 
   /**
@@ -202,7 +197,7 @@ export class TemplateService extends DosGatoService<Template> {
       if (pageTemplate.disallowSet.has(template.key)) return false
     }
     if (template.universal) return true
-    if (await this.haveTemplatePerm(template, 'use')) return true
+    if (this.haveTemplatePerm(template, 'use')) return true
     return !!(await this.loaders.get(mayUseTemplateInPagetreeLoader).load({ pagetreeId: page.pagetreeId, templateKey: template.key }))
   }
 

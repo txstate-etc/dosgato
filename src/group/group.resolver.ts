@@ -1,6 +1,6 @@
 import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { Arg, Ctx, FieldResolver, Mutation, Query, Resolver, Root, ID } from 'type-graphql'
-import { Role, RoleService, User, UserService, Group, GroupFilter, GroupPermissions, GroupResponse, GroupService, Site, SiteService } from '../internal.js'
+import { Role, RoleService, User, UserService, Group, GroupFilter, GroupPermissions, GroupResponse, GroupService } from '../internal.js'
 
 @Resolver(of => Group)
 export class GroupResolver {
@@ -90,12 +90,12 @@ export class GroupResolver {
 @Resolver(of => GroupPermissions)
 export class GroupPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'Current user may add and remove users.' })
-  async manageUsers (@Ctx() ctx: Context, @Root() group: Group) {
-    return await ctx.svc(GroupService).mayManageUsers(group)
+  manageUsers (@Ctx() ctx: Context, @Root() group: Group) {
+    return ctx.svc(GroupService).mayManageUsers(group)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user may add and remove subgroups.' })
-  async manageGroups (@Ctx() ctx: Context, @Root() group: Group) {
-    return await ctx.svc(GroupService).mayManageGroups(group)
+  manageGroups (@Ctx() ctx: Context, @Root() group: Group) {
+    return ctx.svc(GroupService).mayManageGroups(group)
   }
 }

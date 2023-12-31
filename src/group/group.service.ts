@@ -1,6 +1,6 @@
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { unique, isNotNull, someAsync, mapConcurrent } from 'txstate-utils'
+import { unique, isNotNull, mapConcurrent } from 'txstate-utils'
 import {
   type Group, type GroupFilter, GroupResponse, getGroups, getGroupsWithUser, getGroupsWithRole,
   groupHierarchyCache, createGroup, updateGroup, deleteGroup,
@@ -104,35 +104,35 @@ export class GroupService extends DosGatoService<Group> {
   raw = this.svc(GroupServiceInternal)
 
   async find (filter?: GroupFilter) {
-    return await this.removeUnauthorized(await this.raw.find(filter))
+    return this.removeUnauthorized(await this.raw.find(filter))
   }
 
   async findById (id: string) {
-    return await this.removeUnauthorized(await this.raw.findById(id))
+    return this.removeUnauthorized(await this.raw.findById(id))
   }
 
   async findByUserId (userId: string, direct?: boolean) {
-    return await this.removeUnauthorized(await this.raw.findByUserId(userId, direct))
+    return this.removeUnauthorized(await this.raw.findByUserId(userId, direct))
   }
 
   async getSubgroups (groupId: string, recursive: boolean = true) {
-    return await this.removeUnauthorized(await this.raw.getSubgroups(groupId, recursive))
+    return this.removeUnauthorized(await this.raw.getSubgroups(groupId, recursive))
   }
 
   async getAllSubs (groupIds: string[]) {
-    return await this.removeUnauthorized(await this.raw.getAllSubs(groupIds))
+    return this.removeUnauthorized(await this.raw.getAllSubs(groupIds))
   }
 
   async getSuperGroups (groupId: string, recursive = true) {
-    return await this.removeUnauthorized(await this.raw.getSuperGroups(groupId, recursive))
+    return this.removeUnauthorized(await this.raw.getSuperGroups(groupId, recursive))
   }
 
   async getAllSupers (groupIds: string[]) {
-    return await this.removeUnauthorized(await this.raw.getAllSupers(groupIds))
+    return this.removeUnauthorized(await this.raw.getAllSupers(groupIds))
   }
 
   async findByRoleId (roleId: string, direct?: boolean, filter?: GroupFilter) {
-    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, direct, filter))
+    return this.removeUnauthorized(await this.raw.findByRoleId(roleId, direct, filter))
   }
 
   async create (name: string, parentId?: string, validateOnly?: boolean) {
@@ -141,7 +141,7 @@ export class GroupService extends DosGatoService<Group> {
       parentGroup = await this.findById(parentId)
       if (!parentGroup) throw new Error('Parent group does not exist.')
     }
-    if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create groups.')
+    if (!this.mayCreate()) throw new Error('You are not permitted to create groups.')
     if (!(await groupNameIsUnique(name))) {
       const response = new GroupResponse({})
       response.addMessage(`Group ${name} already exists.`, 'name')
@@ -161,7 +161,7 @@ export class GroupService extends DosGatoService<Group> {
   async update (id: string, name: string, validateOnly?: boolean) {
     const group = await this.findById(id)
     if (!group) throw new Error('Group to be updated does not exist.')
-    if (!(await this.mayUpdate(group))) throw new Error('Current user is not permitted to update group names.')
+    if (!this.mayUpdate(group)) throw new Error('You are not permitted to update group names.')
     const response = new GroupResponse({ success: true })
     if (name !== group.name && !(await groupNameIsUnique(name))) {
       response.addMessage(`Group ${name} already exists.`, 'name')
@@ -177,7 +177,7 @@ export class GroupService extends DosGatoService<Group> {
   async delete (id: string) {
     const group = await this.findById(id)
     if (!group) throw new Error('Group to be deleted does not exist.')
-    if (!(await this.mayDelete(group))) throw new Error('Current user is not permitted to delete groups.')
+    if (!this.mayDelete(group)) throw new Error('You are not permitted to delete groups.')
     try {
       await deleteGroup(id)
       await groupHierarchyCache.clear()
@@ -190,40 +190,40 @@ export class GroupService extends DosGatoService<Group> {
 
   async addUserToGroups (groupIds: string[], userId: string) {
     const groups = (await Promise.all(groupIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(groups, async (g: Group) => !(await this.mayManageUsers(g)))) {
-      throw new Error('Current user is not permitted to add user to one or more groups.')
+    if (groups.some(g => !this.mayManageUsers(g))) {
+      throw new Error('You are not permitted to add user to one or more groups.')
     }
     const user = await this.svc(UserService).findById(userId)
-    if (!user) throw new Error('Cannot add user who does not exist')
+    if (!user) throw new Error('Cannot add user who does not exist.')
     try {
       await addUserToGroups(groups.map(g => g.id), user.internalId)
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.error(err)
-      throw new Error('Unable to add user to one or more groups')
+      throw new Error('Unable to add user to one or more groups.')
     }
   }
 
   async removeUserFromGroup (groupIds: string[], userId: string) {
     const groups = (await Promise.all(groupIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(groups, async (g: Group) => !(await this.mayManageUsers(g)))) {
-      throw new Error('Current user is not permitted to remove user from one or more groups.')
+    if (groups.some(g => !this.mayManageUsers(g))) {
+      throw new Error('You are not permitted to remove user from one or more groups.')
     }
     const user = await this.svc(UserService).findById(userId)
-    if (!user) throw new Error('Cannot add user who does not exist')
+    if (!user) throw new Error('Cannot add user who does not exist.')
     try {
       const removed = await removeUserFromGroups(groupIds, user.internalId)
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.error(err)
-      throw new Error('Unable to remove user from one or more groups')
+      throw new Error('Unable to remove user from one or more groups.')
     }
   }
 
   async setUserGroups (userId: string, groupIds: string[]) {
     const groups = (await Promise.all(groupIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(groups, async (g: Group) => !(await this.mayManageUsers(g)))) {
-      throw new Error('Current user is not permitted to manage users for one or more groups.')
+    if (groups.some(g => !this.mayManageUsers(g))) {
+      throw new Error('You are not permitted to manage users for one or more groups.')
     }
     const user = await this.svc(UserService).findById(userId)
     if (!user) throw new Error('Cannot update group membership for user who does not exist')
@@ -239,8 +239,8 @@ export class GroupService extends DosGatoService<Group> {
   async setGroupUsers (groupId: string, userIds: string[]) {
     const group = await this.findById(groupId)
     if (!group) throw new Error('Group to be deleted does not exist.')
-    if (!(await this.mayManageUsers(group))) {
-      throw new Error('Current user is not permitted to manage users for this group.')
+    if (!this.mayManageUsers(group)) {
+      throw new Error('You are not permitted to manage users for this group.')
     }
     const users = (await mapConcurrent(userIds, async (id) => await this.svc(UserService).findById(id))).filter(isNotNull)
     if (!users.length) throw new Error('Cannot assign user(s) to group')
@@ -255,7 +255,7 @@ export class GroupService extends DosGatoService<Group> {
     ])
     if (!parentGroup) throw new Error('Group to be updated does not exist.')
     if (!childGroup) throw new Error('Group to be added as a subgroup does not exist.')
-    if (!(await this.mayManageGroups(parentGroup))) throw new Error(`Current user is not permitted add a subgroup to group ${parentGroup.name}.`)
+    if (!this.mayManageGroups(parentGroup)) throw new Error(`You are not permitted add a subgroup to group ${parentGroup.name}.`)
     try {
       await addSubgroup(parentId, childId)
       await groupHierarchyCache.clear()
@@ -273,7 +273,7 @@ export class GroupService extends DosGatoService<Group> {
     ])
     if (!parentGroup) throw new Error('Group to be updated does not exist.')
     if (!childGroup) throw new Error('Group to be added as a subgroup does not exist.')
-    if (!(await this.mayManageGroups(parentGroup))) throw new Error(`Current user is not permitted remove subgroups from group ${parentGroup.name}.`)
+    if (!this.mayManageGroups(parentGroup)) throw new Error(`You are not permitted remove subgroups from group ${parentGroup.name}.`)
     try {
       const removed = await removeSubgroup(parentId, childId)
       if (removed) {
@@ -290,34 +290,32 @@ export class GroupService extends DosGatoService<Group> {
     }
   }
 
-  async mayView (group: Group) {
-    if (await this.haveGlobalPerm('manageAccess')) return true
-    return !!(await this.currentGroupsById(group.id))
+  mayView (group: Group) {
+    if (this.haveGlobalPerm('manageAccess')) return true
+    return !!this.ctx.authInfo.groupsById[group.id]
   }
 
-  async mayViewManagerUI () {
-    const user = await this.currentUser()
-    if (!user) return false
-    return await this.haveGlobalPerm('manageAccess')
+  mayViewManagerUI () {
+    return this.haveGlobalPerm('manageAccess')
   }
 
-  async mayCreate () {
-    return await this.haveGlobalPerm('manageAccess')
+  mayCreate () {
+    return this.haveGlobalPerm('manageAccess')
   }
 
-  async mayUpdate (group: Group) {
-    return await this.haveGlobalPerm('manageAccess')
+  mayUpdate (group: Group) {
+    return this.haveGlobalPerm('manageAccess')
   }
 
-  async mayDelete (group: Group) {
-    return await this.haveGlobalPerm('manageAccess')
+  mayDelete (group: Group) {
+    return this.haveGlobalPerm('manageAccess')
   }
 
-  async mayManageUsers (group: Group) {
-    return await this.haveGlobalPerm('manageAccess')
+  mayManageUsers (group: Group) {
+    return this.haveGlobalPerm('manageAccess')
   }
 
-  async mayManageGroups (group: Group) {
-    return await this.haveGlobalPerm('manageAccess')
+  mayManageGroups (group: Group) {
+    return this.haveGlobalPerm('manageAccess')
   }
 }

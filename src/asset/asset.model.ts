@@ -73,6 +73,7 @@ export class Asset {
   // does not include downloads of resized versions, but the fieldresolver will
   lastRawDownload?: DateTime
 
+  pathSplit: number[]
   deletedBy?: number
   folderInternalId: number
   dataId: string
@@ -81,6 +82,8 @@ export class Asset {
   orphaned: boolean
   siteId: string
   pagetreeId: string
+  resolvedPath!: string
+  resolvedPathWithoutSitename!: string
 
   @Field({ description: 'Indicates whether this asset belongs to a site that is pre-launch, launched, or decommissioned.' })
   launchState: LaunchState
@@ -126,6 +129,7 @@ export class Asset {
     this.pagetreeId = String(row.pagetreeId)
     this.siteId = String(row.siteId)
     this.launchState = row.launchEnabled
+    this.pathSplit = [...row.path.split('/').filter(isNotBlank).map(Number), this.folderInternalId]
   }
 }
 

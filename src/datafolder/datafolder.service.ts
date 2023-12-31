@@ -1,6 +1,6 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { PrimaryKeyLoader, OneToManyLoader } from 'dataloader-factory'
-import { filterAsync, intersect, isNotNull, keyby, someAsync } from 'txstate-utils'
+import { intersect, isNotNull, keyby } from 'txstate-utils'
 import {
   type DataFolder, type DataFolderFilter, DosGatoService, getDataFolders,
   type CreateDataFolderInput, createDataFolder, DataFolderResponse,
@@ -112,24 +112,24 @@ export class DataFolderService extends DosGatoService<DataFolder> {
 
   async find (filter?: DataFolderFilter) {
     const folders = await this.raw.find(filter)
-    if (filter?.links?.length || filter?.paths?.length || filter?.ids?.length) return await filterAsync(folders, async f => await this.mayViewIndividual(f))
-    return await this.removeUnauthorized(folders)
+    if (filter?.links?.length || filter?.paths?.length || filter?.ids?.length) return folders.filter(f => this.mayViewIndividual(f))
+    return this.removeUnauthorized(folders)
   }
 
   async findById (id: string) {
-    return await this.removeUnauthorized(await this.raw.findById(id))
+    return this.removeUnauthorized(await this.raw.findById(id))
   }
 
   async findByInternalId (internalId: number) {
-    return await this.removeUnauthorized(await this.raw.findByInternalId(internalId))
+    return this.removeUnauthorized(await this.raw.findByInternalId(internalId))
   }
 
   async findBySiteId (siteId: string, filter?: DataFolderFilter) {
-    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId, filter))
+    return this.removeUnauthorized(await this.raw.findBySiteId(siteId, filter))
   }
 
   async findByDataRoot (dataroot: DataRoot, filter?: DataFolderFilter) {
-    return await this.removeUnauthorized(await this.raw.findByDataRoot(dataroot, filter))
+    return this.removeUnauthorized(await this.raw.findByDataRoot(dataroot, filter))
   }
 
   async getPath (folder: DataFolder) {
@@ -144,9 +144,9 @@ export class DataFolderService extends DosGatoService<DataFolder> {
       const site = await this.svc(SiteServiceInternal).findById(args.siteId)
       if (!site) throw new Error('Cannot create data folder. Site does not exist.')
       const dataroots = await this.svc(DataRootService).findBySite(site, { templateKeys: [template.key] })
-      if (!(await this.haveDataRootPerm(dataroots[0], 'create'))) throw new Error(`Current user is not permitted to create datafolders in ${site.name}.`)
+      if (!this.haveDataRootPerm(dataroots[0], 'create')) throw new Error(`You are not permitted to create datafolders in ${site.name}.`)
     } else {
-      if (!(await this.mayCreateGlobal(template.id))) throw new Error('Current user is not permitted to create global data folders.')
+      if (!(await this.mayCreateGlobal(template.id))) throw new Error('You are not permitted to create global data folders.')
     }
     const response = new DataFolderResponse({ success: true })
     if (!(await folderNameUniqueInDataRoot(args.name as string, template.id, args.siteId))) {
@@ -162,7 +162,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   async rename (folderId: string, name: string, validateOnly?: boolean) {
     const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Cannot rename a data folder that does not exist.')
-    if (!(await this.haveDataFolderPerm(folder, 'update'))) throw new Error(`Current user is not permitted to rename folder ${String(folder.name)}.`)
+    if (!this.haveDataFolderPerm(folder, 'update')) throw new Error(`You are not permitted to rename folder ${String(folder.name)}.`)
     const response = new DataFolderResponse({ success: true })
     if (name !== folder.name && !(await folderNameUniqueInDataRoot(name, folder.templateId, folder.siteId))) {
       response.addMessage(`A folder with this name already exists in ${folder.siteId ? 'this site' : 'global data'}.`, 'name')
@@ -176,8 +176,8 @@ export class DataFolderService extends DosGatoService<DataFolder> {
 
   async move (folderIds: string[], siteId?: string) {
     const dataFolders = (await Promise.all(folderIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(dataFolders, async (d: DataFolder) => !(await this.mayMove(d)))) {
-      throw new Error('Current user is not permitted to move one or more data folders')
+    if (dataFolders.some(d => !this.mayMove(d))) {
+      throw new Error('You are not permitted to move one or more data folders')
     }
     const templateKeys = dataFolders.map(d => d.templateKey)
     if (new Set(templateKeys).size > 1) {
@@ -189,11 +189,11 @@ export class DataFolderService extends DosGatoService<DataFolder> {
       if (!site) throw new Error('Data folders cannot be moved to a site that does not exist.')
       const template = await this.svc(TemplateServiceInternal).findById(dataFolders[0].templateId)
       const dataroot = new DataRoot(site, template!)
-      if (!(await this.haveDataRootPerm(dataroot, 'create'))) {
-        throw new Error('Current user is not permitted to move folders to this site.')
+      if (!this.haveDataRootPerm(dataroot, 'create')) {
+        throw new Error('You are not permitted to move folders to this site.')
       }
     } else {
-      if (!(await this.mayCreateGlobal(template.id))) throw new Error('Current user is not permitted to add global data folders')
+      if (!(await this.mayCreateGlobal(template.id))) throw new Error('You are not permitted to add global data folders')
     }
     try {
       await moveDataFolders(dataFolders.map((f: DataFolder) => f.id), siteId)
@@ -209,11 +209,10 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   async delete (folderIds: string[]) {
     const dataFolders = await this.raw.findByIds(folderIds)
     if (!dataFolders.length) throw new Error('Folders to be deleted do not exist.')
-    if (await someAsync(dataFolders, async (d: DataFolder) => !(await this.mayDelete(d)))) {
-      throw new Error('Current user is not permitted to delete one or more data folders.')
+    if (dataFolders.some(d => !this.mayDelete(d))) {
+      throw new Error('You are not permitted to delete one or more data folders.')
     }
-    const currentUser = await this.currentUser()
-    await deleteDataFolder(this.svc(VersionedService), dataFolders.map(f => f.id), currentUser!.internalId)
+    await deleteDataFolder(this.svc(VersionedService), dataFolders.map(f => f.id), this.ctx.authInfo.user!.internalId)
     this.loaders.clear()
     const deletedFolders = await this.raw.findByIds(dataFolders.map(f => f.id))
     return new DataFoldersResponse({ dataFolders: deletedFolders, success: true })
@@ -222,11 +221,10 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   async finalizeDeletion (folderIds: string[]) {
     const folders = await this.raw.findByIds(folderIds)
     if (!folders.length) throw new Error('Folders to be deleted do not exist.')
-    if (await someAsync(folders, async (d: DataFolder) => !(await this.mayDelete(d)))) {
-      throw new Error('Current user is not permitted to delete one or more data folders.')
+    if (folders.some(d => !this.mayDelete(d))) {
+      throw new Error('You are not permitted to delete one or more data folders.')
     }
-    const currentUser = await this.currentUser()
-    await finalizeDataFolderDeletion(folderIds, currentUser!.internalId)
+    await finalizeDataFolderDeletion(folderIds, this.ctx.authInfo.user!.internalId)
     this.loaders.clear()
     const deletedfolders = await this.raw.findByIds(folderIds)
     return new DataFoldersResponse({ dataFolders: deletedfolders, success: true })
@@ -235,8 +233,8 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   async undelete (folderIds: string[]) {
     const dataFolders = await this.raw.findByIds(folderIds)
     if (!dataFolders.length) throw new Error('Folders to be restored do not exist.')
-    if (await someAsync(dataFolders, async (d: DataFolder) => !(await this.mayUndelete(d)))) {
-      throw new Error('Current user is not permitted to restore one or more data folders.')
+    if (dataFolders.some(d => !this.mayUndelete(d))) {
+      throw new Error('You are not permitted to restore one or more data folders.')
     }
     await undeleteDataFolders(dataFolders.map(f => f.id))
     this.loaders.clear()
@@ -244,45 +242,43 @@ export class DataFolderService extends DosGatoService<DataFolder> {
     return new DataFoldersResponse({ dataFolders: restoredFolders, success: true })
   }
 
-  async mayView (folder: DataFolder) {
-    const dataRules = await this.currentDataRules()
-    const dataPathWithoutSite = `/${folder.name as string}`
-    for (const r of dataRules) {
+  mayView (folder: DataFolder) {
+    for (const r of this.ctx.authInfo.dataRules) {
       if (!r.grants.view) continue
       if (folder.deleteState === DeleteState.DELETED && !r.grants.undelete) continue
       if (folder.deleteState === DeleteState.MARKEDFORDELETE && !r.grants.delete) continue
-      if (!DataRuleService.applies(r, folder, dataPathWithoutSite)) continue
+      if (!DataRuleService.applies(r, folder, folder.resolvedPathWithoutSitename)) continue
       return true
     }
     return false
   }
 
-  async mayViewIndividual (folder: DataFolder) {
-    return (!folder.orphaned && folder.deleteState === DeleteState.NOTDELETED) || await this.mayView(folder)
+  mayViewIndividual (folder: DataFolder) {
+    return (!folder.orphaned && folder.deleteState === DeleteState.NOTDELETED) || this.mayView(folder)
   }
 
-  async mayCreate (folder: DataFolder) {
-    return await this.haveDataFolderPerm(folder, 'create')
+  mayCreate (folder: DataFolder) {
+    return this.haveDataFolderPerm(folder, 'create')
   }
 
-  async mayUpdate (folder: DataFolder) {
-    return await this.haveDataFolderPerm(folder, 'update')
+  mayUpdate (folder: DataFolder) {
+    return this.haveDataFolderPerm(folder, 'update')
   }
 
-  async mayMove (folder: DataFolder) {
-    return await this.haveDataFolderPerm(folder, 'move')
+  mayMove (folder: DataFolder) {
+    return this.haveDataFolderPerm(folder, 'move')
   }
 
-  async mayDelete (folder: DataFolder) {
-    return await this.haveDataFolderPerm(folder, 'delete')
+  mayDelete (folder: DataFolder) {
+    return this.haveDataFolderPerm(folder, 'delete')
   }
 
-  async mayUndelete (folder: DataFolder) {
+  mayUndelete (folder: DataFolder) {
     if (folder.deleteState === DeleteState.NOTDELETED || folder.orphaned) return false
-    return folder.deleteState === DeleteState.MARKEDFORDELETE ? await this.haveDataFolderPerm(folder, 'delete') : await this.haveDataFolderPerm(folder, 'undelete')
+    return folder.deleteState === DeleteState.MARKEDFORDELETE ? this.haveDataFolderPerm(folder, 'delete') : this.haveDataFolderPerm(folder, 'undelete')
   }
 
   async mayCreateGlobal (templateId: string) {
-    return (await this.currentDataRules()).some(r => DataRuleService.appliesRaw(r, templateId, '/'))
+    return this.ctx.authInfo.dataRules.some(r => DataRuleService.appliesRaw(r, templateId, '/'))
   }
 }

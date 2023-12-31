@@ -48,8 +48,8 @@ export class PageResolver {
   }
 
   @FieldResolver(returns => String)
-  async path (@Ctx() ctx: Context, @Root() page: Page) {
-    return await ctx.svc(PageService).getPath(page)
+  path (@Ctx() ctx: Context, @Root() page: Page) {
+    return page.resolvedPath
   }
 
   @FieldResolver(returns => Template, { nullable: true })
@@ -124,8 +124,8 @@ export class PageResolver {
   }
 
   @FieldResolver(returns => Boolean, { description: 'True if the page has a version marked as published. Note that the page could be published but not in the currently active pagetree.' })
-  async published (@Ctx() ctx: Context, @Root() page: Page) {
-    return await ctx.svc(PageService).isPublished(page)
+  published (@Ctx() ctx: Context, @Root() page: Page) {
+    return page.published
   }
 
   @FieldResolver(returns => Boolean, { description: 'True if versions of this page have been added since it was last published. Also true if page is currently unpublished.' })
@@ -367,23 +367,23 @@ export class PageResolver {
 @Resolver(of => PagePermissions)
 export class PagePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may view the latest unpublished version of this page. Published pages are completely public.' })
-  async viewLatest (@Ctx() ctx: Context, @Root() page: Page) {
-    return await ctx.svc(PageService).mayViewLatest(page)
+  viewLatest (@Ctx() ctx: Context, @Root() page: Page) {
+    return ctx.svc(PageService).mayViewLatest(page)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may update this page but not necessarily move or publish it.' })
-  async update (@Ctx() ctx: Context, @Root() page: Page) {
-    return await ctx.svc(PageService).mayUpdate(page)
+  update (@Ctx() ctx: Context, @Root() page: Page) {
+    return ctx.svc(PageService).mayUpdate(page)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may rename this page or move it beneath a page for which they have the `create` permission.' })
-  async move (@Ctx() ctx: Context, @Root() page: Page) {
-    return await ctx.svc(PageService).mayMove(page)
+  move (@Ctx() ctx: Context, @Root() page: Page) {
+    return ctx.svc(PageService).mayMove(page)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may create or move pages beneath this page.' })
-  async create (@Ctx() ctx: Context, @Root() page: Page) {
-    return await ctx.svc(PageService).mayCreate(page)
+  create (@Ctx() ctx: Context, @Root() page: Page) {
+    return ctx.svc(PageService).mayCreate(page)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may publish this page either for the first time or to the latest version.' })
@@ -397,12 +397,12 @@ export class PagePermissionsResolver {
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may soft-delete this page.' })
-  async delete (@Ctx() ctx: Context, @Root() page: Page) {
-    return await ctx.svc(PageService).mayDelete(page)
+  delete (@Ctx() ctx: Context, @Root() page: Page) {
+    return ctx.svc(PageService).mayDelete(page)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may undelete this page. Returns false when the page is not deleted.' })
-  async undelete (@Ctx() ctx: Context, @Root() page: Page) {
-    return await ctx.svc(PageService).mayUndelete(page)
+  undelete (@Ctx() ctx: Context, @Root() page: Page) {
+    return ctx.svc(PageService).mayUndelete(page)
   }
 }

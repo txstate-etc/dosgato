@@ -1,7 +1,7 @@
 import { DataData } from '@dosgato/templating'
 import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import { optionalString } from 'txstate-utils'
+import { isNotBlank, optionalString } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { UrlSafeString, JsonData, DeleteState, UrlSafePath, DeleteStateInput } from '../internal.js'
 
@@ -33,6 +33,9 @@ export class Data {
   templateId: string
   templateKey: string
   orphaned: boolean
+  published: boolean
+  resolvedPath: string
+  resolvedPathWithoutSitename: string
 
   constructor (row: any) {
     this.internalId = row.id
@@ -50,6 +53,9 @@ export class Data {
     this.deleteState = row.deleteState
     this.templateKey = row.templateKey
     this.orphaned = row.orphaned
+    this.published = !!row.published
+    this.resolvedPath = '/' + [row.siteName ?? 'global', row.folderName, row.name].filter(isNotBlank).join('/')
+    this.resolvedPathWithoutSitename = '/' + [row.folderName, row.name].filter(isNotBlank).join('/')
   }
 }
 

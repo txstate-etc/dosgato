@@ -116,35 +116,35 @@ export class RoleService extends DosGatoService<Role> {
   raw = this.svc(RoleServiceInternal)
 
   async find (filter?: RoleFilter) {
-    return await this.removeUnauthorized(await this.raw.find(filter))
+    return this.removeUnauthorized(await this.raw.find(filter))
   }
 
   async findById (id: string) {
-    return await this.removeUnauthorized(await this.raw.findById(id))
+    return this.removeUnauthorized(await this.raw.findById(id))
   }
 
   async findByIds (ids: string[], filter?: RoleFilter) {
-    return await this.removeUnauthorized(await this.raw.findByIds(ids, filter))
+    return this.removeUnauthorized(await this.raw.findByIds(ids, filter))
   }
 
   async findByGroupId (groupId: string, direct?: boolean) {
-    return await this.removeUnauthorized(await this.raw.findByGroupId(groupId, direct))
+    return this.removeUnauthorized(await this.raw.findByGroupId(groupId, direct))
   }
 
   async findByUserId (userId: string, direct?: boolean) {
-    return await this.removeUnauthorized(await this.raw.findByUserId(userId, direct))
+    return this.removeUnauthorized(await this.raw.findByUserId(userId, direct))
   }
 
   async findByManagerId (managerId: string) {
-    return await this.removeUnauthorized(await this.raw.findByManagerId(managerId))
+    return this.removeUnauthorized(await this.raw.findByManagerId(managerId))
   }
 
   async findBySiteId (siteId: string) {
-    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId))
+    return this.removeUnauthorized(await this.raw.findBySiteId(siteId))
   }
 
   async create (name: string, validateOnly?: boolean) {
-    if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create roles.')
+    if (!this.mayCreate()) throw new Error('Current user is not permitted to create roles.')
     const response = new RoleResponse({ success: true })
     if (!(await roleNameIsUnique(name))) {
       response.addMessage(`Role ${name}  already exists`, 'name')
@@ -158,7 +158,7 @@ export class RoleService extends DosGatoService<Role> {
   async update (id: string, name: string, validateOnly?: boolean) {
     const role = await this.raw.findById(id)
     if (!role) throw new Error('Role to be edited does not exist.')
-    if (!(await this.mayUpdate(role))) throw new Error('Current user is not permitted to update role names.')
+    if (!this.mayUpdate(role)) throw new Error('Current user is not permitted to update role names.')
     const response = new RoleResponse({ success: true })
     if (name !== role.name && !(await roleNameIsUnique(name))) {
       response.addMessage(`Role ${name}  already exists`, 'name')
@@ -175,7 +175,7 @@ export class RoleService extends DosGatoService<Role> {
   async delete (id: string) {
     const role = await this.findById(id)
     if (!role) throw new Error('Role to be deleted does not exist.')
-    if (!(await this.mayDelete(role))) throw new Error(`Current user is not permitted to delete role ${role.name}.`)
+    if (!this.mayDelete(role)) throw new Error(`Current user is not permitted to delete role ${role.name}.`)
     try {
       await deleteRole(id)
       return new ValidatedResponse({ success: true })
@@ -265,29 +265,28 @@ export class RoleService extends DosGatoService<Role> {
     return await this.loaders.get(rolesByIdLoader).load(roleId)
   }
 
-  protected currentRolesSet?: Set<string>
-  async mayView (role: Role): Promise<boolean> {
-    if (await this.haveGlobalPerm('manageAccess')) return true
-    return this.currentRoles().some(r => r.id === role.id)
+  mayView (role: Role) {
+    if (this.haveGlobalPerm('manageAccess')) return true
+    return this.ctx.authInfo.roles.some(r => r.id === role.id)
   }
 
-  async mayViewManagerUI () {
-    return await this.haveGlobalPerm('manageAccess')
+  mayViewManagerUI () {
+    return this.haveGlobalPerm('manageAccess')
   }
 
-  async mayCreate () {
+  mayCreate () {
     // TODO: Check manageParentRoles permission if they are trying to create a top-level role
-    return await this.haveGlobalPerm('manageAccess')
+    return this.haveGlobalPerm('manageAccess')
   }
 
-  async mayUpdate (role: Role) {
+  mayUpdate (role: Role) {
     // TODO: Check manageParentRoles permission if they are trying to update a top-level role
-    return await this.haveGlobalPerm('manageAccess')
+    return this.haveGlobalPerm('manageAccess')
   }
 
-  async mayDelete (role: Role) {
+  mayDelete (role: Role) {
     // TODO: Check manageParentRoles permission if they are trying to delete a top-level role?
-    return await this.haveGlobalPerm('manageAccess')
+    return this.haveGlobalPerm('manageAccess')
   }
 
   async mayAssign (role: Role) {
@@ -299,14 +298,14 @@ export class RoleService extends DosGatoService<Role> {
       this.svc(PageRuleServiceInternal).findByRoleId(role.id),
       this.svc(TemplateRuleServiceInternal).findByRoleId(role.id)
     ]))
-    const tooPowerful = await Promise.all([
-      ...globalRules.map(async rule => await this.svc(GlobalRuleService).tooPowerful(rule)),
-      ...siteRules.map(async rule => await this.svc(SiteRuleService).tooPowerful(rule)),
-      ...assetRules.map(async rule => await this.svc(AssetRuleService).tooPowerful(rule)),
-      ...dataRules.map(async rule => await this.svc(DataRuleService).tooPowerful(rule)),
-      ...pageRules.map(async rule => await this.svc(PageRuleService).tooPowerful(rule)),
-      ...templateRules.map(async rule => await this.svc(TemplateRuleService).tooPowerful(rule))
-    ])
+    const tooPowerful = [
+      ...globalRules.map(rule => this.svc(GlobalRuleService).tooPowerful(rule)),
+      ...siteRules.map(rule => this.svc(SiteRuleService).tooPowerful(rule)),
+      ...assetRules.map(rule => this.svc(AssetRuleService).tooPowerful(rule)),
+      ...dataRules.map(rule => this.svc(DataRuleService).tooPowerful(rule)),
+      ...pageRules.map(rule => this.svc(PageRuleService).tooPowerful(rule)),
+      ...templateRules.map(rule => this.svc(TemplateRuleService).tooPowerful(rule))
+    ]
     if (tooPowerful.some(b => b)) return false
     // TODO: The logic we discussed when we were defining the manageAccess and manageParentRoles permissions
     // was to check if the role was associated with a site (has a site ID)
@@ -314,11 +313,11 @@ export class RoleService extends DosGatoService<Role> {
     // It it does have a site ID, we let them assign the role if they have the manage Access permission OR they
     // are a site manager. Until manageParentRoles is fully implemented, they can assign the role if they
     // have the manageAccess permission.
-    return await this.haveGlobalPerm('manageAccess')
+    return this.haveGlobalPerm('manageAccess')
   }
 
-  async mayCreateRules (role: Role) {
+  mayCreateRules (role: Role) {
     // TODO: Check manageParentRoles permission if they are trying to create rules for a top-level role
-    return await this.haveGlobalPerm('manageAccess')
+    return this.haveGlobalPerm('manageAccess')
   }
 }

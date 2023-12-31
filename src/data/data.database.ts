@@ -1,7 +1,10 @@
 import db from 'mysql2-async/db'
 import { isNotBlank, isNotNull, sortby } from 'txstate-utils'
 import { type Queryable } from 'mysql2-async'
-import { Data, type DataFilter, type VersionedService, type CreateDataInput, getDataIndexes, DataFolder, Site, type MoveDataTarget, DeleteState, processDeletedFilters } from '../internal.js'
+import {
+  Data, type DataFilter, type VersionedService, type CreateDataInput, getDataIndexes, DataFolder,
+  Site, type MoveDataTarget, DeleteState, processDeletedFilters
+} from '../internal.js'
 import { DateTime } from 'luxon'
 
 function pathsToTuples (paths: string[]) {
@@ -66,12 +69,10 @@ async function processFilters (filter?: DataFilter) {
   }
 
   if (filter.published) {
-    joins.set('tags', 'INNER JOIN tags ON tags.id=data.dataId')
-    where.push('tags.tag="published"')
+    where.push('tags.tag IS NOT NULL')
   }
 
   if (filter.folderIds?.length) {
-    joins.set('datafolders', 'LEFT JOIN datafolders on data.folderId = datafolders.id')
     where.push(`datafolders.guid IN (${db.in(binds, filter.folderIds)})`)
   }
   if (filter.folderInternalIds?.length) {
@@ -82,7 +83,6 @@ async function processFilters (filter?: DataFilter) {
   }
   if (filter.paths?.length) {
     const { dataTuples } = pathsToTuples(filter.paths)
-    joins.set('datafolders', 'LEFT JOIN datafolders on data.folderId = datafolders.id')
     const ors: string[] = []
     for (const tuple of dataTuples) {
       binds.push(...tuple)
@@ -93,7 +93,6 @@ async function processFilters (filter?: DataFilter) {
   }
   if (filter.beneathOrAt?.length) {
     const { dataTuples, folderTuples, siteTuples } = pathsToTuples(filter.beneathOrAt)
-    joins.set('datafolders', 'LEFT JOIN datafolders on data.folderId = datafolders.id')
     const ors: string[] = []
     if (siteTuples.filter(isNotNull).length) ors.push(`sites.name IN (${db.in(binds, siteTuples)})`)
     if (siteTuples.some(st => st == null)) ors.push('sites.name IS NULL')
@@ -113,10 +112,14 @@ async function processFilters (filter?: DataFilter) {
 export async function getData (filter?: DataFilter) {
   const { where, binds, joins } = await processFilters(filter)
   let query = `SELECT data.*, templates.key AS templateKey,
-    templates.deleted = 1 OR sites.deletedAt IS NOT NULL as orphaned
+    templates.deleted = 1 OR sites.deletedAt IS NOT NULL as orphaned,
+    datafolders.name AS folderName, sites.name AS siteName,
+    tags.tag IS NOT NULL as published
   FROM data
   INNER JOIN templates ON data.templateId = templates.id
-  LEFT JOIN sites ON data.siteId = sites.id`
+  LEFT JOIN sites ON data.siteId = sites.id
+  LEFT JOIN datafolders on data.folderId = datafolders.id
+  LEFT JOIN tags ON tags.id = data.dataId AND tags.tag = 'published'`
   query += ` ${Array.from(joins.values()).join('\n')}`
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`

@@ -1,13 +1,13 @@
 import { BaseService, type Context, MutationMessageType, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { filterAsync, intersect, isBlank, isNotNull, someAsync, sortby } from 'txstate-utils'
+import { intersect, isBlank, isNotNull, sortby } from 'txstate-utils'
 import {
   type Asset, type AssetFilter, getAssets, type AssetFolder, AssetFolderService, appendPath, getResizes,
   DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
   deleteAsset, undeleteAssets, getResizesById, VersionedService, getDownloads, type DownloadsFilter,
   getResizeDownloads, type AssetResize, AssetFolderResponse, moveAssets, copyAssets, finalizeAssetDeletion,
   renameAsset, updateAssetMeta, SiteServiceInternal, PagetreeServiceInternal, DeleteStateAll,
-  getAssetsByPath, PagetreeType, SiteRuleService, DeleteState, AssetRuleService, shiftPath, fileHandler,
+  getAssetsByPath, PagetreeType, SiteRuleService, DeleteState, AssetRuleService, fileHandler,
   LaunchState, deleteAssets, AssetsResponse, templateRegistry
 } from '../internal.js'
 
@@ -197,25 +197,25 @@ export class AssetService extends DosGatoService<Asset> {
   raw = this.svc(AssetServiceInternal)
 
   async postFilter (assets: Asset[], filter?: AssetFilter) {
-    return filter?.viewForEdit ? await filterAsync(assets, async a => await this.mayViewForEdit(a)) : assets
+    return filter?.viewForEdit ? assets.filter(a => this.mayViewForEdit(a)) : assets
   }
 
   async find (filter: AssetFilter) {
     const ret = await this.raw.find(filter)
-    if (filter.links?.length || filter.paths?.length || filter.ids?.length) return await filterAsync(ret, async p => await this.mayViewIndividual(p))
-    return await this.postFilter(await this.removeUnauthorized(ret), filter)
+    if (filter.links?.length || filter.paths?.length || filter.ids?.length) return ret.filter(p => this.mayViewIndividual(p))
+    return await this.postFilter(this.removeUnauthorized(ret), filter)
   }
 
   async findByFolder (folder: AssetFolder) {
-    return await this.removeUnauthorized(await this.raw.findByFolder(folder))
+    return this.removeUnauthorized(await this.raw.findByFolder(folder))
   }
 
   async findByFolders (folders: AssetFolder[]) {
-    return await this.removeUnauthorized(await this.raw.findByFolders(folders))
+    return this.removeUnauthorized(await this.raw.findByFolders(folders))
   }
 
   async getAncestors (asset: Asset) {
-    return await this.svc(AssetFolderService).removeUnauthorized(await this.raw.getAncestors(asset))
+    return this.svc(AssetFolderService).removeUnauthorized(await this.raw.getAncestors(asset))
   }
 
   async getPath (asset: Asset) {
@@ -262,25 +262,18 @@ export class AssetService extends DosGatoService<Asset> {
   }
 
   async move (folderId: string, assetIds?: string[], folderIds?: string[]) {
+    const folderSvc = this.svc(AssetFolderService)
+    const folderSvcInternal = this.svc(AssetFolderServiceInternal)
     const [assets, folders, targetFolder] = await Promise.all([
       this.raw.findByIds(assetIds ?? []),
-      this.svc(AssetFolderServiceInternal).findByIds(folderIds ?? []),
-      this.svc(AssetFolderServiceInternal).findById(folderId)
+      folderSvcInternal.findByIds(folderIds ?? []),
+      folderSvcInternal.findById(folderId)
     ])
     if (!targetFolder) throw new Error('Target asset folder does not exist.')
     if (folders.some(f => f.parentInternalId == null)) throw new Error('Root asset folders cannot be moved.')
-    const assetSvc = this.svc(AssetService)
-    const folderSvc = this.svc(AssetFolderService)
-    const [haveCreatePerm] = await Promise.all([
-      folderSvc.mayCreate(targetFolder),
-      ...assets.map(async a => {
-        if (!await assetSvc.mayMove(a)) throw new Error(`You are not permitted to move asset ${a.filename}.`)
-      }),
-      ...folders.map(async f => {
-        if (!await folderSvc.mayMove(f)) throw new Error(`You are not permitted to move asset folder ${f.name}.`)
-      })
-    ])
-    if (!haveCreatePerm) throw new Error(`You are not permitted to move files into folder ${targetFolder.name}`)
+    if (!folderSvc.mayCreate(targetFolder)) throw new Error(`You are not permitted to move files into folder ${targetFolder.name}`)
+    for (const a of assets) if (!this.mayMove(a)) throw new Error(`You are not permitted to move asset ${a.filename}.`)
+    for (const f of folders) if (!folderSvc.mayMove(f)) throw new Error(`You are not permitted to move asset folder ${f.name}.`)
     await moveAssets(targetFolder, assets, folders)
     this.loaders.clear()
     return new AssetFolderResponse({ assetFolder: targetFolder, success: true })
@@ -290,7 +283,7 @@ export class AssetService extends DosGatoService<Asset> {
     if (isBlank(name)) return ValidatedResponse.error('Name is required.', 'name')
     const asset = await this.raw.findById(assetId)
     if (!asset) throw new Error('Asset not found.')
-    if (!await this.mayMove(asset)) throw new Error(`You are not permitted to rename asset ${asset.filename}.`)
+    if (!this.mayMove(asset)) throw new Error(`You are not permitted to rename asset ${asset.filename}.`)
     const folder = await this.svc(AssetFolderServiceInternal).findByInternalId(asset.folderInternalId)
     const [siblings, siblingFolders] = await Promise.all([
       this.raw.findByFolderInternalId(asset.folderInternalId),
@@ -313,7 +306,7 @@ export class AssetService extends DosGatoService<Asset> {
   async update (assetId: string, data: any, validateOnly?: boolean) {
     const asset = await this.raw.findById(assetId)
     if (!asset) throw new Error('Asset not found.')
-    if (!await this.mayUpdate(asset)) throw new Error(`You are not permitted to update asset ${asset.filename}.`)
+    if (!this.mayUpdate(asset)) throw new Error(`You are not permitted to update asset ${asset.filename}.`)
     const response = new AssetResponse({ asset, success: true })
     const errors = await templateRegistry.serverConfig.assetMeta?.validation?.(data, { path: await this.getPath(asset) })
     for (const err of errors ?? []) response.addMessage(err.message, err.path, err.type as MutationMessageType)
@@ -333,7 +326,7 @@ export class AssetService extends DosGatoService<Asset> {
     ])
     if (!targetFolder) throw new Error('Target asset folder does not exist.')
     if (folders.some(f => f.parentInternalId == null)) throw new Error('Root asset folders cannot be copied.')
-    if (!await this.svc(AssetFolderService).mayCreate(targetFolder)) throw new Error(`You are not permitted to copy files into folder ${targetFolder.name}`)
+    if (!this.svc(AssetFolderService).mayCreate(targetFolder)) throw new Error(`You are not permitted to copy files into folder ${targetFolder.name}`)
     await copyAssets(targetFolder, assets, folders, this.login, this.svc(VersionedService))
     this.loaders.clear()
     return new AssetFolderResponse({ assetFolder: targetFolder, success: true })
@@ -342,10 +335,9 @@ export class AssetService extends DosGatoService<Asset> {
   async delete (dataId: string) {
     const asset = await this.loaders.get(assetsByIdLoader).load(dataId)
     if (!asset) throw new Error('Asset to be deleted does not exist')
-    if (!(await this.haveAssetPerm(asset, 'delete'))) throw new Error(`Current user is not permitted to delete asset ${String(asset.name)}.${asset.extension}.`)
-    const currentUser = await this.currentUser()
+    if (!this.haveAssetPerm(asset, 'delete')) throw new Error(`You are not permitted to delete asset ${String(asset.name)}.${asset.extension}.`)
     try {
-      await deleteAsset(asset.internalId, currentUser!.internalId)
+      await deleteAsset(asset.internalId, this.ctx.authInfo.user!.internalId)
       this.loaders.clear()
       const deletedAsset = await this.loaders.get(assetsByIdLoader).load(dataId)
       return new AssetResponse({ asset: deletedAsset, success: true })
@@ -357,10 +349,10 @@ export class AssetService extends DosGatoService<Asset> {
 
   async deleteAssets (dataIds: string[]) {
     const assets = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(assets, async (asset: Asset) => !(await this.haveAssetPerm(asset, 'delete')))) {
-      throw new Error('Current user is not permitted to delete one or more assets')
+    if (assets.some(asset => !this.haveAssetPerm(asset, 'delete'))) {
+      throw new Error('You are not permitted to delete one or more assets')
     }
-    const currentUser = await this.currentUser()
+    const currentUser = this.ctx.authInfo.user
     try {
       await deleteAssets(assets.map(a => a.internalId), currentUser!.internalId)
       this.loaders.clear()
@@ -374,10 +366,10 @@ export class AssetService extends DosGatoService<Asset> {
 
   async finalizeDeletion (dataIds: string[]) {
     const assets = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(assets, async (asset: Asset) => !(await this.haveAssetPerm(asset, 'delete')))) {
-      throw new Error('Current user is not permitted to delete one or more assets')
+    if (assets.some(asset => !this.haveAssetPerm(asset, 'delete'))) {
+      throw new Error('You are not permitted to delete one or more assets.')
     }
-    const currentUser = await this.currentUser()
+    const currentUser = this.ctx.authInfo.user
     await finalizeAssetDeletion(assets.map(a => a.internalId), currentUser!.internalId)
     this.loaders.clear()
     const deletedAssets = await this.raw.findByIds(assets.map(a => a.id))
@@ -386,8 +378,8 @@ export class AssetService extends DosGatoService<Asset> {
 
   async undelete (dataIds: string[]) {
     const assets = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(assets, async (asset: Asset) => !(await this.mayUndelete(asset)))) {
-      throw new Error('Current user is not permitted to restore one or more assets')
+    if (assets.some(asset => !this.mayUndelete(asset))) {
+      throw new Error('You are not permitted to restore one or more assets.')
     }
     await undeleteAssets(assets.map(a => a.internalId))
     this.loaders.clear()
@@ -395,8 +387,8 @@ export class AssetService extends DosGatoService<Asset> {
     return new AssetsResponse({ assets: restoredAssets, success: true })
   }
 
-  async mayViewManagerUI () {
-    return (await this.currentAssetRules()).some(r => r.grants.viewForEdit)
+  mayViewManagerUI () {
+    return this.ctx.authInfo.assetRules.some(r => r.grants.viewForEdit)
   }
 
   /**
@@ -406,54 +398,47 @@ export class AssetService extends DosGatoService<Asset> {
   * mayViewForEdit will control whether the selected asset is still available to be selected in the chooser, so if they
   * can't see the currently selected asset they will just get a list of folders and will have to cancel the chooser to keep it
   */
-  async mayView (asset: Asset) {
+  mayView (asset: Asset) {
     if (asset.orphaned) {
-      const siteRules = (await this.currentSiteRules()).filter(r => SiteRuleService.applies(r, asset.siteId))
-      return siteRules.some(r => r.grants.delete)
+      return this.ctx.authInfo.siteRules.some(r => r.grants.delete && SiteRuleService.applies(r, asset.siteId))
     }
-    const [rules, assetPath] = await Promise.all([
-      this.currentAssetRules(),
-      this.raw.getPath(asset)
-    ])
-    const assetPathWithoutSite = shiftPath(assetPath)
-
-    for (const r of rules) {
+    for (const r of this.ctx.authInfo.assetRules) {
       if (!r.grants.view) continue
       if (!AssetRuleService.appliesToPagetree(r, asset)) continue
       if (asset.deleteState === DeleteState.DELETED && !r.grants.undelete) continue
       if (asset.deleteState === DeleteState.MARKEDFORDELETE && !r.grants.delete) continue
-      if (AssetRuleService.appliesToPath(r, assetPathWithoutSite)) return true
-      if (AssetRuleService.appliesToParentOfPath(r, assetPathWithoutSite)) return true
+      if (AssetRuleService.appliesToPath(r, asset.resolvedPathWithoutSitename)) return true
+      if (AssetRuleService.appliesToParentOfPath(r, asset.resolvedPathWithoutSitename)) return true
     }
     return false
   }
 
-  async mayViewIndividual (asset: Asset) {
-    return (!asset.orphaned && asset.launchState !== LaunchState.DECOMMISSIONED && primaryOrSandbox[asset.pagetreeType] && asset.deleteState === DeleteState.NOTDELETED) || await this.mayView(asset)
+  mayViewIndividual (asset: Asset) {
+    return (!asset.orphaned && asset.launchState !== LaunchState.DECOMMISSIONED && primaryOrSandbox[asset.pagetreeType] && asset.deleteState === DeleteState.NOTDELETED) || this.mayView(asset)
   }
 
   /**
    * All assets in the system are viewable by any editor, but we don't want every editor to have to browse the entire system when
    * managing/choosing assets. So this can be used to filter the selection for an editor's convenience.
    */
-  async mayViewForEdit (asset: Asset) {
-    return await this.haveAssetPerm(asset, 'viewForEdit')
+  mayViewForEdit (asset: Asset) {
+    return this.haveAssetPerm(asset, 'viewForEdit')
   }
 
-  async mayUpdate (asset: Asset) {
-    return await this.haveAssetPerm(asset, 'update')
+  mayUpdate (asset: Asset) {
+    return this.haveAssetPerm(asset, 'update')
   }
 
-  async mayMove (asset: Asset) {
-    return await this.haveAssetPerm(asset, 'move')
+  mayMove (asset: Asset) {
+    return this.haveAssetPerm(asset, 'move')
   }
 
-  async mayDelete (asset: Asset) {
-    return await this.haveAssetPerm(asset, 'delete')
+  mayDelete (asset: Asset) {
+    return this.haveAssetPerm(asset, 'delete')
   }
 
-  async mayUndelete (asset: Asset) {
+  mayUndelete (asset: Asset) {
     if (asset.deleteState === DeleteState.NOTDELETED || asset.orphaned) return false
-    return asset.deleteState === DeleteState.MARKEDFORDELETE ? await this.haveAssetPerm(asset, 'delete') : await this.haveAssetPerm(asset, 'undelete')
+    return asset.deleteState === DeleteState.MARKEDFORDELETE ? this.haveAssetPerm(asset, 'delete') : this.haveAssetPerm(asset, 'undelete')
   }
 }

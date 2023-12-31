@@ -34,7 +34,7 @@ export class DataRootResolver {
 @Resolver(of => DataRootPermissions)
 export class DataRootPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may create or move data inside this data root.' })
-  async create (@Ctx() ctx: Context, @Root() folder: DataRoot) {
-    return await ctx.svc(DataRootService).mayCreate(folder)
+  create (@Ctx() ctx: Context, @Root() folder: DataRoot) {
+    return ctx.svc(DataRootService).mayCreate(folder)
   }
 }

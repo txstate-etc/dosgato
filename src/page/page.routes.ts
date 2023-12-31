@@ -1,5 +1,4 @@
 import { type PageData } from '@dosgato/templating'
-import { Context } from '@txstate-mws/graphql-server'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { HttpError } from 'fastify-txstate'
 import db from 'mysql2-async/db'
@@ -8,8 +7,9 @@ import {
   createPage, type CreatePageInput, createPagetree, createSite, DeleteState, getEnabledUser,
   getPageIndexes, GlobalRuleService, logMutation, makeSafe, numerate, Page, type PageRule,
   PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, type PagetreeType,
-  SiteService, SiteServiceInternal, templateRegistry, VersionedService,
-  createPageInTransaction, getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput, migratePage, systemContext
+  SiteService, SiteServiceInternal, templateRegistry, VersionedService, createPageInTransaction,
+  getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput, migratePage,
+  systemContext, DGContext
 } from '../internal.js'
 
 export interface PageExport {
@@ -115,11 +115,11 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post('/pages/site', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Site import must be multipart.')
 
-    const ctx = new Context(req)
+    const ctx = new DGContext(req)
     const user = await getEnabledUser(ctx) // throws if not authenticated
     const siteService = ctx.svc(SiteService)
     const siteServiceInternal = ctx.svc(SiteServiceInternal)
-    if (!await siteService.mayCreate() || !await ctx.svc(GlobalRuleService).mayOverrideStamps()) throw new HttpError(403, 'You are not permitted to create new sites by importing a file.')
+    if (!siteService.mayCreate() || !ctx.svc(GlobalRuleService).mayOverrideStamps()) throw new HttpError(403, 'You are not permitted to create new sites by importing a file.')
     const { pageRecord, body } = await handleUpload(req)
     if (!pageRecord.data.legacyId) throw new HttpError(400, 'The site import endpoint is only meant for migrating from another CMS.')
     const [existing] = await siteServiceInternal.find({ names: [pageRecord.name] })
@@ -134,12 +134,12 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post<{ Params: { siteId: string } }>('/pages/pagetree/:siteId', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Pagetree import must be multipart.')
 
-    const ctx = new Context(req)
+    const ctx = new DGContext(req)
     const user = await getEnabledUser(ctx) // throws if not authenticated
     const siteServiceInternal = ctx.svc(SiteServiceInternal)
     const site = await siteServiceInternal.findById(req.params.siteId)
     if (!site) throw new HttpError(404, 'Site could not be found.')
-    if (!await ctx.svc(SiteService).mayManageState(site) || !await ctx.svc(GlobalRuleService).mayOverrideStamps()) throw new HttpError(403, 'You are not permitted to create new pagetrees by importing a file.')
+    if (!ctx.svc(SiteService).mayManageState(site) || !ctx.svc(GlobalRuleService).mayOverrideStamps()) throw new HttpError(403, 'You are not permitted to create new pagetrees by importing a file.')
     const { pageRecord, body } = await handleUpload(req)
     if (!pageRecord.data.legacyId) throw new HttpError(400, 'The pagetree import endpoint is only meant for migrating from another CMS.')
     const [existingPage] = await ctx.svc(PageServiceInternal).find({ legacyIds: [pageRecord.data.legacyId] })
@@ -151,7 +151,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post<{ Params: { pageid: string } }>('/pages/update/:pageid', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Page update from export file must be multipart.')
 
-    const ctx = new Context(req)
+    const ctx = new DGContext(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
 
     const svcPageInternal = ctx.svc(PageServiceInternal)
@@ -160,11 +160,11 @@ export async function createPageRoutes (app: FastifyInstance) {
 
     const page = await svcPageInternal.findById(req.params.pageid)
     if (!page) throw new HttpError(404, 'Specified page does not exist.')
-    if (!(await svcPage.mayUpdate(page))) throw new HttpError(403, `You are not permitted to update page ${String(page.name)}.`)
+    if (!svcPage.mayUpdate(page)) throw new HttpError(403, `You are not permitted to update page ${String(page.name)}.`)
     const { pageRecord, body } = await handleUpload(req)
     if (!body?.migrate) delete pageRecord.data.legacyId
     if (pageRecord.data.legacyId) {
-      const allowed = await ctx.svc(GlobalRuleService).mayOverrideStamps()
+      const allowed = ctx.svc(GlobalRuleService).mayOverrideStamps()
       if (!allowed) throw new HttpError(403, 'You are not permitted to migrate content from another CMS.')
     }
     if (body?.publishedAt || body?.publishedBy) {
@@ -178,7 +178,7 @@ export async function createPageRoutes (app: FastifyInstance) {
       siteId: site.id,
       pagetreeId: pagetree.id,
       parentId: parent?.id,
-      pagePath: `${parent ? await ctx.svc(PageServiceInternal).getPath(parent) : ''}/${page.name}`,
+      pagePath: `${parent?.resolvedPath ?? ''}/${page.name}`,
       name: page.name
     }
     const migrated = await migratePage(pageRecord.data, extras)
@@ -207,7 +207,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post<{ Params: { parentPageId: string }, Body?: CreatePageInput }>('/pages/:parentPageId', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Page import must be multipart.')
     const startTime = new Date()
-    const ctx = new Context(req)
+    const ctx = new DGContext(req)
     const svcPageInternal = ctx.svc(PageServiceInternal)
     const svcPage = ctx.svc(PageService)
     const svcTmpl = ctx.svc(TemplateService)
@@ -215,7 +215,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     const user = await getEnabledUser(ctx) // throws if not authenticated
     const parent = await svcPageInternal.findById(req.params.parentPageId)
     if (!parent) throw new HttpError(404, 'Specified page does not exist.')
-    if (!(await svcPage.mayCreate(parent))) throw new HttpError(403, `Current user is not permitted to import pages beneath ${String(parent.name)}.`)
+    if (!svcPage.mayCreate(parent)) throw new HttpError(403, `Current user is not permitted to import pages beneath ${String(parent.name)}.`)
 
     const above = req.body?.abovePage ? await svcPageInternal.findById(req.body?.abovePage) : undefined
     const pages = await svcPageInternal.getPageChildren(parent, false)
@@ -257,13 +257,13 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post<{ Params: { parentPageId: string }, Body?: CreatePageInput }>('/pages/migrate/:parentPageId', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Page import must be multipart.')
     const startTime = new Date()
-    const ctx = new Context(req)
+    const ctx = new DGContext(req)
     const svcPageInternal = ctx.svc(PageServiceInternal)
     const svcPage = ctx.svc(PageService)
     const user = await getEnabledUser(ctx) // throws if not authenticated
     const parent = await svcPageInternal.findById(req.params.parentPageId)
     if (!parent) throw new HttpError(404, 'Specified page does not exist.')
-    if (!(await svcPage.mayCreate(parent))) throw new HttpError(403, `Current user is not permitted to import pages beneath ${String(parent.name)}.`)
+    if (!svcPage.mayCreate(parent)) throw new HttpError(403, `Current user is not permitted to import pages beneath ${String(parent.name)}.`)
 
     const { pageRecord, body } = await handleUpload(req)
     const above = body?.abovePage ? await svcPageInternal.findById(body?.abovePage) : undefined
@@ -291,7 +291,7 @@ export async function createPageRoutes (app: FastifyInstance) {
       siteId: site.id,
       pagetreeId: pagetree.id,
       parentId: parent.id,
-      pagePath: `${await ctx.svc(PageServiceInternal).getPath(parent)}/${newPageName}`,
+      pagePath: `${parent.resolvedPath}/${newPageName}`,
       name: newPageName
     }
     const migrated = await migratePage(pageRecord.data, extras)
@@ -315,7 +315,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     return { success: true, id: page.id, linkId: page.linkId, messages: response.messages }
   })
 
-  async function exportRecursive (ctx: Context, push: (obj: any) => Promise<void>, page: Page, pagePath: string, recurse: boolean, counter = { count: 0 }) {
+  async function exportRecursive (ctx: DGContext, push: (obj: any) => Promise<void>, page: Page, pagePath: string, recurse: boolean, counter = { count: 0 }) {
     const data = await ctx.svc(VersionedService).get(page.intDataId)
     if (!data) throw new HttpError(500, `Page ${page.name} is corrupted and cannot be exported.`)
     const pageRecord = {
@@ -338,44 +338,39 @@ export async function createPageRoutes (app: FastifyInstance) {
   }
 
   app.get<{ Params: { id: string }, Querystring: { withSubpages?: boolean } }>('/pages/:id', async (req, res) => {
-    const ctx = new Context(req)
+    const ctx = new DGContext(req)
     await getEnabledUser(ctx)
     const page = await ctx.svc(PageService).findById(req.params.id)
     if (!page) throw new HttpError(404)
 
-    const path = await ctx.svc(PageServiceInternal).getPath(page)
     const recursive = !!req.query.withSubpages
 
     void res.header('Cache-Control', 'no-cache')
     void res.header('Content-Type', 'application/x-gzip')
     void res.header('Access-Control-Expose-Headers', 'Content-Disposition')
-    void res.header('Content-Disposition', 'attachment;filename=' + path.split('/').filter(isNotBlank).join('.') + (recursive ? '.jsonl.gz' : '.json.gz'))
+    void res.header('Content-Disposition', 'attachment;filename=' + page.resolvedPath.split('/').filter(isNotBlank).join('.') + (recursive ? '.jsonl.gz' : '.json.gz'))
     const { push, done, output, error } = jsonlGzStream()
-    exportRecursive(ctx, push, page, path, recursive).then(done).catch(error)
+    exportRecursive(ctx, push, page, page.resolvedPath, recursive).then(done).catch(error)
     return output
   })
   app.get('/pages/list', async (req, res) => {
-    const ctx = new Context(req)
+    const ctx = new DGContext(req)
     await getEnabledUser(ctx)
-    const pageSvc = ctx.svc(PageService)
-    const [pages, pageRules] = await Promise.all([
-      db.getall<{ id: number, linkId: string, dataId: number, name: string, path: string, title: string, templateKey: string, siteId: number, siteName: string, siteLaunchState: number, pagetreeId: number, deleteState: DeleteState, pagetreeName: string, pagetreeType: PagetreeType, modifiedBy: string, modified: Date, version: number, published: 0 | 1, publishedAt?: Date, hasUnpublishedChanges: boolean }>(`
-        SELECT p.*, pt.name AS pagetreeName, pt.type as pagetreeType, st.modifiedBy, st.modified, st.version,
-          t.id IS NOT NULL as published, t.date as publishedAt, (t.version IS NULL OR t.version != st.version) as hasUnpublishedChanges,
-          s.name as siteName, s.launchEnabled as siteLaunchState
-        FROM pages p
-        INNER JOIN sites s ON p.siteId = s.id
-        INNER JOIN pagetrees pt ON p.pagetreeId = pt.id
-        INNER JOIN storage st ON p.dataId = st.id
-        LEFT JOIN tags t ON st.id=t.id AND t.tag='published'
-        WHERE p.path='/'
-          AND p.deleteState IN (0, 1)
-          AND s.deletedAt IS NULL
-          AND pt.deletedAt IS NULL
-        ORDER BY siteName, p.path, p.name
-      `),
-      (pageSvc as any).currentPageRules() as PageRule[]
-    ])
+    const pages = await db.getall<{ id: number, linkId: string, dataId: number, name: string, path: string, title: string, templateKey: string, siteId: number, siteName: string, siteLaunchState: number, pagetreeId: number, deleteState: DeleteState, pagetreeName: string, pagetreeType: PagetreeType, modifiedBy: string, modified: Date, version: number, published: 0 | 1, publishedAt?: Date, hasUnpublishedChanges: boolean }>(`
+      SELECT p.*, pt.name AS pagetreeName, pt.type as pagetreeType, st.modifiedBy, st.modified, st.version,
+        t.id IS NOT NULL as published, t.date as publishedAt, (t.version IS NULL OR t.version != st.version) as hasUnpublishedChanges,
+        s.name as siteName, s.launchEnabled as siteLaunchState
+      FROM pages p
+      INNER JOIN sites s ON p.siteId = s.id
+      INNER JOIN pagetrees pt ON p.pagetreeId = pt.id
+      INNER JOIN storage st ON p.dataId = st.id
+      LEFT JOIN tags t ON st.id=t.id AND t.tag='published'
+      WHERE p.path='/'
+        AND p.deleteState IN (0, 1)
+        AND s.deletedAt IS NULL
+        AND pt.deletedAt IS NULL
+      ORDER BY siteName, p.path, p.name
+    `)
 
     const binds: any[] = []
     const permsByPageInternalId: Record<number, RootPage['permissions'] & { viewForEdit: boolean }> = {}
@@ -388,7 +383,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     const pagesToKeep: typeof pages = []
     for (const p of pages) {
       const page = new Page(p)
-      const applicableToPagetree = pageRules.filter(r => PageRuleService.appliesToPagetree(r, page))
+      const applicableToPagetree = ctx.authInfo.pageRules.filter(r => PageRuleService.appliesToPagetree(r, page))
       const applicableRules = applicableToPagetree.filter(r => PageRuleService.appliesToPath(r, '/'))
       const applicableToChildRules = applicableToPagetree.filter(r => PageRuleService.appliesToChildOfPath(r, '/'))
       const [create, update, mayDelete, move, publish, undelete, unpublish, viewForEdit] = [

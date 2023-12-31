@@ -56,25 +56,25 @@ export class SiteRuleService extends DosGatoService<SiteRule> {
   raw = this.svc(SiteRuleServiceInternal)
 
   async findById (ruleId: string) {
-    return await this.removeUnauthorized(await this.raw.findById(ruleId))
+    return this.removeUnauthorized(await this.raw.findById(ruleId))
   }
 
   async findByRoleId (roleId: string, filter?: SiteRuleFilter) {
-    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
+    return this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
   }
 
   async findBySiteId (siteId?: string) {
-    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId))
+    return this.removeUnauthorized(await this.raw.findBySiteId(siteId))
   }
 
   async findByPagetree (pagetree: Pagetree) {
-    return await this.removeUnauthorized(await this.raw.findByPagetree(pagetree))
+    return this.removeUnauthorized(await this.raw.findByPagetree(pagetree))
   }
 
   async create (args: CreateSiteRuleInput, validateOnly?: boolean) {
     const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
-    if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
+    if (!this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new SiteRule({ id: '0', roleId: args.roleId, siteId: args.siteId, ...args.grants })
     const response = new SiteRuleResponse({ success: true })
     const rules = await this.findByRoleId(args.roleId)
@@ -83,7 +83,7 @@ export class SiteRuleService extends DosGatoService<SiteRule> {
     })) {
       response.addMessage('The proposed rule has the same site as an existing rule for this role.')
     }
-    if (await this.tooPowerful(newRule)) response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')
+    if (this.tooPowerful(newRule)) response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')
     if (validateOnly || response.hasErrors()) return response
     const ruleId = await createSiteRule(args)
     this.loaders.clear()
@@ -104,7 +104,7 @@ export class SiteRuleService extends DosGatoService<SiteRule> {
       ...updatedGrants
     })
     const response = new SiteRuleResponse({ success: true })
-    if (await this.tooPowerful(newRule)) response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
+    if (this.tooPowerful(newRule)) response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
     if (validateOnly || response.hasErrors()) return response
     await updateSiteRule(args)
     this.loaders.clear()
@@ -136,18 +136,17 @@ export class SiteRuleService extends DosGatoService<SiteRule> {
     return !ruleA.siteId || ruleA.siteId === ruleB.siteId
   }
 
-  async tooPowerful (rule: SiteRule) {
-    return tooPowerfulHelper(rule, await this.currentSiteRules(), this.asOrMorePowerful)
+  tooPowerful (rule: SiteRule) {
+    return tooPowerfulHelper(rule, this.ctx.authInfo.siteRules, this.asOrMorePowerful)
   }
 
   async mayWrite (rule: SiteRule) {
     const role = await this.svc(RoleService).findById(rule.id)
-    return await this.svc(RoleService).mayUpdate(role!)
+    return this.svc(RoleService).mayUpdate(role!)
   }
 
-  async mayView (rule: SiteRule) {
-    if (await this.haveGlobalPerm('manageAccess')) return true
-    const role = await this.svc(RoleService).findById(rule.roleId)
-    return !!role
+  mayView (rule: SiteRule) {
+    // rules can only be viewed underneath roles, so the role's mayView function can be relied upon here
+    return true
   }
 }

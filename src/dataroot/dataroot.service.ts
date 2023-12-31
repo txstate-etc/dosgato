@@ -39,7 +39,7 @@ export class DataRootService extends DosGatoService<DataRoot> {
     pairs = intersect({ skipEmpty: true }, pairs, idPairs)
     const filledPairs = pairs.map(p => ({ site: sitesById[p.siteId ?? ''], template: this.templatesById!.get(p.templateId) }))
     const dataRoots = filledPairs.filter(p => p.template).map(p => new DataRoot(p.site, p.template!))
-    return filter.viewForEdit ? await filterAsync(dataRoots, async dr => await this.mayViewForEdit(dr)) : await this.removeUnauthorized(dataRoots)
+    return filter.viewForEdit ? dataRoots.filter(dr => this.mayViewForEdit(dr)) : this.removeUnauthorized(dataRoots)
   }
 
   async findBySite (site: Site, filter?: DataRootFilter) {
@@ -53,15 +53,15 @@ export class DataRootService extends DosGatoService<DataRoot> {
     return dataroots[0]
   }
 
-  async mayView (obj: DataRoot) {
-    return await this.haveDataRootPerm(obj, 'view')
+  mayView (obj: DataRoot) {
+    return this.haveDataRootPerm(obj, 'view')
   }
 
-  async mayViewForEdit (obj: DataRoot) {
-    return await this.haveDataRootPerm(obj, 'viewForEdit')
+  mayViewForEdit (obj: DataRoot) {
+    return this.haveDataRootPerm(obj, 'viewForEdit')
   }
 
-  async mayCreate (obj: DataRoot) {
-    return await this.haveDataRootPerm(obj, 'create')
+  mayCreate (obj: DataRoot) {
+    return this.haveDataRootPerm(obj, 'create')
   }
 }

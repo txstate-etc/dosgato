@@ -1,5 +1,8 @@
 import { BaseService } from '@txstate-mws/graphql-server'
-import { DosGatoService, type SiteComment, type SiteCommentFilter, getSiteComments, SiteServiceInternal, createSiteComment, SiteCommentResponse, SiteService } from '../internal.js'
+import {
+  DosGatoService, type SiteComment, type SiteCommentFilter, getSiteComments, SiteServiceInternal,
+  createSiteComment, SiteCommentResponse, SiteService
+} from '../internal.js'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 
 const CommentsByIdLoader = new PrimaryKeyLoader({
@@ -33,26 +36,23 @@ export class SiteCommentServiceInternal extends BaseService {
 export class SiteCommentService extends DosGatoService<SiteComment> {
   raw = this.svc(SiteCommentServiceInternal)
 
-  async mayView (siteComment: SiteComment) {
-    const site = await this.svc(SiteServiceInternal).findById(siteComment.siteId)
-    if (!site) return false
-    return await this.svc(SiteService).mayViewForEdit(site)
+  mayView (siteComment: SiteComment) {
+    return this.svc(SiteService).mayViewForEdit({ id: siteComment.siteId })
   }
 
   async find (filter?: SiteCommentFilter) {
-    return await this.removeUnauthorized(await this.raw.find(filter))
+    return this.removeUnauthorized(await this.raw.find(filter))
   }
 
   async findBySiteId (siteId: string) {
-    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId))
+    return this.removeUnauthorized(await this.raw.findBySiteId(siteId))
   }
 
   async create (siteId: string, comment: string) {
     const site = await this.svc(SiteServiceInternal).findById(siteId)
     if (!site) throw new Error('Site does not exist')
     const response = new SiteCommentResponse({ success: true })
-    const currentUser = await this.currentUser()
-    const commentId = await createSiteComment(siteId, comment, currentUser!.internalId)
+    const commentId = await createSiteComment(siteId, comment, this.ctx.authInfo.user!.internalId)
     response.siteComment = await this.raw.findById(String(commentId))
     return response
   }

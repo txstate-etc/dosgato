@@ -28,6 +28,8 @@ export class DataFolder {
   deletedBy?: number
   templateKey: string
   orphaned: boolean
+  resolvedPath: string
+  resolvedPathWithoutSitename: string
 
   constructor (row: any) {
     this.internalId = row.id
@@ -41,6 +43,8 @@ export class DataFolder {
     this.deletedBy = row.deletedBy
     this.templateKey = row.templateKey
     this.orphaned = row.orphaned
+    this.resolvedPath = `/${row.siteName ?? 'global'}/${row.name}`
+    this.resolvedPathWithoutSitename = '/' + row.name
   }
 }
 

@@ -1,4 +1,4 @@
-import { Context, UnimplementedError } from '@txstate-mws/graphql-server'
+import { Context } from '@txstate-mws/graphql-server'
 import { Arg, Ctx, FieldResolver, ID, Int, Mutation, Resolver, Root } from 'type-graphql'
 import { JsonData, User, UserService, ObjectVersion, VersionedService, VersionResponse, PageService, PageServiceInternal, AssetServiceInternal, DataServiceInternal, AssetService, DataService } from '../internal.js'
 
@@ -25,9 +25,9 @@ export class VersionResolver {
     ])
     if (!page && !asset && !data) throw new Error('Specified dataId could not be found.')
     if (
-      (page && !await ctx.svc(PageService).mayUpdate(page)) ||
-      (asset && !await ctx.svc(AssetService).mayUpdate(asset)) ||
-      (data && !await ctx.svc(DataService).mayUpdate(data))
+      (page && !ctx.svc(PageService).mayUpdate(page)) ||
+      (asset && !ctx.svc(AssetService).mayUpdate(asset)) ||
+      (data && !ctx.svc(DataService).mayUpdate(data))
     ) throw new Error('You are not allowed to mark or unmark this version.')
     const vSvc = ctx.svc(VersionedService)
     await vSvc.toggleMarked(intDataId, version)

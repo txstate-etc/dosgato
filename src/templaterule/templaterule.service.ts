@@ -37,17 +37,17 @@ export class TemplateRuleService extends DosGatoService<TemplateRule> {
   raw = this.svc(TemplateRuleServiceInternal)
 
   async findById (ruleId: string) {
-    return await this.removeUnauthorized(await this.raw.findById(ruleId))
+    return this.removeUnauthorized(await this.raw.findById(ruleId))
   }
 
   async findByRoleId (roleId: string, filter?: TemplateRuleFilter) {
-    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
+    return this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
   }
 
   async create (args: CreateTemplateRuleInput, validateOnly?: boolean) {
     const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
-    if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
+    if (!this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new TemplateRule({ id: '0', roleId: args.roleId, templateId: args.templateId, ...args.grants })
     const response = new TemplateRuleResponse({ success: true })
     const rules = await this.findByRoleId(args.roleId)
@@ -58,7 +58,7 @@ export class TemplateRuleService extends DosGatoService<TemplateRule> {
     })) {
       response.addMessage('The proposed rule has the same template as an existing rule for this role.')
     }
-    if (await this.tooPowerful(newRule)) response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')
+    if (this.tooPowerful(newRule)) response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')
     if (validateOnly || response.hasErrors()) return response
     const ruleId = await createTemplateRule(args)
     this.loaders.clear()
@@ -78,7 +78,7 @@ export class TemplateRuleService extends DosGatoService<TemplateRule> {
       grants: { use: args.grants?.use ?? rule.grants.use }
     })
     const response = new TemplateRuleResponse({ success: true })
-    if (await this.tooPowerful(newRule)) response.addMessage('The updated template rule would have more privilege than you currently have, so you cannot update it.')
+    if (this.tooPowerful(newRule)) response.addMessage('The updated template rule would have more privilege than you currently have, so you cannot update it.')
     if (validateOnly || response.hasErrors()) return response
     await updateTemplateRule(args)
     this.loaders.clear()
@@ -109,18 +109,17 @@ export class TemplateRuleService extends DosGatoService<TemplateRule> {
     return !ruleA.templateId || ruleA.templateId === ruleB.templateId
   }
 
-  async tooPowerful (rule: TemplateRule) {
-    return tooPowerfulHelper(rule, await this.currentTemplateRules(), this.asOrMorePowerful)
+  tooPowerful (rule: TemplateRule) {
+    return tooPowerfulHelper(rule, this.ctx.authInfo.templateRules, this.asOrMorePowerful)
   }
 
   async mayWrite (rule: TemplateRule) {
     const role = await this.svc(RoleService).findById(rule.id)
-    return await this.svc(RoleService).mayUpdate(role!)
+    return this.svc(RoleService).mayUpdate(role!)
   }
 
-  async mayView (rule: TemplateRule) {
-    if (await this.haveGlobalPerm('manageAccess')) return true
-    const role = await this.svc(RoleService).findById(rule.roleId)
-    return !!role
+  mayView (rule: TemplateRule) {
+    // rules can only be viewed underneath roles, so the role's mayView function can be relied upon here
+    return true
   }
 }

@@ -141,13 +141,13 @@ export class RoleResolver {
 @Resolver(of => RolePermissions)
 export class RolePermissionsResolver {
   @FieldResolver(type => Boolean, { description: 'Current user is able to rename this role.' })
-  async rename (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(RoleService).mayUpdate(role)
+  rename (@Ctx() ctx: Context, @Root() role: Role) {
+    return ctx.svc(RoleService).mayUpdate(role)
   }
 
   @FieldResolver(type => Boolean, { description: 'Current user is able to delete this role.' })
-  async delete (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(RoleService).mayDelete(role)
+  delete (@Ctx() ctx: Context, @Root() role: Role) {
+    return ctx.svc(RoleService).mayDelete(role)
   }
 
   @FieldResolver(type => Boolean, {
@@ -155,8 +155,8 @@ export class RolePermissionsResolver {
 each rule must also be checked for a permission of its own. A user must have both permissions
 before creating a rule relating a role to a target.`
   })
-  async createRules (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(RoleService).mayCreateRules(role)
+  createRules (@Ctx() ctx: Context, @Root() role: Role) {
+    return ctx.svc(RoleService).mayCreateRules(role)
   }
 
   @FieldResolver(type => Boolean, {

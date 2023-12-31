@@ -2,7 +2,7 @@ import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { isNotBlank, keyby } from 'txstate-utils'
-import { AssetFolder, type AssetFolderFilter, type CreateAssetFolderInput, DeleteState, normalizePath, processDeletedFilters } from '../internal.js'
+import { AssetFolder, type AssetFolderFilter, type CreateAssetFolderInput, DeleteState, normalizePath, processDeletedFilters, shiftPath } from '../internal.js'
 import { DateTime } from 'luxon'
 
 export interface AssetFolderRow {
@@ -145,7 +145,7 @@ async function processFilters (filter?: AssetFolderFilter) {
 
 export async function getAssetFolders (filter?: AssetFolderFilter) {
   const { joins, where, binds } = await processFilters(filter)
-  return (await db.getall(`
+  const assetfolders = (await db.getall(`
     SELECT assetfolders.*, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned,
       pagetrees.type as pagetreeType
     FROM assetfolders
@@ -155,6 +155,18 @@ export async function getAssetFolders (filter?: AssetFolderFilter) {
     ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
     ORDER BY assetfolders.name
   `, binds)).map(r => new AssetFolder(r))
+  const ancestorIds = new Set<number>()
+  for (const f of assetfolders) {
+    for (const id of f.pathSplit) ancestorIds.add(id)
+  }
+  const abinds: number[] = []
+  const ancestorrows = ancestorIds.size ? await db.getall<{ id: number, name: string }>(`SELECT id, name FROM assetfolders WHERE id IN (${db.in(abinds, Array.from(ancestorIds))})`, abinds) : []
+  const namesById = keyby(ancestorrows, 'id')
+  for (const f of assetfolders) {
+    f.resolvedPath = `/${f.pathSplit.map(id => namesById[id].name).join('/')}${f.pathSplit.length ? '/' : ''}${f.name}`
+    f.resolvedPathWithoutSitename = shiftPath(f.resolvedPath)
+  }
+  return assetfolders
 }
 
 export async function getAssetFoldersByPath (paths: string[], filter: AssetFolderFilter) {
@@ -166,27 +178,27 @@ export async function getAssetFoldersByPath (paths: string[], filter: AssetFolde
 }
 
 async function checkForNameConflict (folderId: string, name: string, db: Queryable) {
-  const parent = new AssetFolder(await db.getrow('SELECT * from assetfolders WHERE id = ? FOR UPDATE', [folderId]))
-  const siblings = await db.getall('SELECT * FROM assetfolders WHERE path=?', [parent.path + (parent.path === '/' ? '' : '/') + parent.id])
+  const parent = (await db.getrow<{ id: number, path: string, siteId: number, pagetreeId: number }>('SELECT id, path, siteId, pagetreeId from assetfolders WHERE id = ? FOR UPDATE', [folderId]))!
+  const siblings = await db.getall('SELECT name FROM assetfolders WHERE path=?', [parent.path + (parent.path === '/' ? '' : '/') + parent.id])
   const assets = await db.getall('SELECT * FROM assets WHERE folderId=?', [parent.id])
   if (siblings.some(s => s.name === name) || assets.some(a => a.name === name)) throw new NameConflictError()
   return parent
 }
 
 export async function createAssetFolder (args: CreateAssetFolderInput) {
-  return await db.transaction(async db => {
+  const newInternalId = await db.transaction(async db => {
     const parent = await checkForNameConflict(args.parentId, args.name, db)
-    const newInternalId = await db.insert(`
+    return await db.insert(`
       INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name)
-      VALUES (?, ?, ?, ?, ?)`, [parent.siteId, parent.pagetreeId, nanoid(10), `/${[...parent.pathSplit, parent.internalId].join('/')}`, args.name])
-    return new AssetFolder(await db.getrow('SELECT * FROM assetfolders WHERE id=?', [newInternalId]))
+      VALUES (?, ?, ?, ?, ?)`, [parent.siteId, parent.pagetreeId, nanoid(10), `${parent.path}/${parent.id}`, args.name])
   })
+  return (await getAssetFolders({ internalIds: [newInternalId] }))[0]
 }
 
 export async function renameAssetFolder (folderId: string, name: string) {
   return await db.transaction(async db => {
-    const folder = new AssetFolder(await db.getrow('SELECT * FROM assetfolders WHERE id=? LOCK IN SHARE MODE', [folderId]))
-    await checkForNameConflict(String(folder.parentInternalId), name, db)
+    const folderPath = await db.getval<string>('SELECT path FROM assetfolders WHERE id=? LOCK IN SHARE MODE', [folderId])
+    await checkForNameConflict(folderPath!.split('/').slice(-1)[0], name, db)
     return await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [name, folderId])
   })
 }

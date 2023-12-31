@@ -11,7 +11,7 @@ import {
   PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
   PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, getPagesByPath, parsePath,
   normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService,
-  shiftPath, systemContext, collectComponents, makePathSafe, LaunchState, type DGRestrictOperations
+  systemContext, collectComponents, makePathSafe, LaunchState, type DGRestrictOperations
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -135,9 +135,11 @@ export class PageServiceInternal extends BaseService {
     return await this.findByInternalId(rootId)
   }
 
-  async getPath (page: Page) {
-    const ancestors = await this.getPageAncestors(page)
-    return `/${ancestors.map(a => a.name).join('/')}${ancestors.length ? '/' : ''}${page.name}`
+  /**
+   * @deprecated use page.resolvedPath instead
+   */
+  getPath (page: Page) {
+    return page.resolvedPath
   }
 
   async getData (page: Page, version?: number, published?: boolean, toSchemaVersion = templateRegistry.currentSchemaVersion) {
@@ -155,7 +157,7 @@ export class PageServiceInternal extends BaseService {
       siteId: String(page.siteInternalId),
       pagetreeId: page.pagetreeId,
       parentId: String(page.parentInternalId),
-      pagePath: await this.getPath(page),
+      pagePath: page.resolvedPath,
       pageId: page.id,
       linkId: page.linkId,
       name: page.name
@@ -253,51 +255,45 @@ export class PageServiceInternal extends BaseService {
 export class PageService extends DosGatoService<Page> {
   raw = this.svc(PageServiceInternal)
 
-  async postFilter (pages: Page[], filter?: PageFilter) {
-    return filter?.viewForEdit ? await filterAsync(pages, async p => await this.mayViewForEdit(p)) : pages
+  postFilter (pages: Page[], filter?: PageFilter) {
+    return filter?.viewForEdit ? pages.filter(p => this.mayViewForEdit(p)) : pages
   }
 
   async find (filter: PageFilter) {
-    const [ret] = await Promise.all([
-      this.raw.find(filter),
-      this.currentPageRules() // pre-load and cache page rules so they're ready for removeUnauthorized
-    ])
-    if (filter.links?.length || filter.paths?.length || filter.ids?.length) return await filterAsync(ret, async p => await this.mayViewIndividual(p))
-    return await this.postFilter(await this.removeUnauthorized(ret), filter)
+    const ret = await this.raw.find(filter)
+    if (filter.links?.length || filter.paths?.length || filter.ids?.length) return ret.filter(p => this.mayViewIndividual(p))
+    return this.postFilter(this.removeUnauthorized(ret), filter)
   }
 
   async findById (id: string) {
-    return await this.removeUnauthorized(await this.raw.findById(id))
+    return this.removeUnauthorized(await this.raw.findById(id))
   }
 
   async findByIds (ids: string[]) {
-    return await this.removeUnauthorized(await this.raw.findByIds(ids))
+    return this.removeUnauthorized(await this.raw.findByIds(ids))
   }
 
   async findByInternalId (internalId: number) {
-    return await this.removeUnauthorized(await this.raw.findByInternalId(internalId))
+    return this.removeUnauthorized(await this.raw.findByInternalId(internalId))
   }
 
   async findByPagetreeId (id: string, filter?: PageFilter) {
-    const [ret] = await Promise.all([
-      this.raw.findByPagetreeId(id, filter),
-      this.currentPageRules() // pre-load and cache page rules so they're ready for removeUnauthorized
-    ])
-    return await this.postFilter(await this.removeUnauthorized(ret), filter)
+    const ret = await this.raw.findByPagetreeId(id, filter)
+    return this.postFilter(this.removeUnauthorized(ret), filter)
   }
 
   async findByTemplate (key: string, filter?: PageFilter) {
-    return await this.postFilter(await this.removeUnauthorized(await this.raw.findByTemplate(key, filter)), filter)
+    return this.postFilter(this.removeUnauthorized(await this.raw.findByTemplate(key, filter)), filter)
   }
 
   async getPageChildren (page: Page, recursive?: boolean, filter?: PageFilter) {
-    return await this.postFilter(await this.removeUnauthorized(
+    return this.postFilter(this.removeUnauthorized(
       await this.raw.getPageChildren(page, recursive, filter)
     ), filter)
   }
 
   async getPageAncestors (page: Page) {
-    return await this.removeUnauthorized(await this.raw.getPageAncestors(page))
+    return this.removeUnauthorized(await this.raw.getPageAncestors(page))
   }
 
   async getApprovedTemplates (page: Page, filter?: TemplateFilter) {
@@ -306,11 +302,11 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async getRootPage (page: Page) {
-    return await this.removeUnauthorized(await this.raw.getRootPage(page))
+    return this.removeUnauthorized(await this.raw.getRootPage(page))
   }
 
-  async getPath (page: Page) {
-    return await this.raw.getPath(page)
+  getPath (page: Page) {
+    return this.raw.getPath(page)
   }
 
   async getTags (page: Page, published?: boolean) {
@@ -318,60 +314,55 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async getData (page: Page, version?: number, published?: boolean, toSchemaVersion = templateRegistry.currentSchemaVersion) {
-    if (!published && !await this.mayViewLatest(page)) throw new Error('User is only permitted to see the published version of this page.')
+    if (!published && !this.mayViewLatest(page)) throw new Error('User is only permitted to see the published version of this page.')
     return await this.raw.getData(page, version, published, toSchemaVersion)
   }
 
-  async hasPathBasedPageRulesForSite (siteId: string) {
+  hasPathBasedPageRulesForSite (siteId: string) {
     ;(this.ctx as any).hasPathBasedPageRulesForSite ??= {}
     if (!(this.ctx as any).hasPathBasedPageRulesForSite[siteId]) {
-      const rules = await this.currentPageRules()
+      const rules = this.ctx.authInfo.pageRules
       ;(this.ctx as any).hasPathBasedPageRulesForSite[siteId] = rules.some(r => r.path !== '/' && (!r.siteId || r.siteId === siteId))
     }
     return (this.ctx as any).hasPathBasedPageRulesForSite[siteId]
   }
 
   // may view the page in a list
-  async mayView (page: Page) {
+  mayView (page: Page) {
     if (page.orphaned) {
-      const siteRules = (await this.currentSiteRules()).filter(r => SiteRuleService.applies(r, page.siteId))
-      return siteRules.some(r => r.grants.delete)
+      return this.ctx.authInfo.siteRules.some(r => r.grants.delete && SiteRuleService.applies(r, page.siteId))
     }
-    const [pageRules, pagePath] = await Promise.all([
-      this.currentPageRules(),
-      this.raw.getPath(page)
-    ])
-    const pagePathWithoutSite = shiftPath(pagePath)
-    for (const pr of pageRules) {
+    for (const pr of this.ctx.authInfo.pageRules) {
       if (!pr.grants.view) continue
       if (!PageRuleService.appliesToPagetree(pr, page)) continue
       if (page.deleteState === DeleteState.DELETED && !pr.grants.undelete) continue
       if (page.deleteState === DeleteState.MARKEDFORDELETE && !pr.grants.delete) continue
-      if (PageRuleService.appliesToPath(pr, pagePathWithoutSite)) return true
-      if (PageRuleService.appliesToChildOfPath(pr, pagePathWithoutSite)) return true
-      if (PageRuleService.appliesToParentOfPath(pr, pagePathWithoutSite)) return true
+      if (PageRuleService.appliesToPath(pr, page.resolvedPathWithoutSitename)) return true
+      if (PageRuleService.appliesToChildOfPath(pr, page.resolvedPathWithoutSitename)) return true
+      if (PageRuleService.appliesToParentOfPath(pr, page.resolvedPathWithoutSitename)) return true
     }
     return false
   }
 
   // may view the page if requested individually
-  async mayViewIndividual (page: Page) {
-    return (page.pagetreeType === PagetreeType.PRIMARY && !page.orphaned && page.deleteState === DeleteState.NOTDELETED) || await this.mayView(page)
+  mayViewIndividual (page: Page) {
+    return (page.pagetreeType === PagetreeType.PRIMARY && !page.orphaned && page.deleteState === DeleteState.NOTDELETED) || this.mayView(page)
   }
 
-  async mayViewForEdit (page: Page) {
-    return await this.mayView(page)
+  mayViewForEdit (page: Page) {
+    return this.mayView(page)
   }
 
-  async mayViewLatest (page: Page) {
-    return await this.havePagePerm(page, 'viewlatest')
+  mayViewLatest (page: Page) {
+    return this.havePagePerm(page, 'viewlatest')
   }
 
-  async mayViewManagerUI () {
-    return (await this.currentPageRules()).some(r => r.grants.viewForEdit)
+  mayViewManagerUI () {
+    return this.ctx.authInfo.pageRules.some(r => r.grants.viewForEdit)
   }
 
-  async isPublished (page: Page) {
+  /** @deprecated use page.published */
+  isPublished (page: Page) {
     return page.published
   }
 
@@ -389,9 +380,9 @@ export class PageService extends DosGatoService<Page> {
     return page.orphaned
   }
 
-  async checkPerm (page: Page, perm: keyof PageRuleGrants, acceptPendingDelete: boolean) {
+  checkPerm (page: Page, perm: keyof PageRuleGrants, acceptPendingDelete: boolean) {
     if (this.isOrphanedOrDeleted(page, acceptPendingDelete)) return false
-    return await this.havePagePerm(page, perm)
+    return this.havePagePerm(page, perm)
   }
 
   opRestricted (page: Page, operation: DGRestrictOperations) {
@@ -401,54 +392,50 @@ export class PageService extends DosGatoService<Page> {
       path: page.path,
       templateKey: page.templateKey,
       pagetreeType: page.pagetreeType
-    }, operation, this.currentRoles())
+    }, operation, this.ctx.authInfo.roles)
   }
 
   // authenticated user may create pages underneath given page
-  async mayCreate (page: Page) {
-    return !this.opRestricted(page, 'into') && await this.checkPerm(page, 'create', false)
+  mayCreate (page: Page) {
+    return !this.opRestricted(page, 'into') && this.checkPerm(page, 'create', false)
   }
 
-  async mayUpdate (page: Page) {
-    return await this.checkPerm(page, 'update', false)
+  mayUpdate (page: Page) {
+    return this.checkPerm(page, 'update', false)
   }
 
   async mayPublish (page: Page, parentBeingPublished?: boolean) {
-    if (!await this.checkPerm(page, 'publish', false)) return false
+    if (!this.checkPerm(page, 'publish', false)) return false
     if (page.pagetreeType === PagetreeType.ARCHIVE) return false
     if (page.parentInternalId && !parentBeingPublished) {
       const parent = await this.raw.findByInternalId(page.parentInternalId)
-      if (!await this.isPublished(parent!)) return false
+      return (!!parent!.published)
     }
     return true
   }
 
-  async mayUnpublish (page: Page, parentBeingUnpublished?: boolean) {
+   async mayUnpublish (page: Page, parentBeingUnpublished?: boolean) {
     // root page of a site/pagetree cannot be unpublished if the site is live
     if (!page.parentInternalId && (await this.isLive(page))) return false
     if (this.opRestricted(page, 'unpublish')) return false
-    const [checkPerm, isPublished] = await Promise.all([
-      this.checkPerm(page, 'unpublish', !!parentBeingUnpublished),
-      this.isPublished(page)
-    ])
-    return checkPerm && (isPublished || !!parentBeingUnpublished)
+    return this.checkPerm(page, 'unpublish', !!parentBeingUnpublished) && (page.published || !!parentBeingUnpublished)
   }
 
-  async mayMove (page: Page) {
+  mayMove (page: Page) {
     if (!page.parentInternalId) return false // root page of a site/pagetree cannot be moved
     if (this.opRestricted(page, 'move')) return false
-    return await this.checkPerm(page, 'move', false)
+    return this.checkPerm(page, 'move', false)
   }
 
-  async mayDelete (page: Page) {
+  mayDelete (page: Page) {
     if (!page.parentInternalId) return false // root page of a site/pagetree cannot be deleted
     if (this.opRestricted(page, 'delete')) return false
-    return await this.checkPerm(page, 'delete', true)
+    return this.checkPerm(page, 'delete', true)
   }
 
-  async mayUndelete (page: Page) {
+  mayUndelete (page: Page) {
     if (page.deleteState === DeleteState.NOTDELETED || page.orphaned) return false
-    return page.deleteState === DeleteState.MARKEDFORDELETE ? await this.havePagePerm(page, 'delete') : await this.havePagePerm(page, 'undelete')
+    return page.deleteState === DeleteState.MARKEDFORDELETE ? this.havePagePerm(page, 'delete') : this.havePagePerm(page, 'undelete')
   }
 
   /**
@@ -457,7 +444,7 @@ export class PageService extends DosGatoService<Page> {
   async movePages (dataIds: string[], targetId: string, above?: boolean) {
     const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
-    if (!(await this.mayCreate(parent)) || (await someAsync(pages, async (page: Page) => !(await this.mayMove(page))))) {
+    if (!this.mayCreate(parent) || pages.some(page => !this.mayMove(page))) {
       throw new Error('You are not permitted to perform this move.')
     }
 
@@ -476,7 +463,7 @@ export class PageService extends DosGatoService<Page> {
     const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     if (!pages.length) throw new Error('No valid pages selected.')
     const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
-    if (!parent || !(await this.mayCreate(parent))) {
+    if (!parent || !(this.mayCreate(parent))) {
       throw new Error('You are not permitted to copy pages to this location.')
     }
     // Is this page allowed to be copied here?
@@ -540,7 +527,7 @@ export class PageService extends DosGatoService<Page> {
 
   async createPage (name: string, data: PageData, targetId: string, above?: boolean, validateOnly?: boolean, extra?: CreatePageExtras) {
     const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
-    if (!(await this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
+    if (!(this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
     // at the time of writing this comment, template usage is approved for an entire pagetree, so
     // it should be safe to simply check if the targeted parent/sibling is allowed to use this template
     await this.validatePageTemplates(data, { parent })
@@ -551,7 +538,7 @@ export class PageService extends DosGatoService<Page> {
       siteId: site.id,
       pagetreeId: pagetree.id,
       parentId: parent.id,
-      pagePath: `${await this.getPath(parent)}/${name}`,
+      pagePath: `${parent.resolvedPath}/${name}`,
       name
     }
     const migrated = await migratePage(data, extras)
@@ -572,7 +559,7 @@ export class PageService extends DosGatoService<Page> {
   async updatePage (dataId: string, dataVersion: number, data: PageData, comment?: string, validateOnly?: boolean) {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
     await this.validatePageTemplates(data, { page })
     const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
@@ -582,7 +569,7 @@ export class PageService extends DosGatoService<Page> {
       siteId: site.id,
       pagetreeId: pagetree.id,
       parentId: parent?.id,
-      pagePath: `${parent ? await this.getPath(parent) : ''}/${page.name}`,
+      pagePath: `${parent?.resolvedPath ?? ''}/${page.name}`,
       name: page.name,
       linkId: page.linkId,
       pageId: page.id
@@ -606,7 +593,7 @@ export class PageService extends DosGatoService<Page> {
   async restorePage (dataId: string, restoreVersion: number, validateOnly?: boolean) {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot restore an older version of a page that does not exist.')
-    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!(this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
     const [dataToRestore, meta] = await Promise.all([
       this.svc(VersionedService).get(page.intDataId, { version: restoreVersion }),
       this.svc(VersionedService).getMeta(page.intDataId)
@@ -640,7 +627,7 @@ export class PageService extends DosGatoService<Page> {
     delete data.areas
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
     await this.checkLatestVersion(dataId, dataVersion)
     const pageData = await this.raw.getData(page, dataVersion)
     const extras = await this.raw.pageExtras(page)
@@ -673,7 +660,7 @@ export class PageService extends DosGatoService<Page> {
     delete data.areas
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
     await this.checkLatestVersion(dataId, dataVersion)
     const pageData = await this.raw.getData(page, dataVersion)
     const extras = await this.raw.pageExtras(page)
@@ -706,7 +693,7 @@ export class PageService extends DosGatoService<Page> {
     if (!data.templateKey) throw new Error('Component must have a templateKey.')
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
     await this.checkLatestVersion(dataId, dataVersion)
     const pageData = await this.raw.getData(page, dataVersion)
 
@@ -792,7 +779,7 @@ export class PageService extends DosGatoService<Page> {
   async moveComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, fromPath: string, toPath: string, comment?: string) {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
     await this.checkLatestVersion(dataId, dataVersion)
     const pageData = await this.raw.getData(page, dataVersion)
 
@@ -875,7 +862,7 @@ export class PageService extends DosGatoService<Page> {
   async deleteComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, comment?: string) {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!(await this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
     await this.checkLatestVersion(dataId, dataVersion)
     const pageData = await this.raw.getData(page, dataVersion)
 
@@ -908,7 +895,7 @@ export class PageService extends DosGatoService<Page> {
   async changePageTemplate (dataId: string, templateKey: string, dataVersion?: number, comment?: string, validateOnly?: boolean) {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (this.opRestricted(page, 'changetemplate') || !(await this.mayUpdate(page))) throw new Error("You are not permitted to change this page's template.")
+    if (this.opRestricted(page, 'changetemplate') || !this.mayUpdate(page)) throw new Error("You are not permitted to change this page's template.")
     const pageData = await this.raw.getData(page, dataVersion)
 
     const extras = await this.raw.pageExtras(page)
@@ -935,7 +922,7 @@ export class PageService extends DosGatoService<Page> {
   async renamePage (dataId: string, name: string, validateOnly?: boolean) {
     const page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot rename a page that does not exist.')
-    if (this.opRestricted(page, 'rename') || !(await this.mayMove(page))) throw new Error('You are not permitted to rename this page.')
+    if (this.opRestricted(page, 'rename') || !this.mayMove(page)) throw new Error('You are not permitted to rename this page.')
     const response = new PageResponse({ success: true })
     if (isNotNull(page.parentInternalId)) {
       const parent = await this.raw.findByInternalId(page.parentInternalId)
@@ -956,12 +943,11 @@ export class PageService extends DosGatoService<Page> {
 
   async deletePages (dataIds: string[]) {
     const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(pages, async (page: Page) => !(await this.mayDelete(page)))) {
+    if (pages.some(page => !this.mayDelete(page))) {
       throw new Error('Current user is not permitted to delete one or more pages')
     }
-    const currentUser = await this.currentUser()
     try {
-      await deletePages(this.svc(VersionedService), pages, currentUser!.internalId)
+      await deletePages(this.svc(VersionedService), pages, this.ctx.authInfo.user!.internalId)
       this.loaders.clear()
       const updated = await this.raw.findByIds(dataIds)
       return new PagesResponse({ success: true, pages: updated })
@@ -973,11 +959,10 @@ export class PageService extends DosGatoService<Page> {
 
   async publishPageDeletions (dataIds: string[]) {
     const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull).filter(p => p.deleteState !== DeleteState.NOTDELETED)
-    if (await someAsync(pages, async (page: Page) => !(await this.mayDelete(page)))) {
-      throw new Error('Current user is not permitted to delete one or more pages')
+    if (pages.some(page => !this.mayDelete(page))) {
+      throw new Error('You are not permitted to delete one or more of the selected pages.')
     }
-    const currentUser = await this.currentUser()
-    await publishPageDeletions(pages, currentUser!.internalId)
+    await publishPageDeletions(pages, this.ctx.authInfo.user!.internalId)
     this.loaders.clear()
     const updated = await this.raw.findByIds(pages.map(p => p.id))
     return new PagesResponse({ success: true, pages: updated })
@@ -989,8 +974,8 @@ export class PageService extends DosGatoService<Page> {
       const children = (await Promise.all(pages.map(async page => await this.getPageChildren(page, true)))).flat()
       pages = [...pages, ...children]
     }
-    if (await someAsync(pages, async (page: Page) => !(await this.mayUndelete(page)))) {
-      throw new Error('Current user is not permitted to restore one or more pages')
+    if (pages.some(page => !this.mayUndelete(page))) {
+      throw new Error('You are not permitted to restore one or more of the selected pages.')
     }
     await undeletePages(pages)
     this.loaders.clear()

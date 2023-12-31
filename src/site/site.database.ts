@@ -80,8 +80,8 @@ export async function getSites (filter?: SiteFilter) {
   if (where.length) {
     query += ` WHERE (${where.join(') AND (')})`
   }
-  const sites = await db.getall(query + ' ORDER BY sites.name', binds)
-  return sites.map(s => new Site(s))
+  const siterows = await db.getall(query + ' ORDER BY sites.name', binds)
+  return siterows.map(s => new Site(s))
 }
 
 export async function getSitesByTemplate (templateIds: string[], atLeastOneTree?: boolean) {
@@ -105,11 +105,7 @@ export async function getSitesByTemplate (templateIds: string[], atLeastOneTree?
 }
 
 export async function getSitesByOwnerInternalId (ownerInternalIds: number[]) {
-  const rows = await db.getall(`SELECT ${columnsjoined}
-                                FROM sites
-                                INNER JOIN users ON sites.ownerId = users.id
-                                WHERE users.id IN (${db.in([], ownerInternalIds)})`, ownerInternalIds)
-  return rows.map(row => new Site(row))
+  return await getSites({ ownerInternalIds })
 }
 
 export async function getSitesByManagerInternalId (managerInternalIds: number[], filter?: SiteFilter) {

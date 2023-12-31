@@ -4,7 +4,8 @@ import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'ty
 import {
   Asset, AssetFilter, Role, RoleService, User, AssetFolder, AssetFolderFilter,
   AssetFolderPermission, AssetFolderPermissions, AssetFolderService, AssetRuleService,
-  AssetFolderResponse, CreateAssetFolderInput, UrlSafeString, Site, DeleteStateRootDefault, UserService, SiteServiceInternal, AssetFolderServiceInternal
+  AssetFolderResponse, CreateAssetFolderInput, UrlSafeString, Site, DeleteStateRootDefault,
+  UserService, SiteServiceInternal, AssetFolderServiceInternal
 } from '../internal.js'
 
 @Resolver(of => AssetFolder)
@@ -36,8 +37,8 @@ export class AssetFolderResolver {
   }
 
   @FieldResolver(returns => String)
-  async path (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
-    return await ctx.svc(AssetFolderService).getPath(folder)
+  path (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
+    return folder.resolvedPath
   }
 
   @FieldResolver(returns => [Asset])
@@ -100,27 +101,27 @@ export class AssetFolderResolver {
 @Resolver(of => AssetFolderPermissions)
 export class AssetFolderPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may create or move assets or folders inside this folder.' })
-  async create (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
-    return await ctx.svc(AssetFolderService).mayCreate(folder)
+  create (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
+    return ctx.svc(AssetFolderService).mayCreate(folder)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may update this folder but not necessarily move or publish it.' })
-  async update (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
-    return await ctx.svc(AssetFolderService).mayUpdate(folder)
+  update (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
+    return ctx.svc(AssetFolderService).mayUpdate(folder)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may move this asset folder beneath a folder for which they have the `create` permission.' })
-  async move (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
-    return await ctx.svc(AssetFolderService).mayMove(folder)
+  move (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
+    return ctx.svc(AssetFolderService).mayMove(folder)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may soft-delete this asset folder.' })
-  async delete (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
-    return await ctx.svc(AssetFolderService).mayDelete(folder)
+  delete (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
+    return ctx.svc(AssetFolderService).mayDelete(folder)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may undelete this asset folder. Returns false when the asset folder is not deleted.' })
-  async undelete (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
-    return await ctx.svc(AssetFolderService).mayUndelete(folder)
+  undelete (@Ctx() ctx: Context, @Root() folder: AssetFolder) {
+    return ctx.svc(AssetFolderService).mayUndelete(folder)
   }
 }

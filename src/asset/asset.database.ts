@@ -4,7 +4,12 @@ import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { intersect, isBlank, isNotBlank, isNotNull, keyby, pick, stringify } from 'txstate-utils'
-import { Asset, type AssetFilter, AssetResize, type VersionedService, AssetFolder, fileHandler, DownloadRecord, type DownloadsFilter, DownloadsResolution, type AssetFolderRow, DeleteState, processDeletedFilters, normalizePath, AssetServiceInternal, numerate, NameConflictError, templateRegistry, processLink, singleValueIndexesToIndexes, parseLinks } from '../internal.js'
+import {
+  Asset, type AssetFilter, AssetResize, type VersionedService, AssetFolder, fileHandler, DownloadRecord,
+  type DownloadsFilter, DownloadsResolution, type AssetFolderRow, DeleteState, processDeletedFilters,
+  normalizePath, AssetServiceInternal, numerate, NameConflictError, templateRegistry, processLink,
+  singleValueIndexesToIndexes, parseLinks, shiftPath
+} from '../internal.js'
 import { extractLinksFromText } from '@dosgato/templating'
 
 export interface AssetInput {
@@ -47,15 +52,15 @@ export interface AssetRowWithPagetreeId extends AssetRow {
   pagetreeId: number
 }
 
-async function convertPathsToIDPaths (pathstrings: string[]) {
+async function convertPathsToIDPaths (pathstrings: string[], tdb: Queryable = db) {
   const paths = pathstrings.map(normalizePath).map(p => p.split(/\//).filter(isNotBlank))
   const potentialFolderNames = new Set<string>(paths.flat())
   const potentialAssetNames = new Set<string>(paths.map(p => p[p.length - 1]))
   const folderBinds: string[] = []
   const assetBinds: string[] = []
   const [folderRows, assetRows] = await Promise.all([
-    potentialFolderNames.size ? db.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM assetfolders WHERE name IN (${db.in(folderBinds, Array.from(potentialFolderNames))})`, folderBinds) : [],
-    potentialAssetNames.size ? db.getall<{ id: number, name: string, folderId: number }>(`SELECT id, name, folderId FROM assets WHERE name IN (${db.in(assetBinds, Array.from(potentialAssetNames))})`, assetBinds) : []
+    potentialFolderNames.size ? tdb.getall<{ id: number, name: string, path: string }>(`SELECT id, name, path FROM assetfolders WHERE name IN (${db.in(folderBinds, Array.from(potentialFolderNames))})`, folderBinds) : [],
+    potentialAssetNames.size ? tdb.getall<{ id: number, name: string, folderId: number }>(`SELECT id, name, folderId FROM assets WHERE name IN (${db.in(assetBinds, Array.from(potentialAssetNames))})`, assetBinds) : []
   ])
   const foldersByNameAndIDPath: Record<string, Record<string, typeof folderRows[number]>> = {}
   for (const row of folderRows) {
@@ -92,7 +97,7 @@ async function convertPathsToIDPaths (pathstrings: string[]) {
   return ret
 }
 
-async function processFilters (filter?: AssetFilter) {
+async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
   const { binds, where, joins } = processDeletedFilters(
     filter,
     'assets',
@@ -116,7 +121,7 @@ async function processFilters (filter?: AssetFilter) {
     (async () => {
       // named paths e.g. /site1/about
       if (filter.paths?.length) {
-        const idpaths = await convertPathsToIDPaths(filter.paths)
+        const idpaths = await convertPathsToIDPaths(filter.paths, tdb)
         const ids = ['-1', ...idpaths.map(p => p.assetId).filter(isNotNull)]
         where.push(`assets.id IN (${db.in(binds, ids)})`)
       }
@@ -124,12 +129,12 @@ async function processFilters (filter?: AssetFilter) {
     (async () => {
       // beneath a named path e.g. /site1/about
       if (filter.beneath?.length) {
-        const idpaths = (await convertPathsToIDPaths(filter.beneath)).filter(p => p.folderIdPath)
+        const idpaths = (await convertPathsToIDPaths(filter.beneath, tdb)).filter(p => p.folderIdPath)
         if (idpaths.length) {
           const mybinds: any[] = []
           const ors = idpaths.flatMap(p => ['assetfolders.path LIKE ?', 'assetfolders.path = ?'])
           mybinds.push(...idpaths.flatMap(p => [`${p.folderIdPath!}/%`, p.folderIdPath]))
-          const subFolderIds = await db.getvals<number>(`SELECT id FROM assetfolders WHERE ${ors.join(' OR ')}`, mybinds)
+          const subFolderIds = await tdb.getvals<number>(`SELECT id FROM assetfolders WHERE ${ors.join(' OR ')}`, mybinds)
           filter.folderIds = intersect({ skipEmpty: true }, ['-1', ...idpaths.map(p => p.folderIdPath!.split(/\//).slice(-1)[0]), ...subFolderIds.map(String)], filter.folderIds)
         } else {
           filter.folderIds = ['-1']
@@ -139,7 +144,7 @@ async function processFilters (filter?: AssetFilter) {
     (async () => {
       // direct children of a named path e.g. /site1/about
       if (filter.parentPaths?.length) {
-        const idpaths = (await convertPathsToIDPaths(filter.parentPaths)).filter(p => p.folderIdPath)
+        const idpaths = (await convertPathsToIDPaths(filter.parentPaths, tdb)).filter(p => p.folderIdPath)
         where.push(`assets.folderId IN (${db.in(binds, ['-1', ...idpaths.map(p => p.folderIdPath!.split(/\//).slice(-1)[0]).filter(isNotBlank)])})`)
       }
     })()
@@ -174,12 +179,12 @@ async function processFilters (filter?: AssetFilter) {
 }
 
 export async function getAssets (filter?: AssetFilter, tdb: Queryable = db) {
-  const { binds, where, joins } = await processFilters(filter)
-  const assets = await tdb.getall(`
+  const { binds, where, joins } = await processFilters(filter, tdb)
+  const assetrows = await tdb.getall(`
     SELECT assets.id, assets.dataId, assets.name, assets.linkId, assets.folderId, assets.deletedAt, assets.deletedBy, assets.deleteState,
     binaries.bytes AS filesize, binaries.mime, binaries.shasum, binaries.meta,
     sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned,
-    pagetrees.type as pagetreeType, assetfolders.siteId, assetfolders.pagetreeId,
+    pagetrees.type as pagetreeType, assetfolders.siteId, assetfolders.pagetreeId, assetfolders.path,
     sites.launchEnabled
     FROM assets
     INNER JOIN binaries on assets.shasum = binaries.shasum
@@ -190,7 +195,19 @@ export async function getAssets (filter?: AssetFilter, tdb: Queryable = db) {
     ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
     ORDER BY assets.name
   `, binds)
-  return assets.map(a => new Asset(a))
+  const assets = assetrows.map(a => new Asset(a))
+  const ancestorIds = new Set<number>()
+  for (const a of assets) {
+    for (const id of a.pathSplit) ancestorIds.add(id)
+  }
+  const abinds: number[] = []
+  const ancestorrows = ancestorIds.size ? await tdb.getall<{ id: number, name: string }>(`SELECT id, name FROM assetfolders WHERE id IN (${db.in(abinds, Array.from(ancestorIds))})`, abinds) : []
+  const namesById = keyby(ancestorrows, 'id')
+  for (const a of assets) {
+    a.resolvedPath = `/${a.pathSplit.map(id => namesById[id].name).join('/')}/${a.name as string}`
+    a.resolvedPathWithoutSitename = shiftPath(a.resolvedPath)
+  }
+  return assets
 }
 
 export async function getAssetsByPath (paths: string[], filter: AssetFilter, ctx: Context) {

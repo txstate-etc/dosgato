@@ -70,13 +70,13 @@ export class PagetreeResolver {
     return await ctx.svc(PagetreeService).create(siteId, data, validateOnly)
   }
 
-  @Mutation(returns => PagetreeResponse, { description: 'Update the name of a pagetree' })
+  @Mutation(returns => PagetreeResponse, { description: 'Update the name of a pagetree', deprecationReason: 'Pagetrees are automatically named and cannot be renamed.' })
   async updatePagetree (@Ctx() ctx: Context,
     @Arg('pagetreeId', type => ID) pagetreeId: string,
     @Arg('name', type => UrlSafeString) name: string,
     @Arg('validateOnly', { nullable: true }) validateOnly?: boolean
   ) {
-    return await ctx.svc(PagetreeService).rename(pagetreeId, name, validateOnly)
+    return new PagetreeResponse({ success: false })
   }
 
   @Mutation(returns => PagetreeResponse, { description: 'Soft-delete a pagetree' })
@@ -102,28 +102,28 @@ export class PagetreeResolver {
 
 @Resolver(of => PagetreePermissions)
 export class PagetreePermissionsResolver {
-  @FieldResolver(returns => Boolean, { description: 'User may rename this pagetree.' })
-  async rename (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
-    return await ctx.svc(PagetreeService).mayRename(pagetree)
+  @FieldResolver(returns => Boolean, { description: 'User may rename this pagetree.', deprecationReason: 'Pagetrees are automatically named and cannot be renamed.' })
+  rename (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
+    return false
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may soft-delete this pagetree. Returns false if pagetree is already soft-deleted.' })
-  async delete (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
-    return await ctx.svc(PagetreeService).mayDelete(pagetree)
+  delete (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
+    return ctx.svc(PagetreeService).mayDelete(pagetree)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may undelete this pagetree. Returns false if pagetree is not in soft-deleted state.' })
-  async undelete (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
-    return await ctx.svc(PagetreeService).mayUndelete(pagetree)
+  undelete (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
+    return ctx.svc(PagetreeService).mayUndelete(pagetree)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may promote this pagetree to live. Returns false if pagetree is already live.' })
-  async promote (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
-    return await ctx.svc(PagetreeService).mayPromote(pagetree)
+  promote (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
+    return ctx.svc(PagetreeService).mayPromote(pagetree)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may archive this pagetree. Returns false if pagetree is already archived.' })
-  async archive (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
-    return await ctx.svc(PagetreeService).mayArchive(pagetree)
+  archive (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
+    return ctx.svc(PagetreeService).mayArchive(pagetree)
   }
 }

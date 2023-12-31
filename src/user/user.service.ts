@@ -127,49 +127,48 @@ export class UserService extends DosGatoService<User, User> {
   raw = this.svc(UserServiceInternal)
 
   async find (filter: UserFilter) {
-    if (!(await this.mayList())) filter.ids = ['self']
+    if (!this.mayList()) filter.ids = ['self']
     if (filter.ids?.length) {
       filter.ids = filter.ids.map(id => id === 'self' ? this.login : id).filter(isNotBlank)
     }
-    return await this.removeUnauthorized(await this.raw.find(filter))
+    return this.removeUnauthorized(await this.raw.find(filter))
   }
 
   async findByGroupId (groupId: string, direct?: boolean, filter?: UserFilter) {
     const users = await this.raw.findByGroupId(groupId, direct, filter)
-    if (await this.haveGlobalPerm('manageAccess')) return users
+    if (this.haveGlobalPerm('manageAccess')) return users
     return users.filter(u => u.id === this.login)
   }
 
   async findByRoleId (roleId: string, direct?: boolean, filter?: UserFilter) {
     const users = await this.raw.findByRoleId(roleId, direct, filter)
-    if (await this.haveGlobalPerm('manageAccess')) return users
+    if (this.haveGlobalPerm('manageAccess')) return users
     return users.filter(u => u.id === this.login)
   }
 
   async findSiteManagers (siteId: string) {
-    const siteRules = await this.currentSiteRules()
-    if (siteRules.some(sr => SiteRuleService.applies(sr, siteId) && sr.grants.governance)) {
-      return await this.removeUnauthorized(await this.raw.findSiteManagers(siteId))
+    if (this.ctx.authInfo.siteRules.some(sr => SiteRuleService.applies(sr, siteId) && sr.grants.governance)) {
+      return this.removeUnauthorized(await this.raw.findSiteManagers(siteId))
     }
     return []
   }
 
   async findGroupManagers (groupId: string, direct?: boolean) {
       const users = await this.raw.findGroupManagers(groupId, direct)
-      if (await this.haveGlobalPerm('manageAccess')) return users
+      if (this.haveGlobalPerm('manageAccess')) return users
       return users.filter(u => u.id === this.login)
     }
 
   async findByInternalId (id: number) {
-    return await this.removeUnauthorized(await this.raw.findByInternalId(id))
+    return this.removeUnauthorized(await this.raw.findByInternalId(id))
   }
 
   async findById (id: string) {
-    return await this.removeUnauthorized(await this.raw.findById(id))
+    return this.removeUnauthorized(await this.raw.findById(id))
   }
 
   async createUser (id: string, lastname: string, email: string, firstname: string | undefined, trainings: string[] | undefined, system: boolean | undefined, validateOnly?: boolean) {
-    if (!(await this.mayCreate())) throw new Error('Current user is not permitted to create users.')
+    if (!this.mayCreate()) throw new Error('You are not permitted to create users.')
     const response = new UserResponse({ success: true })
     const existing = await this.raw.findById(id)
     if (existing) response.addMessage('Login is already present, update the user instead.', 'userId', MutationMessageType.error)
@@ -188,7 +187,7 @@ export class UserService extends DosGatoService<User, User> {
   async updateUser (id: string, args: UpdateUserInput, validateOnly?: boolean) {
     const user = await this.raw.findById(id)
     if (!user) throw new Error('User to be updated does not exist.')
-    if (!(await this.mayUpdate(user))) throw new Error('Current user is not permitted to update this user.')
+    if (!this.mayUpdate(user)) throw new Error('You are not permitted to update this user.')
     const response = new UserResponse({ success: true })
     if (isNotNull(args.lastname) && isBlank(args.lastname)) {
       response.addMessage('This field is required', 'args.lastname')
@@ -212,15 +211,15 @@ export class UserService extends DosGatoService<User, User> {
   }
 
   async addTrainings (trainingId: string, userIds: string[]) {
-    if (!(await this.haveGlobalPerm('manageAccess'))) throw new Error('Current user is not permitted to add trainings.')
+    if (!this.haveGlobalPerm('manageAccess')) throw new Error('You are not permitted to add trainings.')
     await addTrainings(trainingId, userIds.filter(isNotBlank))
     return new ValidatedResponse({ success: true })
   }
 
   async disableUsers (ids: string[]) {
     const users = (await Promise.all(ids.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (await someAsync(users, async u => !(await this.mayDisable(u)))) {
-      throw new Error('Current user is not permitted to disable one or more users.')
+    if (users.some(u => !this.mayDisable(u))) {
+      throw new Error('You are not permitted to disable one or more users.')
     }
     const response = new UsersResponse({})
     await disableUsers(users)
@@ -232,7 +231,7 @@ export class UserService extends DosGatoService<User, User> {
 
   async enableUsers (ids: string[]) {
     const users = (await Promise.all(ids.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    if (!(await this.mayCreate())) {
+    if (!this.mayCreate()) {
       throw new Error('You are not permitted to enable users.')
     }
     const response = new UsersResponse({})
@@ -243,28 +242,28 @@ export class UserService extends DosGatoService<User, User> {
     return response
   }
 
-  async mayCreate () {
-    return await this.haveGlobalPerm('manageAccess')
+  mayCreate () {
+    return this.haveGlobalPerm('manageAccess')
   }
 
-  async mayUpdate (user: User) {
-    return await this.haveGlobalPerm('manageAccess')
+  mayUpdate (user: User) {
+    return this.haveGlobalPerm('manageAccess')
   }
 
-  async mayDisable (user: User) {
-    return await this.haveGlobalPerm('manageAccess')
+  mayDisable (user: User) {
+    return this.haveGlobalPerm('manageAccess')
   }
 
-  async mayView (user: User) {
+  mayView (user: User) {
     return true
   }
 
-  async mayList () {
-    return await this.haveGlobalPerm('manageAccess')
+  mayList () {
+    return this.haveGlobalPerm('manageAccess')
   }
 
-  protected async removeProperties (user: User) {
-    if (user.id === this.login || await this.mayList()) return user
+  protected removeProperties (user: User) {
+    if (user.id === this.login || this.mayList()) return user
     return new User({
       id: user.internalId,
       login: user.id,

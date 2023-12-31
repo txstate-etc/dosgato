@@ -5,7 +5,7 @@ import {
   type Page, type PageRuleFilter, DosGatoService, comparePathsWithMode, tooPowerfulHelper, getPageRules,
   PageRule, RulePathMode, type CreatePageRuleInput, RoleService, createPageRule, PageRuleResponse,
   type UpdatePageRuleInput, updatePageRule, deletePageRule, RoleServiceInternal,
-  PageServiceInternal, popPath
+  popPath
 } from '../internal.js'
 
 const pageRulesByIdLoader = new PrimaryKeyLoader({
@@ -48,8 +48,7 @@ export class PageRuleServiceInternal extends BaseService {
     // Get the page rules that apply to the site
     const rules = await this.findBySiteId(page.siteId)
     // filter to get the ones that apply to this page
-    const pagePath = await this.svc(PageServiceInternal).getPath(page)
-    return rules.filter(r => PageRuleService.appliesToPagetree(r, page) && PageRuleService.appliesToPath(r, pagePath))
+    return rules.filter(r => PageRuleService.appliesToPagetree(r, page) && PageRuleService.appliesToPath(r, page.resolvedPath))
   }
 }
 
@@ -57,25 +56,25 @@ export class PageRuleService extends DosGatoService<PageRule> {
   raw = this.svc(PageRuleServiceInternal)
 
   async findById (ruleId: string) {
-    return await this.removeUnauthorized(await this.raw.findById(ruleId))
+    return this.removeUnauthorized(await this.raw.findById(ruleId))
   }
 
   async findByRoleId (roleId: string, filter?: PageRuleFilter) {
-    return await this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
+    return this.removeUnauthorized(await this.raw.findByRoleId(roleId, filter))
   }
 
   async findBySiteId (siteId?: string) {
-    return await this.removeUnauthorized(await this.raw.findBySiteId(siteId))
+    return this.removeUnauthorized(await this.raw.findBySiteId(siteId))
   }
 
   async findByPage (page: Page) {
-    return await this.removeUnauthorized(await this.raw.findByPage(page))
+    return this.removeUnauthorized(await this.raw.findByPage(page))
   }
 
   async create (args: CreatePageRuleInput, validateOnly?: boolean) {
     const role = await this.svc(RoleServiceInternal).findById(args.roleId)
     if (!role) throw new Error('Role to be modified does not exist.')
-    if (!await this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
+    if (!this.svc(RoleService).mayCreateRules(role)) throw new Error('You are not permitted to add rules to this role.')
     const newRule = new PageRule({ id: '0', path: args.path ?? '/', roleId: args.roleId, siteId: args.siteId, pagetreeType: args.pagetreeType, mode: args.mode ?? RulePathMode.SELFANDSUB, ...args.grants })
     const response = new PageRuleResponse({ success: true })
     const rules = await this.findByRoleId(args.roleId)
@@ -88,7 +87,7 @@ export class PageRuleService extends DosGatoService<PageRule> {
     })) {
       response.addMessage('The proposed rule has the same site, pagetree type, and path as an existing rule for this role.', undefined, MutationMessageType.error)
     }
-    if (await this.tooPowerful(newRule)) {
+    if (this.tooPowerful(newRule)) {
       response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')
     }
     if (isNotNull(args.path)) {
@@ -127,7 +126,7 @@ export class PageRuleService extends DosGatoService<PageRule> {
       ...updatedGrants
     })
     const response = new PageRuleResponse({ success: true })
-    if (await this.tooPowerful(newRule)) response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
+    if (this.tooPowerful(newRule)) response.addMessage('The updated rule would have more privilege than you currently have, so you cannot create it.')
     if (validateOnly || response.hasErrors()) return response
     await updatePageRule(args)
     this.loaders.clear()
@@ -175,15 +174,14 @@ export class PageRuleService extends DosGatoService<PageRule> {
     return this.appliesToPath(rule, popPath(pagePathWithoutSite))
   }
 
-  async mayView (rule: PageRule) {
-    if (await this.haveGlobalPerm('manageAccess')) return true
-    const role = await this.svc(RoleService).findById(rule.roleId)
-    return !!role
+  mayView (rule: PageRule) {
+    // rules can only be viewed underneath roles, so the role's mayView function can be relied upon here
+    return true
   }
 
   async mayWrite (rule: PageRule) {
     const role = await this.svc(RoleService).findById(rule.id)
-    return await this.svc(RoleService).mayUpdate(role!)
+    return this.svc(RoleService).mayUpdate(role!)
   }
 
   asOrMorePowerful (ruleA: PageRule, ruleB: PageRule) { // is ruleA equal or more powerful than ruleB?
@@ -197,7 +195,7 @@ export class PageRuleService extends DosGatoService<PageRule> {
     return comparePathsWithMode(ruleA, ruleB)
   }
 
-  async tooPowerful (rule: PageRule) {
-    return tooPowerfulHelper(rule, await this.currentPageRules(), this.asOrMorePowerful)
+  tooPowerful (rule: PageRule) {
+    return tooPowerfulHelper(rule, this.ctx.authInfo.pageRules, this.asOrMorePowerful)
   }
 }

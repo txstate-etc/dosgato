@@ -1,13 +1,13 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { isNull, isNotNull, intersect, isBlank, filterAsync, sortby } from 'txstate-utils'
+import { isNull, isNotNull, intersect, isBlank, sortby } from 'txstate-utils'
 import {
   AssetService, DosGatoService, getAssetFolders, type AssetFolder, AssetServiceInternal,
   type CreateAssetFolderInput, createAssetFolder, AssetFolderResponse, renameAssetFolder,
   deleteAssetFolder, undeleteAssetFolder, type AssetFilter, type AssetFolderFilter,
   finalizeAssetFolderDeletion, DeleteStateAll, PagetreeServiceInternal, PagetreeType,
   SiteServiceInternal, getAssetFoldersByPath, NameConflictError, AssetRuleService, DeleteState,
-  SiteRuleService, shiftPath
+  SiteRuleService
 } from '../internal.js'
 
 const assetFolderByIdLoader = new PrimaryKeyLoader({
@@ -178,45 +178,42 @@ export class AssetFolderServiceInternal extends BaseService {
 export class AssetFolderService extends DosGatoService<AssetFolder> {
   raw = this.svc(AssetFolderServiceInternal)
 
-  async postFilter (folders: AssetFolder[], filter?: AssetFolderFilter) {
-    return filter?.viewForEdit ? await filterAsync(folders, async f => await this.mayViewForEdit(f)) : folders
+  postFilter (folders: AssetFolder[], filter?: AssetFolderFilter) {
+    return filter?.viewForEdit ? folders.filter(f => this.mayViewForEdit(f)) : folders
   }
 
   async find (filter?: AssetFolderFilter) {
-    const [folders] = await Promise.all([
-      this.raw.find(filter),
-      this.currentAssetRules()
-    ])
-    if (filter?.links?.length || filter?.paths?.length || filter?.ids?.length) return await filterAsync(folders, async f => await this.mayViewIndividual(f))
-    return await this.postFilter(await this.removeUnauthorized(folders), filter)
+    const folders = await this.raw.find(filter)
+    if (filter?.links?.length || filter?.paths?.length || filter?.ids?.length) return folders.filter(f => this.mayViewIndividual(f))
+    return this.postFilter(this.removeUnauthorized(folders), filter)
   }
 
   async findByInternalId (internalId: number) {
-    return await this.removeUnauthorized(await this.raw.findByInternalId(internalId))
+    return this.removeUnauthorized(await this.raw.findByInternalId(internalId))
   }
 
   async findById (id: string) {
-    return await this.removeUnauthorized(await this.raw.findById(id))
+    return this.removeUnauthorized(await this.raw.findById(id))
   }
 
   async findByPagetreeId (id: string, filter?: AssetFolderFilter) {
-    return await this.postFilter(await this.removeUnauthorized(await this.raw.findByPagetreeId(id, filter)), filter)
+    return this.postFilter(this.removeUnauthorized(await this.raw.findByPagetreeId(id, filter)), filter)
   }
 
   async getAncestors (folder: AssetFolder) {
-    return await this.removeUnauthorized(await this.raw.getAncestors(folder))
+    return this.removeUnauthorized(await this.raw.getAncestors(folder))
   }
 
   async getParent (folder: AssetFolder) {
-    return await this.removeUnauthorized(await this.raw.getParent(folder))
+    return this.removeUnauthorized(await this.raw.getParent(folder))
   }
 
   async getChildFolders (folder: AssetFolder, recursive?: boolean, filter?: AssetFolderFilter) {
-    return await this.postFilter(await this.removeUnauthorized(await this.raw.getChildFolders(folder, recursive, filter)), filter)
+    return this.postFilter(this.removeUnauthorized(await this.raw.getChildFolders(folder, recursive, filter)), filter)
   }
 
   async getChildAssets (folder: AssetFolder, recursive?: boolean, filter?: AssetFilter) {
-    return await this.svc(AssetService).postFilter(await this.svc(AssetService).removeUnauthorized(await this.raw.getChildAssets(folder, recursive, filter)), filter)
+    return await this.svc(AssetService).postFilter(this.svc(AssetService).removeUnauthorized(await this.raw.getChildAssets(folder, recursive, filter)), filter)
   }
 
   async getPath (folder: AssetFolder) {
@@ -226,7 +223,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   async create (args: CreateAssetFolderInput, validateOnly?: boolean) {
     const parentFolder = await this.raw.findById(args.parentId)
     if (!parentFolder) throw new Error('Parent folder does not exist.')
-    if (!(await this.haveAssetFolderPerm(parentFolder, 'create'))) throw new Error(`You are not permitted to create folders in ${String(parentFolder.name)}.`)
+    if (!this.haveAssetFolderPerm(parentFolder, 'create')) throw new Error(`You are not permitted to create folders in ${String(parentFolder.name)}.`)
 
     const resp = new AssetFolderResponse({ success: true })
     if (isBlank(args.name)) resp.addMessage('You must enter a folder name.', 'args.name')
@@ -252,7 +249,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Folder to be renamed does not exist.')
     if (isNull(folder.parentInternalId)) throw new Error('Root asset folders cannot be renamed.')
-    if (!(await this.haveAssetFolderPerm(folder, 'update'))) throw new Error(`You are not permitted to rename folder ${String(folder.name)}.`)
+    if (!this.haveAssetFolderPerm(folder, 'update')) throw new Error(`You are not permitted to rename folder ${String(folder.name)}.`)
 
     const resp = new AssetFolderResponse({ success: true })
     if (isBlank(name)) resp.addMessage('You must enter a folder name.', 'name')
@@ -280,10 +277,9 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Folder to be deleted does not exist')
     if (isNull(folder.parentInternalId)) throw new Error('Root asset folders cannot be deleted.')
-    if (!(await this.haveAssetFolderPerm(folder, 'delete'))) throw new Error(`Current user is not permitted to delete folder ${String(folder.name)}.`)
-    const currentUser = await this.currentUser()
+    if (!this.haveAssetFolderPerm(folder, 'delete')) throw new Error(`Current user is not permitted to delete folder ${String(folder.name)}.`)
     try {
-      await deleteAssetFolder(folder.internalId, currentUser!.internalId)
+      await deleteAssetFolder(folder.internalId, this.ctx.authInfo.user!.internalId)
       this.loaders.clear()
       const deletedfolder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
       return new AssetFolderResponse({ assetFolder: deletedfolder, success: true })
@@ -296,9 +292,8 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   async finalizeDeletion (folderId: string) {
     const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Folder to be deleted does not exist')
-    if (!(await this.haveAssetFolderPerm(folder, 'delete'))) throw new Error(`Current user is not permitted to delete folder ${String(folder.name)}.`)
-    const currentUser = await this.currentUser()
-    await finalizeAssetFolderDeletion(folder.internalId, currentUser!.internalId)
+    if (!this.haveAssetFolderPerm(folder, 'delete')) throw new Error(`Current user is not permitted to delete folder ${String(folder.name)}.`)
+    await finalizeAssetFolderDeletion(folder.internalId, this.ctx.authInfo.user!.internalId)
     this.loaders.clear()
     const deletedfolder = await this.raw.findById(folderId)
     return new AssetFolderResponse({ assetFolder: deletedfolder, success: true })
@@ -307,7 +302,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   async undelete (folderId: string) {
     const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Folder to be restored does not exist')
-    if (!await this.mayUndelete(folder)) throw new Error(`Current user is not permitted to restore folder ${String(folder.name)}.`)
+    if (!this.mayUndelete(folder)) throw new Error(`Current user is not permitted to restore folder ${String(folder.name)}.`)
     try {
       await undeleteAssetFolder(folder.internalId)
       this.loaders.clear()
@@ -319,55 +314,49 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     }
   }
 
-  async mayView (folder: AssetFolder) {
+  mayView (folder: AssetFolder) {
     if (folder.orphaned) {
-      const siteRules = (await this.currentSiteRules()).filter(r => SiteRuleService.applies(r, folder.siteId))
-      return siteRules.some(r => r.grants.delete)
+      return this.ctx.authInfo.siteRules.some(r => r.grants.delete && SiteRuleService.applies(r, folder.siteId))
     }
-    const [rules, folderPath] = await Promise.all([
-      this.currentAssetRules(),
-      this.raw.getPath(folder)
-    ])
-    const folderPathWithoutSite = shiftPath(folderPath)
-    for (const r of rules) {
+    for (const r of this.ctx.authInfo.assetRules) {
       if (!r.grants.view) continue
       if (!AssetRuleService.appliesToPagetree(r, folder)) continue
       if (folder.deleteState === DeleteState.DELETED && !r.grants.undelete) continue
       if (folder.deleteState === DeleteState.MARKEDFORDELETE && !r.grants.delete) continue
-      if (AssetRuleService.appliesToPath(r, folderPathWithoutSite)) return true
-      if (AssetRuleService.appliesToChildOfPath(r, folderPathWithoutSite)) return true
-      if (AssetRuleService.appliesToParentOfPath(r, folderPathWithoutSite)) return true
+      if (AssetRuleService.appliesToPath(r, folder.resolvedPathWithoutSitename)) return true
+      if (AssetRuleService.appliesToChildOfPath(r, folder.resolvedPathWithoutSitename)) return true
+      if (AssetRuleService.appliesToParentOfPath(r, folder.resolvedPathWithoutSitename)) return true
     }
     return false
   }
 
   // may view the folder if requested individually
-  async mayViewIndividual (folder: AssetFolder) {
-    return (folder.pagetreeType === PagetreeType.PRIMARY && !folder.orphaned && folder.deleteState === DeleteState.NOTDELETED) || await this.mayView(folder)
+  mayViewIndividual (folder: AssetFolder) {
+    return (folder.pagetreeType === PagetreeType.PRIMARY && !folder.orphaned && folder.deleteState === DeleteState.NOTDELETED) || this.mayView(folder)
   }
 
-  async mayViewForEdit (folder: AssetFolder) {
-    return await this.mayView(folder)
+  mayViewForEdit (folder: AssetFolder) {
+    return this.mayView(folder)
   }
 
-  async mayCreate (folder: AssetFolder) {
-    return await this.haveAssetFolderPerm(folder, 'create')
+  mayCreate (folder: AssetFolder) {
+    return this.haveAssetFolderPerm(folder, 'create')
   }
 
-  async mayMove (folder: AssetFolder) {
-    return await this.haveAssetFolderPerm(folder, 'move')
+  mayMove (folder: AssetFolder) {
+    return this.haveAssetFolderPerm(folder, 'move')
   }
 
-  async mayUpdate (folder: AssetFolder) {
-    return await this.haveAssetFolderPerm(folder, 'update')
+  mayUpdate (folder: AssetFolder) {
+    return this.haveAssetFolderPerm(folder, 'update')
   }
 
-  async mayDelete (folder: AssetFolder) {
-    return await this.haveAssetFolderPerm(folder, 'delete')
+  mayDelete (folder: AssetFolder) {
+    return this.haveAssetFolderPerm(folder, 'delete')
   }
 
-  async mayUndelete (folder: AssetFolder) {
+  mayUndelete (folder: AssetFolder) {
     if (folder.deleteState === DeleteState.NOTDELETED || folder.orphaned) return false
-    return folder.deleteState === DeleteState.MARKEDFORDELETE ? await this.haveAssetFolderPerm(folder, 'delete') : await this.haveAssetFolderPerm(folder, 'undelete')
+    return folder.deleteState === DeleteState.MARKEDFORDELETE ? this.haveAssetFolderPerm(folder, 'delete') : this.haveAssetFolderPerm(folder, 'undelete')
   }
 }

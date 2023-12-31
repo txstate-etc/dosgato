@@ -3,12 +3,13 @@ import { Context } from '@txstate-mws/graphql-server'
 import { isNotNull, unique } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
-  AssetPermission, AssetFolder, AssetFolderService, DataPermission, Organization, OrganizationService, Page,
-  PagePermission, PageService, Pagetree, PagetreeFilter, Role, Template,
-  TemplateFilter, TemplateService, User, UserService, Site, SiteFilter, SitePermission, SitePermissions,
-  SiteResponse, UpdateSiteManagementInput, SiteService, AssetRuleService, PageRuleService, SiteRuleService,
-  DataRuleService, RoleService, DataRoot, DataRootService, DataRootFilter, SiteComment, SiteCommentService,
-  JsonData, UrlSafeString, PagetreeServiceInternal, RoleFilter, LaunchState
+  AssetPermission, AssetFolder, AssetFolderService, DataPermission, Organization, OrganizationService,
+  Page, PagePermission, PageService, Pagetree, PagetreeFilter, Role, Template, TemplateFilter,
+  TemplateService, User, UserService, Site, SiteFilter, SitePermission, SitePermissions,
+  SiteResponse, UpdateSiteManagementInput, SiteService, RoleService, DataRoot, DataRootService,
+  DataRootFilter, SiteComment, SiteCommentService, JsonData, UrlSafeString, PagetreeServiceInternal,
+  RoleFilter, LaunchState, SiteRuleServiceInternal, AssetRuleServiceInternal, DataRuleServiceInternal,
+  PageRuleServiceInternal
 } from '../internal.js'
 
 @Resolver(of => Site)
@@ -56,17 +57,17 @@ export class SiteResolver {
     @Arg('withPagePermission', type => [PagePermission], { nullable: true }) withPagePermission?: PagePermission[]
   ) {
     let [siteRules, assetRules, dataRules, pageRules] = await Promise.all([
-      ctx.svc(SiteRuleService).findBySiteId(site.id),
-      ctx.svc(AssetRuleService).findBySiteId(site.id),
-      ctx.svc(DataRuleService).findBySiteId(site.id),
-      ctx.svc(PageRuleService).findBySiteId(site.id)
+      ctx.svc(SiteRuleServiceInternal).findBySiteId(site.id),
+      ctx.svc(AssetRuleServiceInternal).findBySiteId(site.id),
+      ctx.svc(DataRuleServiceInternal).findBySiteId(site.id),
+      ctx.svc(PageRuleServiceInternal).findBySiteId(site.id)
     ])
     if (withSitePermission) siteRules = siteRules.filter(r => withSitePermission.some(p => r.grants[p]))
     if (withAssetPermission) assetRules = assetRules.filter(r => withAssetPermission.some(p => r.grants[p]))
     if (withDataPermission) dataRules = dataRules.filter(r => withDataPermission.some(p => r.grants[p]))
     if (withPagePermission) pageRules = pageRules.filter(r => withPagePermission.some(p => r.grants[p]))
-    const ruleIds = [...siteRules.map(r => r.roleId), ...assetRules.map(r => r.roleId), ...dataRules.map(r => r.roleId), ...pageRules.map(r => r.roleId)]
-    return await ctx.svc(RoleService).findByIds(unique(ruleIds))
+    const roleIds = [...siteRules.map(r => r.roleId), ...assetRules.map(r => r.roleId), ...dataRules.map(r => r.roleId), ...pageRules.map(r => r.roleId)]
+    return await ctx.svc(RoleService).findByIds(unique(roleIds))
   }
 
   @FieldResolver(returns => Role, { description: 'Each site has exactly one primary role associated with it. This association gives the site managers authority to assign/unassign that role or any of its subroles to/from any valid user. This is completely different logic from the `Site.roles` property which returns roles based on the permissions granted by the role (see its description for details).' })
@@ -76,7 +77,7 @@ export class SiteResolver {
 
   @FieldResolver(returns => User, { nullable: true })
   async owner (@Ctx() ctx: Context, @Root() site: Site) {
-    if (!await ctx.svc(SiteService).mayViewForEdit(site)) return undefined
+    if (!ctx.svc(SiteService).mayViewForEdit(site)) return undefined
     if (isNotNull(site.ownerId)) {
       return await ctx.svc(UserService).findByInternalId(site.ownerId)
     }
@@ -84,7 +85,7 @@ export class SiteResolver {
 
   @FieldResolver(returns => Organization, { nullable: true })
   async organization (@Ctx() ctx: Context, @Root() site: Site) {
-    if (!site.organizationId || !await ctx.svc(SiteService).mayViewForEdit(site)) return undefined
+    if (!site.organizationId || !ctx.svc(SiteService).mayViewForEdit(site)) return undefined
     return await ctx.svc(OrganizationService).findById(site.organizationId)
   }
 
@@ -165,37 +166,37 @@ export class SiteResolver {
 @Resolver(of => SitePermissions)
 export class SitePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'Current user should see this site in the site management UI.' })
-  async viewForEdit (@Ctx() ctx: Context, @Root() site: Site) {
-    return await ctx.svc(SiteService).mayViewForEdit(site)
+  viewForEdit (@Ctx() ctx: Context, @Root() site: Site) {
+    return ctx.svc(SiteService).mayViewForEdit(site)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to set or update the public URL for this site.' })
-  async launch (@Ctx() ctx: Context, @Root() site: Site) {
-    return await ctx.svc(SiteService).mayLaunch(site)
+  launch (@Ctx() ctx: Context, @Root() site: Site) {
+    return ctx.svc(SiteService).mayLaunch(site)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to rename this site.' })
-  async rename (@Ctx() ctx: Context, @Root() site: Site) {
-    return await ctx.svc(SiteService).mayRename(site)
+  rename (@Ctx() ctx: Context, @Root() site: Site) {
+    return ctx.svc(SiteService).mayRename(site)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to set owner, managers, and organization and add comments for this site.' })
-  async manageGovernance (@Ctx() ctx: Context, @Root() site: Site) {
-    return await ctx.svc(SiteService).mayManageGovernance(site)
+  manageGovernance (@Ctx() ctx: Context, @Root() site: Site) {
+    return ctx.svc(SiteService).mayManageGovernance(site)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to create, edit, delete, and undelete pagetrees (such as a sandbox or archive) in this site.' })
-  async manageState (@Ctx() ctx: Context, @Root() site: Site) {
-    return await ctx.svc(SiteService).mayManageState(site)
+  manageState (@Ctx() ctx: Context, @Root() site: Site) {
+    return ctx.svc(SiteService).mayManageState(site)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to soft-delete this site.' })
-  async delete (@Ctx() ctx: Context, @Root() site: Site) {
-    return await ctx.svc(SiteService).mayDelete(site)
+  delete (@Ctx() ctx: Context, @Root() site: Site) {
+    return ctx.svc(SiteService).mayDelete(site)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to un-delete this site. Returns false unless the site is currently soft-deleted.' })
-  async undelete (@Ctx() ctx: Context, @Root() site: Site) {
-    return await ctx.svc(SiteService).mayUndelete(site)
+  undelete (@Ctx() ctx: Context, @Root() site: Site) {
+    return ctx.svc(SiteService).mayUndelete(site)
   }
 }

@@ -1,5 +1,5 @@
 import type { APIAnyTemplate, FulltextGatheringFn, LinkGatheringFn, Migration, ValidationFeedback } from '@dosgato/templating'
-import { Context, GQLServer, type GQLStartOpts, gqlDevLogger } from '@txstate-mws/graphql-server'
+import { GQLServer, type GQLStartOpts, gqlDevLogger, type Context } from '@txstate-mws/graphql-server'
 import { type FastifyInstance } from 'fastify'
 import { type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
 import { type GraphQLError, type GraphQLScalarType } from 'graphql'
@@ -23,7 +23,7 @@ import {
   AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler,
   FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes,
   SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
-  duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role, PageService, type DGRestrictOperations
+  duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role, DGContext, type DGRestrictOperations
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -174,9 +174,8 @@ export class DGServer {
       }, { freshseconds: 12 * 3600 })
 
       this.app.addHook('onRequest', async req => {
-        const ctx = new Context(req)
+        const ctx = new DGContext(req)
         await ctx.waitForAuth()
-        await ctx.svc(PageService).loadRoles()
         await createTrainingSite.get(ctx.svc(UserService).login)
       })
     }
@@ -246,13 +245,16 @@ export class DGServer {
 
     await scheduler.schedule('compressDownloads', compressDownloads, { duringHour: 5, duringDayOfWeek: DayOfWeek.TUESDAY })
 
+    if (opts.customContext && !(opts.customContext.prototype instanceof DGContext || opts.customContext === DGContext)) throw new Error('Custom context must extend DGContext from dosgato-api, not just Context from graphql-server.')
+
     await this.gqlServer.start({
       ...opts,
+      customContext: opts.customContext ?? DGContext,
       send401: true,
       send403: async (ctx: Context) => {
-        const userSvc = ctx.svc(UserService)
-        if (['anonymous', 'render'].includes(userSvc.login)) return false
-        const user = await userSvc.currentUser()
+        const dgCtx = ctx as DGContext
+        if (['anonymous', 'render'].includes(dgCtx.login)) return false
+        const user = dgCtx.authInfo.user
         return (!user || user.disabled)
       },
       resolvers,

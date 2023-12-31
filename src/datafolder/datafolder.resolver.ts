@@ -46,8 +46,8 @@ export class DataFolderResolver {
   }
 
   @FieldResolver(returns => String)
-  async path (@Ctx() ctx: Context, @Root() folder: DataFolder) {
-    return await ctx.svc(DataFolderService).getPath(folder)
+  path (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    return folder.resolvedPath
   }
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this folder, or any permission if null.' })
@@ -101,27 +101,27 @@ export class DataFolderResolver {
 @Resolver(of => DataFolderPermissions)
 export class DataFolderPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may create or move data inside this folder.' })
-  async create (@Ctx() ctx: Context, @Root() folder: DataFolder) {
-    return await ctx.svc(DataFolderService).mayCreate(folder)
+  create (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    return ctx.svc(DataFolderService).mayCreate(folder)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may update this folder but not necessarily move or publish it.' })
-  async update (@Ctx() ctx: Context, @Root() folder: DataFolder) {
-    return await ctx.svc(DataFolderService).mayUpdate(folder)
+  update (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    return ctx.svc(DataFolderService).mayUpdate(folder)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may move this folder' })
-  async move (@Ctx() ctx: Context, @Root() folder: DataFolder) {
-    return await ctx.svc(DataFolderService).mayMove(folder)
+  move (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    return ctx.svc(DataFolderService).mayMove(folder)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may soft-delete this data.' })
-  async delete (@Ctx() ctx: Context, @Root() folder: DataFolder) {
-    return await ctx.svc(DataFolderService).mayDelete(folder)
+  delete (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    return ctx.svc(DataFolderService).mayDelete(folder)
   }
 
   @FieldResolver(returns => Boolean, { description: 'User may undelete this data. Returns false when the data is not deleted.' })
-  async undelete (@Ctx() ctx: Context, @Root() folder: DataFolder) {
-    return await ctx.svc(DataFolderService).mayUndelete(folder)
+  undelete (@Ctx() ctx: Context, @Root() folder: DataFolder) {
+    return ctx.svc(DataFolderService).mayUndelete(folder)
   }
 }

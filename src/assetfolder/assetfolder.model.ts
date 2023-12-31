@@ -35,6 +35,8 @@ export class AssetFolder {
   pagetreeId: string
   pagetreeType: PagetreeType
   orphaned: boolean
+  resolvedPath!: string
+  resolvedPathWithoutSitename!: string
 
   constructor (row: any) {
     this.internalId = row.id

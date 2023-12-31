@@ -1,7 +1,7 @@
 import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
-import { RuleType } from '../internal.js'
+import { RuleType, ensureEndSlash } from '../internal.js'
 
 @ObjectType()
 @InputType()
@@ -82,6 +82,7 @@ export class DataRule {
   templateId?: string
   roleId: string
   siteId?: string
+  pathSlash: string
 
   constructor (row: any) {
     this.id = String(row.id)
@@ -91,6 +92,7 @@ export class DataRule {
     this.grants = new DataRuleGrants(row)
     this.path = row.path
     this.global = row.isGlobal
+    this.pathSlash = ensureEndSlash(row.path)
   }
 }
 

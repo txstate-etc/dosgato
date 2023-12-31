@@ -81,7 +81,8 @@ export async function getDataFolders (filter?: DataFolderFilter) {
   }
   const folders = await db.getall(`
     SELECT datafolders.*, templates.key as templateKey,
-      templates.deleted = 1 OR sites.deletedAt IS NOT NULL as orphaned
+      templates.deleted = 1 OR sites.deletedAt IS NOT NULL as orphaned,
+      sites.name AS siteName
     FROM datafolders
     INNER JOIN templates ON datafolders.templateId = templates.id
     LEFT JOIN sites ON datafolders.siteId = sites.id
