@@ -1,4 +1,5 @@
-import { Context, MockContext } from '@txstate-mws/graphql-server'
+import { MockContext, type Context } from '@txstate-mws/graphql-server'
+import type { FastifyRequest } from 'fastify'
 import {
  AssetRule, DataRule, type GlobalRule, PageRule, RoleServiceInternal, RulePathMode, SiteRule, getPageRules, getAssetRules,
   getDataRules, getSiteRules, getGlobalRules, getTemplateRules, type GlobalRuleGrants, type TemplateRule, type Role, getUsers,
@@ -63,12 +64,12 @@ async function fetchUser (login: string) {
   return (await getUsers({ ids: [login] }))[0]
 }
 
-async function fetchGroups (login: string, ctx: DGContext | DGMockContext) {
+async function fetchGroups (login: string, ctx: DGContext) {
   const groups = await ctx.svc(GroupServiceInternal).findByUserId(login)
   return keyby(groups, 'id')
 }
 
-const authCache = new Cache(async (login: string, ctx: DGContext | DGMockContext) => {
+const authCache = new Cache(async (login: string, ctx: DGContext) => {
   const roles = await ctx.svc(RoleServiceInternal).findByUserId(login)
   const roleIds = roles.map(r => r.id)
   const [pageRules, assetRules, siteRules, dataRules, globalGrants, templateRules, groupsById, user] = await Promise.all([
@@ -96,26 +97,28 @@ interface AuthInfo {
   user: User | undefined
 }
 
-export class DGMockContext extends MockContext {
-  authInfo!: AuthInfo
-  get login () {
-    return this.auth?.sub ?? this.auth?.client_id ?? 'anonymous'
-  }
+export interface DGContext extends Context {
+  authInfo: AuthInfo
+  login: string
 
-  async waitForAuth () {
-    await super.waitForAuth()
-    this.authInfo = await authCache.get(this.login, this)
+  waitForAuth: () => Promise<void>
+}
+
+export type DGContextClass = typeof Context & (new (req: FastifyRequest) => DGContext)
+export type DGMockContextClass = typeof Context & (new (claims: any) => DGContext)
+
+export function dgContextMixin (Ctx: typeof Context): DGContextClass {
+  return class extends Ctx {
+    authInfo!: AuthInfo
+    get login () {
+      return this.auth?.sub ?? this.auth?.client_id ?? 'anonymous'
+    }
+
+    async waitForAuth () {
+      await super.waitForAuth()
+      this.authInfo = await authCache.get(this.login, this)
+    }
   }
 }
 
-export class DGContext extends Context {
-  authInfo!: AuthInfo
-  get login () {
-    return this.auth?.sub ?? this.auth?.client_id ?? 'anonymous'
-  }
-
-  async waitForAuth () {
-    await super.waitForAuth()
-    this.authInfo = await authCache.get(this.login, this)
-  }
-}
+export const DGMockContext = dgContextMixin(MockContext as any) as DGMockContextClass

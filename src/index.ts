@@ -1,5 +1,5 @@
 import type { APIAnyTemplate, FulltextGatheringFn, LinkGatheringFn, Migration, ValidationFeedback } from '@dosgato/templating'
-import { GQLServer, type GQLStartOpts, gqlDevLogger, type Context } from '@txstate-mws/graphql-server'
+import { GQLServer, type GQLStartOpts, gqlDevLogger, Context } from '@txstate-mws/graphql-server'
 import { type FastifyInstance } from 'fastify'
 import { type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
 import { type GraphQLError, type GraphQLScalarType } from 'graphql'
@@ -23,7 +23,7 @@ import {
   AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler,
   FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes,
   SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
-  duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role, DGContext, type DGRestrictOperations
+  duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role, type DGContext, type DGRestrictOperations, dgContextMixin
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -105,7 +105,7 @@ export class DGServer {
   }
 
   async start (opts: DGStartOpts) {
-    templateRegistry.serverConfig = omit(opts, 'templates')
+    templateRegistry.serverConfig = { ...omit(opts, 'templates'), customContext: dgContextMixin(opts.customContext ?? Context) }
     for (const template of opts.templates) templateRegistry.register(template)
     templateRegistry.sortMigrations()
     const shouldResetDb = process.env.NODE_ENV === 'development' && process.env.RESET_DB_ON_STARTUP === 'true'
@@ -174,7 +174,7 @@ export class DGServer {
       }, { freshseconds: 12 * 3600 })
 
       this.app.addHook('onRequest', async req => {
-        const ctx = new DGContext(req)
+        const ctx = templateRegistry.getCtx(req)
         await ctx.waitForAuth()
         await createTrainingSite.get(ctx.svc(UserService).login)
       })
@@ -245,11 +245,9 @@ export class DGServer {
 
     await scheduler.schedule('compressDownloads', compressDownloads, { duringHour: 5, duringDayOfWeek: DayOfWeek.TUESDAY })
 
-    if (opts.customContext && !(opts.customContext.prototype instanceof DGContext || opts.customContext === DGContext)) throw new Error('Custom context must extend DGContext from dosgato-api, not just Context from graphql-server.')
-
     await this.gqlServer.start({
       ...opts,
-      customContext: opts.customContext ?? DGContext,
+      customContext: templateRegistry.serverConfig.customContext,
       send401: true,
       send403: async (ctx: Context) => {
         const dgCtx = ctx as DGContext

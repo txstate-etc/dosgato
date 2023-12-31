@@ -1,11 +1,11 @@
 import type { FastifyInstance } from 'fastify'
 import { HttpError } from 'fastify-txstate'
 import { isBlank } from 'txstate-utils'
-import { DGContext, GlobalRuleService, SiteService, SiteServiceInternal, createSiteComments, getEnabledUser } from '../internal.js'
+import { GlobalRuleService, SiteService, SiteServiceInternal, createSiteComments, getEnabledUser, templateRegistry } from '../internal.js'
 
 export async function createCommentRoutes (app: FastifyInstance) {
   app.post<{ Params: { siteId: string }, Body?: { comment: string, login: string, date: string }[] }>('/site/:siteId/comments', async req => {
-    const ctx = new DGContext(req)
+    const ctx = templateRegistry.getCtx(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
     const site = await ctx.svc(SiteServiceInternal).findById(req.params.siteId)
     if (!site) throw new HttpError(404)

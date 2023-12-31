@@ -9,7 +9,7 @@ import {
   PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, type PagetreeType,
   SiteService, SiteServiceInternal, templateRegistry, VersionedService, createPageInTransaction,
   getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput, migratePage,
-  systemContext, DGContext
+  systemContext, type DGContext
 } from '../internal.js'
 
 export interface PageExport {
@@ -115,7 +115,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post('/pages/site', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Site import must be multipart.')
 
-    const ctx = new DGContext(req)
+    const ctx = templateRegistry.getCtx(req)
     const user = await getEnabledUser(ctx) // throws if not authenticated
     const siteService = ctx.svc(SiteService)
     const siteServiceInternal = ctx.svc(SiteServiceInternal)
@@ -134,7 +134,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post<{ Params: { siteId: string } }>('/pages/pagetree/:siteId', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Pagetree import must be multipart.')
 
-    const ctx = new DGContext(req)
+    const ctx = templateRegistry.getCtx(req)
     const user = await getEnabledUser(ctx) // throws if not authenticated
     const siteServiceInternal = ctx.svc(SiteServiceInternal)
     const site = await siteServiceInternal.findById(req.params.siteId)
@@ -151,7 +151,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post<{ Params: { pageid: string } }>('/pages/update/:pageid', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Page update from export file must be multipart.')
 
-    const ctx = new DGContext(req)
+    const ctx = templateRegistry.getCtx(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
 
     const svcPageInternal = ctx.svc(PageServiceInternal)
@@ -207,7 +207,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post<{ Params: { parentPageId: string }, Body?: CreatePageInput }>('/pages/:parentPageId', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Page import must be multipart.')
     const startTime = new Date()
-    const ctx = new DGContext(req)
+    const ctx = templateRegistry.getCtx(req)
     const svcPageInternal = ctx.svc(PageServiceInternal)
     const svcPage = ctx.svc(PageService)
     const svcTmpl = ctx.svc(TemplateService)
@@ -257,7 +257,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post<{ Params: { parentPageId: string }, Body?: CreatePageInput }>('/pages/migrate/:parentPageId', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Page import must be multipart.')
     const startTime = new Date()
-    const ctx = new DGContext(req)
+    const ctx = templateRegistry.getCtx(req)
     const svcPageInternal = ctx.svc(PageServiceInternal)
     const svcPage = ctx.svc(PageService)
     const user = await getEnabledUser(ctx) // throws if not authenticated
@@ -338,7 +338,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   }
 
   app.get<{ Params: { id: string }, Querystring: { withSubpages?: boolean } }>('/pages/:id', async (req, res) => {
-    const ctx = new DGContext(req)
+    const ctx = templateRegistry.getCtx(req)
     await getEnabledUser(ctx)
     const page = await ctx.svc(PageService).findById(req.params.id)
     if (!page) throw new HttpError(404)
@@ -354,7 +354,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     return output
   })
   app.get('/pages/list', async (req, res) => {
-    const ctx = new DGContext(req)
+    const ctx = templateRegistry.getCtx(req)
     await getEnabledUser(ctx)
     const pages = await db.getall<{ id: number, linkId: string, dataId: number, name: string, path: string, title: string, templateKey: string, siteId: number, siteName: string, siteLaunchState: number, pagetreeId: number, deleteState: DeleteState, pagetreeName: string, pagetreeType: PagetreeType, modifiedBy: string, modified: Date, version: number, published: 0 | 1, publishedAt?: Date, hasUnpublishedChanges: boolean }>(`
       SELECT p.*, pt.name AS pagetreeName, pt.type as pagetreeType, st.modifiedBy, st.modified, st.version,

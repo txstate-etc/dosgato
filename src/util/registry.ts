@@ -1,7 +1,8 @@
 import { type APITemplateType, type APIAnyTemplate, type APIPageTemplate, type APIComponentTemplate, type APIDataTemplate, type ComponentData, type LinkDefinition, type Migration } from '@dosgato/templating'
+import type { FastifyRequest } from 'fastify'
 import { DateTime } from 'luxon'
 import { sortby } from 'txstate-utils'
-import { TemplateArea, parseLinks } from '../internal.js'
+import { TemplateArea, parseLinks, type DGContextClass, type DGContext } from '../internal.js'
 import { existsSync, readFileSync } from 'node:fs'
 import { type DGStartOpts } from '../index.js'
 
@@ -24,7 +25,7 @@ class TemplateRegistry {
   public migrationsForward: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
   public migrationsBackward: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
   public currentSchemaVersion = existsSync('/.builddate') ? DateTime.fromMillis(Number(readFileSync('/.builddate', 'ascii').trim())) : DateTime.local()
-  public serverConfig!: Omit<DGStartOpts, 'templates'>
+  public serverConfig!: Omit<DGStartOpts, 'templates'> & { customContext: DGContextClass }
 
   register (template: APIAnyTemplate) {
     const hydrated: AnyTemplate = { ...template, hydratedAreas: {} } as AnyTemplate
@@ -78,6 +79,10 @@ class TemplateRegistry {
 
   getType (type: APITemplateType) {
     return this.byType[type]
+  }
+
+  getCtx (req: FastifyRequest) {
+    return new this.serverConfig.customContext(req) as DGContext
   }
 }
 
