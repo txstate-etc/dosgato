@@ -83,7 +83,7 @@ const authCache = new Cache(async (login: string, ctx: DGContext) => {
     fetchUser(login)
   ])
   return { roles, pageRules, assetRules, siteRules, dataRules, globalGrants, templateRules, groupsById, user } as AuthInfo
-})
+}, { freshseconds: 30 })
 
 interface AuthInfo {
   roles: Role[]
