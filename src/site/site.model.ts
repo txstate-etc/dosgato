@@ -14,9 +14,9 @@ registerEnumType(LaunchState, {
   name: 'LaunchState',
   description: 'Determine whether a site has not been launched yet, is currently launched, or is decommissioned.',
   valuesConfig: {
-    PRELAUNCH: { description: 'Site is not currently live' },
-    LAUNCHED: { description: 'The site is live' },
-    DECOMMISSIONED: { description: 'The site is not live and has been decommissioned' }
+    PRELAUNCH: { description: 'Site has never been live or is down for overhaul. Primary pagetree should be treated as a sandbox.' },
+    LAUNCHED: { description: 'Site is currently live.' },
+    DECOMMISSIONED: { description: 'Site was once live, but has since been taken offline. Primary pagetree should be treated as an archive.' }
   }
 })
 
@@ -37,7 +37,7 @@ export class LaunchURL {
   @Field({ description: 'Full URL prefix for this site. Always ends with a slash.' })
   prefix: string
 
-  @Field({ description: 'A site can be pre-launch, launched, or decommissioned. If it is not launched, we are just saving the URL it was/will be hosted at, for future reference.' })
+  @Field(type => LaunchState, { description: 'A site can be pre-launch, launched, or decommissioned. If it is not launched, we are just saving the URL it was/will be hosted at, for future reference.' })
   enabled: LaunchState
 
   constructor (row: any) {
@@ -71,7 +71,7 @@ export class Site {
 
   deletedBy?: number
 
-  @Field({ description: 'Indicates whether this site is pre-launch, launched, or decommissioned.' })
+  @Field(type => LaunchState, { description: 'Indicates whether this site is pre-launch, launched, or decommissioned.' })
   launchState: LaunchState
 
   constructor (row: any) {
