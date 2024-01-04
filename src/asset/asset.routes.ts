@@ -16,8 +16,7 @@ import { WASMagic } from 'wasmagic'
 import {
   type Asset, AssetFolder, AssetFolderService, AssetFolderServiceInternal, type AssetResize, type AssetRule, AssetRuleService,
   AssetService, AssetServiceInternal, createAsset, DeleteState, fileHandler, getEnabledUser, GlobalRuleService, logMutation,
-  makeSafeFilename, PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService, parsePath, deleteAssets, type LaunchState,
-  DGContext,
+  makeSafeFilename, PagetreeType, recordDownload, replaceAsset, requestResizes, VersionedService, parsePath, deleteAssets, LaunchState,
   templateRegistry
 } from '../internal.js'
 
@@ -42,7 +41,7 @@ interface RootAssetFolder {
   site: {
     id: string
     name: string
-    launchEnabled: number
+    launchState: string
   }
   permissions: {
     create: boolean
@@ -509,7 +508,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
       site: {
         id: String(f.siteId),
         name: f.siteName,
-        launchEnabled: f.launchEnabled
+        launchState: LaunchState[f.launchEnabled]
       },
       folders: childFoldersByPath['/' + String(f.id)]?.map(f => ({ id: String(f.id) })) ?? [],
       assets: childAssetsById[f.id]?.map(a => ({ id: String(a.dataId) })) ?? [],

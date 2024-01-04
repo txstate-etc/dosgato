@@ -9,7 +9,7 @@ import {
   PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, type PagetreeType,
   SiteService, SiteServiceInternal, templateRegistry, VersionedService, createPageInTransaction,
   getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput, migratePage,
-  systemContext, type DGContext
+  systemContext, type DGContext, LaunchState
 } from '../internal.js'
 
 export interface PageExport {
@@ -53,7 +53,7 @@ interface RootPage {
   site: {
     id: string
     name: string
-    launchState: number
+    launchState: string
   }
   permissions: {
     create: boolean
@@ -438,7 +438,7 @@ export async function createPageRoutes (app: FastifyInstance) {
       site: {
         id: String(p.siteId),
         name: p.siteName,
-        launchState: p.siteLaunchState
+        launchState: LaunchState[p.siteLaunchState]
       },
       published: !!p.published,
       publishedAt: p.publishedAt?.toISOString(),
