@@ -20,7 +20,7 @@ export class AssetFolder {
   @Field({ description: 'Folder has been soft-deleted but is still recoverable.' })
   deleted: boolean
 
-  @Field({ description: 'Indicates whether this asset folder is undeleted, marked for deletion, or deleted.' })
+  @Field(type => DeleteState, { description: 'Indicates whether this asset folder is undeleted, marked for deletion, or deleted.' })
   deleteState: DeleteState
 
   @Field({ nullable: true, description: 'Date this folder was soft-deleted, null when not applicable.' })

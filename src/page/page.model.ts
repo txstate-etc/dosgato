@@ -76,7 +76,7 @@ export class Page {
   @Field({ nullable: true, description: 'Date this page was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
-  @Field({ description: 'Indicates whether this page is undeleted, marked for deletion, or deleted.' })
+  @Field(type => DeleteState, { description: 'Indicates whether this page is undeleted, marked for deletion, or deleted.' })
   deleteState: DeleteState
 
   @Field({ nullable: true, description: '`title` is how the editor titled the page, and is allowed to be null. Use `fallbackTitle` instead to guarantee a value (if the user did not enter a title, one will be generated based on the page name).' })

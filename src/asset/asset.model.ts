@@ -67,7 +67,7 @@ export class Asset {
   @Field({ nullable: true, description: 'Date this asset was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
-  @Field({ description: 'Indicates whether this asset is undeleted, marked for deletion, or deleted.' })
+  @Field(type => DeleteState, { description: 'Indicates whether this asset is undeleted, marked for deletion, or deleted.' })
   deleteState: DeleteState
 
   // does not include downloads of resized versions, but the fieldresolver will

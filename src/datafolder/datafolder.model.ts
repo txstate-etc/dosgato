@@ -17,7 +17,7 @@ export class DataFolder {
   @Field({ description: 'Folder has been soft-deleted but is still recoverable.' })
   deleted: boolean
 
-  @Field({ description: 'Indicates whether this folder is undeleted, marked for deletion, or deleted.' })
+  @Field(type => DeleteState, { description: 'Indicates whether this folder is undeleted, marked for deletion, or deleted.' })
   deleteState: DeleteState
 
   @Field({ nullable: true, description: 'Date this folder was soft-deleted, null when not applicable.' })

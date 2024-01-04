@@ -26,7 +26,7 @@ interface RootAssetFolder {
   path: string
   name: string
   deleted: boolean
-  deleteState: number
+  deleteState: string
   folders: {
     id: string
   }[]
@@ -499,7 +499,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
       name: f.name,
       path: '/' + f.name,
       deleted: f.deleteState !== DeleteState.NOTDELETED,
-      deleteState: f.deleteState,
+      deleteState: DeleteState[f.deleteState],
       pagetree: {
         id: String(f.pagetreeId),
         name: f.pagetreeName,

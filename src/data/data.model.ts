@@ -21,7 +21,7 @@ export class Data {
   @Field({ nullable: true, description: 'Date this data was soft-deleted, null when not applicable.' })
   deletedAt?: DateTime
 
-  @Field({ description: 'Indicates whether this data is undeleted, marked for deletion, or deleted.' })
+  @Field(type => DeleteState, { description: 'Indicates whether this data is undeleted, marked for deletion, or deleted.' })
   deleteState: DeleteState
 
   deletedBy?: number

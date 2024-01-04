@@ -41,7 +41,7 @@ interface RootPage {
   published: boolean
   publishedAt?: string
   hasUnpublishedChanges: boolean
-  deleteState: number
+  deleteState: string
   children: {
     id: string
   }[]
@@ -420,7 +420,7 @@ export async function createPageRoutes (app: FastifyInstance) {
       name: p.name,
       title: p.title,
       path: '/' + p.name,
-      deleteState: p.deleteState,
+      deleteState: DeleteState[p.deleteState],
       hasUnpublishedChanges: p.hasUnpublishedChanges,
       modifiedAt: p.modified.toISOString(),
       modifiedBy: {

@@ -115,10 +115,10 @@ describe('asset mutations', () => {
       postMultipart(`/assets/${siteCAssetRootId}`, {}, '/usr/app/files/blankpdf.pdf', 'su01')
     ])
     const assetIds: string[] = [results[0].ids, results[1].ids].flat()
-    const { deleteAssets: { success, assets }} = await query('mutation DeleteAssets ($assetIds: [ID!]!) {deleteAssets (assetIds: $assetIds) { success assets { id name deleted deletedAt deletedBy { id firstname lastname } deleteState } } }', { assetIds })
+    const { deleteAssets: { success, assets } } = await query('mutation DeleteAssets ($assetIds: [ID!]!) {deleteAssets (assetIds: $assetIds) { success assets { id name deleted deletedAt deletedBy { id firstname lastname } deleteState } } }', { assetIds })
     expect(success).to.be.true
     for (const a of assets) {
-      expect(a.deleteState).to.equal(1)
+      expect(a.deleteState).to.equal('MARKEDFORDELETE')
       expect(a.deleted).to.be.true
     }
   })
@@ -131,10 +131,11 @@ describe('asset mutations', () => {
     ])
     const assetIds: string[] = [results[0].ids, results[1].ids].flat()
     await query('mutation DeleteAssets ($assetIds: [ID!]!) {deleteAssets (assetIds: $assetIds) { success assets { id name deleted deletedAt deletedBy { id firstname lastname } deleteState } } }', { assetIds })
-    const { finalizeDeleteAssets: { success, assets }} = await query('mutation FinalizeDeleteAssets ($assetIds: [ID!]!) {finalizeDeleteAssets (assetIds: $assetIds) { success assets { id name deleted deleteState } } }', { assetIds })
+    const { finalizeDeleteAssets: { success, assets } } = await query('mutation FinalizeDeleteAssets ($assetIds: [ID!]!) {finalizeDeleteAssets (assetIds: $assetIds) { success assets { id name deleted deleteState } } }', { assetIds })
     expect(success).to.be.true
     for (const a of assets) {
-      expect(a.deleteState).to.equal(2)
+      expect(a.deleteState).to.equal('DELETED')
+      expect(a.deleted).to.be.true
     }
   })
   it('should restore assets to the undeleted state', async () => {
@@ -146,10 +147,10 @@ describe('asset mutations', () => {
     ])
     const assetIds: string[] = [results[0].ids, results[1].ids].flat()
     await query('mutation DeleteAssets ($assetIds: [ID!]!) {deleteAssets (assetIds: $assetIds) { success assets { id name deleted deletedAt deletedBy { id firstname lastname } deleteState } } }', { assetIds })
-    const { undeleteAssets: { success, assets }} = await query('mutation UndeleteAssets ($assetIds: [ID!]!) { undeleteAssets (assetIds: $assetIds) { success assets {id name deleted deleteState deletedAt } } }', { assetIds })
+    const { undeleteAssets: { success, assets } } = await query('mutation UndeleteAssets ($assetIds: [ID!]!) { undeleteAssets (assetIds: $assetIds) { success assets {id name deleted deleteState deletedAt } } }', { assetIds })
     expect(success).to.be.true
     for (const a of assets) {
-      expect(a.deleteState).to.equal(0)
+      expect(a.deleteState).to.equal('NOTDELETED')
       expect(a.deleted).to.be.false
       expect(a.deletedAt).to.be.null
     }
