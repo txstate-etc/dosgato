@@ -7,6 +7,9 @@ async function main () {
   const server = new DGServer()
   await server.start({
     fixtures,
+    userSearch: async (search: string) => {
+      return [{ login: 'ab12', firstname: 'April', lastname: 'Bar', email: 'ab12@example.com', enabled: true }]
+    },
     templates: [
       PageTemplate1,
       PageTemplate2,

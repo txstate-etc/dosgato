@@ -23,7 +23,8 @@ import {
   AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler,
   FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes,
   SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
-  duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role, type DGContext, type DGRestrictOperations, dgContextMixin
+  duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role, type DGContext,
+  type DGRestrictOperations, dgContextMixin, createUserRoutes
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -130,6 +131,7 @@ export class DGServer {
     await createAssetRoutes(this.app)
     await createPageRoutes(this.app)
     await createCommentRoutes(this.app)
+    await createUserRoutes(this.app)
     this.app.get<{ Querystring: { q: string } }>('/usersearch', async (req, res) => {
       if ((!opts.userLookup && !opts.userSearch) || isBlank(req.query.q)) return []
       return (opts.userSearch

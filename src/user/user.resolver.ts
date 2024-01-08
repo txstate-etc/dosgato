@@ -84,17 +84,17 @@ export class UserResolver {
 @Resolver(of => UserPermissions)
 export class UserPermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'Current user may update this user\'s name or email.' })
-  async update (@Ctx() ctx: Context, @Root() user: User) {
-    return await ctx.svc(UserService).mayUpdate(user)
+  update (@Ctx() ctx: Context, @Root() user: User) {
+    return ctx.svc(UserService).mayUpdate(user)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user may disable this account. Returns true even if account is already disabled.' })
-  async disable (@Ctx() ctx: Context, @Root() user: User) {
-    return await ctx.svc(UserService).mayDisable(user)
+  disable (@Ctx() ctx: Context, @Root() user: User) {
+    return ctx.svc(UserService).mayDisable(user)
   }
 
   @FieldResolver(returns => Boolean, { description: 'Current user may re-enable this account. Returns true even if account is already enabled.' })
-  async enable (@Ctx() ctx: Context, @Root() user: User) {
-    return await ctx.svc(UserService).mayCreate()
+  enable (@Ctx() ctx: Context, @Root() user: User) {
+    return ctx.svc(UserService).mayCreate()
   }
 }
