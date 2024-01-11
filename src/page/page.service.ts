@@ -689,7 +689,7 @@ export class PageService extends DosGatoService<Page> {
     return response
   }
 
-  async addComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, data: ComponentData, isCopy?: boolean, comment?: string, validateOnly?: boolean) {
+  async addComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, data: ComponentData, isCopy?: boolean, comment?: string, validateOnly?: boolean, addToTop?: boolean) {
     if (!data.templateKey) throw new Error('Component must have a templateKey.')
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
@@ -709,10 +709,10 @@ export class PageService extends DosGatoService<Page> {
     if (!isNaN(toIdx)) { // they gave us a desired ordering
       toParentPath = toParts.slice(0, -1).join('.')
       toParentArray = get<ComponentData[] | undefined>(migrated, toParentPath) ?? []
-    } else { // they only gave us an area, insert at the end
+    } else { // they only gave us an area
       toParentArray = get<ComponentData[] | undefined>(migrated, toParentPath) ?? []
       if (!Array.isArray(toParentArray)) throw new Error('Invalid target path.')
-      toIdx = toParentArray.length
+      toIdx = addToTop ? 0 : toParentArray.length
     }
     const parentComponentPath = toParentPath.split('.').slice(0, -2).join('.')
     const toParentComponent = get<ComponentData | undefined>(migrated, parentComponentPath)

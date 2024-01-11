@@ -265,9 +265,10 @@ export class PageResolver {
     @Arg('data', type => JsonData, { description: 'The new component data. Cannot add or update child components in any of its areas. If it includes an `areas` property, it will be ignored.' }) data: ComponentData,
     @Arg('isCopy', { nullable: true, description: 'Set this when the data being inserted was copied from an existing component. It\'s important because the existing data needs to be processed to do things like regenerate unique identifiers.' }) isCopy?: boolean,
     @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string,
-    @Arg('validateOnly', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validateOnly?: boolean
+    @Arg('validateOnly', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validateOnly?: boolean,
+    @Arg('addToTop', { nullable: true, description: 'When true, the mutation will make the new component the first in its area.' }) addToTop?: boolean
   ) {
-    return await ctx.svc(PageService).addComponent(pageId, dataVersion, schemaversion, path, data, isCopy, comment, validateOnly)
+    return await ctx.svc(PageService).addComponent(pageId, dataVersion, schemaversion, path, data, isCopy, comment, validateOnly, addToTop)
   }
 
   @Mutation(returns => PageResponse, { description: 'Move one component to another area within a page. No validation happens aside from legal template placement, so validation failures will not cause the mutation to fail. This is in contrast to updatePage where the full page must validate in order to be accepted.' })

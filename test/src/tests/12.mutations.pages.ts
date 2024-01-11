@@ -485,8 +485,8 @@ describe('pages mutations', () => {
     expect(page.data).to.not.deep.equal(updatePage.page.data)
   })
   const createPageComponentQuery = `
-    mutation createPageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $path: String!, $data: JsonData!) {
-      createPageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, path: $path, data: $data) {
+    mutation createPageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $path: String!, $data: JsonData!, $isCopy: Boolean, $comment: String, $validateOnly: Boolean, $addToTop: Boolean) {
+      createPageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, path: $path, data: $data, isCopy: $isCopy, comment: $comment, validateOnly: $validateOnly, addToTop: $addToTop) {
         success
         messages {
           type
@@ -506,6 +506,49 @@ describe('pages mutations', () => {
   interface CreatePageComponentResponse {
     createPageComponent: PageComponentResponse
   }
+  it('should add a new component to the bottom of an area by default', async () => {
+    const { page: testPage } = await createPageReturnData('testpage20', testSite6PageRootId, 'keyp2')
+    await query<CreatePageComponentResponse>(createPageComponentQuery, {
+      pageId: testPage.id,
+      dataVersion: testPage.version.version,
+      schemaversion: testPage.data.savedAtVersion,
+      path: 'areas.main',
+      data: { templateKey: 'keyc1', text: 'First Link Added', link: '{ "type": "raw", "url": "https://apple.com" }' }
+    })
+    const { createPageComponent: { success, page } } = await query<CreatePageComponentResponse>(createPageComponentQuery, {
+      pageId: testPage.id,
+      dataVersion: testPage.version.version + 1,
+      schemaversion: testPage.data.savedAtVersion,
+      path: 'areas.main',
+      data: { templateKey: 'keyc1', text: 'Second Link Added', link: '{ "type": "raw", "url": "https://bbc.com" }' }
+    })
+    expect(success).to.be.true
+    expect(page.data.areas.main.length).to.equal(2)
+    expect(page.data.areas.main[0].text).to.equal('First Link Added')
+    expect(page.data.areas.main[1].text).to.equal('Second Link Added')
+  })
+  it('should be able to add a new component to the top of an area', async () => {
+    const { page: testPage } = await createPageReturnData('testpage21', testSite6PageRootId, 'keyp2')
+    await query<CreatePageComponentResponse>(createPageComponentQuery, {
+      pageId: testPage.id,
+      dataVersion: testPage.version.version,
+      schemaversion: testPage.data.savedAtVersion,
+      path: 'areas.main',
+      data: { templateKey: 'keyc1', text: 'First Link Added', link: '{ "type": "raw", "url": "https://apple.com" }' }
+    })
+    const { createPageComponent: { success, page } } = await query<CreatePageComponentResponse>(createPageComponentQuery, {
+      pageId: testPage.id,
+      dataVersion: testPage.version.version + 1,
+      schemaversion: testPage.data.savedAtVersion,
+      path: 'areas.main',
+      data: { templateKey: 'keyc1', text: 'Second Link Added', link: '{ "type": "raw", "url": "https://bbc.com" }' },
+      addToTop: true
+    })
+    expect(success).to.be.true
+    expect(page.data.areas.main.length).to.equal(2)
+    expect(page.data.areas.main[0].text).to.equal('Second Link Added')
+    expect(page.data.areas.main[1].text).to.equal('First Link Added')
+  })
   it('should allow adding a single component to a page that has validation errors.', async () => {
     const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')
     const oldPage = pages[0]
