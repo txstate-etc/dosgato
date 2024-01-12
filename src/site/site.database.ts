@@ -56,6 +56,9 @@ async function processFilters (filter?: SiteFilter) {
       where.push('sites.launchEnabled != 1') // pre-launch or decommissioned
     }
   }
+  if (filter?.launchStates?.length) {
+    where.push(`sites.launchEnabled IN (${db.in(binds, filter.launchStates)})`)
+  }
   if (filter?.deleted) {
     if (filter.deleted === DeletedFilter.ONLY) {
       where.push('sites.deletedAt IS NOT NULL')

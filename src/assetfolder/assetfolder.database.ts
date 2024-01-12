@@ -119,6 +119,10 @@ async function processFilters (filter?: AssetFolderFilter) {
     where.push(`pagetrees.type IN (${db.in(binds, filter.pagetreeTypes)})`)
   }
 
+  if (filter.launchStates?.length) {
+    where.push(`sites.launchEnabled IN (${db.in(binds, filter.launchStates)})`)
+  }
+
   if (filter.maxDepth === 0) {
     where.push('assetfolders.path = "/"')
   } else if (filter.maxDepth != null) {

@@ -174,9 +174,9 @@ export class AssetServiceInternal extends BaseService {
           if (!resolvedTargetSite || resolvedTargetSite.deleted) return undefined
           const lookuppath = l.path.replace(/^\/[^/]+/, `/${resolvedTargetSite?.name}`)
           lookups.push(
-            this.loaders.get(assetsByLinkIdLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.linkId),
-            this.loaders.get(assetsByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(lookuppath),
-            this.loaders.get(assetsByChecksumLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.checksum)
+            this.loaders.get(assetsByLinkIdLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId], launchStates: [LaunchState.LAUNCHED, LaunchState.PRELAUNCH] }).load(l.linkId),
+            this.loaders.get(assetsByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId], launchStates: [LaunchState.LAUNCHED, LaunchState.PRELAUNCH] }).load(lookuppath),
+            this.loaders.get(assetsByChecksumLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId], launchStates: [LaunchState.LAUNCHED, LaunchState.PRELAUNCH] }).load(l.checksum)
           )
         }
         const assets = await Promise.all(lookups)

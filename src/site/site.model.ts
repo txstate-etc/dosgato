@@ -99,8 +99,11 @@ export class SiteFilter {
   @Field(type => [String], { nullable: true, description: 'Return sites that match at least one of the given URLs. The URLs may be longer than what is recorded as the site\'s launched path and it will still match.' })
   launchUrls?: string[]
 
-  @Field({ nullable: true, description: 'Return sites that are currently launched (i.e. they are publicly available at a specified URL other than the editing host).' })
+  @Field({ nullable: true, description: 'Return sites that are currently launched (i.e. they are publicly available at a specified URL other than the editing host).', deprecationReason: 'Use launchStates: [LAUNCHED]' })
   launched?: boolean
+
+  @Field(type => [LaunchState], { nullable: true, description: 'Return sites in one of the specified launch states.' })
+  launchStates?: LaunchState[]
 
   @Field(type => DeletedFilter, { nullable: true })
   deleted?: DeletedFilter

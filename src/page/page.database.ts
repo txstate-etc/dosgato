@@ -3,7 +3,7 @@ import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, unique, sortby } from 'txstate-utils'
-import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType } from '../internal.js'
+import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState } from '../internal.js'
 import { type PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 
@@ -128,7 +128,13 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
     filter.published = true
     if (filter.pagetreeTypes?.length && !filter.pagetreeTypes.some(t => t === PagetreeType.PRIMARY)) filter.noresults = true
     else filter.pagetreeTypes = [PagetreeType.PRIMARY]
-    where.push('sites.launchEnabled=1')
+    if (filter.launchStates?.length && !filter.launchStates.some(t => t === LaunchState.LAUNCHED)) filter.noresults = true
+    else filter.launchStates = [LaunchState.LAUNCHED]
+  }
+
+  // launchStates
+  if (filter.launchStates?.length) {
+    where.push(`sites.launchEnabled IN (${db.in(binds, filter.launchStates)})`)
   }
 
   // dataIds

@@ -2,7 +2,7 @@ import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/grap
 import { DateTime } from 'luxon'
 import { isBlank, isNotBlank, isNotNull, titleCase } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
-import { UrlSafeString, PagetreeType, UrlSafePath } from '../internal.js'
+import { UrlSafeString, PagetreeType, UrlSafePath, LaunchState } from '../internal.js'
 
 export enum DeleteState {
   NOTDELETED = 0,
@@ -190,6 +190,9 @@ export class PageFilter {
 
   @Field(type => Boolean, { nullable: true, description: 'Only return pages that are published, in the active pagetree, and on a launched site.' })
   live?: boolean
+
+  @Field(type => [LaunchState], { nullable: true, description: 'Only return pages from sites in the specified launch states.' })
+  launchStates?: LaunchState[]
 
   @Field(type => [DeleteStateInput], { nullable: true, description: 'Return based on deleted status. If you do not specify this filter it will still hide deleted and orphaned by default but show those that are marked for deletion. Orphaned refers to the situation where an object is effectively deleted because it belongs to a site, pagetree, or parent that has been deleted.' })
   deleteStates?: DeleteStateInput[]

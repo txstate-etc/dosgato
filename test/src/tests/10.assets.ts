@@ -92,7 +92,6 @@ describe('assets', () => {
     expect(assets.length).to.be.greaterThan(0)
     for (const a of assets) expect(a.site.id).to.equal(siteId)
   })
-  it.skip('should retrieve assets by link', async () => {})
   it('should retrieve assets by checksum', async () => {
     const checksum = allAssets[0].checksum
     const { assets } = await query<{ assets: [Asset] }>('query getAssetById ($checksum: String!) { assets (filter: { checksums: [$checksum] }) { id name checksum } }', { checksum })

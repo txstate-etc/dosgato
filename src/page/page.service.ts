@@ -210,8 +210,8 @@ export class PageServiceInternal extends BaseService {
           if (!resolvedTargetSite || resolvedTargetSite.deleted) return undefined
           const lookuppath = l.path.replace(/^\/[^/]+/, `/${resolvedTargetSite?.name}`)
           lookups.push(
-            this.loaders.get(pagesByLinkIdLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.linkId),
-            this.loaders.get(pagesByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(lookuppath)
+            this.loaders.get(pagesByLinkIdLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId], launchStates: [LaunchState.LAUNCHED, LaunchState.PRELAUNCH] }).load(l.linkId),
+            this.loaders.get(pagesByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId], launchStates: [LaunchState.LAUNCHED, LaunchState.PRELAUNCH] }).load(lookuppath)
           )
         }
         const pages = await Promise.all(lookups)

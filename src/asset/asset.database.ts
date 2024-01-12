@@ -158,6 +158,9 @@ async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
   if (filter.pagetreeTypes?.length) {
     where.push(`pagetrees.type IN (${db.in(binds, filter.pagetreeTypes)})`)
   }
+  if (filter.launchStates?.length) {
+    where.push(`sites.launchEnabled IN (${db.in(binds, filter.launchStates)})`)
+  }
   if (filter.folderInternalIds?.length) {
     where.push(`assets.folderId IN (${db.in(binds, filter.folderInternalIds)})`)
   }

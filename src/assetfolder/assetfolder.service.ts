@@ -7,7 +7,7 @@ import {
   deleteAssetFolder, undeleteAssetFolder, type AssetFilter, type AssetFolderFilter,
   finalizeAssetFolderDeletion, DeleteStateAll, PagetreeServiceInternal, PagetreeType,
   SiteServiceInternal, getAssetFoldersByPath, NameConflictError, AssetRuleService, DeleteState,
-  SiteRuleService
+  SiteRuleService, LaunchState
 } from '../internal.js'
 
 const assetFolderByIdLoader = new PrimaryKeyLoader({
@@ -135,8 +135,8 @@ export class AssetFolderServiceInternal extends BaseService {
           if (!resolvedTargetSite || resolvedTargetSite.deleted) return undefined
           const lookuppath = l.path.replace(/^\/[^/]+/, `/${resolvedTargetSite?.name}`)
           lookups.push(
-            this.loaders.get(foldersByLinkIdLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(l.linkId),
-            this.loaders.get(foldersByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId] }).load(lookuppath)
+            this.loaders.get(foldersByLinkIdLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId], launchStates: [LaunchState.LAUNCHED, LaunchState.PRELAUNCH] }).load(l.linkId),
+            this.loaders.get(foldersByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId], launchStates: [LaunchState.LAUNCHED, LaunchState.PRELAUNCH] }).load(lookuppath)
           )
         }
         const folders = await Promise.all(lookups)

@@ -2,7 +2,7 @@ import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/grap
 import { DateTime } from 'luxon'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
-import { DeleteState, DeleteStateInput, LinkInputContext, PagetreeType, UrlSafePath, UrlSafeString } from '../internal.js'
+import { DeleteState, DeleteStateInput, LaunchState, LinkInputContext, PagetreeType, UrlSafePath, UrlSafeString } from '../internal.js'
 
 @ObjectType({ description: 'An asset folder is a folder that contains assets and other asset folders. Each site has exactly one root asset folder that is nameless and cannot be deleted.' })
 export class AssetFolder {
@@ -75,6 +75,9 @@ export class AssetFolderFilter {
 
   @Field(type => [PagetreeType], { nullable: true })
   pagetreeTypes?: PagetreeType[]
+
+  @Field(type => [LaunchState], { nullable: true, description: 'Only return folders from sites in one of the specified launch states.' })
+  launchStates?: LaunchState[]
 
   @Field(type => Int, { nullable: true, description: 'Only return folders at a depth less than or equal to maxDepth. Root folder is 0 depth.' })
   maxDepth?: number

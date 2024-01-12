@@ -161,6 +161,9 @@ export class AssetFilter {
   @Field(type => [PagetreeType], { nullable: true, description: 'Only return assets in the pagetrees of their site with the types specified.' })
   pagetreeTypes?: PagetreeType[]
 
+  @Field(type => [LaunchState], { nullable: true, description: 'Only return assets from sites in one of the specified launch states.' })
+  launchStates?: LaunchState[]
+
   folderInternalIds?: number[]
   names?: string[]
 
