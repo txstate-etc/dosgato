@@ -24,7 +24,7 @@ import {
   FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes,
   SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
   duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role, type DGContext,
-  type DGRestrictOperations, dgContextMixin, createUserRoutes
+  type DGRestrictOperations, dgContextMixin, createUserRoutes, syncUsers
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -246,7 +246,7 @@ export class DGServer {
     }
 
     await scheduler.schedule('compressDownloads', compressDownloads, { duringHour: 5, duringDayOfWeek: DayOfWeek.TUESDAY })
-
+    if (templateRegistry.serverConfig.userLookup) await scheduler.schedule('syncUsers', syncUsers, { duringHour: 4 })
     await this.gqlServer.start({
       ...opts,
       customContext: templateRegistry.serverConfig.customContext,

@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
-import { intersect, isNotNull, pick, unique } from 'txstate-utils'
-import { Training, User, type UserFilter } from '../internal.js'
+import { intersect, isNotNull, rescue, unique } from 'txstate-utils'
+import { Training, User, templateRegistry, type UserFilter } from '../internal.js'
 
 async function processFilters (filter?: UserFilter) {
   const binds: string[] = []
@@ -195,14 +195,36 @@ export async function updateUser (id: string, firstname: string | undefined, las
   }
 }
 
-export async function disableUsers (users: User[]) {
-  const binds: number[] = []
+export async function disableUsers (users: { internalId: number }[], automated = false) {
+  const binds: number[] = [automated ? 1 : 0]
   if (!users.length) return 0
-  return await db.update(`UPDATE users SET disabledAt = NOW() WHERE disabledAt IS NULL AND id IN (${db.in(binds, users.map(u => u.internalId))})`, binds)
+  return await db.update(`UPDATE users SET disabledAt = NOW(), disabledByAutomation=? WHERE disabledAt IS NULL AND id IN (${db.in(binds, users.map(u => u.internalId))})`, binds)
 }
 
-export async function enableUsers (users: User[]) {
+export async function enableUsers (users: { internalId: number }[]) {
   const binds: number[] = []
   if (!users.length) return 0
-  return await db.update(`UPDATE users SET disabledAt = NULL WHERE disabledAt IS NOT NULL AND id IN (${db.in(binds, users.map(u => u.internalId))})`, binds)
+  return await db.update(`UPDATE users SET disabledAt = NULL, disabledByAutomation=0 WHERE disabledAt IS NOT NULL AND id IN (${db.in(binds, users.map(u => u.internalId))})`, binds)
+}
+
+const twoWeeks = 1000 * 60 * 60 * 24 * 14
+export async function syncUsers () {
+  const userLookup = templateRegistry.serverConfig.userLookup
+  if (userLookup) {
+    const users = await db.getall<{ id: number, login: string, firstname: string, lastname: string, email: string, disabledAt: Date, disabledByAutomation: 0 | 1 }>('SELECT id, login, firstname, lastname, email, disabledAt, disabledByAutomation FROM users WHERE system=0 AND (disabledAt IS NULL OR (disabledAt > NOW() - INTERVAL 2 WEEKS AND disabledByAutomation=1))')
+    const externalUsersByLogin = await userLookup(users.map(u => u.login))
+    const usersToDisable: number[] = []
+    const usersToEnable: number[] = []
+    const now = new Date().getTime()
+    for (const u of users) {
+      const exUser = externalUsersByLogin[u.login]
+      if (exUser && (u.firstname !== exUser.firstname || u.lastname !== exUser.firstname || u.email !== exUser.email || (u.disabledAt == null) !== !!exUser.enabled)) {
+        await rescue(updateUser(u.login, u.firstname, u.lastname, u.email, []))
+        if (u.disabledAt == null && !exUser.enabled) usersToDisable.push(u.id)
+        if (u.disabledAt != null && (now - u.disabledAt.getTime() < twoWeeks) && u.disabledByAutomation && !!exUser.enabled) usersToEnable.push(u.id)
+      }
+    }
+    if (usersToDisable.length) await disableUsers(usersToDisable.map(internalId => ({ internalId })), true)
+    if (usersToEnable.length) await enableUsers(usersToEnable.map(internalId => ({ internalId })))
+  }
 }

@@ -83,6 +83,13 @@ const dgMigrations: DBMigration[] = [
     run: async db => {
       await db.execute('ALTER TABLE users DROP COLUMN trained')
     }
+  },
+  {
+    id: 20240110120000,
+    description: 'record when a user was disabled by an automated process, so that an automated process can be permitted to re-enable',
+    run: async db => {
+      await db.execute('ALTER TABLE users ADD COLUMN disabledByAutomation TINYINT UNSIGNED NOT NULL DEFAULT 0')
+    }
   }
 ]
 
