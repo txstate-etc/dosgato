@@ -211,19 +211,23 @@ const twoWeeks = 1000 * 60 * 60 * 24 * 14
 export async function syncUsers () {
   const userLookup = templateRegistry.serverConfig.userLookup
   if (userLookup) {
-    const users = await db.getall<{ id: number, login: string, firstname: string, lastname: string, email: string, disabledAt: Date, disabledByAutomation: 0 | 1 }>('SELECT id, login, firstname, lastname, email, disabledAt, disabledByAutomation FROM users WHERE system=0 AND (disabledAt IS NULL OR (disabledAt > NOW() - INTERVAL 2 WEEKS AND disabledByAutomation=1))')
+    console.info('running user sync task')
+    const users = await db.getall<{ id: number, login: string, firstname: string, lastname: string, email: string, disabledAt: Date, disabledByAutomation: 0 | 1 }>('SELECT id, login, firstname, lastname, email, disabledAt, disabledByAutomation FROM users WHERE system=0 AND (disabledAt IS NULL OR (disabledAt > NOW() - INTERVAL 2 WEEK AND disabledByAutomation=1))')
     const externalUsersByLogin = await userLookup(users.map(u => u.login))
     const usersToDisable: number[] = []
     const usersToEnable: number[] = []
     const now = new Date().getTime()
     for (const u of users) {
       const exUser = externalUsersByLogin[u.login]
-      if (exUser && (u.firstname !== exUser.firstname || u.lastname !== exUser.firstname || u.email !== exUser.email || (u.disabledAt == null) !== !!exUser.enabled)) {
-        await rescue(updateUser(u.login, u.firstname, u.lastname, u.email, []))
+      if (exUser && (u.firstname !== exUser.firstname || u.lastname !== exUser.lastname || u.email !== exUser.email || (u.disabledAt == null) !== !!exUser.enabled)) {
+        console.log('updating user', u, 'to', exUser)
+        await rescue(updateUser(exUser.login, exUser.firstname, exUser.lastname, exUser.email, undefined))
         if (u.disabledAt == null && !exUser.enabled) usersToDisable.push(u.id)
         if (u.disabledAt != null && (now - u.disabledAt.getTime() < twoWeeks) && u.disabledByAutomation && !!exUser.enabled) usersToEnable.push(u.id)
       }
     }
+    console.log('usersToDisable', usersToDisable)
+    console.log('usersToEnable', usersToEnable)
     if (usersToDisable.length) await disableUsers(usersToDisable.map(internalId => ({ internalId })), true)
     if (usersToEnable.length) await enableUsers(usersToEnable.map(internalId => ({ internalId })))
   }
