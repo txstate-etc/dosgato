@@ -1,6 +1,6 @@
 import { BaseService, type Context, MutationMessageType, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { intersect, isBlank, isNotNull, sortby } from 'txstate-utils'
+import { Cache, intersect, isBlank, isNotNull, sortby } from 'txstate-utils'
 import {
   type Asset, type AssetFilter, getAssets, type AssetFolder, AssetFolderService, appendPath, getResizes,
   DosGatoService, getLatestDownload, AssetFolderServiceInternal, AssetResponse,
@@ -249,7 +249,7 @@ export class AssetService extends DosGatoService<Asset> {
       const size = await fileHandler.fileSize(asset.checksum)
       return asset.size !== size
     } catch {
-      return true
+      return false
     }
   }
 
