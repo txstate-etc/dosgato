@@ -221,8 +221,17 @@ export async function finalizeAssetFolderDeletion (id: number, userInternalId: n
   await db.transaction(async db => {
     const folderIds = await db.getvals<number>('SELECT id FROM assetfolders WHERE id = ? OR path like ? OR path like ?', [id, `%/${id}/%`, `%/${id}`])
     const binds: number[] = [userInternalId, DeleteState.DELETED]
-    await db.update(`UPDATE assetfolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, folderIds)})`, binds)
-    await db.update(`UPDATE assets SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE folderId IN (${db.in([], folderIds)})`, binds)
+    async function update () {
+      await db.update(`UPDATE assetfolders SET linkId=LEFT(MD5(RAND()), 10), deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, folderIds)})`, binds)
+      await db.update(`UPDATE assets SET linkId=LEFT(MD5(RAND()), 10), deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE folderId IN (${db.in([], folderIds)})`, binds)
+    }
+    try {
+      await update()
+    } catch (e: any) {
+      if (e.code !== 1062) throw e
+      // if we got a duplicate key error, try again and it will generate new linkIds
+      await update()
+    }
   })
 }
 export async function undeleteAssetFolder (id: number) {

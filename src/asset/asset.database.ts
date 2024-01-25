@@ -552,13 +552,13 @@ async function copyAsset (a: AssetRowWithPagetreeId, targetrow: AssetFolderRow, 
   const data = await versionedService.get(a.dataId)
   if (!data) throw new Error(`Asset being copied "${a.name}" was corrupt.`)
   const dataId = await versionedService.create('asset', data.data, [], user, db)
-  const linkId = a.pagetreeId === targetrow.pagetreeId || await db.getval('SELECT a.linkId FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE f.pagetreeId=?', [targetrow.pagetreeId]) ? nanoid(10) : a.linkId
+  const linkId = a.pagetreeId === targetrow.pagetreeId || await db.getval('SELECT a.linkId FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE f.pagetreeId=? AND a.linkId=?', [targetrow.pagetreeId, a.linkId]) ? nanoid(10) : a.linkId
 
   await db.insert('INSERT INTO assets (name, folderId, linkId, dataId, shasum) VALUES (?, ?, ?, ?, ?)', [a.name, targetrow.id, linkId, dataId, a.shasum])
 }
 
 async function copyFolder (f: AssetFolderRow, targetrow: AssetFolderRow, user: string, versionedService: VersionedService, db: Queryable) {
-  const linkId = f.pagetreeId === targetrow.pagetreeId || await db.getval('SELECT linkId FROM assetfolders WHERE pagetreeId=?', [targetrow.pagetreeId]) ? nanoid(10) : f.linkId
+  const linkId = f.pagetreeId === targetrow.pagetreeId || await db.getval('SELECT linkId FROM assetfolders WHERE pagetreeId=? AND linkId=?', [targetrow.pagetreeId, f.linkId]) ? nanoid(10) : f.linkId
   const newFolderId = await db.insert('INSERT INTO assetfolders (siteId, linkId, path, name, pagetreeId) VALUES (?, ?, ?, ?, ?)', [targetrow.siteId, linkId, makeParentPath(targetrow), f.name, targetrow.pagetreeId])
   const newFolderRow = await db.getrow('SELECT * FROM assetfolders WHERE id = ?', [newFolderId])
   const assets = await db.getall<AssetRowWithPagetreeId>('SELECT a.*, f.pagetreeId FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE a.folderId = ? AND a.deleteState = ?', [f.id, DeleteState.NOTDELETED])
@@ -640,7 +640,16 @@ export async function deleteAssets (ids: number[], userInternalId: number) {
 export async function finalizeAssetDeletion (ids: number[], userInternalId: number) {
   const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
   const binds: string [] = []
-  return await db.update(`UPDATE assets SET deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, ids)})`, [userInternalId, DeleteState.DELETED, ...binds])
+  async function update () {
+    return await db.update(`UPDATE assets SET linkId=LEFT(MD5(RAND()), 10), deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, ids)})`, [userInternalId, DeleteState.DELETED, ...binds])
+  }
+  try {
+    return await update()
+  } catch (e: any) {
+    if (e.code !== 1062) throw e
+    // if we got a duplicate key error, try again and it will generate new linkIds
+    return await update()
+  }
 }
 
 export async function undeleteAssets (ids: number[]) {

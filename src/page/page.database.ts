@@ -417,7 +417,7 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
 
   // only generate a new linkId when copying within a pagetree or when the target pagetree has
   // the linkId already, otherwise re-use it so copying pages into a sandbox will maintain links
-  const newLinkId = page.pagetreeId === parent.pagetreeId || await db.getval('SELECT linkId FROM pages WHERE pagetreeId=?', [parent.pagetreeId]) ? nanoid(10) : page.linkId
+  const newLinkId = page.pagetreeId === parent.pagetreeId || await db.getval('SELECT linkId FROM pages WHERE linkId=? AND pagetreeId=?', [page.linkId, parent.pagetreeId]) ? nanoid(10) : page.linkId
   const newInternalId = await db.insert(`
     INSERT INTO pages (name, pagetreeId, dataId, linkId, path, displayOrder, siteId, title, templateKey)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [newPageName, parent.pagetreeId, newDataId, newLinkId, parent.pathAsParent, displayOrder, parent.siteInternalId, migrated.title, migrated.templateKey])
@@ -480,7 +480,16 @@ export async function publishPageDeletions (pages: Page[], userInternalId: numbe
     const pageInternalIds = refetchedPages.map(p => p.internalId)
     const children = await getPages({ deleteStates: DeleteStateAll, internalIdPathsRecursive: refetchedPages.map(page => `${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`) }, db)
     const childInternalIds = children.map(c => c.internalId)
-    await db.update(`UPDATE pages SET deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, unique([...pageInternalIds, ...childInternalIds]))})`, binds)
+    async function update () {
+      await db.update(`UPDATE pages SET linkId=LEFT(MD5(RAND()), 10), deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, unique([...pageInternalIds, ...childInternalIds]))})`, binds)
+    }
+    try {
+      await update()
+    } catch (e: any) {
+      if (e.code !== 1062) throw e
+      // if we got a duplicate key error, try again and it will generate new linkIds
+      await update()
+    }
   })
 }
 
