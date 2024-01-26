@@ -194,7 +194,7 @@ export async function createAssetFolder (args: CreateAssetFolderInput) {
     const parent = await checkForNameConflict(args.parentId, args.name, db)
     return await db.insert(`
       INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name)
-      VALUES (?, ?, ?, ?, ?)`, [parent.siteId, parent.pagetreeId, nanoid(10), `${parent.path}/${parent.id}`, args.name])
+      VALUES (?, ?, ?, ?, ?)`, [parent.siteId, parent.pagetreeId, nanoid(10), parent.path + (parent.path === '/' ? '' : '/') + parent.id, args.name])
   })
   return (await getAssetFolders({ internalIds: [newInternalId] }))[0]
 }
