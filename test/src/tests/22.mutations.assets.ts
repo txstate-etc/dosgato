@@ -26,6 +26,8 @@ describe('asset mutations', () => {
     const { success, assetFolder } = await createAssetFolder('childfolder1', siteAAssetRootId)
     expect(success).to.be.true
     expect(assetFolder.name).to.equal('childfolder1')
+    const { assetfolders } = await query(`{ assetfolders (filter: { ids: [${siteAAssetRootId}] }) { folders { name } } }`)
+    expect(assetfolders[0].folders).to.contain('childfolder1')
   })
   it('should not allow an unauthorized user to create an asset folder', async () => {
     await expect(createAssetFolder('test', siteAAssetRootId, 'ed07')).to.be.rejected
