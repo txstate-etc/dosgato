@@ -321,7 +321,7 @@ export async function fixtures () {
     db.insert('INSERT INTO templaterules (`roleId`, `use`) VALUES (?,?)', [templaterulestest2, 1])
   ])
 
-  async function createPage (name: string, linkId: string, pagetreeId: number, parentId: number | null, displayOrder: number, pageData: any, indexes: Index[]) {
+  async function createPage (name: string, linkId: string, pagetreeId: number, parentId: number | null, displayOrder: number, pageData: any, indexes: Index[], createdDate?: DateTime) {
     const ctx = new Context()
     const versionedService = new VersionedService(ctx)
 
@@ -330,6 +330,7 @@ export async function fixtures () {
       const siteId = await db.getval<number>('SELECT siteId FROM pagetrees WHERE id=?', [pagetreeId])
       const path = `${parentsPath ?? ''}${parentsPath === '/' ? '' : '/'}${parentId ?? ''}`
       const dataId = await versionedService.create('page', pageData, indexes, 'su01', db)
+      if (createdDate) await versionedService.setStamps(dataId, { createdAt: createdDate.toJSDate(), modifiedAt: createdDate.toJSDate() }, db)
       return await db.insert('INSERT INTO pages (name, pagetreeId, path, displayOrder, dataId, linkId, templateKey, siteId, title) VALUES (?,?,?,?,?,?,?,?,?)', [name, pagetreeId, path, displayOrder, dataId, linkId, pageData.templateKey, siteId, pageData.title])
     })
     return pageId
@@ -339,10 +340,10 @@ export async function fixtures () {
     return DateTime.utc().toFormat('yLLddHHmmss')
   }
 
-  async function updatePage (id: string, content: any, indexes: Index[], user?: string, comment?: string) {
+  async function updatePage (id: string, content: any, indexes: Index[], user = 'su01', comment?: string, date?: DateTime) {
     const ctx = new Context()
     const versionedService = new VersionedService(ctx)
-    await versionedService.update(Number(id), content, indexes, { user, comment })
+    await versionedService.update(Number(id), content, indexes, { user, comment, date: date?.toJSDate() })
   }
 
   /* Site 1, Pagetree 1 Pages */
@@ -395,7 +396,18 @@ export async function fixtures () {
       values: ['keyp1', 'keyc3']
     }
   ]
-  const site1pagetree1About = await createPage('about', aboutLinkId, pagetree1, site1pagetree1Root, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'About', areas: { links: [], main: [] } }, indexes)
+
+  const aboutContent1 = { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'About', areas: { links: [], main: [] } }
+  const aboutContent2 = { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'About 2', areas: { links: [], main: [] } }
+  const dt = DateTime.local()
+  const site1pagetree1About = await createPage('about', aboutLinkId, pagetree1, site1pagetree1Root, 1, aboutContent1, indexes, dt.minus({ hours: 100 }))
+  const dataIdAboutPage = await db.getval<string>('SELECT dataId FROM pages WHERE id = ?', [site1pagetree1About])
+  let even = true
+  for (let i = 0; i < 100; i++) {
+    const ts = dt.plus({ hours: i - 100 })
+    await updatePage(dataIdAboutPage!, even ? aboutContent2 : aboutContent1, indexes, undefined, undefined, ts)
+    even = !even
+  }
 
   // location page
   indexes = [
