@@ -428,11 +428,12 @@ export async function createAsset (versionedService: VersionedService, userId: s
 
     const siblingFolders = await db.getall('SELECT * FROM assetfolders WHERE path=?', [folder.path + '/' + String(folder.id), args.name])
     const siblingAssets = await db.getall('SELECT * FROM assets WHERE folderId=?', [folder.id, args.name])
+    const usedNames = new Set([...siblingFolders, ...siblingAssets].map(s => s.name.toLocaleLowerCase()))
 
     let name = args.name
     if (opts?.numerate) {
-      while (isBlank(name) || siblingFolders.some(f => f.name === name) || siblingAssets.some(a => a.name === name)) name = numerate(name)
-    } else if (isBlank(name) || siblingFolders.some(f => f.name === name) || siblingAssets.some(a => a.name === name)) throw new NameConflictError()
+      while (isBlank(name) || usedNames.has(name.toLocaleLowerCase())) name = numerate(name)
+    } else if (isBlank(name) || usedNames.has(name.toLocaleLowerCase())) throw new NameConflictError()
 
     // we can't use a UNIQUE index to enforce linkId uniqueness because we don't have the pagetreeId without joining it in
     // so we'll just do it here and expect low probability of collision within microseconds
@@ -581,7 +582,7 @@ export async function copyAssets (targetFolder: AssetFolder, assets: Asset[], fo
     // Someone else may have moved it somewhere the current user does not have permission to create assets
     if (targetrow.path !== targetFolder.path) throw new Error('Target folder has moved since the mutation began.')
 
-    const usedNames = new Set([...targetassetchildren, ...targetfolderchildren].map(c => c.name))
+    const usedNames = new Set([...targetassetchildren, ...targetfolderchildren].map(c => c.name.toLocaleLowerCase()))
 
     let binds: number[] = []
     const folderrows = folders.length
@@ -606,13 +607,13 @@ export async function copyAssets (targetFolder: AssetFolder, assets: Asset[], fo
 
     // copy assets
     for (const a of filteredAssetRows) {
-      if (usedNames.has(a.name)) throw new Error(`Asset "${a.name}" already exists in the target folder.`)
+      if (usedNames.has(a.name.toLocaleLowerCase())) throw new Error(`Asset "${a.name}" already exists in the target folder.`)
       await copyAsset(a, targetrow, user, versionedService, db)
     }
 
     // copy folders
     for (const f of filteredFolderRows) {
-      if (usedNames.has(f.name)) throw new Error(`Folder "${f.name}" already exists in the target folder.`)
+      if (usedNames.has(f.name.toLocaleLowerCase())) throw new Error(`Folder "${f.name}" already exists in the target folder.`)
       await copyFolder(f, targetrow, user, versionedService, db)
     }
   })

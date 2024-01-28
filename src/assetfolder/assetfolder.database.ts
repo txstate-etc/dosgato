@@ -185,7 +185,7 @@ async function checkForNameConflict (folderId: string, name: string, db: Queryab
   const parent = (await db.getrow<{ id: number, path: string, siteId: number, pagetreeId: number }>('SELECT id, path, siteId, pagetreeId from assetfolders WHERE id = ? FOR UPDATE', [folderId]))!
   const siblings = await db.getall('SELECT name FROM assetfolders WHERE path=?', [parent.path + (parent.path === '/' ? '' : '/') + parent.id])
   const assets = await db.getall('SELECT * FROM assets WHERE folderId=?', [parent.id])
-  if (siblings.some(s => s.name === name) || assets.some(a => a.name === name)) throw new NameConflictError()
+  if ([...siblings, ...assets].some(s => s.name.toLocaleLowerCase() === name)) throw new NameConflictError()
   return parent
 }
 
