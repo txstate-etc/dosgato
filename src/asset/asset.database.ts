@@ -426,8 +426,8 @@ export async function createAsset (versionedService: VersionedService, userId: s
     const folder = await db.getrow<{ id: number, pagetreeId: number, path: string }>('SELECT id, pagetreeId, path FROM assetfolders WHERE id = ? FOR UPDATE', [args.folderId])
     if (!folder) throw new Error('Folder to place asset in does not exist.')
 
-    const siblingFolders = await db.getall('SELECT * FROM assetfolders WHERE path=?', [folder.path + '/' + String(folder.id), args.name])
-    const siblingAssets = await db.getall('SELECT * FROM assets WHERE folderId=?', [folder.id, args.name])
+    const siblingFolders = await db.getall('SELECT * FROM assetfolders WHERE path=?', [folder.path + '/' + String(folder.id)])
+    const siblingAssets = await db.getall('SELECT * FROM assets WHERE folderId=?', [folder.id])
     const usedNames = new Set([...siblingFolders, ...siblingAssets].map(s => s.name.toLocaleLowerCase()))
 
     let name = args.name
@@ -513,19 +513,25 @@ export async function moveAssets (targetFolder: AssetFolder, assets: Asset[], fo
 
     binds = []
     const assetrows = assets.length
-      ? await db.getall<AssetRowWithPagetreeId>(`SELECT a.*, f.pagetreeId FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE a.id IN (${db.in(binds, assets.map(a => a.internalId))})`, binds)
+      ? await db.getall<AssetRowWithPagetreeId & { path: string }>(`SELECT a.*, f.pagetreeId, f.path FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE a.id IN (${db.in(binds, assets.map(a => a.internalId))})`, binds)
       : []
 
     // If any assets are moving between pagetrees, we need to error out since we don't allow that
     // See comments in movePages() for more explanation
     if (assetrows.some(a => a.pagetreeId !== targetrow.pagetreeId)) throw new Error('Moving between sites or pagetrees is not allowed. Copy instead.')
 
-    // If a selected asset is already in one of the folders selected, we'll skip moving it since its folder
+    // If a selected asset is already descended from one of the folders selected, we'll skip moving it since its ancestor
     // is also moving. Users will potentially shift-select a big block of items including both folders and assets
     // and will not expect it all to get de-structured.
-    const filteredAssetRows = assetrows.filter(asset => !folderrows.some(f => f.id === asset.folderId))
+    const filteredAssetRows = assetrows.map(a => ({ ...a, pathsplit: new Set(a.path.split('/').filter(isNotBlank).map(Number)) })).filter(asset => !folderrows.some(f => f.id === asset.folderId || asset.pathsplit.has(f.id)))
 
     if (filteredFolderRows.some(f => targetrow.id === f.id || targetrow.path.startsWith(makeParentPath(f) + '/'))) throw new Error('Cannot move a folder into its own sub-folder.')
+
+    const siblingFolders = await db.getall('SELECT * FROM assetfolders WHERE path=?', [targetrow.path + '/' + String(targetrow.id)])
+    const siblingAssets = await db.getall('SELECT * FROM assets WHERE folderId=?', [targetrow.id])
+    const usedNames = new Set([...siblingFolders, ...siblingAssets].map(s => s.name.toLocaleLowerCase()))
+    for (const a of filteredAssetRows) if (usedNames.has(a.name)) throw new Error(`Cannot move. Target destination already has something named ${a.name}.`)
+    for (const f of filteredFolderRows) if (usedNames.has(f.name)) throw new Error(`Cannot move. Target destination already has something named ${f.name}.`)
 
     // assets are easy to move
     if (filteredAssetRows.length) {
