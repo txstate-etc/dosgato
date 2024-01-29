@@ -181,17 +181,17 @@ export async function getAssetFoldersByPath (paths: string[], filter: AssetFolde
   return ret
 }
 
-async function checkForNameConflict (folderId: string, name: string, db: Queryable) {
-  const parent = (await db.getrow<{ id: number, path: string, siteId: number, pagetreeId: number }>('SELECT id, path, siteId, pagetreeId from assetfolders WHERE id = ? FOR UPDATE', [folderId]))!
-  const siblings = await db.getall('SELECT name FROM assetfolders WHERE path=?', [parent.path + (parent.path === '/' ? '' : '/') + parent.id])
-  const assets = await db.getall('SELECT * FROM assets WHERE folderId=?', [parent.id])
+export async function checkForAssetNameConflict (folderId: string, name: string, tdb: Queryable = db) {
+  const parent = (await tdb.getrow<{ id: number, path: string, siteId: number, pagetreeId: number }>('SELECT id, path, siteId, pagetreeId from assetfolders WHERE id = ? FOR UPDATE', [folderId]))!
+  const siblings = await tdb.getall('SELECT name FROM assetfolders WHERE path=?', [parent.path + (parent.path === '/' ? '' : '/') + parent.id])
+  const assets = await tdb.getall('SELECT * FROM assets WHERE folderId=?', [parent.id])
   if ([...siblings, ...assets].some(s => s.name.toLocaleLowerCase() === name)) throw new NameConflictError()
   return parent
 }
 
 export async function createAssetFolder (args: CreateAssetFolderInput) {
   const newInternalId = await db.transaction(async db => {
-    const parent = await checkForNameConflict(args.parentId, args.name, db)
+    const parent = await checkForAssetNameConflict(args.parentId, args.name, db)
     return await db.insert(`
       INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name)
       VALUES (?, ?, ?, ?, ?)`, [parent.siteId, parent.pagetreeId, nanoid(10), parent.path + (parent.path === '/' ? '' : '/') + parent.id, args.name])
@@ -202,7 +202,7 @@ export async function createAssetFolder (args: CreateAssetFolderInput) {
 export async function renameAssetFolder (folderId: string, name: string) {
   return await db.transaction(async db => {
     const folderPath = await db.getval<string>('SELECT path FROM assetfolders WHERE id=? LOCK IN SHARE MODE', [folderId])
-    await checkForNameConflict(folderPath!.split('/').slice(-1)[0], name, db)
+    await checkForAssetNameConflict(folderPath!.split('/').slice(-1)[0], name, db)
     return await db.update('UPDATE assetfolders SET name = ? WHERE id = ?', [name, folderId])
   })
 }

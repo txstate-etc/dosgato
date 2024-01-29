@@ -7,7 +7,7 @@ import {
   deleteAssetFolder, undeleteAssetFolder, type AssetFilter, type AssetFolderFilter,
   finalizeAssetFolderDeletion, DeleteStateAll, PagetreeServiceInternal, PagetreeType,
   SiteServiceInternal, getAssetFoldersByPath, NameConflictError, AssetRuleService, DeleteState,
-  SiteRuleService, LaunchState
+  SiteRuleService, LaunchState, checkForAssetNameConflict
 } from '../internal.js'
 
 const assetFolderByIdLoader = new PrimaryKeyLoader({
@@ -226,9 +226,11 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     if (!this.haveAssetFolderPerm(parentFolder, 'create')) throw new Error(`You are not permitted to create folders in ${String(parentFolder.name)}.`)
 
     const resp = new AssetFolderResponse({ success: true })
-    if (isBlank(args.name)) resp.addMessage('You must enter a folder name.', 'args.name')
-    const [folders, assets] = await Promise.all([this.raw.getChildFolders(parentFolder, false, { names: [args.name] }), this.raw.getChildAssets(parentFolder, false, { names: [args.name] })])
-    if (folders.length || assets.length) resp.addMessage('That name is already in use.', 'args.name')
+    try {
+      await checkForAssetNameConflict(args.parentId, args.name)
+    } catch {
+      resp.addMessage('That name is already in use.', 'args.name')
+    }
     if (validateOnly || resp.hasErrors()) return resp
 
     try {
