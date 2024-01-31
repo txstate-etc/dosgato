@@ -53,10 +53,11 @@ export async function bootstrap () {
             ...info,
             folderId: folder.id
           })
-          if (!asset) throw new Error(`Unable to bootstrap asset ${file.name}.`)
+          if (!asset) throw new Error('Asset appeared to be created but could not be retrieved after creation.')
           await requestResizes(asset)
         }
       } catch (e: any) {
+        console.error(`Unable to bootstrap ${file.name}.`)
         console.error(e)
       }
     }))
