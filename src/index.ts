@@ -24,7 +24,7 @@ import {
   FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes,
   SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
   duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role, type DGContext,
-  type DGRestrictOperations, dgContextMixin, createUserRoutes, syncUsers
+  type DGRestrictOperations, dgContextMixin, createUserRoutes, syncUsers, type EventInfo
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -93,6 +93,16 @@ export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
    * sure to inspect the `roles` array if you want to allow operations for superuser or other roles (by name).
    */
   restrictPageOperation?: (page: { id: string, name: string, path: string, templateKey: string, pagetreeType: PagetreeType }, operation: DGRestrictOperations, roles: Role[]) => boolean
+  /**
+   * Provide a function to receive live events from the API.
+   *
+   * This is useful for setting up real-time syncing with other systems.
+   *
+   * This first version only includes an event for publishing a page, for real-time cache invalidation.
+   *
+   * Your function will be inside a try/catch so as not to interrupt regular operation.
+   */
+  onEvent?: (info: EventInfo) => void | Promise<void>
 }
 
 export class DGServer {

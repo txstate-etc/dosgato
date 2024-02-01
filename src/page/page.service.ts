@@ -11,7 +11,7 @@ import {
   PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
   PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, getPagesByPath, parsePath,
   normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService,
-  systemContext, collectComponents, makePathSafe, LaunchState, type DGRestrictOperations
+  systemContext, collectComponents, makePathSafe, LaunchState, type DGRestrictOperations, fireEvent
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -998,6 +998,7 @@ export class PageService extends DosGatoService<Page> {
         for (const p of pages) await this.svc(VersionedService).tag(p.intDataId, 'published', undefined, this.login)
       })
       this.loaders.clear()
+      await Promise.all(pages.map(async page => { await fireEvent({ type: 'publish', page }) }))
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.error(err)
@@ -1020,6 +1021,7 @@ export class PageService extends DosGatoService<Page> {
       await this.svc(VersionedService).removeTags([...actualParents, ...children].map(p => p.intDataId), ['published'], db)
     })
     this.loaders.clear()
+    await Promise.all(pages.map(async page => { await fireEvent({ type: 'unpublish', page }) }))
     return new ValidatedResponse({ success: true })
   }
 

@@ -83,5 +83,5 @@ export async function getEnabledUser (ctx: DGContext) {
 }
 
 export function systemContext () {
-  return new DGMockContext({ sub: 'system' }) as DGContext
+  return new DGMockContext({ sub: 'system' })
 }
