@@ -180,7 +180,7 @@ export class AssetServiceInternal extends BaseService {
           )
         }
         const assets = await Promise.all(lookups)
-        return sortby(assets.flat().filter(isNotNull), a => a.siteId === contextPagetree?.siteId, true)[0]
+        return sortby(assets.flat().filter(isNotNull), a => a.siteId === contextPagetree?.siteId && a.checksum === l.checksum, true, a => a.siteId === l.siteId, true, a => a.linkId === l.linkId, true)[0]
       }))
 
       const found = pages.filter(isNotNull)
