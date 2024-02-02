@@ -1,4 +1,4 @@
-import { templateRegistry, type Page } from '../internal'
+import { templateRegistry, type Page } from '../internal.js'
 
 export type EventInfo = PublishEvent | UnpublishEvent
 
