@@ -2,10 +2,12 @@
 import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
-import { isNotBlank, isNotNull, keyby, unique, sortby } from 'txstate-utils'
-import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState } from '../internal.js'
+import { isNotBlank, isNotNull, keyby, unique, sortby, clone } from 'txstate-utils'
+import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState, searchCodes, splitWords, quadgrams, normalizeForSearch } from '../internal.js'
 import { type PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
+import { stemmer } from 'stemmer'
+import { doubleMetaphone } from 'double-metaphone'
 
 export interface CreatePageInput extends UpdatePageInput {
   abovePage?: string
@@ -120,8 +122,9 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
     ' AND sites.deletedAt IS NULL AND pagetrees.deletedAt IS NULL',
     ' AND (sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL)'
   )
+  let searchweights: Record<string, number> | undefined
 
-  if (filter == null) return { binds, joins, where }
+  if (filter == null) return { binds, joins, where, searchweights }
 
   // live
   if (filter.live) {
@@ -179,6 +182,19 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
     where.push(`pagetrees.siteId IN (${db.in(binds, filter.siteIds)})`)
   }
 
+  // maxDepth
+  if (filter.maxDepth === 0) {
+    where.push('pages.path = "/"')
+  } else if (filter.maxDepth != null) {
+    where.push('LENGTH(pages.path) - LENGTH(REPLACE(pages.path, "/", "")) <= ?')
+    binds.push(filter.maxDepth)
+  }
+
+  // published
+  if (filter.published) {
+    where.push('tags.tag IS NOT NULL')
+  }
+
   await Promise.all([
     (async () => {
       // named paths e.g. /site1/about
@@ -208,25 +224,58 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
     })()
   ])
 
-  if (filter.maxDepth === 0) {
-    where.push('pages.path = "/"')
-  } else if (filter.maxDepth != null) {
-    where.push('LENGTH(pages.path) - LENGTH(REPLACE(pages.path, "/", "")) <= ?')
-    binds.push(filter.maxDepth)
-  }
-
-  // published
-  if (filter.published) {
-    where.push('tags.tag IS NOT NULL')
+  // search query - goes last so it can re-use all the previous filters
+  if (filter.search?.length) {
+    const lcSearch = normalizeForSearch(filter.search)
+    const words = splitWords(lcSearch)
+    const codes = words.flatMap(searchCodes)
+    if (!codes.length) {
+      filter.noresults = true
+    } else {
+      const wordlikes: string[] = []
+      const wordbinds: string[] = []
+      const grams = words.flatMap(quadgrams)
+      if (grams.length) {
+        for (const w of words) {
+          wordlikes.push('pages.name LIKE ? OR pages.title LIKE ?')
+          wordbinds.push(`%${w}%`, `%${w}%`)
+        }
+      }
+      const ibinds: any[] = []
+      const query = `
+        SELECT pages.id, pages.name, pages.title, COUNT(*) as cnt FROM pages
+        INNER JOIN pages_searchcodes psc ON pages.id=psc.pageId
+        INNER JOIN searchcodes sc ON sc.id=psc.codeId
+        INNER JOIN pagetrees ON pagetrees.id=pages.pagetreeId
+        INNER JOIN sites ON sites.id=pagetrees.siteId
+        LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
+        ${joins.size ? Array.from(joins.values()).join('\n') : ''}
+        WHERE
+        ${where.length ? '(' + where.join(') AND (') + ')' : ''}
+        AND (
+          sc.searchcode IN (${db.in(ibinds, codes)})
+          ${grams.length ? `OR (sc.searchcode IN (${db.in(ibinds, grams)}) AND (${wordlikes.join(') AND (')}))` : ''}
+        )
+        GROUP BY pages.id
+        ORDER BY cnt DESC, pages.path, pages.name
+        LIMIT 100
+      `
+      const rows = await db.getall<{ id: string, name: string, title: string, cnt: number }>(query, [...binds, ...ibinds, ...wordbinds])
+      if (!rows.length) filter.noresults = true
+      else {
+        where.push(`pages.id IN (${db.in(binds, rows.map(r => r.id))})`)
+        searchweights = rows.reduce((acc, curr) => ({ ...acc, [curr.id]: curr.cnt + (curr.name.includes(lcSearch) || curr.title.normalize('NFKD').toLocaleLowerCase().includes(lcSearch) ? 100 : 0) }), {})
+      }
+    }
   }
 
   // pages, assets, data referenced TODO
 
-  return { binds, where, joins }
+  return { binds, where, joins, searchweights }
 }
 
 export async function getPages (filter: PageFilter, tdb: Queryable = db) {
-  const { binds, where, joins } = await processFilters(filter, tdb)
+  const { binds, where, joins, searchweights } = await processFilters(filter, tdb)
   if (filter.noresults) return []
   const pagerows = await tdb.getall(`
     SELECT pages.*, pagetrees.type as pagetreeType, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned, tags.tag IS NOT NULL as published
@@ -249,15 +298,8 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db) {
     p.resolvedPath = `/${p.pathSplit.map(id => namesById[id].name).join('/')}${p.pathSplit.length ? '/' : ''}${p.name}`
     p.resolvedPathWithoutSitename = shiftPath(p.resolvedPath)
   }
+  if (searchweights) return sortby(pages, p => searchweights[p.internalId], true, 'path', 'displayOrder')
   return pages
-}
-
-export async function getPagesByPath (paths: string[], filter: PageFilter) {
-  const pages = await getPages({ ...filter, paths })
-  const parents = await getPages({ internalIds: [-1, ...pages.flatMap(p => p.pathSplit)] })
-  const parentLookup = keyby(parents, 'internalId')
-  const ret = pages.map(p => ({ key: '/' + [...p.pathSplit.map(id => parentLookup[id].name), p.name].join('/'), value: p }))
-  return ret
 }
 
 async function refetch (db: Queryable, ...pages: (Page | undefined)[]) {
@@ -315,6 +357,7 @@ export async function createPageInTransaction (db: Queryable, versionedService: 
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId, siteId, title, templateKey)
       VALUES (?,?,?,?,?,?,?,?,?)
     `, [name, `/${[...parent.pathSplit, parent.internalId].join('/')}`, displayOrder, parent.pagetreeId, dataId, linkId, parent.siteInternalId, data.title, data.templateKey])
+    await setPageSearchCodes({ internalId: newInternalId, name, title: data.title }, db)
     return newInternalId
   }
   try {
@@ -421,6 +464,7 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
   const newInternalId = await db.insert(`
     INSERT INTO pages (name, pagetreeId, dataId, linkId, path, displayOrder, siteId, title, templateKey)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [newPageName, parent.pagetreeId, newDataId, newLinkId, parent.pathAsParent, displayOrder, parent.siteInternalId, migrated.title, migrated.templateKey])
+  await setPageSearchCodes({ internalId: newInternalId, name: newPageName, title: migrated.title }, db)
   if (includeChildren) {
     const children = await getPages({ internalIdPaths: [page.pathAsParent], deleteStates: [DeleteStateInput.NOTDELETED] }, db)
     const newParent = (await getPages({ internalIds: [newInternalId] }, db))[0]
@@ -508,5 +552,42 @@ export async function undeletePages (pages: Page[]) {
 }
 
 export async function renamePage (page: Page, name: string) {
-  return await db.update('UPDATE pages SET name = ? WHERE id = ?', [name, page.internalId])
+  return await db.transaction(async db => {
+    const rows = await db.update('UPDATE pages SET name = ? WHERE id = ?', [name, page.internalId])
+    if (rows > 0) await setPageSearchCodes({ internalId: page.internalId, title: page.title, name }, db)
+    return rows
+  })
+}
+
+export async function ensureSearchCodes (searchcodes: string[], db: Queryable) {
+  if (searchcodes.length) {
+    let binds: any[] = []
+    const existing = await db.getall<{ id: number, searchcode: string }>(`SELECT id, searchcode FROM searchcodes WHERE searchcode IN (${db.in(binds, searchcodes)})`, binds)
+    const existingByCode = keyby(existing, 'searchcode')
+    const newcodes = searchcodes.filter(c => !existingByCode[c])
+    binds = []
+    if (newcodes.length) await db.insert(`INSERT INTO searchcodes (searchcode) VALUES ${db.in(binds, newcodes.map(c => [c]))} ON DUPLICATE KEY UPDATE searchcode=searchcode`, binds)
+    binds = []
+    const codes = await db.getall<{ id: number, searchcode: string }>(`SELECT id, searchcode FROM searchcodes WHERE searchcode IN (${db.in(binds, searchcodes)}) LOCK IN SHARE MODE`, binds)
+    const codeToId = keyby(codes, 'searchcode')
+    return searchcodes.map(c => codeToId[c].id)
+  }
+  return []
+}
+
+export async function setPageSearchCodes (page: { internalId: number, name: string, title: string }, db: Queryable) {
+  const searchcodes = Array.from(new Set([page.name, normalizeForSearch(page.title)].flatMap(splitWords).flatMap(w => [...searchCodes(w), ...quadgrams(w)])))
+  const codeIds = await ensureSearchCodes(searchcodes, db)
+  if (codeIds.length) {
+    let binds = [page.internalId]
+    await db.delete(`DELETE FROM pages_searchcodes WHERE pageId=? AND codeId NOT IN (${db.in(binds, codeIds)})`, binds)
+    binds = []
+    await db.insert(`INSERT INTO pages_searchcodes (pageId, codeId) VALUES ${db.in(binds, codeIds.map(id => [page.internalId, id]))} ON DUPLICATE KEY UPDATE codeId=codeId`, binds)
+  } else {
+    await db.delete('DELETE FROM pages_searchcodes WHERE pageId=?', [page.internalId])
+  }
+}
+
+export async function cleanSearchCodes () {
+  await db.delete('DELETE sc FROM searchcodes sc LEFT JOIN pages_searchcodes psc ON psc.codeId=sc.id WHERE psc.codeId IS NULL')
 }

@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid'
 import { unique, isNotBlank } from 'txstate-utils'
 import {
   Pagetree, type PagetreeFilter, PagetreeType, type VersionedService, type Site, createSiteComment, type User,
-  numerate, createVersionedPage, type CreatePageExtras, DeleteStateNoFinalizeDefault, DeleteStateInputNoFinalize, DeleteStateNoFinalizeAll, numerateBasedOnExisting
+  numerate, createVersionedPage, type CreatePageExtras, DeleteStateNoFinalizeDefault, DeleteStateInputNoFinalize, DeleteStateNoFinalizeAll, numerateBasedOnExisting, setPageSearchCodes
 } from '../internal.js'
 
 export function processDeletedFiltersNoFinalize (filter: any, tableName: string, orphansJoins: Map<string, string>, excludeOrphansClause: string, onlyOrphansClause: string) {
@@ -121,13 +121,14 @@ export async function createPagetree (versionedService: VersionedService, user: 
     let pagetreeName = `${site.name}-sandbox`
     while (usedNames.has(pagetreeName)) pagetreeName = numerate(pagetreeName)
     // create the pagetree
-    const createdAt = data.legacyId && isNotBlank(extra?.createdAt) ? new Date(extra!.createdAt) : new Date()
+    const createdAt = data.legacyId && isNotBlank(extra?.createdAt) ? new Date(extra.createdAt) : new Date()
     const pagetreeId = await db.insert('INSERT INTO pagetrees (siteId, type, name, createdAt) VALUES (?, ?, ?, ?)', [site.id, PagetreeType.SANDBOX, pagetreeName, createdAt])
     // create the root page for the pagetree
     const dataId = await createVersionedPage(versionedService, user.id, data, db, extra)
-    await db.insert(`
+    const newInternalId = await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId, siteId, title, templateKey)
       VALUES (?,?,?,?,?,?,?,?,?)`, [pagetreeName, '/', 1, pagetreeId, dataId, extra?.linkId ?? nanoid(10), site.id, data.title, data.templateKey])
+    await setPageSearchCodes({ internalId: newInternalId, name: pagetreeName, title: data.title }, db)
     // create the root asset folder for the pagetree
     await db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?,?,?,?,?)', [site.id, pagetreeId, extra?.linkId ?? nanoid(10), '/', pagetreeName])
     await createSiteComment(site.id, `Added sandbox ${pagetreeName}.`, user.internalId, db)

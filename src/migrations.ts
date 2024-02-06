@@ -2,7 +2,7 @@ import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
 import { sortby } from 'txstate-utils'
 import { init } from './createdb.js'
-import { type DBMigration, VersionedService } from './internal.js'
+import { type DBMigration, VersionedService, searchCodes, setPageSearchCodes } from './internal.js'
 
 const dgMigrations: DBMigration[] = [
   {
@@ -90,6 +90,40 @@ const dgMigrations: DBMigration[] = [
     run: async db => {
       await db.execute('ALTER TABLE users ADD COLUMN disabledByAutomation TINYINT UNSIGNED NOT NULL DEFAULT 0')
     }
+  },
+  {
+    id: 20240202091500,
+    description: 'add indexing table for searching page names and titles',
+    run: async db => {
+      await db.execute(`
+      CREATE TABLE IF NOT EXISTS searchcodes (
+        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        searchcode VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL,
+        PRIMARY KEY (id),
+        UNIQUE searchcode_idx (searchcode)
+      )
+      ENGINE = InnoDB
+      DEFAULT CHARACTER SET = utf8mb4
+      DEFAULT COLLATE = utf8mb4_general_ci
+      `)
+      await db.execute(`
+      CREATE TABLE IF NOT EXISTS pages_searchcodes (
+        pageId INT UNSIGNED NOT NULL,
+        codeId INT UNSIGNED NOT NULL,
+        PRIMARY KEY (pageId, codeId),
+        INDEX code_idx (codeId),
+        CONSTRAINT FK_pages_searchcodes_page FOREIGN KEY (pageId) REFERENCES pages (\`id\`),
+        CONSTRAINT FK_pages_searchcodes_code FOREIGN KEY (codeId) REFERENCES searchcodes (\`id\`)
+      )
+      ENGINE = InnoDB
+      DEFAULT CHARACTER SET = utf8mb4
+      DEFAULT COLLATE = utf8mb4_general_ci
+      `)
+      const pages = await db.getall<{ internalId: number, name: string, title: string }>('SELECT id as internalId, name, title FROM pages')
+      for (const p of pages) {
+        await setPageSearchCodes(p, db)
+      }
+    }
   }
 ]
 
@@ -164,7 +198,9 @@ export async function resetdb () {
       db.execute('DROP TABLE IF EXISTS users'),
       db.execute('DROP TABLE IF EXISTS indexnames'),
       db.execute('DROP TABLE IF EXISTS indexvalues'),
-      db.execute('DROP TABLE IF EXISTS storage')
+      db.execute('DROP TABLE IF EXISTS storage'),
+      db.execute('DROP TABLE IF EXISTS pages_searchcodes'),
+      db.execute('DROP TABLE IF EXISTS searchcodes')
     ])
     await db.execute('SET FOREIGN_KEY_CHECKS = 1')
   })

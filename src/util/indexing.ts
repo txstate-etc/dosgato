@@ -1,4 +1,6 @@
 import { type LinkDefinition } from '@dosgato/templating'
+import { doubleMetaphone } from 'double-metaphone'
+import { stemmer } from 'stemmer'
 import { ensureString, isNotNull } from 'txstate-utils'
 
 export function getHostname (urlString: string) {
@@ -69,4 +71,28 @@ export function parseLinks (links?: (LinkDefinition | string | undefined)[], tem
       return undefined
     }
   }).filter(isNotNull)
+}
+
+export function normalizeForSearch (str: string) {
+  return str.normalize('NFKD').toLocaleLowerCase()
+}
+
+const minimalstopwords = new Set(['an', 'and', 'the', 'or', 'to'])
+// be sure to pass this a normalized and lowercased string
+export function splitWords (normalized: string) {
+  return normalized.split(/[^a-z0-9]+/).filter(w => w.length > 1 && !minimalstopwords.has(w))
+}
+
+// only send this a single word, normalized and lowercased
+export function searchCodes (word: string) {
+  return [...doubleMetaphone(stemmer(word)), ...doubleMetaphone(word)]
+}
+
+// only send this a single word, normalized and lowercased
+export function quadgrams (word: string) {
+  const ret: string[] = []
+  for (let i = 0; i + 4 <= word.length; i++) {
+    ret.push(word.substring(i, i + 4))
+  }
+  return ret
 }

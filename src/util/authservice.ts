@@ -7,7 +7,7 @@ import {
 } from '../internal.js'
 
 export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedServiceSync<{ sub?: string, client_id?: string }, ObjType, RedactedType> {
-  ctx!: DGContext
+  declare ctx: DGContext
 
   get login () {
     return this.ctx.login

@@ -8,7 +8,7 @@ import { unique, keyby, isNotNull, Cache, isNotBlank, intersect, stringify } fro
 import {
   Site, type SiteFilter, PagetreeType, type VersionedService, createSiteComment, type UpdateSiteManagementInput,
   DeletedFilter, normalizeHost, parsePath, type CreatePageExtras, createVersionedPage, getPages, type Page, createPage,
-  type AssetFolder, getAssetFolders, getAssets, createAsset, createAssetFolder, DeleteStateInput, migratePage, LaunchState
+  type AssetFolder, getAssetFolders, getAssets, createAsset, createAssetFolder, DeleteStateInput, migratePage, LaunchState, setPageSearchCodes
 } from '../internal.js'
 
 const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.launchEnabled', 'sites.primaryPagetreeId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
@@ -158,9 +158,10 @@ export async function createSite (versionedService: VersionedService, userId: st
     await db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetreeId, siteId])
     // create the root page.
     const dataId = await createVersionedPage(versionedService, userId, data, db, extra)
-    await db.insert(`
+    const newInternalId = await db.insert(`
       INSERT INTO pages (name, path, displayOrder, pagetreeId, dataId, linkId, siteId, title, templateKey)
       VALUES (?,?,?,?,?,?,?,?,?)`, [name, '/', 1, pagetreeId, dataId, extra?.linkId ?? nanoid(10), siteId, data.title, data.templateKey])
+    await setPageSearchCodes({ internalId: newInternalId, name, title: data.title }, db)
     await createSiteComment(String(siteId), `Site created: ${name}`, currentUserInternalId!, db)
     return new Site(await db.getrow('SELECT * FROM sites WHERE id=?', [siteId]))
   })
@@ -342,7 +343,7 @@ async function duplicateChildren (page: Page, into: Page, versionedService: Vers
     if (!templateInternalId) throw new Error(`${data.templateKey} is not a recognized template key.`)
     await db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?) ON DUPLICATE KEY UPDATE siteId=siteId', [context.newSiteId, templateInternalId])
     const newPageId = await createPage(versionedService, context.userId, into, undefined, child.name, data, { linkId: child.linkId })
-    const newPage = (await getPages({ internalIds: [newPageId] }))[0]!
+    const newPage = (await getPages({ internalIds: [newPageId] }))[0]
     await duplicateChildren(child, newPage, versionedService, childPath, context)
   }
 }
@@ -398,9 +399,9 @@ export async function duplicateSite (siteId: string, newName: string, versionedS
     await createSiteComment(String(newSiteId), `Site duplicated from ${oldSiteName!} into ${newName}.`, currentUserInternalId!, db)
     return [String(newSiteId), newPageId, newFolderId]
   })
-  const intoPage = (await getPages({ internalIds: [newPageId] }))[0]!
+  const intoPage = (await getPages({ internalIds: [newPageId] }))[0]
   await duplicateChildren(rootPage, intoPage, versionedService, '/' + rootPage.name, context!)
-  const intoFolder = (await getAssetFolders({ internalIds: [newFolderId] }))[0]!
+  const intoFolder = (await getAssetFolders({ internalIds: [newFolderId] }))[0]
   await duplicateAssets(rootFolder, intoFolder, versionedService, context!)
   return newSiteId
 }

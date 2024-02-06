@@ -9,7 +9,7 @@ import {
   PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, type PagetreeType,
   SiteService, SiteServiceInternal, templateRegistry, VersionedService, createPageInTransaction,
   getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput, migratePage,
-  systemContext, type DGContext, LaunchState
+  systemContext, type DGContext, LaunchState, setPageSearchCodes
 } from '../internal.js'
 
 export interface PageExport {
@@ -199,6 +199,7 @@ export async function createPageRoutes (app: FastifyInstance) {
       await versionedService.update(page.intDataId, migrated, indexes, { user: modifiedBy, date: modifiedAt }, db)
       if (publishedAt && modifiedAt && publishedAt >= modifiedAt) await versionedService.tag(page.intDataId, 'published', undefined, body.publishedBy ?? modifiedBy, publishedAt, db)
       await db.update('UPDATE pages SET title=?, templateKey=? WHERE dataId=?', [migrated.title, migrated.templateKey, page.dataId])
+      await setPageSearchCodes({ internalId: page.internalId, name: page.name, title: migrated.title }, db)
     }, { retries: 2 })
 
     return { id: page.id, linkId: page.linkId, messages: response.messages }
@@ -356,6 +357,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.get('/pages/list', async (req, res) => {
     const ctx = templateRegistry.getCtx(req)
     await getEnabledUser(ctx)
+    const sbinds: any[] = []
     const pages = await db.getall<{ id: number, linkId: string, dataId: number, name: string, path: string, title: string, templateKey: string, siteId: number, siteName: string, siteLaunchState: number, pagetreeId: number, deleteState: DeleteState, pagetreeName: string, pagetreeType: PagetreeType, modifiedBy: string, modified: Date, version: number, published: 0 | 1, publishedAt?: Date, hasUnpublishedChanges: boolean }>(`
       SELECT p.*, pt.name AS pagetreeName, pt.type as pagetreeType, st.modifiedBy, st.modified, st.version,
         t.id IS NOT NULL as published, t.date as publishedAt, (t.version IS NULL OR t.version != st.version) as hasUnpublishedChanges,
@@ -369,10 +371,10 @@ export async function createPageRoutes (app: FastifyInstance) {
         AND p.deleteState IN (0, 1)
         AND s.deletedAt IS NULL
         AND pt.deletedAt IS NULL
+        ${ctx.authInfo.pageSiteIds ? `AND s.id IN (${db.in(sbinds, ctx.authInfo.pageSiteIds)})` : ''}
       ORDER BY siteName, p.path, p.name
-    `)
+    `, sbinds)
 
-    const binds: any[] = []
     const permsByPageInternalId: Record<number, RootPage['permissions'] & { viewForEdit: boolean }> = {}
     function hasPerm (rules: PageRule[], perm: keyof PageRule['grants']) {
       for (const r of rules) {
@@ -411,6 +413,7 @@ export async function createPageRoutes (app: FastifyInstance) {
 
     if (!pagesToKeep.length) return []
 
+    const binds: any[] = []
     const children = await db.getall<{ dataId: number, path: string }>(`SELECT dataId, path FROM pages WHERE path IN (${db.in(binds, pagesToKeep.map(p => '/' + String(p.id)))}) AND deleteState IN (0, 1)`, binds)
     const childrenByPath = groupby(children, 'path')
 

@@ -1,6 +1,6 @@
 import { type ComponentData, type PageData, type PageExtras, type PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
-import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { type DateTime } from 'luxon'
 import db from 'mysql2-async/db'
 import { equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set, someAsync, sortby, stringify, unique } from 'txstate-utils'
@@ -9,9 +9,9 @@ import {
   createPage, getPages, movePages, deletePages, renamePage, TemplateService, type TemplateFilter,
   getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage,
   PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
-  PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, getPagesByPath, parsePath,
+  PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, parsePath,
   normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService,
-  systemContext, collectComponents, makePathSafe, LaunchState, type DGRestrictOperations, fireEvent
+  systemContext, collectComponents, makePathSafe, LaunchState, type DGRestrictOperations, fireEvent, setPageSearchCodes
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -71,10 +71,11 @@ const pagesByLinkIdLoader = new OneToManyLoader({
   extractKey: p => p.linkId
 })
 
-const pagesByPathLoader = new ManyJoinedLoader({
+const pagesByPathLoader = new OneToManyLoader({
   fetch: async (paths: string[], filters: PageFilter) => {
-    return await getPagesByPath(paths, filters)
-  }
+    return await getPages({ ...filters, paths })
+  },
+  extractKey: p => p.resolvedPath
 })
 
 export class PageServiceInternal extends BaseService {
@@ -260,6 +261,12 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async find (filter: PageFilter) {
+    // performance boost for limited editors, don't make removeUnauthorized do quite as much work
+    const siteIds = this.ctx.authInfo.pageSiteIds
+    if (filter?.viewForEdit && siteIds != null) {
+      if (siteIds.length) filter.siteIds = intersect({ skipEmpty: true }, filter.siteIds, siteIds)
+      else filter.noresults = true
+    }
     const ret = await this.raw.find(filter)
     if (filter.links?.length || filter.paths?.length || filter.ids?.length) return ret.filter(p => this.mayViewIndividual(p))
     return this.postFilter(this.removeUnauthorized(ret), filter)
@@ -646,8 +653,11 @@ export class PageService extends DosGatoService<Page> {
     }
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(fullymigrated)
-      await this.svc(VersionedService).update(page.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
-      await db.update('UPDATE pages SET title=? WHERE id=?', [fullymigrated.title, page.internalId])
+      await db.transaction(async db => {
+        await this.svc(VersionedService).update(page!.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion }, db)
+        await db.update('UPDATE pages SET title=? WHERE id=?', [fullymigrated.title, page!.internalId])
+        await setPageSearchCodes({ internalId: page!.internalId, name: page!.name, title: fullymigrated.title }, db)
+      })
       this.loaders.clear()
       page = await this.raw.findById(dataId)
     }

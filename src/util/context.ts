@@ -5,7 +5,7 @@ import {
   getDataRules, getSiteRules, getGlobalRules, getTemplateRules, type GlobalRuleGrants, type TemplateRule, type Role, getUsers,
   GroupServiceInternal, type Group, type User
 } from '../internal.js'
-import { Cache, keyby } from 'txstate-utils'
+import { Cache, isNotNull, keyby } from 'txstate-utils'
 
 async function fetchPageRules (netid: string, roleIds: string[]) {
   if (netid === 'anonymous') return [new PageRule({ path: '/', mode: RulePathMode.SELFANDSUB })]
@@ -82,7 +82,8 @@ const authCache = new Cache(async (login: string, ctx: DGContext) => {
     fetchGroups(login, ctx),
     fetchUser(login)
   ])
-  return { roles, pageRules, assetRules, siteRules, dataRules, globalGrants, templateRules, groupsById, user } as AuthInfo
+  const pageSiteIds = pageRules.some(r => r.grants.viewForEdit && r.siteId == null) ? undefined : pageRules.map(r => r.siteId).filter(isNotNull)
+  return { roles, pageRules, assetRules, siteRules, dataRules, globalGrants, templateRules, groupsById, user, pageSiteIds } as AuthInfo
 }, { freshseconds: 30 })
 
 interface AuthInfo {
@@ -95,6 +96,7 @@ interface AuthInfo {
   templateRules: TemplateRule[]
   groupsById: Record<string, Group>
   user: User | undefined
+  pageSiteIds: string[]
 }
 
 export interface DGContext extends Context {

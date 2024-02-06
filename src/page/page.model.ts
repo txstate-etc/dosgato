@@ -211,6 +211,9 @@ export class PageFilter {
 
   @Field(type => [String], { nullable: true, description: 'Return pages whose latest or published version is tagged with all of the given tags. Tags are set by the getTags function in an API template definition.' })
   tagsAll?: string[]
+
+  @Field({ nullable: true, description: 'Return pages that match the query, in order of best match. Limited to 100 results.' })
+  search?: string
 }
 
 @ObjectType()

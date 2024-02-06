@@ -6,7 +6,7 @@ import { extension } from 'mime-types'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { stringify } from 'txstate-utils'
-import { VersionedService, type Index } from '../src/internal.js'
+import { VersionedService, type Index, setPageSearchCodes } from '../src/internal.js'
 
 export async function fixtures () {
   console.info('running fixtures()')
@@ -331,7 +331,9 @@ export async function fixtures () {
       const path = `${parentsPath ?? ''}${parentsPath === '/' ? '' : '/'}${parentId ?? ''}`
       const dataId = await versionedService.create('page', pageData, indexes, 'su01', db)
       if (createdDate) await versionedService.setStamps(dataId, { createdAt: createdDate.toJSDate(), modifiedAt: createdDate.toJSDate() }, db)
-      return await db.insert('INSERT INTO pages (name, pagetreeId, path, displayOrder, dataId, linkId, templateKey, siteId, title) VALUES (?,?,?,?,?,?,?,?,?)', [name, pagetreeId, path, displayOrder, dataId, linkId, pageData.templateKey, siteId, pageData.title])
+      const newInternalId = await db.insert('INSERT INTO pages (name, pagetreeId, path, displayOrder, dataId, linkId, templateKey, siteId, title) VALUES (?,?,?,?,?,?,?,?,?)', [name, pagetreeId, path, displayOrder, dataId, linkId, pageData.templateKey, siteId, pageData.title])
+      await setPageSearchCodes({ internalId: newInternalId, name, title: pageData.title }, db)
+      return newInternalId
     })
     return pageId
   }
