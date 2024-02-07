@@ -74,7 +74,7 @@ export function parseLinks (links?: (LinkDefinition | string | undefined)[], tem
 }
 
 export function normalizeForSearch (str: string) {
-  return str.normalize('NFKD').toLocaleLowerCase()
+  return str?.normalize('NFKD').toLocaleLowerCase() ?? ''
 }
 
 const minimalstopwords = new Set(['an', 'and', 'the', 'or', 'to'])
