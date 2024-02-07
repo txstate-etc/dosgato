@@ -85,7 +85,7 @@ export function splitWords (normalized: string) {
 
 // only send this a single word, normalized and lowercased
 export function searchCodes (word: string) {
-  return [...doubleMetaphone(stemmer(word)), ...doubleMetaphone(word)]
+  return Array.from(new Set([...doubleMetaphone(stemmer(word)), ...doubleMetaphone(word)]))
 }
 
 // only send this a single word, normalized and lowercased
