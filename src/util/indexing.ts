@@ -74,7 +74,7 @@ export function parseLinks (links?: (LinkDefinition | string | undefined)[], tem
 }
 
 export function normalizeForSearch (str: string) {
-  return str?.normalize('NFKD').toLocaleLowerCase() ?? ''
+  return str?.normalize('NFKD').toLocaleLowerCase().trim() ?? ''
 }
 
 const minimalstopwords = new Set(['an', 'and', 'the', 'or', 'to'])
@@ -85,7 +85,7 @@ export function splitWords (normalized: string) {
 
 // only send this a single word, normalized and lowercased
 export function searchCodes (word: string) {
-  return Array.from(new Set([...doubleMetaphone(stemmer(word)), ...doubleMetaphone(word)]))
+  return Array.from(new Set([...doubleMetaphone(stemmer(word)), ...doubleMetaphone(word)])).filter(c => c.length > 2)
 }
 
 // only send this a single word, normalized and lowercased

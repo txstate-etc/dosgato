@@ -228,54 +228,79 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
   if (filter.search?.length) {
     const lcSearch = normalizeForSearch(filter.search)
     const words = splitWords(lcSearch)
-    if (!words.length) {
-      filter.noresults = true
-    } else {
+    const grams = words.flatMap(quadgrams)
+    let pageRows: { id: string, name: string, title: string, cnt: number }[] | undefined
+    if (grams.length) {
       const wordlikes: string[] = []
       const wordbinds: string[] = []
-      const codelikes: string[] = []
-      const codebinds: string[] = []
-      const groupcodelikes: string[] = []
-      const groupcodebinds: string[] = []
-      const grams = words.flatMap(quadgrams)
       for (const w of words) {
-        if (grams.length) {
-          wordlikes.push('pages.name LIKE ? OR pages.title LIKE ?')
-          wordbinds.push(`%${w}%`, `%${w}%`)
-        }
-        const codes = searchCodes(w)
-        codelikes.push(codes.map(c => 'sc.searchcode LIKE ?').join(' OR '))
-        codebinds.push(...codes.map(c => `${c}%`))
-        groupcodelikes.push(codes.map(c => 'codes LIKE ? OR codes LIKE ?').join(' OR '))
-        groupcodebinds.push(...codes.flatMap(c => [`${c}%`, `%,${c}%`]))
+        wordlikes.push('p.name LIKE ? OR p.title LIKE ?')
+        wordbinds.push(`%${w}%`, `%${w}%`)
       }
       const ibinds: any[] = []
       const query = `
-        SELECT pages.id, pages.name, pages.title, COUNT(*) as cnt, GROUP_CONCAT(sc.searchcode) as codes
-        FROM pages
-        INNER JOIN pages_searchcodes psc ON pages.id=psc.pageId
-        INNER JOIN searchcodes sc ON sc.id=psc.codeId
-        INNER JOIN pagetrees ON pagetrees.id=pages.pagetreeId
-        INNER JOIN sites ON sites.id=pagetrees.siteId
-        LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
-        ${joins.size ? Array.from(joins.values()).join('\n') : ''}
-        WHERE
-        ${where.length ? '(' + where.join(') AND (') + ')' : ''}
-        AND (
-          (${codelikes.join(') OR (')})
-          ${grams.length ? `OR (sc.searchcode IN (${db.in(ibinds, grams)}) AND (${wordlikes.join(') AND (')}))` : ''}
-        )
-        GROUP BY pages.id
-        HAVING (${groupcodelikes.join(') AND (')})
-        ORDER BY cnt DESC, pages.path, pages.name
+        SELECT *
+        FROM (
+          SELECT pages.id, pages.path, pages.name, pages.title, COUNT(*) as cnt
+          FROM pages
+          INNER JOIN pages_searchcodes psc ON pages.id=psc.pageId
+          INNER JOIN searchcodes sc ON sc.id=psc.codeId
+          INNER JOIN pagetrees ON pagetrees.id=pages.pagetreeId
+          INNER JOIN sites ON sites.id=pagetrees.siteId
+          LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
+          ${joins.size ? Array.from(joins.values()).join('\n') : ''}
+          WHERE
+          ${where.length ? '(' + where.join(') AND (') + ')' : ''}
+          AND sc.searchcode IN (${db.in(ibinds, grams)})
+          GROUP BY pages.id
+          HAVING cnt = ${grams.length}
+        ) p
+        WHERE (${wordlikes.join(') AND (')})
+        ORDER BY p.path, p.name
         LIMIT 100
       `
-      const rows = await db.getall<{ id: string, name: string, title: string, cnt: number }>(query, [...binds, ...codebinds, ...ibinds, ...wordbinds, ...groupcodebinds])
-      if (!rows.length) filter.noresults = true
-      else {
-        where.push(`pages.id IN (${db.in(binds, rows.map(r => r.id))})`)
-        searchweights = rows.reduce((acc, curr) => ({ ...acc, [curr.id]: curr.cnt + (curr.name.includes(lcSearch) || normalizeForSearch(curr.title).includes(lcSearch) ? 100 : 0) }), {})
+      const rows = await db.getall<{ id: string, name: string, title: string, cnt: number }>(query, [...binds, ...ibinds, ...wordbinds])
+      if (rows.length) pageRows = rows
+    }
+    if (!pageRows) {
+      let wordcount = 0
+      const codelikes: string[] = []
+      const codebinds: string[] = []
+      for (const w of words) {
+        const codes = searchCodes(w)
+        if (codes.length) {
+          wordcount++
+          codelikes.push(...codes.map(c => 'sc.searchcode LIKE ?'))
+          codebinds.push(...codes.map(c => `${c}%`))
+        }
       }
+      if (codelikes.length) {
+        const query = `
+          SELECT pages.id, pages.name, pages.title, COUNT(*) as cnt
+          FROM pages
+          INNER JOIN pages_searchcodes psc ON pages.id=psc.pageId
+          INNER JOIN searchcodes sc ON sc.id=psc.codeId
+          INNER JOIN pagetrees ON pagetrees.id=pages.pagetreeId
+          INNER JOIN sites ON sites.id=pagetrees.siteId
+          LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
+          ${joins.size ? Array.from(joins.values()).join('\n') : ''}
+          WHERE
+          ${where.length ? '(' + where.join(') AND (') + ')' : ''}
+          AND (${codelikes.join(') OR (')})
+          GROUP BY pages.id
+          HAVING cnt >= ${wordcount}
+          ORDER BY cnt DESC, pages.path, pages.name
+          LIMIT 100
+        `
+        const rows = await db.getall<{ id: string, name: string, title: string, cnt: number }>(query, [...binds, ...codebinds])
+        if (rows.length) pageRows = rows
+      }
+    }
+    if (pageRows) {
+      where.push(`pages.id IN (${db.in(binds, pageRows.map(r => r.id))})`)
+      searchweights = pageRows.reduce((acc, curr) => ({ ...acc, [curr.id]: (curr.name.includes(lcSearch) || normalizeForSearch(curr.title).includes(lcSearch) ? 100 : 0) }), {})
+    } else {
+      filter.noresults = true
     }
   }
 
