@@ -6,8 +6,6 @@ import { isNotBlank, isNotNull, keyby, unique, sortby, clone } from 'txstate-uti
 import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState, searchCodes, splitWords, quadgrams, normalizeForSearch } from '../internal.js'
 import { type PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
-import { stemmer } from 'stemmer'
-import { doubleMetaphone } from 'double-metaphone'
 
 export interface CreatePageInput extends UpdatePageInput {
   abovePage?: string
@@ -298,7 +296,7 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
     }
     if (pageRows) {
       where.push(`pages.id IN (${db.in(binds, pageRows.map(r => r.id))})`)
-      searchweights = pageRows.reduce((acc, curr) => ({ ...acc, [curr.id]: (curr.name.includes(lcSearch) || normalizeForSearch(curr.title).includes(lcSearch) ? 100 : 0) }), {})
+      searchweights = pageRows.reduce((acc, curr) => ({ ...acc, [curr.id]: curr.cnt + (curr.name.includes(lcSearch) || normalizeForSearch(curr.title).includes(lcSearch) ? 100 : 0) }), {})
     } else {
       filter.noresults = true
     }
