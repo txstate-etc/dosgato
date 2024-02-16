@@ -24,7 +24,7 @@ import {
   FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes,
   SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
   duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role, type DGContext,
-  type DGRestrictOperations, dgContextMixin, createUserRoutes, syncUsers, type EventInfo
+  type DGRestrictOperations, dgContextMixin, createUserRoutes, syncUsers, type EventInfo, makeSafe
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -150,7 +150,7 @@ export class DGServer {
     })
     if (process.env.DOSGATO_TRAINING_SITES) {
       function trainingSiteName (userId: string, trainingSite: string) {
-        return userId + '-' + trainingSite
+        return makeSafe(userId + '-' + trainingSite)
       }
       const createTrainingSite = new Cache(async (userId: string) => {
         if (isBlank(userId) || ['anonymous', 'render'].includes(userId)) return
