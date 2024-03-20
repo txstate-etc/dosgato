@@ -151,7 +151,7 @@ export const TextImageComponent: APIComponentTemplate = {
   name: 'Text & Image',
   areas: {},
   migrations: [],
-  getLinks: (data: any) => extractLinksFromText(data.text),
+  getLinks: (data: any) => [...extractLinksFromText(data.text), data.image, data.link],
   getFulltext: (data: any) => {
     return [...getKeywords(data.title), ...getKeywords(data.text)]
   },
@@ -173,7 +173,7 @@ export const ColumnLayout: APIComponentTemplate = {
   templateKey: 'columnlayout',
   name: 'Column Layout',
   areas: {
-    row: ['keyc2']
+    row: ['keyc2', 'keyc1']
   },
   displayCategory: 'Containers'
 }

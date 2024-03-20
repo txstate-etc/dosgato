@@ -84,7 +84,7 @@ export class PageServiceInternal extends BaseService {
 
     // TODO: move this to processFilters?
     if (filter.linkIdsReferenced?.length) {
-      const searchRule = { indexName: 'link_page', in: filter.linkIdsReferenced.map(linkId => (stringify({ linkId }))) }
+      const searchRule = { indexName: 'link_page_linkId', in: filter.linkIdsReferenced }
       const [dataIdsLatest, dataIdsPublished] = await Promise.all([
         this.svc(VersionedService).find([searchRule], 'page'),
         this.svc(VersionedService).find([searchRule], 'page', 'published')])
