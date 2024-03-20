@@ -184,7 +184,7 @@ describe('pages', () => {
     const resp = await query('{ pages(filter: {deleteStates: [NOTDELETED, MARKEDFORDELETE]}) { name children { id name } } }')
     const rootPage = resp.pages.find((p: any) => p.name === 'site1')
     const rootPageChildren = rootPage.children.map((p: any) => p.name)
-    expect(rootPageChildren).to.have.members(['about', 'programs', 'contact'])
+    expect(rootPageChildren).to.have.members(['about', 'programs', 'contact', 'pagewithasset'])
   })
   it('should recursively get a page\'s descendents', async () => {
     const resp = await query('{ pages(filter: {deleteStates: [NOTDELETED, MARKEDFORDELETE]}) { name children(recursive:true) { id name } } }')
