@@ -71,7 +71,7 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
   }
 
   protected haveTemplatePerm (template: Template, grant: keyof TemplateRuleGrants) {
-    return this.ctx.authInfo.templateRules.filter(r => r.grants[grant] && TemplateRuleService.applies(r, template))
+    return this.ctx.authInfo.templateRules.some(r => r.grants[grant] && TemplateRuleService.applies(r, template))
   }
 }
 
