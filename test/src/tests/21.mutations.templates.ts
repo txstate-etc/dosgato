@@ -176,6 +176,16 @@ describe('templates mutations', () => {
         }
       }`, { templateKey: 'keyp4', universal: false })
   })
+  it('should not show the non-universal template as usable to an unauthorized user', async () => {
+    const { pages } = await queryAs('ed01', `
+      { pages (filter: { paths: ["/site3"] }) {
+        templates (filter: { types: [PAGE] }) {
+          key
+        }
+      } }
+    `)
+    expect(pages[0].templates.some(t => t.key === 'keyp4')).to.be.false
+  })
   it('should not allow an unauthorized user to make a template universal', async () => {
     await expect(queryAs('ed07', `
       mutation setTemplateUniversal ($templateKey: ID!, $universal: Boolean!) {
