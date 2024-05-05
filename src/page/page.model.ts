@@ -87,6 +87,9 @@ export class Page {
     return isBlank(this.title) ? titleCase(this.name) : this.title
   }
 
+  @Field({ description: 'Indicates whether this page belongs to a site that is pre-launch, launched, or decommissioned.' })
+  launchState: LaunchState
+
   deletedBy?: number
   pagetreeId: string
   path: string
@@ -98,6 +101,7 @@ export class Page {
   pathAsParent: string
   siteInternalId: number
   siteId: string
+  siteName: string
   templateKey: string
   pagetreeType: PagetreeType
   orphaned: boolean
@@ -133,6 +137,8 @@ export class Page {
     this.pagetreeType = row.pagetreeType
     this.orphaned = !!row.orphaned
     this.published = !!row.published
+    this.launchState = row.launchEnabled
+    this.siteName = row.siteName
   }
 }
 
@@ -161,14 +167,11 @@ export class PageFilter {
   @Field(type => [ID], { nullable: true, description: 'Return pages using any of the given templates. These could be page templates or component templates.' })
   templateKeys?: string[]
 
-  @Field(type => [String], { nullable: true, description: 'Return pages that contain a link to any of the given link ids.' })
-  linkIdsReferenced?: string[]
+  @Field(type => ID, { nullable: true, description: 'Return pages that contain a link to the given page id.' })
+  pageReferenced?: string
 
-  @Field(type => [ID], { nullable: true, description: 'Return pages referenced (linked to) by any of the given pages.' })
-  referencedByPageIds?: string[]
-
-  @Field(type => [ID], { nullable: true, description: 'Return pages that contain a link to any of the given assets.' })
-  assetKeysReferenced?: string[]
+  @Field(type => ID, { nullable: true, description: 'Return pages that contain a link to the given asset id.' })
+  assetReferenced?: string
 
   @Field(type => [PagetreeType], { nullable: true, description: 'Only return pages in the pagetrees of their site with the types specified' })
   pagetreeTypes?: PagetreeType[]

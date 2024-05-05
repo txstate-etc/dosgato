@@ -47,13 +47,13 @@ describe('pages', () => {
     expect(filteredLinkIds).to.have.members([linkIds[0], linkIds[1], linkIds[2], linkIds[3]])
     expect(filteredLinkIds).to.not.have.members([linkIds[4], linkIds[5]])
   })
-  it('should get pages, filtered by linkIdsReferenced', async () => {
-    const { pages } = await query('{ pages(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) { id name linkId } }')
-    const contactPage = pages.find((p: any) => p.name === 'contact')
-    const staffPage = pages.find((p: any) => p.name === 'staff')
-    const resp = await query(`{ pages(filter: { linkIdsReferenced: ["${contactPage.linkId}","${staffPage.linkId}"] }) { id name } }`)
+  it.skip('should get pages, filtered by pageReferenced', async () => {
+    // this is skipped because pageReferenced is not yet implemented
+    const { pages } = await query('{ pages(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE], paths: ["/site1/about/people/staff"] }) { id name } }')
+    const staffPage = pages[0]
+    const resp = await query('query getPagesReferencingPage ($pageId: ID!) { pages(filter: { pageReferenced: $pageId }) { id name } }', { pageId: staffPage.id })
     const resultPageNames = resp.pages.map((p: any) => p.name)
-    expect(resultPageNames).to.have.members(['site1', 'location', 'people'])
+    expect(resultPageNames).to.have.members(['people'])
   })
   it.skip('should get pages, filtered by "live" property', async () => {})
   it('should get pages, filtered by pagetreeId', async () => {

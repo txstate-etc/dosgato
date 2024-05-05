@@ -1,9 +1,9 @@
-import { type ComponentData, type PageData, type PageExtras, type PageLink } from '@dosgato/templating'
+import type { LinkDefinition, ComponentData, PageData, PageExtras, AssetLink, AssetFolderLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { type DateTime } from 'luxon'
+import type { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
-import { equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set, someAsync, sortby, stringify, unique } from 'txstate-utils'
+import { equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set, someAsync, sortby } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, type Page, type PageFilter, PageResponse, PagesResponse,
   createPage, getPages, movePages, deletePages, renamePage, TemplateService, type TemplateFilter,
@@ -11,7 +11,8 @@ import {
   PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
   PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, parsePath,
   normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService,
-  systemContext, collectComponents, makePathSafe, LaunchState, type DGRestrictOperations, fireEvent, setPageSearchCodes
+  systemContext, collectComponents, makePathSafe, LaunchState, type DGRestrictOperations, fireEvent, setPageSearchCodes,
+  AssetServiceInternal, getPageLinks, type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -82,17 +83,6 @@ export class PageServiceInternal extends BaseService {
   async find (filter: PageFilter) {
     filter = await this.processFilters(filter)
 
-    // TODO: move this to processFilters?
-    if (filter.linkIdsReferenced?.length) {
-      const searchRule = { indexName: 'link_page_linkId', in: filter.linkIdsReferenced }
-      const [dataIdsLatest, dataIdsPublished] = await Promise.all([
-        this.svc(VersionedService).find([searchRule], 'page'),
-        this.svc(VersionedService).find([searchRule], 'page', 'published')])
-      const dataIds = unique([...dataIdsLatest, ...dataIdsPublished])
-      if (filter.ids?.length) filter.ids.push(...dataIds)
-      else filter.ids = dataIds
-      // TODO: look at this in VersionedService. Does tag need to be required in the find method? Can we find multiple tags at once?
-    }
     const pages = await getPages(filter)
     for (const page of pages) {
       this.loaders.get(pagesByInternalIdLoader).prime(page.internalId, page)
@@ -171,13 +161,90 @@ export class PageServiceInternal extends BaseService {
       if (!pages.length) filter.noresults = true
       else filter.ids = intersect({ skipEmpty: true }, filter.ids, pages)
     }
-    if (filter.referencedByPageIds?.length) {
-      // TODO: refactor this to use VersionedService indexes instead of rescanning the data
-      const verService = this.svc(VersionedService)
-      const pages = (await Promise.all(filter.referencedByPageIds.map(async id => await this.findById(id)))).filter(isNotNull)
-      const pagedata = (await Promise.all(pages.map(async page => await verService.get<PageData>(page.intDataId, { tag: filter.published ? 'published' : undefined })))).filter(isNotNull)
-      const links = pagedata.flatMap(d => templateRegistry.get(d.data.templateKey)?.getLinks(d.data)).filter(l => l.type === 'page') as PageLink[]
-      filter.links = intersect({ skipEmpty: true, by: lnk => stringify({ ...lnk, type: 'page' }) }, links, filter.links?.map(l => ({ ...l, type: 'page' })) as PageLink[])
+    if (filter.assetReferenced) {
+      const asset = await this.svc(AssetServiceInternal).findById(filter.assetReferenced)
+      if (!asset) filter.noresults = true
+      else {
+        const assetPath = '/' + asset.siteName + asset.resolvedPathWithoutSitename
+        const folders = await this.svc(AssetServiceInternal).getAncestors(asset)
+        const folderIds = new Set(folders.map(f => f.linkId))
+        const folderPaths = new Set(folders.map(f => '/' + f.siteName + f.resolvedPathWithoutSitename))
+        const versionedSvc = this.svc(VersionedService)
+        const publishedPagesToCheck = new Set<string>()
+        const latestPagesToCheck = new Set<string>()
+
+        const indexes = [
+          { indexName: 'link_asset_id', equal: asset.linkId },
+          { indexName: 'link_asset_path', equal: assetPath },
+          { indexName: 'link_asset_checksum', equal: asset.checksum },
+          { indexName: 'link_assetfolder_id', in: Array.from(folderIds) },
+          { indexName: 'link_assetfolder_path', in: Array.from(folderPaths) }
+        ]
+        const publishedPageIdsPromise = Promise.all(indexes.map(async index => await versionedSvc.find([index], 'page', 'published')))
+        if (!filter.published) {
+          const latestPageIds = (await Promise.all(indexes.map(async index => await versionedSvc.find([index], 'page', 'latest')))).flat()
+          for (const pageId of latestPageIds) latestPagesToCheck.add(pageId)
+        }
+        for (const pageId of (await publishedPageIdsPromise).flat()) publishedPagesToCheck.add(pageId)
+
+        const pageIds = [...publishedPagesToCheck, ...latestPagesToCheck]
+        if (!pageIds.length) filter.noresults = true
+        else {
+          let filteredPageIds: string[]
+          if (asset.pagetreeType !== PagetreeType.PRIMARY || asset.launchState === LaunchState.DECOMMISSIONED) {
+            const binds: string[] = [asset.pagetreeId]
+            filteredPageIds = (await db.getvals<number>(`SELECT pages.dataId FROM pages WHERE pages.pagetreeId=? AND pages.dataId IN (${db.in(binds, pageIds)})`, binds)).map(String)
+          } else {
+            const binds: string[] = [asset.siteId, asset.pagetreeId]
+            const query = `SELECT pages.dataId FROM pages WHERE (pages.siteId != ? OR pages.pagetreeId=?) AND pages.dataId IN (${db.in(binds, pageIds)})`
+            filteredPageIds = (await db.getvals<number>(query, binds)).map(String)
+          }
+
+          const pages = await this.findByIds(filteredPageIds)
+          const verifiedPageIds = new Set<string>()
+          await Promise.all(pages.map(async page => {
+            const links: LinkDefinition[] = []
+            const publishedDataPromise = publishedPagesToCheck.has(page.dataId) ? this.getData(page, undefined, true) : undefined
+            const latestDataPromise = latestPagesToCheck.has(page.dataId) ? this.getData(page, undefined, false) : undefined
+            if (publishedDataPromise) links.push(...getPageLinks(await publishedDataPromise))
+            if (latestDataPromise) links.push(...getPageLinks(await latestDataPromise))
+            const assetLinks = links.filter(l => l.type === 'asset' && (l.id === asset.linkId || l.path === assetPath || l.checksum === asset.checksum)) as AssetLink[]
+            const assetFolderLinks = links.filter(l => l.type === 'assetfolder' && (folderIds.has(l.id) || folderPaths.has(l.path))) as AssetFolderLink[]
+            const referencedAssetsPromise = (async () => {
+              if (assetLinks.length) {
+                const referencedAssets = await this.svc(AssetServiceInternal).find({
+                  links: assetLinks.map(l => ({
+                    linkId: l.id,
+                    path: l.path!,
+                    siteId: page.siteId,
+                    checksum: l.checksum!,
+                    context: {
+                      pagetreeId: page.pagetreeId
+                    }
+                  } satisfies AssetLinkInput))
+                })
+                if (referencedAssets.some(a => a.dataId === asset.dataId)) verifiedPageIds.add(page.dataId)
+              }
+            })()
+            if (assetFolderLinks.length) {
+              const referencedAssetFolders = await this.svc(AssetFolderServiceInternal).find({
+                links: assetFolderLinks.map(l => ({
+                  linkId: l.id,
+                  path: l.path,
+                  siteId: page.siteId,
+                  context: {
+                    pagetreeId: page.pagetreeId
+                  }
+                } satisfies AssetFolderLinkInput))
+              })
+              if (referencedAssetFolders.some(f => folderIds.has(f.id))) verifiedPageIds.add(page.dataId)
+            }
+            await referencedAssetsPromise
+          }))
+          if (!verifiedPageIds.size) filter.noresults = true
+          filter.ids = intersect({ skipEmpty: true }, filter.ids, Array.from(verifiedPageIds))
+        }
+      }
     }
     if (filter.links?.length) {
       const pagetreeSvc = this.svc(PagetreeServiceInternal)
@@ -336,6 +403,18 @@ export class PageService extends DosGatoService<Page> {
 
   // may view the page in a list
   mayView (page: Page) {
+    if (this.mayViewForEdit(page)) return true
+    if (page.orphaned) return false // mayViewForEdit would have returned true if they could see orphaned page
+    return page.launchState !== LaunchState.DECOMMISSIONED && page.pagetreeType !== PagetreeType.ARCHIVE && page.deleteState === DeleteState.NOTDELETED
+  }
+
+  // may view the page if requested individually
+  mayViewIndividual (page: Page) {
+    return (page.pagetreeType === PagetreeType.PRIMARY && !page.orphaned && page.deleteState === DeleteState.NOTDELETED && page.launchState === LaunchState.LAUNCHED) || this.mayViewForEdit(page)
+  }
+
+  // may view the page in an editing context
+  mayViewForEdit (page: Page) {
     if (page.orphaned) {
       return this.ctx.authInfo.siteRules.some(r => r.grants.delete && SiteRuleService.applies(r, page.siteId))
     }
@@ -349,15 +428,6 @@ export class PageService extends DosGatoService<Page> {
       if (PageRuleService.appliesToParentOfPath(pr, page.resolvedPathWithoutSitename)) return true
     }
     return false
-  }
-
-  // may view the page if requested individually
-  mayViewIndividual (page: Page) {
-    return (page.pagetreeType === PagetreeType.PRIMARY && !page.orphaned && page.deleteState === DeleteState.NOTDELETED) || this.mayView(page)
-  }
-
-  mayViewForEdit (page: Page) {
-    return this.mayView(page)
   }
 
   mayViewLatest (page: Page) {

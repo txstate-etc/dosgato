@@ -165,4 +165,11 @@ describe('assets', () => {
     expect(filenames).to.contain('anotherbobcat.jpg')
   })
   it.skip('should retrieve assets that are not fully deleted', async () => {})
+  it('should retrieve pages that contain links to the asset', async () => {
+    const { assets } = await query('{ assets (filter: { paths: ["/site1/bobcat"] }) { id name } }')
+    const bobcatAsset = assets[0]
+    const resp = await query('query getPagesReferencingAsset ($assetId: ID!) { pages (filter: { assetReferenced: $assetId }) { id name } }', { assetId: bobcatAsset.id })
+    const resultPageNames = resp.pages.map((p: any) => p.name)
+    expect(resultPageNames).to.have.members(['pagewithasset'])
+  })
 })

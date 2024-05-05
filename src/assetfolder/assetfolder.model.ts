@@ -27,6 +27,7 @@ export class AssetFolder {
   deletedAt?: DateTime
 
   siteId: string
+  siteName: string
   deletedBy?: number
   path: string
   pathSplit: number[]
@@ -55,6 +56,7 @@ export class AssetFolder {
     this.deleteState = row.deleteState
     this.pagetreeType = row.pagetreeType
     this.orphaned = !!row.orphaned
+    this.siteName = row.siteName
   }
 }
 

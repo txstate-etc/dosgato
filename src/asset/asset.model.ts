@@ -81,6 +81,7 @@ export class Asset {
   pagetreeType: PagetreeType
   orphaned: boolean
   siteId: string
+  siteName: string
   pagetreeId: string
   resolvedPath!: string
   resolvedPathWithoutSitename!: string
@@ -130,6 +131,7 @@ export class Asset {
     this.siteId = String(row.siteId)
     this.launchState = row.launchEnabled
     this.pathSplit = [...row.path.split('/').filter(isNotBlank).map(Number), this.folderInternalId]
+    this.siteName = row.siteName
   }
 }
 

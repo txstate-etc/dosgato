@@ -311,7 +311,8 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db) {
   const { binds, where, joins, searchweights } = await processFilters(filter, tdb)
   if (filter.noresults) return []
   const pagerows = await tdb.getall(`
-    SELECT pages.*, pagetrees.type as pagetreeType, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned, tags.tag IS NOT NULL as published
+    SELECT pages.*, pagetrees.type as pagetreeType, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned, tags.tag IS NOT NULL as published,
+    sites.name as siteName, sites.launchEnabled
     FROM pages
     INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id
     INNER JOIN sites ON pages.siteId = sites.id

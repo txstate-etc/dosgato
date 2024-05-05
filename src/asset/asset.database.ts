@@ -188,7 +188,7 @@ export async function getAssets (filter?: AssetFilter, tdb: Queryable = db) {
     binaries.bytes AS filesize, binaries.mime, binaries.shasum, binaries.meta,
     sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned,
     pagetrees.type as pagetreeType, assetfolders.siteId, assetfolders.pagetreeId, assetfolders.path,
-    sites.launchEnabled
+    sites.launchEnabled, sites.name as siteName
     FROM assets
     INNER JOIN binaries on assets.shasum = binaries.shasum
     INNER JOIN assetfolders ON assets.folderId = assetfolders.id

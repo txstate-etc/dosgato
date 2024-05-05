@@ -7,7 +7,8 @@ import {
   Asset, AssetFilter, AssetPermission, AssetPermissions, AssetResize, AssetService, AssetRuleService,
   RoleService, AssetResponse, DownloadsFilter, DownloadRecord, AssetFolderResponse, Site,
   Pagetree, AssetFolderServiceInternal, DeleteStateRootDefault, FilenameSafeString,
-  PagetreeServiceInternal, SiteServiceInternal, AssetServiceInternal, AssetsResponse
+  PagetreeServiceInternal, SiteServiceInternal, AssetServiceInternal, AssetsResponse,
+  PageService, Page
 } from '../internal.js'
 
 @Resolver(of => Asset)
@@ -123,6 +124,11 @@ export class AssetResolver {
     let rules = await ctx.svc(AssetRuleService).findByAsset(asset)
     if (withPermission) rules = rules.filter(r => withPermission.some(p => r.grants[p]))
     return await ctx.svc(RoleService).findByIds(rules.map(r => r.roleId))
+  }
+
+  @FieldResolver(returns => [Page], { description: 'Returns a list of all pages that are pointing at this asset. Resolving this field is SLOW. Do not ask for it on more than a couple assets at a time.' })
+  async pages (@Ctx() ctx: Context, @Root() asset: Asset) {
+    return await ctx.svc(PageService).find({ assetReferenced: asset.id })
   }
 
   @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all versions of this asset. One of the version numbers can be passed to the data property in order to retrieve that version of the data.' })

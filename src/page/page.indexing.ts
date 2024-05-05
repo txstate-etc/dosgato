@@ -1,4 +1,4 @@
-import { extractLinksFromText, getKeywords, type PageData } from '@dosgato/templating'
+import { type LinkDefinition, extractLinksFromText, type PageData } from '@dosgato/templating'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { processLink, templateRegistry, type Index, collectComponents, type SingleValueIndex } from '../internal.js'
 
@@ -30,6 +30,18 @@ export function getPageIndexes (page: PageData): Index[] {
     // for (const word of words) storage.fulltext.add(word)
   }
   return Object.keys(storage).map(k => ({ name: k, values: Array.from(storage[k]) }))
+}
+
+export function getPageLinks (page: PageData): LinkDefinition[] {
+  const storage: Record<string, Set<string>> = {}
+  const components = collectComponents(page)
+  const links = components.flatMap(c => templateRegistry.get(c.templateKey)?.getLinks(c)?.filter(isNotNull) ?? [])
+
+  for (const component of components) {
+    const texts = (templateRegistry.get(component.templateKey)?.getFulltext?.(component) ?? []).filter(isNotBlank)
+    links.push(...texts.flatMap(extractLinksFromText))
+  }
+  return links
 }
 
 export function singleValueIndexesToIndexes (svIndexes: SingleValueIndex[]) {

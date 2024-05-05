@@ -151,7 +151,7 @@ export async function getAssetFolders (filter?: AssetFolderFilter) {
   const { joins, where, binds } = await processFilters(filter)
   const assetfolders = (await db.getall(`
     SELECT assetfolders.*, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned,
-      pagetrees.type as pagetreeType
+      pagetrees.type as pagetreeType, sites.name as siteName
     FROM assetfolders
     INNER JOIN pagetrees ON assetfolders.pagetreeId = pagetrees.id
     INNER JOIN sites ON assetfolders.siteId = sites.id

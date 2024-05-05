@@ -311,7 +311,7 @@ export class VersionedService extends BaseService {
       }
 
       return await tdb.getvals<string>(`
-        SELECT DISTINCT s.id
+        SELECT DISTINCT CAST(s.id AS CHAR(50))
         FROM storage s
         INNER JOIN indexes i ON i.id=s.id
         INNER JOIN indexnames n ON i.name_id=n.id
