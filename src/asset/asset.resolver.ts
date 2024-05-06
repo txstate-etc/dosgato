@@ -127,8 +127,8 @@ export class AssetResolver {
   }
 
   @FieldResolver(returns => [Page], { description: 'Returns a list of all pages that are pointing at this asset. Resolving this field is SLOW. Do not ask for it on more than a couple assets at a time.' })
-  async pages (@Ctx() ctx: Context, @Root() asset: Asset) {
-    return await ctx.svc(PageService).find({ assetReferenced: asset.id })
+  async pages (@Ctx() ctx: Context, @Root() asset: Asset, @Arg('direct', { nullable: true, description: 'true -> only include direct references to the asset, false -> only include references to an ancestor folder of the asset, undefined -> include both direct and indirect references to the asset.' }) direct?: boolean) {
+    return await ctx.svc(PageService).find({ assetReferenced: asset.id, assetReferencedDirect: direct })
   }
 
   @FieldResolver(returns => [ObjectVersion], { description: 'Returns a list of all versions of this asset. One of the version numbers can be passed to the data property in order to retrieve that version of the data.' })

@@ -173,6 +173,9 @@ export class PageFilter {
   @Field(type => ID, { nullable: true, description: 'Return pages that contain a link to the given asset id.' })
   assetReferenced?: string
 
+  @Field({ nullable: true, description: 'Alters the behavior of assetReferenced filter. true -> only include direct references to the asset, false -> only include references to an ancestor folder of the asset, undefined -> include both direct and indirect references to the asset.' })
+  assetReferencedDirect?: boolean
+
   @Field(type => [PagetreeType], { nullable: true, description: 'Only return pages in the pagetrees of their site with the types specified' })
   pagetreeTypes?: PagetreeType[]
 

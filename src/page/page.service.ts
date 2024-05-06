@@ -12,7 +12,8 @@ import {
   PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, parsePath,
   normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService,
   systemContext, collectComponents, makePathSafe, LaunchState, type DGRestrictOperations, fireEvent, setPageSearchCodes,
-  AssetServiceInternal, getPageLinks, type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput
+  AssetServiceInternal, getPageLinks, type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput,
+  type SearchRule
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -166,20 +167,27 @@ export class PageServiceInternal extends BaseService {
       if (!asset) filter.noresults = true
       else {
         const assetPath = '/' + asset.siteName + asset.resolvedPathWithoutSitename
-        const folders = await this.svc(AssetServiceInternal).getAncestors(asset)
+        const folders = filter.assetReferencedDirect !== true ? await this.svc(AssetServiceInternal).getAncestors(asset) : []
         const folderIds = new Set(folders.map(f => f.linkId))
         const folderPaths = new Set(folders.map(f => '/' + f.siteName + f.resolvedPathWithoutSitename))
         const versionedSvc = this.svc(VersionedService)
         const publishedPagesToCheck = new Set<string>()
         const latestPagesToCheck = new Set<string>()
 
-        const indexes = [
-          { indexName: 'link_asset_id', equal: asset.linkId },
-          { indexName: 'link_asset_path', equal: assetPath },
-          { indexName: 'link_asset_checksum', equal: asset.checksum },
-          { indexName: 'link_assetfolder_id', in: Array.from(folderIds) },
-          { indexName: 'link_assetfolder_path', in: Array.from(folderPaths) }
-        ]
+        const indexes: SearchRule[] = []
+        if (filter.assetReferencedDirect !== false) {
+          indexes.push(
+            { indexName: 'link_asset_id', equal: asset.linkId },
+            { indexName: 'link_asset_path', equal: assetPath },
+            { indexName: 'link_asset_checksum', equal: asset.checksum }
+          )
+        }
+        if (filter.assetReferencedDirect !== true) {
+          indexes.push(
+            { indexName: 'link_assetfolder_id', in: Array.from(folderIds) },
+            { indexName: 'link_assetfolder_path', in: Array.from(folderPaths) }
+          )
+        }
         const publishedPageIdsPromise = Promise.all(indexes.map(async index => await versionedSvc.find([index], 'page', 'published')))
         if (!filter.published) {
           const latestPageIds = (await Promise.all(indexes.map(async index => await versionedSvc.find([index], 'page', 'latest')))).flat()
