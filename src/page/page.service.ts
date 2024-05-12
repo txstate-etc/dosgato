@@ -13,7 +13,7 @@ import {
   normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService,
   systemContext, collectComponents, makePathSafe, LaunchState, type DGRestrictOperations, fireEvent, setPageSearchCodes,
   AssetServiceInternal, getPageLinks, type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput,
-  type SearchRule
+  type SearchRule, removeUnreachableComponents
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -168,8 +168,9 @@ export class PageServiceInternal extends BaseService {
       else {
         const assetPath = '/' + asset.siteName + asset.resolvedPathWithoutSitename
         const folders = filter.assetReferencedDirect !== true ? await this.svc(AssetServiceInternal).getAncestors(asset) : []
-        const folderIds = new Set(folders.map(f => f.linkId))
-        const folderPaths = new Set(folders.map(f => '/' + f.siteName + f.resolvedPathWithoutSitename))
+        const folderLinkIds = new Set(folders.map(f => f.linkId))
+        const folderIds = new Set(folders.map(f => f.id))
+        const folderPaths = new Set(folders.map(f => '/' + f.siteName + (f.resolvedPathWithoutSitename === '/' ? '' : f.resolvedPathWithoutSitename)))
         const versionedSvc = this.svc(VersionedService)
         const publishedPagesToCheck = new Set<string>()
         const latestPagesToCheck = new Set<string>()
@@ -184,7 +185,7 @@ export class PageServiceInternal extends BaseService {
         }
         if (filter.assetReferencedDirect !== true) {
           indexes.push(
-            { indexName: 'link_assetfolder_id', in: Array.from(folderIds) },
+            { indexName: 'link_assetfolder_id', in: Array.from(folderLinkIds) },
             { indexName: 'link_assetfolder_path', in: Array.from(folderPaths) }
           )
         }
@@ -217,7 +218,7 @@ export class PageServiceInternal extends BaseService {
             if (publishedDataPromise) links.push(...getPageLinks(await publishedDataPromise))
             if (latestDataPromise) links.push(...getPageLinks(await latestDataPromise))
             const assetLinks = links.filter(l => l.type === 'asset' && (l.id === asset.linkId || l.path === assetPath || l.checksum === asset.checksum)) as AssetLink[]
-            const assetFolderLinks = links.filter(l => l.type === 'assetfolder' && (folderIds.has(l.id) || folderPaths.has(l.path))) as AssetFolderLink[]
+            const assetFolderLinks = links.filter(l => l.type === 'assetfolder' && (folderLinkIds.has(l.id) || folderPaths.has(l.path))) as AssetFolderLink[]
             const referencedAssetsPromise = (async () => {
               if (assetLinks.length) {
                 const referencedAssets = await this.svc(AssetServiceInternal).find({
@@ -236,10 +237,10 @@ export class PageServiceInternal extends BaseService {
             })()
             if (assetFolderLinks.length) {
               const referencedAssetFolders = await this.svc(AssetFolderServiceInternal).find({
-                links: assetFolderLinks.map(l => ({
+                links: assetFolderLinks.filter(l => l.siteId).map(l => ({
                   linkId: l.id,
                   path: l.path,
-                  siteId: page.siteId,
+                  siteId: l.siteId!,
                   context: {
                     pagetreeId: page.pagetreeId
                   }
@@ -613,9 +614,6 @@ export class PageService extends DosGatoService<Page> {
   async createPage (name: string, data: PageData, targetId: string, above?: boolean, validateOnly?: boolean, extra?: CreatePageExtras) {
     const { parent, aboveTarget } = await this.resolveTarget(targetId, above)
     if (!(this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
-    // at the time of writing this comment, template usage is approved for an entire pagetree, so
-    // it should be safe to simply check if the targeted parent/sibling is allowed to use this template
-    await this.validatePageTemplates(data, { parent })
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const extras = {
@@ -626,7 +624,10 @@ export class PageService extends DosGatoService<Page> {
       pagePath: `${parent.resolvedPath}/${name}`,
       name
     }
-    const migrated = await migratePage(data, extras)
+    const migrated = removeUnreachableComponents(await migratePage(data, extras))
+    // at the time of writing this comment, template usage is approved for an entire pagetree, so
+    // it should be safe to simply check if the targeted parent/sibling is allowed to use this template
+    await this.validatePageTemplates(migrated, { parent })
     const response = await this.validatePageData(migrated, extras)
     const siblings = await this.raw.getPageChildren(parent, false)
     if (isBlank(name)) response.addMessage('Page name is required.', 'name')
@@ -645,7 +646,6 @@ export class PageService extends DosGatoService<Page> {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
-    await this.validatePageTemplates(data, { page })
     const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
@@ -660,6 +660,7 @@ export class PageService extends DosGatoService<Page> {
       pageId: page.id
     }
     const migrated = await migratePage(data, extras)
+    await this.validatePageTemplates(data, { page })
     const response = await this.validatePageData(migrated, extras)
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(migrated)

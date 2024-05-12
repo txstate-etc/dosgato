@@ -55,16 +55,16 @@ export async function fixtures () {
     db.insert('INSERT INTO organizations (name, externalId) VALUES ("The Office", ?)', [nanoid(10)])
   ])
 
-  const [site1, site2, site3, site4, site5, site6, site7, site8, deletedsite] = await Promise.all([
-    db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath, launchEnabled) VALUES (?,?,?,?,?,?)', ['site1', artCollegeOrg, ed02, 'www.college.edu', '/site1/', true]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site2', mathDeptOrg, su01]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath, launchEnabled) VALUES (?,?,?,?,?,?)', ['site3', officeOrg, su03, 'www.example.com', '/site3/', true]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site4', artCollegeOrg, ed10]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site5', artCollegeOrg, su01]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site6', officeOrg, su02]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site7', officeOrg, su01]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site8', officeOrg, su02]),
-    db.insert('INSERT INTO sites (name, organizationId, ownerId, deletedAt, deletedBy) VALUES (?,?,?, NOW(), ?)', ['deletedsite', artCollegeOrg, ed10, su01])
+  const [site1, site2, site3, site4, site5, site6, site7, site8, deletedsite] = ([
+    await db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath, launchEnabled) VALUES (?,?,?,?,?,?)', ['site1', artCollegeOrg, ed02, 'www.college.edu', '/site1/', true]),
+    await db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site2', mathDeptOrg, su01]),
+    await db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath, launchEnabled) VALUES (?,?,?,?,?,?)', ['site3', officeOrg, su03, 'www.example.com', '/site3/', true]),
+    await db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site4', artCollegeOrg, ed10]),
+    await db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site5', artCollegeOrg, su01]),
+    await db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site6', officeOrg, su02]),
+    await db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site7', officeOrg, su01]),
+    await db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site8', officeOrg, su02]),
+    await db.insert('INSERT INTO sites (name, organizationId, ownerId, deletedAt, deletedBy) VALUES (?,?,?, NOW(), ?)', ['deletedsite', artCollegeOrg, ed10, su01])
   ])
 
   const [superuserRole, editorRole, site1editorRole, site2editorRole, site3editorRole, group6Role, group7Role,
@@ -764,7 +764,6 @@ export async function fixtures () {
   await db.update('UPDATE assets SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [su01, 2, deletedAssetId!])
 
   const bobcatImageData = await db.getrow('SELECT assets.linkId, assets.shasum,  assetfolders.siteId FROM assets INNER JOIN assetfolders ON assets.folderId = assetfolders.id WHERE assets.name = \'bobcat\'')
-  console.log(bobcatImageData)
 
   indexes = [
     {

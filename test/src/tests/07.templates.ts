@@ -22,9 +22,9 @@ describe('templates', () => {
   })
   it('should retrieve templates by type', async () => {
     const resp = await query('{ templates(filter: { types: [COMPONENT] }) { key name } }')
-    expect(resp.templates).to.have.lengthOf(7)
+    expect(resp.templates).to.have.lengthOf(8)
     const keys = resp.templates.map((t: any) => t.key)
-    expect(keys).to.include.members(['keyc1', 'keyc2', 'keyc3', 'richtext', 'horizontalrule'])
+    expect(keys).to.include.members(['keyc1', 'keyc2', 'keyc3', 'richtext', 'horizontalrule', 'documents'])
   })
   it('should retrieve pagetrees authorized directly for a template', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name pagetrees(direct: true) { id name } } }')

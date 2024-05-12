@@ -9,7 +9,8 @@ import {
   PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, type PagetreeType,
   SiteService, SiteServiceInternal, templateRegistry, VersionedService, createPageInTransaction,
   getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput, migratePage,
-  systemContext, type DGContext, LaunchState, setPageSearchCodes
+  systemContext, type DGContext, LaunchState, setPageSearchCodes,
+  removeUnreachableComponents
 } from '../internal.js'
 
 export interface PageExport {
@@ -181,8 +182,8 @@ export async function createPageRoutes (app: FastifyInstance) {
       pagePath: `${parent?.resolvedPath ?? ''}/${page.name}`,
       name: page.name
     }
-    const migrated = await migratePage(pageRecord.data, extras)
-    const response = await svcPage.validatePageData(pageRecord.data, extras)
+    const migrated = removeUnreachableComponents(await migratePage(pageRecord.data, extras))
+    const response = await svcPage.validatePageData(migrated, extras)
     try {
       await svcPage.validatePageTemplates(migrated, { page })
     } catch (e: any) {
@@ -295,7 +296,7 @@ export async function createPageRoutes (app: FastifyInstance) {
       pagePath: `${parent.resolvedPath}/${newPageName}`,
       name: newPageName
     }
-    const migrated = await migratePage(pageRecord.data, extras)
+    const migrated = removeUnreachableComponents(await migratePage(pageRecord.data, extras))
     const response = await svcPage.validatePageData(migrated, extras)
     // at the time of writing this comment, template usage is approved for an entire pagetree, so
     // it should be safe to simply check if the targeted parent/sibling is allowed to use this template

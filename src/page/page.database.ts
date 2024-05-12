@@ -2,8 +2,8 @@
 import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
-import { isNotBlank, isNotNull, keyby, unique, sortby, clone } from 'txstate-utils'
-import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState, searchCodes, splitWords, quadgrams, normalizeForSearch } from '../internal.js'
+import { isNotBlank, isNotNull, keyby, unique, sortby } from 'txstate-utils'
+import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState, searchCodes, splitWords, quadgrams, normalizeForSearch, removeUnreachableComponents } from '../internal.js'
 import { type PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 
@@ -485,7 +485,7 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
     pagePath: newPagePath,
     name: newPageName
   }
-  const migrated = await migratePage(pageData.data, extras)
+  const migrated = removeUnreachableComponents(await migratePage(pageData.data, extras))
   const components = collectComponents(migrated)
   const workspace = {}
   for (const c of components) templateRegistry.getPageOrComponentTemplate(c.templateKey)?.onCopy?.(c, true, workspace)

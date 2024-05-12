@@ -1,6 +1,6 @@
 {
   "name": "@dosgato/api",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "A CMS designed for large institutions with thousands of editors and hundreds of subsites.",
   "type": "module",
   "exports": {
@@ -23,7 +23,7 @@
     "stemmer": "^2.0.1",
     "txstate-utils": "^1.9.3",
     "type-graphql": "^1.1.1",
-    "wasmagic": "^0.0.32"
+    "wasmagic": "^1.0.1"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.1",

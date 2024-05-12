@@ -7,7 +7,7 @@ export const PageTemplate1: APIPageTemplate = {
   name: 'pagetemplate1',
   areas: {
     links: ['keyc1'],
-    main: ['keyc2', 'keyc3', 'richtext', 'horizontalrule', 'textimage', 'columnlayout']
+    main: ['keyc2', 'keyc3', 'richtext', 'horizontalrule', 'textimage', 'columnlayout', 'documents']
   },
   migrations: [],
   getLinks: (data: any) => [],
@@ -31,7 +31,7 @@ export const PageTemplate2: APIPageTemplate = {
   templateKey: 'keyp2',
   name: 'pagetemplate2',
   areas: {
-    main: ['keyc1', 'keyc2', 'keyc3', 'richtext', 'horizontalrule']
+    main: ['keyc1', 'keyc2', 'keyc3', 'richtext', 'horizontalrule', 'documents']
   },
   migrations: [],
   getLinks: (data: any) => {
@@ -159,6 +159,19 @@ export const TextImageComponent: APIComponentTemplate = {
     const errors: ValidationFeedback[] = []
     if (isBlank(data.title)) errors.push({ path: 'title', message: 'Title is required.' })
     return errors
+  }
+}
+
+export const DocumentsComponent: APIComponentTemplate = {
+  type: 'component',
+  templateKey: 'documents',
+  name: 'Documents',
+  areas: {},
+  migrations: [],
+  getLinks: data => [data.assetfolder],
+  validate: async (data, extras) => {
+    if (isBlank(data.assetfolder)) return [{ path: 'assetfolder', message: 'You must choose an asset folder.' }]
+    return []
   }
 }
 

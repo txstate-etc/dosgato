@@ -1,10 +1,10 @@
 import { type LinkDefinition, extractLinksFromText, type PageData } from '@dosgato/templating'
 import { isNotBlank, isNotNull } from 'txstate-utils'
-import { processLink, templateRegistry, type Index, collectComponents, type SingleValueIndex } from '../internal.js'
+import { processLink, templateRegistry, type Index, type SingleValueIndex, collectReachableComponents } from '../internal.js'
 
 export function getPageIndexes (page: PageData): Index[] {
   const storage: Record<string, Set<string>> = {}
-  const components = collectComponents(page)
+  const components = collectReachableComponents(page)
   const indexes = components.flatMap(c => (templateRegistry.get(c.templateKey)?.getLinks(c)?.filter(isNotNull) ?? []).flatMap(processLink) ?? [])
   for (const index of indexes) {
     storage[index.name] ??= new Set()
@@ -34,7 +34,7 @@ export function getPageIndexes (page: PageData): Index[] {
 
 export function getPageLinks (page: PageData): LinkDefinition[] {
   const storage: Record<string, Set<string>> = {}
-  const components = collectComponents(page)
+  const components = collectReachableComponents(page)
   const links = components.flatMap(c => templateRegistry.get(c.templateKey)?.getLinks(c)?.filter(isNotNull) ?? [])
 
   for (const component of components) {

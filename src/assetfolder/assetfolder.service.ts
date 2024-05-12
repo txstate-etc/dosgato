@@ -118,10 +118,8 @@ export class AssetFolderServiceInternal extends BaseService {
           // pages and their assets were copied together to another site.
           // if we don't find the link in our pagetree, we do NOT fall back to the primary page tree,
           // we WANT the user to see a broken link in their sandbox because it will break when they go live
-          lookups.push(
-            this.loaders.get(foldersByLinkIdLoader, { pagetreeIds: [contextPagetree.id] }).load(l.linkId),
-            this.loaders.get(foldersByPathLoader, { pagetreeIds: [contextPagetree.id] }).load(l.path.replace(/^\/[^/]+/, `/${contextPagetree.name}`))
-          )
+          lookups.push(this.loaders.get(foldersByLinkIdLoader, { pagetreeIds: [contextPagetree.id] }).load(l.linkId))
+          if (l.path.split('/').length > 3) lookups.push(this.loaders.get(foldersByPathLoader, { pagetreeIds: [contextPagetree.id] }).load(l.path.replace(/^\/[^/]+/, `/${contextPagetree.name}`)))
         }
         if (contextPagetree?.siteId !== l.siteId) {
           // the link is cross-site, so we only look in the primary tree in the site the link was targeting
@@ -140,7 +138,7 @@ export class AssetFolderServiceInternal extends BaseService {
           )
         }
         const folders = await Promise.all(lookups)
-        return sortby(folders.flat().filter(isNotNull), f => f.siteId === contextPagetree?.siteId, true)[0]
+        return sortby(folders.flat().filter(isNotNull), f => f.siteId === contextPagetree?.siteId, true, f => f.linkId === l.linkId, true)[0]
       }))
       const found = folders.filter(isNotNull)
       if (!found.length) filter.internalIds = [-1]

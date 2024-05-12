@@ -1,7 +1,7 @@
 import { MockContext } from '@txstate-mws/graphql-server'
 import { AssetServiceInternal, DGServer, requestResizes } from '../src/index.js'
 import { fixtures } from './fixtures.js'
-import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData, RichTextComponent, HorizontalRule, TextImageComponent, ColumnLayout } from './fixturetemplates.js'
+import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData, RichTextComponent, HorizontalRule, TextImageComponent, ColumnLayout, DocumentsComponent } from './fixturetemplates.js'
 
 async function main () {
   const server = new DGServer()
@@ -24,7 +24,8 @@ async function main () {
       ArticleData,
       RichTextComponent,
       TextImageComponent,
-      ColumnLayout
+      ColumnLayout,
+      DocumentsComponent
     ]
   })
 }
