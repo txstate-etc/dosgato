@@ -196,7 +196,7 @@ export class PageServiceInternal extends BaseService {
         }
         for (const pageId of (await publishedPageIdsPromise).flat()) publishedPagesToCheck.add(pageId)
 
-        const pageIds = [...publishedPagesToCheck, ...latestPagesToCheck]
+        const pageIds = Array.from(new Set([...publishedPagesToCheck, ...latestPagesToCheck]))
         if (!pageIds.length) filter.noresults = true
         else {
           let filteredPageIds: string[]
@@ -225,7 +225,7 @@ export class PageServiceInternal extends BaseService {
                   links: assetLinks.map(l => ({
                     linkId: l.id,
                     path: l.path!,
-                    siteId: page.siteId,
+                    siteId: l.siteId!,
                     checksum: l.checksum!,
                     context: {
                       pagetreeId: page.pagetreeId
