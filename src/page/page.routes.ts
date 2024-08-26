@@ -180,7 +180,8 @@ export async function createPageRoutes (app: FastifyInstance) {
       pagetreeId: pagetree.id,
       parentId: parent?.id,
       pagePath: `${parent?.resolvedPath ?? ''}/${page.name}`,
-      name: page.name
+      name: page.name,
+      page: undefined // treate a migration update like creation as far as validation is concerned
     }
     const migrated = removeUnreachableComponents(await migratePage(pageRecord.data, extras))
     const response = await svcPage.validatePageData(migrated, extras)
@@ -294,7 +295,8 @@ export async function createPageRoutes (app: FastifyInstance) {
       pagetreeId: pagetree.id,
       parentId: parent.id,
       pagePath: `${parent.resolvedPath}/${newPageName}`,
-      name: newPageName
+      name: newPageName,
+      page: undefined
     }
     const migrated = removeUnreachableComponents(await migratePage(pageRecord.data, extras))
     const response = await svcPage.validatePageData(migrated, extras)

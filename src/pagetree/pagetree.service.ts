@@ -87,7 +87,8 @@ export class PagetreeService extends DosGatoService<Pagetree> {
       siteId: site.id,
       pagePath: `/${site.name}`,
       name: site.name,
-      linkId
+      linkId,
+      page: undefined
     }
     const migrated = await migratePage(data, extras)
     const pageValidationResponse = await this.svc(PageService).validatePageData(migrated, extras)

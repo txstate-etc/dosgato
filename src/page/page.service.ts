@@ -1,6 +1,6 @@
 import type { LinkDefinition, ComponentData, PageData, PageExtras, AssetLink, AssetFolderLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
-import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import type { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
 import { equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set, someAsync, sortby } from 'txstate-utils'
@@ -15,6 +15,7 @@ import {
   AssetServiceInternal, getPageLinks, type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput,
   type SearchRule, removeUnreachableComponents
 } from '../internal.js'
+import { getTagPageIds } from '../tag/tag.database.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
@@ -70,14 +71,27 @@ const pagesByLinkIdLoader = new OneToManyLoader({
   fetch: async (linkIds: string[], filters: PageFilter) => {
     return await getPages({ ...filters, linkIds })
   },
-  extractKey: p => p.linkId
+  extractKey: p => p.linkId,
+  idLoader: [pagesByInternalIdLoader, pagesByDataIdLoader]
 })
 
 const pagesByPathLoader = new OneToManyLoader({
   fetch: async (paths: string[], filters: PageFilter) => {
     return await getPages({ ...filters, paths })
   },
-  extractKey: p => p.resolvedPath
+  extractKey: p => p.resolvedPath,
+  idLoader: [pagesByInternalIdLoader, pagesByDataIdLoader]
+})
+
+export const pagesByTagIdLoader = new ManyJoinedLoader({
+  fetch: async (tagIds: string[], filters: PageFilter) => {
+    const rows = await getTagPageIds(tagIds)
+    if (!rows.length) return []
+    const pages = await getPages({ ...filters, internalIds: intersect({ skipEmpty: true }, rows.map(r => r.pageId), filters.internalIds) })
+    const pagesByInternalId = keyby(pages, 'internalId')
+    return rows.map(r => ({ key: r.tagId, value: pagesByInternalId[r.pageId] }))
+  },
+  idLoader: [pagesByInternalIdLoader, pagesByDataIdLoader]
 })
 
 export class PageServiceInternal extends BaseService {
@@ -110,6 +124,10 @@ export class PageServiceInternal extends BaseService {
 
   async findByTemplate (key: string, filter?: PageFilter) {
     return await this.loaders.get(pagesByTemplateKeyLoader, filter).load(key)
+  }
+
+  async findByTag (tagId: string, filter?: PageFilter) {
+    return await this.loaders.get(pagesByTagIdLoader, filter).load(tagId)
   }
 
   async getPageChildren (page: Page, recursive?: boolean, filter?: PageFilter) {
@@ -367,6 +385,10 @@ export class PageService extends DosGatoService<Page> {
 
   async findByTemplate (key: string, filter?: PageFilter) {
     return this.postFilter(this.removeUnauthorized(await this.raw.findByTemplate(key, filter)), filter)
+  }
+
+  async findByTag (tagId: string, filter?: PageFilter) {
+    return this.postFilter(this.removeUnauthorized(await this.raw.findByTag(tagId, filter)), filter)
   }
 
   async getPageChildren (page: Page, recursive?: boolean, filter?: PageFilter) {
@@ -726,7 +748,7 @@ export class PageService extends DosGatoService<Page> {
     if (fullymigrated.templateKey !== data.templateKey) throw new Error('There was a problem interpreting this save. You may need to refresh the page and try again.')
 
     const validator = templateRegistry.getPageTemplate(fullymigrated.templateKey)?.validate
-    const messages = (await validator?.(fullymigrated, extras)) ?? []
+    const messages = (await validator?.(fullymigrated, { ...extras, page: fullymigrated })) ?? []
     for (const message of messages) {
       response.addMessage(message.message, message.path, message.type as MutationMessageType)
     }
@@ -764,7 +786,7 @@ export class PageService extends DosGatoService<Page> {
     const migratedComponent = get<ComponentData>(fullymigrated, path)
     if (!migratedComponent || migratedComponent.templateKey !== data.templateKey) throw new Error('There was a problem interpreting this save. You may need to refresh the page and try again.')
     const validator = templateRegistry.getComponentTemplate(migratedComponent.templateKey)?.validate
-    const messages = (await validator?.(migratedComponent, { ...extras, page: fullymigrated, path })) ?? []
+    const messages = (await validator?.(migratedComponent, { ...extras, page: fullymigrated, path, currentData: migratedComponent })) ?? []
     for (const message of messages) {
       response.addMessage(message.message, message.path, message.type as MutationMessageType)
     }
@@ -849,7 +871,7 @@ export class PageService extends DosGatoService<Page> {
 
     // run validations only on the new component and any areas beneath it
     const response = new PageResponse({ success: true })
-    const messages = await validateRecurse({ ...extras, page: fullymigrated, path: compPath }, migratedComponent, compPath.split('.'))
+    const messages = await validateRecurse({ ...extras, page: fullymigrated, path: compPath, currentData: undefined }, migratedComponent, compPath.split('.'))
     for (const message of messages) {
       response.addMessage(message.message, message.path, message.type as MutationMessageType)
     }

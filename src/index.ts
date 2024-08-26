@@ -24,7 +24,8 @@ import {
   FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes,
   SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
   duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role, type DGContext,
-  type DGRestrictOperations, dgContextMixin, createUserRoutes, syncUsers, type EventInfo, makeSafe
+  type DGRestrictOperations, dgContextMixin, createUserRoutes, syncUsers, type EventInfo, makeSafe,
+  tagTemplate, UserTagResolver
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -118,6 +119,7 @@ export class DGServer {
   async start (opts: DGStartOpts) {
     templateRegistry.serverConfig = { ...omit(opts, 'templates'), customContext: dgContextMixin(opts.customContext ?? Context) }
     for (const template of opts.templates) templateRegistry.register(template)
+    templateRegistry.register(tagTemplate)
     templateRegistry.sortMigrations()
     const shouldResetDb = process.env.NODE_ENV === 'development' && process.env.RESET_DB_ON_STARTUP === 'true'
 
@@ -234,6 +236,7 @@ export class DGServer {
       TemplateRulePermissionsResolver,
       UserResolver,
       UserPermissionsResolver,
+      UserTagResolver,
       VersionResolver
     ];
     (resolvers as any[]).push(...(opts.resolvers ?? []))

@@ -12,8 +12,8 @@ export class Data {
   @Field(type => ID, { description: 'A globally unique identifier for this data. Should be used any time content links to data, so that content can migrate to new instances and point at the same thing.' })
   id: string
 
-  @Field({ description: 'Name for this piece of data, to be displayed in the list view.' })
-  name: UrlSafeString
+  @Field(type => UrlSafeString, { description: 'Name for this piece of data, to be displayed in the list view.' })
+  name: string
 
   @Field({ description: 'Data has been soft-deleted but is still recoverable.' })
   deleted: boolean

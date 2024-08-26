@@ -222,6 +222,44 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
     })()
   ])
 
+  // next to last to it can use most filters that have come before
+  if (filter.userTagsAny?.length) {
+    const mybinds = [...binds]
+    const pageIds = await db.getvals(`
+      SELECT DISTINCT pages.id
+      FROM pages
+      INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id
+      INNER JOIN sites ON pages.siteId = sites.id
+      INNER JOIN pages_tags ON pages.id = pages_tags.pageId
+      LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
+      ${joins.size ? Array.from(joins.values()).join('\n') : ''}
+      WHERE
+      ${where.length ? '(' + where.join(') AND (') + ') AND' : ''}
+      pages_tags.tagId IN (${db.in(mybinds, filter.userTagsAny)})
+    `, mybinds)
+    if (!pageIds.length) filter.noresults = true
+    else where.push(`pages.id IN (${db.in(binds, pageIds)})`)
+  }
+  if (filter.userTagsAll?.length) {
+    const mybinds = [...binds]
+    const pageIds = await db.getvals(`
+      SELECT pages.id, COUNT(*) as tagCount
+      FROM pages
+      INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id
+      INNER JOIN sites ON pages.siteId = sites.id
+      INNER JOIN pages_tags ON pages.id = pages_tags.pageId
+      LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
+      ${joins.size ? Array.from(joins.values()).join('\n') : ''}
+      WHERE
+      ${where.length ? '(' + where.join(') AND (') + ') AND' : ''}
+      pages_tags.tagId IN (${db.in(mybinds, filter.userTagsAll)})
+      GROUP BY pages.id
+      HAVING tagCount = ?
+    `, [...mybinds, filter.userTagsAll.length])
+    if (!pageIds.length) filter.noresults = true
+    else where.push(`pages.id IN (${db.in(binds, pageIds)})`)
+  }
+
   // search query - goes last so it can re-use all the previous filters
   if (filter.search?.length) {
     const lcSearch = normalizeForSearch(filter.search)
@@ -483,7 +521,8 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
     pagetreeId: page.pagetreeId,
     parentId: parent.id,
     pagePath: newPagePath,
-    name: newPageName
+    name: newPageName,
+    page: undefined
   }
   const migrated = removeUnreachableComponents(await migratePage(pageData.data, extras))
   const components = collectComponents(migrated)

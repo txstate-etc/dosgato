@@ -43,6 +43,9 @@ export class Template {
   @Field({ description: 'This template may be used on any site. It does not require site-by-site permission.' })
   universal: boolean
 
+  @Field({ description: 'This (data) template is always current and does not need to be published. Returns false for page and component templates.' })
+  nopublish: boolean
+
   @Field({ description: 'Any template not found in the currently running source code will be marked as deleted upon startup.' })
   deleted: boolean
 
@@ -70,6 +73,7 @@ export class Template {
     this._areasByName = keyby(this.areas, 'name')
     this.global = tmpl.type === 'data' ? tmpl.global : undefined
     if (tmpl.type === 'page') this.templateProperties = tmpl.templateProperties
+    this.nopublish = (tmpl.type === 'data') ? !!tmpl.nopublish : false
   }
 }
 

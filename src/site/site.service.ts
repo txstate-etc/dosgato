@@ -151,7 +151,8 @@ export class SiteService extends DosGatoService<Site> {
       query: systemContext().query,
       pagePath: `/${name}`,
       name,
-      linkId
+      linkId,
+      page: undefined
     }
     const migrated = await migratePage(data, extras)
     const pageValidationResponse = await this.svc(PageService).validatePageData(migrated, extras)

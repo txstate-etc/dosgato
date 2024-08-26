@@ -218,6 +218,12 @@ export class PageFilter {
   @Field(type => [String], { nullable: true, description: 'Return pages whose latest or published version is tagged with all of the given tags. Tags are set by the getTags function in an API template definition.' })
   tagsAll?: string[]
 
+  @Field(type => [ID], { nullable: true, description: 'Return pages that have been user-tagged with any of the specified tags. This field is distinct from `tagsAny` in that `tagsAny` searches tags that are assigned automatically by template definitions, whereas this searches a different kind of tag, one assigned directly by an editor.' })
+  userTagsAny?: string[]
+
+  @Field(type => [ID], { nullable: true, description: 'Return pages that have been user-tagged with all of the specified tags. This field is distinct from `tagsAll` in that `tagsAll` searches tags that are assigned automatically by template definitions, whereas this searches a different kind of tag, one assigned directly by an editor.' })
+  userTagsAll?: string[]
+
   @Field({ nullable: true, description: 'Return pages that match the query, in order of best match. Limited to 100 results.' })
   search?: string
 }

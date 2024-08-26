@@ -93,15 +93,15 @@ export class DataServiceInternal extends BaseService {
 
   async getPath (data: Data) {
     if (!data.folderInternalId) {
-      if (!data.siteId) return appendPath('/global', data.name as string)
+      if (!data.siteId) return appendPath('/global', data.name)
       else {
         const site = await this.svc(SiteServiceInternal).findById(data.siteId)
-        return appendPath(`/${site!.name}`, data.name as string)
+        return appendPath(`/${site!.name}`, data.name)
       }
     }
     const folder = await this.svc(DataFolderServiceInternal).findByInternalId(data.folderInternalId)
     const folderPath = await this.svc(DataFolderServiceInternal).getPath(folder!)
-    return appendPath(folderPath, data.name as string)
+    return appendPath(folderPath, data.name)
   }
 
   async getData (data: Data, opts?: { version?: number, tag?: string }) {
@@ -117,13 +117,13 @@ export class DataServiceInternal extends BaseService {
   async getConflictNames (folderInternalId: number | undefined, siteId: string | undefined, templateKey: string, currentName?: string) {
     const ret = new Set<string>()
     if (folderInternalId) {
-      for (const d of await this.findByFolderInternalId(folderInternalId)) ret.add(d.name as string)
+      for (const d of await this.findByFolderInternalId(folderInternalId)) ret.add(d.name)
     } else if (siteId) {
-      for (const d of await this.findBySiteId(siteId, { templateKeys: [templateKey] })) ret.add(d.name as string)
-      for (const f of await this.svc(DataFolderServiceInternal).findBySiteId(siteId, { templateKeys: [templateKey] })) ret.add(f.name as string)
+      for (const d of await this.findBySiteId(siteId, { templateKeys: [templateKey] })) ret.add(d.name)
+      for (const f of await this.svc(DataFolderServiceInternal).findBySiteId(siteId, { templateKeys: [templateKey] })) ret.add(f.name)
     } else {
-      for (const d of (await this.findByTemplate(templateKey, { global: true })).filter(d => d.folderInternalId == null)) ret.add(d.name as string)
-      for (const f of await this.svc(DataFolderServiceInternal).findByTemplateKey(templateKey, { global: true })) ret.add(f.name as string)
+      for (const d of (await this.findByTemplate(templateKey, { global: true })).filter(d => d.folderInternalId == null)) ret.add(d.name)
+      for (const f of await this.svc(DataFolderServiceInternal).findByTemplateKey(templateKey, { global: true })) ret.add(f.name)
     }
     if (currentName) ret.delete(currentName)
     return ret
@@ -243,7 +243,7 @@ export class DataService extends DosGatoService<Data> {
     const systemCtx = systemContext()
     const migrated = await migrateData(systemCtx, args.data, dataroot.id, args.folderId)
     const newName = safeComputedName(tmpl.computeName(migrated))
-    const finalName = numerateLoop(newName, new Set(siblings.map(s => s.name as string)))
+    const finalName = numerateLoop(newName, new Set(siblings.map(s => s.name)))
     const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId: dataroot.id, dataFolderId: args.folderId }, newName !== finalName) ?? []
     for (const message of messages) {
       response.addMessage(message.message, message.path && `args.data.${message.path}`, message.type as MutationMessageType)
@@ -252,6 +252,7 @@ export class DataService extends DosGatoService<Data> {
     // passed validation, save it
     const versionedService = this.svc(VersionedService)
     const data = await createDataEntry(versionedService, this.login, finalName, { ...args, data: migrated })
+    if (tmpl.nopublish) await versionedService.tag(data.intDataId, 'published', undefined, this.login)
     response.success = true
     response.data = data
     return response
@@ -266,7 +267,7 @@ export class DataService extends DosGatoService<Data> {
     const folder = data.folderInternalId ? await this.svc(DataFolderServiceInternal).findByInternalId(data.folderInternalId) : undefined
     const systemCtx = systemContext()
     const migrated = await migrateData(systemCtx, args.data, dataRootId, folder?.id, data.id)
-    const usedNames = await this.raw.getConflictNames(data.folderInternalId, data.siteId, data.templateKey, data.name as string)
+    const usedNames = await this.raw.getConflictNames(data.folderInternalId, data.siteId, data.templateKey, data.name)
     const newName = safeComputedName(tmpl.computeName(migrated))
     const finalName = numerateLoop(newName, usedNames)
     const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId, dataFolderId: folder?.id, dataId: data.id }, newName !== finalName) ?? []
@@ -278,6 +279,7 @@ export class DataService extends DosGatoService<Data> {
     const indexes = getDataIndexes(migrated)
     await renameDataEntry(dataId, finalName)
     await this.svc(VersionedService).update(data.intDataId, migrated, indexes, { user: this.login, comment: args.comment, version: args.dataVersion })
+    if (tmpl.nopublish) await this.svc(VersionedService).tag(data.intDataId, 'published', undefined, this.login)
     this.loaders.clear()
     const updated = await this.raw.findById(dataId)
     response.success = true
@@ -445,11 +447,13 @@ export class DataService extends DosGatoService<Data> {
   }
 
   mayPublish (data: Data) {
-    return this.haveDataPerm(data, 'publish')
+    const tmpl = templateRegistry.getDataTemplate(data.templateKey)
+    return !tmpl?.nopublish && this.haveDataPerm(data, 'publish')
   }
 
   mayUnpublish (data: Data) {
-    return data.published && this.haveDataPerm(data, 'unpublish')
+    const tmpl = templateRegistry.getDataTemplate(data.templateKey)
+    return !tmpl?.nopublish && data.published && this.haveDataPerm(data, 'unpublish')
   }
 
   mayDelete (data: Data) {

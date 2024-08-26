@@ -11,8 +11,8 @@ export class DataFolder {
   @Field(type => ID)
   id: string
 
-  @Field({ description: 'Name for the folder. Will be used when constructing the path.' })
-  name: UrlSafeString
+  @Field(type => UrlSafeString, { description: 'Name for the folder. Will be used when constructing the path.' })
+  name: string
 
   @Field({ description: 'Folder has been soft-deleted but is still recoverable.' })
   deleted: boolean

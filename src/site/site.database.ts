@@ -332,7 +332,8 @@ async function duplicateChildren (page: Page, into: Page, versionedService: Vers
       name: child.name,
       linkId: child.linkId,
       pagetreeId: child.pagetreeId,
-      siteId: child.siteId
+      siteId: child.siteId,
+      page: undefined
     }
     const migrated = await migratePage(versioned!.data, extras)
     const data = fixLinks(migrated, context)
@@ -370,7 +371,8 @@ export async function duplicateSite (siteId: string, newName: string, versionedS
     query: ctx.query,
     pagePath: `/${newName}`,
     name: newName,
-    linkId: rootPage.linkId
+    linkId: rootPage.linkId,
+    page: undefined
   }
   const migrated = await migratePage(versioned!.data, extras)
   let context: DuplicateContext

@@ -7,7 +7,9 @@ import {
   Pagetree, Role, JsonData, Site, Template, TemplateFilter,
   User, UserService, ObjectVersion, VersionedService, Page, PageFilter, PagePermission, PagePermissions,
   PageResponse, PagesResponse, PageService, RoleService, TemplateService, UrlSafeString,
-  DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal, SchemaVersionScalar, SiteServiceInternal, VersionFilter
+  DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal, SchemaVersionScalar, SiteServiceInternal, VersionFilter,
+  UserTag,
+  TagService
 } from '../internal.js'
 
 @Resolver(of => Page)
@@ -92,6 +94,11 @@ export class PageResolver {
   @FieldResolver(returns => [String], { description: 'Returns a list of all the tags this page was given by its page template\'s getTags function.' })
   async tags (@Ctx() ctx: Context, @Root() page: Page, @Arg('published', { nullable: true, description: 'Show tags for the published version of the page instead of the latest version.' }) published?: boolean) {
     return await ctx.svc(PageService).getTags(page, published)
+  }
+
+  @FieldResolver(returns => [UserTag], { description: 'Returns a list of all the tags this page was assigned directly by an editor. Completely separate set of tags from Page.tags, the tags are managed independently as data.' })
+  async userTags (@Ctx() ctx: Context, @Root() page: Page) {
+    return await ctx.svc(TagService).findTagsByPage(page)
   }
 
   @FieldResolver(returns => [Template], { description: 'All templates that are approved for use on this page or by the authenticated user.' })

@@ -1,6 +1,6 @@
 {
   "name": "@dosgato/api",
-  "version": "1.5.3",
+  "version": "1.6.0",
   "description": "A CMS designed for large institutions with thousands of editors and hundreds of subsites.",
   "type": "module",
   "exports": {
@@ -8,11 +8,11 @@
   },
   "types": "./dist/index.d.ts",
   "dependencies": {
-    "@dosgato/templating": "^1.0.3",
+    "@dosgato/templating": "^1.1.4",
     "@fastify/multipart": "^8.0.0",
     "@txstate-mws/graphql-server": "^2.2.4",
-    "archiver": "^6.0.1",
-    "dataloader-factory": "^4.5.0",
+    "archiver": "^7.0.1",
+    "dataloader-factory": "^4.6.2",
     "double-metaphone": "^2.0.1",
     "fast-json-patch": "^3.1.0",
     "luxon": "^3.0.3",

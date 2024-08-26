@@ -124,6 +124,23 @@ const dgMigrations: DBMigration[] = [
         await setPageSearchCodes(p, db)
       }
     }
+  }, {
+    id: 20240723102800,
+    description: 'add page tagging',
+    run: async db => {
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS pages_tags (
+          pageId INT UNSIGNED NOT NULL,
+          tagId CHAR(15) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL,
+          PRIMARY KEY (pageId, tagId),
+          INDEX tag_idx (tagId),
+          CONSTRAINT FK_pages_tags_page FOREIGN KEY (pageId) REFERENCES pages (\`id\`)
+        )
+        ENGINE = InnoDB
+        DEFAULT CHARACTER SET = utf8mb4
+        DEFAULT COLLATE = utf8mb4_general_ci
+      `)
+    }
   }
 ]
 

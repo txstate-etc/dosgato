@@ -51,7 +51,7 @@ export async function migratePage (page: PageData, extras: PageExtras, toSchemaV
   for (const migration of migrations) {
     const migrate = backward ? migration.down : migration.up
     if (migration.templateKey === data.templateKey) data = await (migrate as PageMigration['up'])(data, extras)
-    else if (!migration.isPage) data = await processMigration(migration.templateKey, migrate as ComponentMigrationFn, data, [], { ...extras, page: data, path: '' }) as PageData
+    else if (!migration.isPage) data = await processMigration(migration.templateKey, migrate as ComponentMigrationFn, data, [], { ...extras, page: data, path: '', currentData: undefined }) as PageData
   }
   data.savedAtVersion = toSchemaVersion.toUTC().toFormat('yLLddHHmmss')
   return data
