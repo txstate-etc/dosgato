@@ -97,8 +97,8 @@ export class PageResolver {
   }
 
   @FieldResolver(returns => [UserTag], { description: 'Returns a list of all the tags this page was assigned directly by an editor. Completely separate set of tags from Page.tags, the tags are managed independently as data.' })
-  async userTags (@Ctx() ctx: Context, @Root() page: Page) {
-    return await ctx.svc(TagService).findTagsByPage(page)
+  async userTags (@Ctx() ctx: Context, @Root() page: Page, @Arg('includeDisabled', { nullable: true, description: 'true -> return all groups, false/null -> return only enabled groups' }) includeDisabled?: boolean, @Arg('includeInternal', { nullable: true, description: 'true -> return all tags, false/null -> return only public tags' }) includeInternal?: boolean) {
+    return await ctx.svc(TagService).findTagsByPage(page, includeDisabled, includeInternal)
   }
 
   @FieldResolver(returns => [Template], { description: 'All templates that are approved for use on this page or by the authenticated user.' })

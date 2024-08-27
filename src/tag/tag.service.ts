@@ -28,14 +28,15 @@ export class TagServiceInternal extends BaseService {
     return await this.loaders.get(groupByTagIdLoader).load(tagId)
   }
 
-  async findTagsByPage (page: Page) {
+  async findTagsByPage (page: Page, includeDisabled?: boolean, includeInternal?: boolean) {
     const tagIds = await this.loaders.get(tagIdsByPageIdLoader).load(page.internalId)
     const tagSet = new Set(tagIds.map(t => t.tagId))
     const groups = await this.loaders.loadMany(groupByTagIdLoader, Array.from(tagSet))
     const ret: UserTag[] = []
     for (const g of groups) {
+      if ((g.disabled && !includeDisabled) || (g.internal && !includeInternal)) continue
       for (const t of g.tags) {
-        if (tagSet.has(t.id) && !t.disabled) ret.push(t)
+        if (tagSet.has(t.id) && (!t.disabled || includeDisabled)) ret.push(t)
       }
     }
     return ret

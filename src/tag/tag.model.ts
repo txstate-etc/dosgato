@@ -14,7 +14,7 @@ export class UserTagGroup {
   internal: boolean
 
   @Field({ description: 'Allows an editor to disable this group with the possibility of bringing it back later without losing all the associations to its tags.' })
-  enabled: boolean
+  disabled: boolean
 
   @Field()
   title: string
@@ -30,7 +30,7 @@ export class UserTagGroup {
 
   constructor (group: UserTagGroupData, entry: Data) {
     this.id = entry.id
-    this.enabled = group.enabled
+    this.disabled = !!group.disabled
     this.name = entry.name
     this.title = group.title
     this.excludeTitle = !!group.excludeTitle
