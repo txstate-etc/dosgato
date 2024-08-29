@@ -82,6 +82,26 @@ describe('tags', () => {
     expect(replaceTagsOnPage.page.id).to.equal(pageId)
     expect(replaceTagsOnPage.page.userTags).to.deep.equal([{ name: 'Two' }])
   })
+  it('should replace all tags on a page with NO tags', async () => {
+    const { pages } = await query('{ pages(filter: { deleteStates: [NOTDELETED] }) { id name } }')
+    pageId = pages[0].id
+    const { replaceTagsOnPage } = await query<{ replaceTagsOnPage: { success: boolean, page: { id: string, userTags: { name: string }[] } } }>(`
+      mutation replaceTagsOnPage ($pageId: ID!, $tagIds: [ID!]!) {
+        replaceTagsOnPage(pageId: $pageId, tagIds: $tagIds) {
+        success
+        page {
+            id
+            userTags {
+              name
+            }
+          }
+        }
+      }
+    `, { tagIds: [], pageId })
+    expect(replaceTagsOnPage.success).to.be.true
+    expect(replaceTagsOnPage.page.id).to.equal(pageId)
+    expect(replaceTagsOnPage.page.userTags).to.deep.equal([])
+  })
   it('should remove a tag from a page', async () => {
     const { removeTagsFromPages } = await query<{ removeTagsFromPages: { success: boolean, pages: { id: string, userTags: { name: string }[] }[] } }>(`
       mutation untagPage ($tagId: ID!, $pageId: ID!) {

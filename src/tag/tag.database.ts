@@ -31,8 +31,14 @@ export async function removeUserTags (tagIds: string[], pageInternalIds: number[
 export async function replaceUserTags (tagIds: string[], pageInternalId: number) {
   await db.transaction(async db => {
     let binds: any[] = [pageInternalId]
-    await db.delete(`DELETE FROM pages_tags WHERE pageId = ? AND tagId NOT IN (${db.in(binds, tagIds)})`, binds)
+    let query = 'DELETE FROM pages_tags WHERE pageId = ?'
+    if (tagIds.length) {
+      query += ` AND tagId NOT IN (${db.in(binds, tagIds)})`
+    }
+    await db.delete(query, binds)
     binds = []
-    await db.insert(`INSERT INTO pages_tags (tagId, pageId) VALUES ${db.in(binds, tagIds.map(tagId => [tagId, pageInternalId]))} ON DUPLICATE KEY UPDATE tagId=tagId`, binds)
+    if (tagIds.length) {
+      await db.insert(`INSERT INTO pages_tags (tagId, pageId) VALUES ${db.in(binds, tagIds.map(tagId => [tagId, pageInternalId]))} ON DUPLICATE KEY UPDATE tagId=tagId`, binds)
+    }
   })
 }
