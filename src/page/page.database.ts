@@ -435,7 +435,7 @@ export async function createPageInTransaction (db: Queryable, versionedService: 
   try {
     return await insert()
   } catch (e: any) {
-    if (e.code !== 1062) throw e
+    if (e.code !== 'ER_DUP_ENTRY') throw e
     // if we got a duplicate key error, try again with a new linkId
     linkId = nanoid(10)
     return await insert()
