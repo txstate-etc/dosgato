@@ -3,6 +3,7 @@ import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs, postMultipart } from '../common.js'
 import { DateTime } from 'luxon'
+import db from 'mysql2-async/db'
 
 chai.use(chaiAsPromised)
 
@@ -59,6 +60,27 @@ describe('asset mutations', () => {
   it('should not allow an unauthorized user to delete an asset folder', async () => {
     const { assetFolder: folder } = await createAssetFolder('childfolder5', siteAAssetRootId)
     await expect(queryAs('ed07', 'mutation DeleteAssetFolder ($folderId: ID!) { deleteAssetFolder (folderId: $folderId) { success assetFolder { id name deleted deletedAt deletedBy { id } } } }', { folderId: folder.id })).to.be.rejected
+  })
+  it('should finalize an asset folder deletion', async () => {
+    const { assetFolder: folder } = await createAssetFolder('childfolder4a', siteAAssetRootId)
+    await query('mutation DeleteAssetFolder ($folderId: ID!) { deleteAssetFolder (folderId: $folderId) { success assetFolder { id name deleted deletedAt deletedBy { id } } } }', { folderId: folder.id })
+    const { finalizeAssetFolderDeletion: { success, assetFolder } } = await query('mutation finalizeAssetFolderDeletion ($folderId: ID!) { finalizeAssetFolderDeletion (folderId: $folderId) { success assetFolder { id name deleted deletedAt deleteState deletedBy { id } } } }', { folderId: folder.id })
+    expect(success).to.be.true
+    expect(assetFolder.deleted).to.be.true
+    expect(assetFolder.deleteState).to.equal('DELETED')
+    const updatedName = await db.getval<string>('SELECT name FROM assetfolders WHERE id = ?', [folder.id])
+    const year = DateTime.now().year
+    expect(updatedName?.startsWith(`${assetFolder.name}-${year}`))
+  })
+  it('should not rename child folders when finalizing an asset folder deletion', async () => {
+    const { assetFolder: folder } = await createAssetFolder('childfolder4b', siteAAssetRootId)
+    const { assetFolder: childFolder } = await createAssetFolder('subfolder', folder.id)
+    await query('mutation DeleteAssetFolder ($folderId: ID!) { deleteAssetFolder (folderId: $folderId) { success assetFolder { id name deleted deletedAt deletedBy { id } } } }', { folderId: folder.id })
+    const { finalizeAssetFolderDeletion: { assetFolder } } = await query('mutation finalizeAssetFolderDeletion ($folderId: ID!) { finalizeAssetFolderDeletion (folderId: $folderId) { success assetFolder { id name deleted deletedAt deleteState deletedBy { id } folders(filter: { deleteStates: [ALL] }) { id name deleteState } } } }', { folderId: folder.id })
+    const deletedChild = assetFolder.folders[0]
+    const nameAfterDelete = await db.getval<string>('SELECT name FROM assetfolders WHERE id = ?', [childFolder.id])
+    expect(deletedChild.deleteState).to.equal('DELETED')
+    expect(nameAfterDelete).to.equal(childFolder.name)
   })
   it('should undelete an asset folder', async () => {
     const { assetFolder: folder } = await createAssetFolder('childfolder6', siteAAssetRootId)

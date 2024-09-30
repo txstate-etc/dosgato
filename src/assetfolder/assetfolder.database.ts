@@ -222,7 +222,8 @@ export async function finalizeAssetFolderDeletion (id: number, userInternalId: n
     const folderIds = await db.getvals<number>('SELECT id FROM assetfolders WHERE id = ? OR path like ? OR path like ?', [id, `%/${id}/%`, `%/${id}`])
     const binds: number[] = [userInternalId, DeleteState.DELETED]
     async function update () {
-      await db.update(`UPDATE assetfolders SET linkId=LEFT(MD5(RAND()), 10), deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, folderIds)})`, binds)
+      await db.update(`UPDATE assetfolders SET linkId=LEFT(MD5(RAND()), 10), deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE id IN (${db.in(binds, folderIds)})`, binds)
+      await db.update(`UPDATE assetfolders SET name = CONCAT(name, '-${deleteTime}') WHERE id = ?`, [id])
       await db.update(`UPDATE assets SET linkId=LEFT(MD5(RAND()), 10), deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE folderId IN (${db.in([], folderIds)})`, binds)
     }
     try {
