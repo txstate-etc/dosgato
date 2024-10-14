@@ -9,7 +9,10 @@ services:
       MYSQL_HOST: mysql
       JWT_SECRET: secret
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
+      dosgato-api:
+        condition: service_started
   dosgato-api:
     build:
       context: .
@@ -22,6 +25,9 @@ services:
       JWT_SECRET: secret
       SKIP_BOOTSTRAP: 'true'
       RESET_DB_ON_STARTUP: 'true'
+    depends_on:
+      mysql:
+        condition: service_healthy
   mysql:
     image: mariadb
     logging:
@@ -33,5 +39,10 @@ services:
       MYSQL_PASSWORD: password
     volumes:
       - dosgatotestdb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
 volumes:
   dosgatotestdb: {}
