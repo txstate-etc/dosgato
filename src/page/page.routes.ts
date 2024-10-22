@@ -105,6 +105,9 @@ async function handleUploads (req: FastifyRequest, handleFile: (pageRecord: Page
           if (pageRecord.name && pageRecord.linkId && pageRecord.data.templateKey) await handleFile(pageRecord)
           else throw new Error()
         } catch (e: any) {
+          if ('statusCode' in e && e.statusCode === 403) {
+            throw e
+          }
           throw new HttpError(400, 'At least one file in the uploaded archive was not a Dos Gato export file.')
         }
       }
