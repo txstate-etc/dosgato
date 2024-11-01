@@ -98,7 +98,7 @@ async function handleUploads (req: FastifyRequest, handleFile: (pageRecord: Page
         throw new HttpError(400, 'At least one uploaded JSON file was not a Dos Gato export file.')
       }
       await handleFile(pageRecord)
-    } else if (part.mimetype === 'application/x-gzip') {
+    } else if (part.mimetype === 'application/x-gzip' || part.mimetype === 'application/gzip') {
       const stream = gzipJsonLToJSON(part.file)
       for await (const pageRecord of stream) {
         try {
@@ -253,7 +253,6 @@ export async function createPageRoutes (app: FastifyInstance) {
         first = false
       })
     })
-
     if (!firstInternalId) throw new HttpError(400, 'No valid page exports were uploaded.')
     const page = (await svcPageInternal.findByInternalId(firstInternalId))!
     logMutation(new Date().getTime() - startTime.getTime(), 'importPage', 'mutation uploadImportPage (RESTful)', user.id, { parentId: parent.id }, { success: true, pagesImported: Object.values(parentsByPath).map(p => p.id) }, []).catch(console.error)
