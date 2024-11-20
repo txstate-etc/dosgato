@@ -4,7 +4,7 @@ import { isNotNull, stringify, unique, mapConcurrent } from 'txstate-utils'
 import {
   type Template, type TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
   DosGatoService, authorizeForPagetrees, authorizeForSite, setUniversal, PagetreeServiceInternal,
-  SiteServiceInternal, type Page, collectTemplates, PageServiceInternal, universalTemplateCache,
+  SiteServiceInternal, type Page, collectTemplates, PageServiceInternal,
   deauthorizeTemplate, getTemplatePagetreePairs, templateRegistry
 } from '../internal.js'
 
@@ -157,7 +157,6 @@ export class TemplateService extends DosGatoService<Template> {
     if (!this.maySetUniversal(template)) throw new Error('Current user is not permitted to change whether or not this template is universal.')
     try {
       await setUniversal(template.id, universal)
-      await universalTemplateCache.refresh()
       return new ValidatedResponse({ success: true })
     } catch (err: any) {
       console.error(err)

@@ -1,14 +1,9 @@
 import db from 'mysql2-async/db'
-import { Cache, keyby, eachConcurrent, isNotNull, unique } from 'txstate-utils'
+import { keyby, eachConcurrent, isNotNull, unique } from 'txstate-utils'
 import { type TemplateFilter, Template, templateRegistry, type Pagetree, createSiteComment, type Site } from '../internal.js'
 
 const columns = ['templates.id', 'templates.key', 'templates.type', 'templates.deleted', 'templates.universal']
 const columnsjoined = columns.join(', ')
-
-export const universalTemplateCache = new Cache(async () => {
-  const templates = (await db.getall('SELECT * FROM templates WHERE universal = 1')).map(row => new Template(row))
-  return { all: templates, ...keyby(templates, 'type') }
-})
 
 function processFilters (filter?: TemplateFilter) {
   const where: string[] = ['deleted = 0']

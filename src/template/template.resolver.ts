@@ -65,7 +65,7 @@ export class TemplateResolver {
   }
 
   @Mutation(returns => ValidatedResponse, { description: 'Authorize a template for one or more pagetrees in a site. If the template is already authorized for the whole site, that authorization will be removed.' })
-  async authorizeTemplateForPagetrees (@Ctx() ctx: Context, @Arg('templateKey', type => ID) templateKey: string, @Arg('pagetreeIds', type => [ID]!) pagetreeIds: string[]) {
+  async authorizeTemplateForPagetrees (@Ctx() ctx: Context, @Arg('templateKey', type => ID) templateKey: string, @Arg('pagetreeIds', type => [ID]) pagetreeIds: string[]) {
     return await ctx.svc(TemplateService).authorizeForPagetrees(templateKey, pagetreeIds)
   }
 
