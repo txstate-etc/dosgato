@@ -1,6 +1,6 @@
 {
   "name": "@dosgato/api",
-  "version": "1.6.5",
+  "version": "1.6.6",
   "description": "A CMS designed for large institutions with thousands of editors and hundreds of subsites.",
   "type": "module",
   "exports": {
