@@ -138,23 +138,23 @@ export async function moveDataFolders (folderIds: string[], siteId?: string) {
 
 export async function deleteDataFolder (versionedService: VersionedService, folderIds: string[], userInternalId: number) {
   return await db.transaction(async db => {
-    const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
     const dataEntryIds = await db.getvals<number>(`SELECT dataId from data INNER JOIN datafolders ON data.folderId = datafolders.id WHERE datafolders.guid IN (${db.in([], folderIds)})`, folderIds)
     if (dataEntryIds.length) {
       await versionedService.removeTags(dataEntryIds, ['published'], db)
-      await db.update(`UPDATE data SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE dataId IN (${db.in([], dataEntryIds)})`, [userInternalId, DeleteState.MARKEDFORDELETE, ...dataEntryIds])
+      await db.update(`UPDATE data SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE dataId IN (${db.in([], dataEntryIds)})`, [userInternalId, DeleteState.MARKEDFORDELETE, ...dataEntryIds])
     }
     const binds: (string | number)[] = [userInternalId, DeleteState.MARKEDFORDELETE]
-    return await db.update(`UPDATE datafolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE guid IN (${db.in(binds, folderIds)})`, binds)
+    return await db.update(`UPDATE datafolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE guid IN (${db.in(binds, folderIds)})`, binds)
   })
 }
 
 export async function finalizeDataFolderDeletion (guids: string[], userInternalId: number) {
   await db.transaction(async db => {
+    const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
     const folderInternalIds = await db.getvals<number>(`SELECT id FROM datafolders WHERE guid IN (${db.in([], guids)})`, guids)
     const binds: number[] = [userInternalId, DeleteState.DELETED]
-    await db.update(`UPDATE datafolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE id IN (${db.in(binds, folderInternalIds)})`, binds)
-    await db.update(`UPDATE data SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE folderId IN (${db.in([], folderInternalIds)})`, binds)
+    await db.update(`UPDATE datafolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, folderInternalIds)})`, binds)
+    await db.update(`UPDATE data SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE folderId IN (${db.in([], folderInternalIds)})`, binds)
   })
 }
 
