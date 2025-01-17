@@ -10,7 +10,7 @@ import {
   SiteService, SiteServiceInternal, templateRegistry, VersionedService, createPageInTransaction,
   getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput, migratePage,
   systemContext, type DGContext, LaunchState, setPageSearchCodes,
-  removeUnreachableComponents
+  removeUnreachableComponents, appendPath, collectComponents
 } from '../internal.js'
 
 export interface PageExport {
@@ -241,10 +241,26 @@ export async function createPageRoutes (app: FastifyInstance) {
           actualParent = parentsByPath[pathparts.slice(0, -1).join('.')]
         }
         if (!actualParent) throw new HttpError(400, 'Uploaded archive contains page exports in an inconsistent order or with missing parent pages.')
+
+        const newPagePath = appendPath(actualParent.resolvedPath, newPageName)
+        const extras = {
+          query: systemContext().query,
+          siteId: actualParent.siteId,
+          pagetreeId: actualParent.pagetreeId,
+          parentId: actualParent.id,
+          pagePath: newPagePath,
+          name: newPageName,
+          page: undefined
+        }
+        const migrated = removeUnreachableComponents(await migratePage(pageRecord.data, extras))
+        const components = collectComponents(migrated)
+        const workspace = {}
+        for (const c of components) templateRegistry.getPageOrComponentTemplate(c.templateKey)?.onImport?.(c, workspace)
+
         const template = await svcTmpl.findByKey(pageRecord.data.templateKey)
         if (!template) throw new HttpError(400, 'Template ' + pageRecord.data.templateKey + ' is not recognized.')
         if (!await svcTmpl.mayUseOnPage(template, parent)) throw new HttpError(403, 'At least one page being imported is using a template not compatible with the site being imported into.')
-        const pageInternalId = await createPageInTransaction(db, versionedService, user.id, actualParent, placeAbove, newPageName, pageRecord.data, {
+        const pageInternalId = await createPageInTransaction(db, versionedService, user.id, actualParent, placeAbove, newPageName, migrated, {
           ...pick(pageRecord, 'createdBy', 'createdAt', 'modifiedBy', 'modifiedAt', 'linkId')
         })
         const [page] = await getPages({ internalIds: [pageInternalId] }, db)

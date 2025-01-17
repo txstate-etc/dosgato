@@ -59,7 +59,7 @@ class FileSystemHandler implements FileHandler {
     try {
       const out = createWriteStream(tmp)
       const flushedPromise = new Promise((resolve, reject) => {
-        out.on('close', resolve)
+        out.on('close', resolve as () => void)
         out.on('error', reject)
       })
       await pipeline(stream, out)
