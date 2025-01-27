@@ -26,7 +26,7 @@ export function collectComponents (component: ComponentData) {
  */
 export function collectReachableComponents (component: ComponentData) {
   const ret = [component] as ComponentData[]
-  const areaNames = Object.keys(templateRegistry.getPageOrComponentTemplate(component.templateKey).areas ?? {})
+  const areaNames = Object.keys(templateRegistry.getPageOrComponentTemplate(component.templateKey)?.areas ?? {})
   for (const areaName of areaNames) {
     for (const c of component.areas?.[areaName] ?? []) {
       ret.push(...collectReachableComponents(c))
@@ -41,7 +41,7 @@ export function collectReachableComponents (component: ComponentData) {
  */
 export function removeUnreachableComponents <T extends ComponentData> (component: T) {
   if (!component.areas) return component
-  const areaConfig = templateRegistry.getPageOrComponentTemplate(component.templateKey).areas ?? {}
+  const areaConfig = templateRegistry.getPageOrComponentTemplate(component.templateKey)?.areas ?? {}
   for (const areaName of Object.keys(component.areas)) {
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     if (!areaConfig[areaName]) delete component.areas[areaName]
