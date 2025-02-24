@@ -8,8 +8,7 @@ import {
   User, UserService, ObjectVersion, VersionedService, Page, PageFilter, PagePermission, PagePermissions,
   PageResponse, PagesResponse, PageService, RoleService, TemplateService, UrlSafeString,
   DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal, SchemaVersionScalar, SiteServiceInternal, VersionFilter,
-  UserTag,
-  TagService
+  UserTag, TagService, getPageLinks
 } from '../internal.js'
 
 @Resolver(of => Page)
@@ -77,6 +76,12 @@ export class PageResolver {
     @Arg('schemaversion', { nullable: true, description: 'Specify the preferred schema version. The API will perform any necessary migrations on the data prior to return. Default is the latest schemaversion.' }) schemaversion?: DateTime
   ) {
     return await ctx.svc(PageService).getData(page, version, published, schemaversion)
+  }
+
+  @FieldResolver(returns => [String], { description: 'Returns a list of all the external URLs this page links to. This does not include internal links to other pages and assets within the same system. Will be slow for more than a couple dozen pages.' })
+  async externalLinks (@Ctx() ctx: Context, @Root() page: Page, @Arg('published', { nullable: true, description: 'Return links on the published version of the page. If null or false, returns links on the unpublished version.' }) published?: boolean) {
+    const data = await ctx.svc(PageService).getData(page, undefined, published)
+    return Array.from(new Set((getPageLinks(data).filter(l => l.type === 'url').map(l => l.url))))
   }
 
   @FieldResolver(returns => JsonData, { nullable: true, description: 'Accepts a dot-separated path identifying data you need and returns only the data it points to. Compared to `data`, this can help avoid transferring a lot of unnecessary bytes if you only need a specific page property.' })

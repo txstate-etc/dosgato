@@ -343,6 +343,11 @@ export class PageServiceInternal extends BaseService {
       if (!dataIds.length) filter.noresults = true
       filter.ids = intersect({ skipEmpty: true }, filter.ids, dataIds)
     }
+    if (filter.hostsReferenced?.length) {
+      const dataIds = await this.svc(VersionedService).find(filter.hostsReferenced.map(h => ({ indexName: 'link_hostname', equal: h })), 'page', filter.published ? 'published' : 'latest')
+      if (!dataIds.length) filter.noresults = true
+      filter.ids = intersect({ skipEmpty: true }, filter.ids, dataIds)
+    }
     return filter
   }
 }

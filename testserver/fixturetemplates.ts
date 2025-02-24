@@ -1,4 +1,4 @@
-import { type WebLink, extractLinksFromText, getKeywords, type ValidationFeedback, type APIComponentTemplate, type APIPageTemplate, type APIDataTemplate } from '@dosgato/templating'
+import { type WebLink, type ValidationFeedback, type APIComponentTemplate, type APIPageTemplate, type APIDataTemplate } from '@dosgato/templating'
 import { isBlank } from 'txstate-utils'
 
 export const PageTemplate1: APIPageTemplate = {
@@ -85,12 +85,8 @@ export const LinkComponent: APIComponentTemplate = {
   templateKey: 'keyc1',
   name: 'Link',
   migrations: [],
-  getLinks: (data: any) => {
-    return [data.link]
-  },
-  getFulltext: (data: any) => {
-    return getKeywords(data.text)
-  },
+  getLinks: (data: any) => [data.link],
+  getFulltext: (data: any) => [data.text],
   validate: async (data: any) => {
     const errors: ValidationFeedback[] = []
     if (isBlank(data.link)) errors.push({ path: 'link', message: 'Link target is required.' })
@@ -134,10 +130,7 @@ export const RichTextComponent: APIComponentTemplate = {
   name: 'Rich Text',
   areas: {},
   migrations: [],
-  getLinks: (data: any) => extractLinksFromText(data.text),
-  getFulltext: (data: any) => {
-    return [...getKeywords(data.title), ...getKeywords(data.text)]
-  },
+  getFulltext: (data: any) => [data.title, data.text],
   validate: async (data: any) => {
     const errors: ValidationFeedback[] = []
     if (isBlank(data.text)) errors.push({ message: 'Rich text is required.', path: 'text' })
@@ -151,10 +144,8 @@ export const TextImageComponent: APIComponentTemplate = {
   name: 'Text & Image',
   areas: {},
   migrations: [],
-  getLinks: (data: any) => [...extractLinksFromText(data.text), data.image, data.link],
-  getFulltext: (data: any) => {
-    return [...getKeywords(data.title), ...getKeywords(data.text)]
-  },
+  getLinks: (data: any) => [data.image, data.link],
+  getFulltext: (data: any) => [data.title, data.text],
   validate: async (data: any) => {
     const errors: ValidationFeedback[] = []
     if (isBlank(data.title)) errors.push({ path: 'title', message: 'Title is required.' })

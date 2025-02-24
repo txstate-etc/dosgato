@@ -170,6 +170,9 @@ export class PageFilter {
   @Field(type => ID, { nullable: true, description: 'Return pages that contain a link to the given page id.' })
   pageReferenced?: string
 
+  @Field(type => [String], { nullable: true, description: 'Return pages that contain an external link to any of the given hostnames. Will not work with hostnames that are hosted in the same CMS.' })
+  hostsReferenced?: string[]
+
   @Field(type => ID, { nullable: true, description: 'Return pages that contain a link to the given asset id.' })
   assetReferenced?: string
 

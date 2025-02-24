@@ -814,4 +814,29 @@ describe('pages mutations', () => {
     })
     expect(success2).to.be.true
   })
+  it('should be able to add an external URL link to a page, search for it, and get it back on externalLinks property', async () => {
+    const { page: testPage } = await createPageReturnData('testpage22', testSite6PageRootId, 'keyp2', 'su01', {
+      areas: {
+        main: [
+          {
+            templateKey: 'keyc2',
+            title: 'first panel',
+            areas: {
+              content: [
+                {
+                  templateKey: 'keyc1',
+                  text: 'external link',
+                  link: JSON.stringify({ type: 'url', url: 'https://www.external-test-example.com' })
+                }
+              ]
+            }
+          }
+        ]
+      }
+    })
+    const { pages } = await query<{ pages: { id: string, externalLinks: string[] }[] }>('{ pages(filter: { hostsReferenced: ["www.external-test-example.com"] }) { id externalLinks } }')
+    expect(pages[0].id).to.equal(testPage.id)
+    expect(pages.length).to.equal(1)
+    expect(pages[0].externalLinks).to.include('https://www.external-test-example.com')
+  })
 })
