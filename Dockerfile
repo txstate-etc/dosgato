@@ -1,4 +1,4 @@
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /usr/app
 COPY package.json ./
 RUN npm install
@@ -8,7 +8,7 @@ COPY testserver testserver
 
 RUN npm run buildrun
 
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /usr/app
 COPY package.json ./
 RUN npm install --omit=dev --omit=optional
