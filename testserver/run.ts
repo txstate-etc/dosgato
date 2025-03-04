@@ -26,7 +26,10 @@ async function main () {
       TextImageComponent,
       ColumnLayout,
       DocumentsComponent
-    ]
+    ],
+    assetMeta: {
+      getFulltext: data => [data.meta?.title, data.meta?.description]
+    }
   })
 }
 

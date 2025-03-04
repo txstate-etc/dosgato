@@ -6,7 +6,7 @@ import { extension } from 'mime-types'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { stringify } from 'txstate-utils'
-import { VersionedService, type Index, setPageSearchCodes } from '../src/internal.js'
+import { VersionedService, type Index, setAssetSearchCodes, setPageSearchCodes } from '../src/internal.js'
 
 export async function fixtures () {
   console.info('running fixtures()')
@@ -749,7 +749,9 @@ export async function fixtures () {
     const id = await db.transaction(async db => {
       const dataId = await versionedService.create('asset', { shasum: b64urlchecksum, uploadedFilename: name + '.' + (extension(mime) || '') }, indexes, creator, db)
       await db.insert('INSERT IGNORE INTO binaries (shasum, mime, meta, bytes) VALUES (?,?,?,?)', [b64urlchecksum, mime, stringify(width && height ? { width, height } : {}), size])
-      return await db.insert('INSERT INTO assets (name, folderId, linkId, dataId, shasum) VALUES (?,?,?,?,?)', [name, folder, nanoid(10), dataId, b64urlchecksum])
+      const newInternalId = await db.insert('INSERT INTO assets (name, folderId, linkId, dataId, shasum) VALUES (?,?,?,?,?)', [name, folder, nanoid(10), dataId, b64urlchecksum])
+      await setAssetSearchCodes({ internalId: newInternalId, name }, db)
+      return newInternalId
     })
     return id
   }
@@ -759,6 +761,7 @@ export async function fixtures () {
     await createAsset('bobcat', site1AssetRoot, '43b1cdd66a05b515b113f80bcafc4cf01dac2b90ab8c1df8f362edb6381b58c1', 'image/jpeg', 3793056, [{ name: 'type', values: ['image/jpeg'] }], 'su01', 6016, 4016)
     await createAsset('blankpdf', site8AssetRoot, '3ca054a20869a20013aa62b5e2bcb5c2a2ac3fe7be4bc195a872ae0b11fb9359', 'application/pdf', 1264, [{ name: 'type', values: ['application/pdf'] }], 'su01')
     await createAsset('anotherbobcat', site1Images, '43b1cdd66a05b515b113f80bcafc4cf01dac2b90ab8c1df8f362edb6381b58c1', 'image/jpeg', 3793056, [{ name: 'type', values: ['image/jpeg'] }], 'su01', 6016, 4016)
+    await createAsset('flower', site1AssetRoot, 'bf748ffdeb045567d5bcbb80ec7c8e3cc02e3152349b0fa3a40af70e9991b1fe', 'image/jpeg', 392578, [{ name: 'type', values: ['image/jpeg'] }], 'su01', 2000, 1333)
   }
   const deletedAssetId = await db.getval<number>('SELECT id FROM assets WHERE name = ?', ['anotherbobcat'])
   await db.update('UPDATE assets SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id = ?', [su01, 2, deletedAssetId!])

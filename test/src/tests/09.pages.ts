@@ -368,4 +368,9 @@ describe('pages', () => {
     expect(pageInDeletedSite.deleted).to.be.false
     expect(pageInDeletedSite.site.deleted).to.be.true
   })
+  it('should search pages', async () => {
+    const { pages } = await query('{ pages(filter: { search: "about" }) { id name title } }')
+    expect(pages.map(p => p.name)).to.include('about-my-parrot')
+    expect(pages.map(p => p.title)).to.include('About Site 3')
+  })
 })

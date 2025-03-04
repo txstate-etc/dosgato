@@ -141,6 +141,36 @@ const dgMigrations: DBMigration[] = [
         DEFAULT COLLATE = utf8mb4_general_ci
       `)
     }
+  },
+  {
+    id: 20250304100000,
+    description: 'add indexing tables for searching asset names and metadata',
+    run: async db => {
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS assets_searchcodes (
+          assetId INT UNSIGNED NOT NULL,
+          codeId INT UNSIGNED NOT NULL,
+          PRIMARY KEY (assetId, codeId),
+          INDEX code_idx (codeId),
+          CONSTRAINT FK_assets_searchcodes_asset FOREIGN KEY (assetId) REFERENCES assets (\`id\`),
+          CONSTRAINT FK_assets_searchcodes_code FOREIGN KEY (codeId) REFERENCES searchcodes (\`id\`)
+        )
+        ENGINE = InnoDB
+        DEFAULT CHARACTER SET = utf8mb4
+        DEFAULT COLLATE = utf8mb4_general_ci
+      `)
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS assets_searchstrings (
+          assetId INT UNSIGNED NOT NULL,
+          term TEXT NOT NULL,
+          PRIMARY KEY (assetId),
+          CONSTRAINT FK_assets_searchstrings_asset FOREIGN KEY (assetId) REFERENCES assets (\`id\`)
+        )
+        ENGINE = InnoDB
+        DEFAULT CHARACTER SET = utf8mb4
+        DEFAULT COLLATE = utf8mb4_general_ci
+      `)
+    }
   }
 ]
 
@@ -217,6 +247,8 @@ export async function resetdb () {
       db.execute('DROP TABLE IF EXISTS indexvalues'),
       db.execute('DROP TABLE IF EXISTS storage'),
       db.execute('DROP TABLE IF EXISTS pages_searchcodes'),
+      db.execute('DROP TABLE IF EXISTS assets_searchcodes'),
+      db.execute('DROP TABLE IF EXISTS assets_searchstrings'),
       db.execute('DROP TABLE IF EXISTS searchcodes')
     ])
     await db.execute('SET FOREIGN_KEY_CHECKS = 1')
