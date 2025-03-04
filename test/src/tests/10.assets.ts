@@ -172,4 +172,8 @@ describe('assets', () => {
     const resultPageNames = resp.pages.map((p: any) => p.name)
     expect(resultPageNames).to.have.members(['pagewithasset'])
   })
+  it('should search for assets', async () => {
+    const { assets } = await query('{ assets (filter: { search: "blank" }) { id name } }')
+    expect(assets.map(a => a.name)).to.include('blankpdf')
+  })
 })

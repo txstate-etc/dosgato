@@ -3,12 +3,13 @@ import { DateTime } from 'luxon'
 import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { intersect, isBlank, isNotBlank, isNotNull, keyby, pick, stringify } from 'txstate-utils'
+import { intersect, isBlank, isNotBlank, isNotNull, keyby, pick, sortby, stringify } from 'txstate-utils'
 import {
   Asset, type AssetFilter, AssetResize, type VersionedService, AssetFolder, fileHandler, DownloadRecord,
   type DownloadsFilter, DownloadsResolution, type AssetFolderRow, DeleteState, processDeletedFilters,
   normalizePath, AssetServiceInternal, numerate, NameConflictError, templateRegistry, processLink,
-  singleValueIndexesToIndexes, parseLinks, shiftPath
+  singleValueIndexesToIndexes, parseLinks, shiftPath, normalizeForSearch, splitWords, searchCodes,
+  quadgrams, ensureSearchCodes
 } from '../internal.js'
 import { extractLinksFromText } from '@dosgato/templating'
 
@@ -106,7 +107,9 @@ async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
     ' AND (sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL)'
   )
 
-  if (filter == null) return { binds, joins, where }
+  let searchweights: Record<string, number> | undefined
+
+  if (filter == null) return { binds, joins, where, searchweights }
 
   if (filter.internalIds?.length) {
     where.push(`assets.id IN (${db.in(binds, filter.internalIds)})`)
@@ -178,11 +181,111 @@ async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
     else where.push('binaries.bytes > ?')
     binds.push(Math.abs(filter.bytes))
   }
-  return { binds, where, joins }
+  if (filter.search?.length) {
+    const lcSearch = normalizeForSearch(filter.search)
+    const words = splitWords(lcSearch)
+    const grams = words.flatMap(quadgrams)
+    let assetRows: { id: string, name: string, term: string, cnt: number }[] | undefined
+
+    // check asset name and the meta fields specified for full text indexing
+    if (grams.length) {
+      const wordlikes: string[] = []
+      const wordbinds: string[] = []
+      for (const w of words) {
+        wordlikes.push('a.name LIKE ? OR a.term LIKE ?')
+        wordbinds.push(`%${w}%`, `%${w}%`)
+      }
+      const searchbinds: any[] = []
+      const query = `
+        SELECT *
+          FROM (
+            SELECT assets.id, assets.name, assets_searchstrings.term, COUNT(*) as cnt
+            FROM assets
+            INNER JOIN assets_searchcodes on assets.id  = assets_searchcodes.assetId
+            INNER JOIN searchcodes on assets_searchcodes.codeId = searchcodes.id
+            INNER JOIN assetfolders ON assets.folderId = assetfolders.id
+            INNER JOIN pagetrees ON assetfolders.pagetreeId = pagetrees.id
+            INNER JOIN sites ON assetfolders.siteId = sites.id
+            LEFT JOIN assets_searchstrings ON assets.id = assets_searchstrings.assetId
+            ${joins.size ? Array.from(joins.values()).join('\n') : ''}
+            WHERE
+            ${where.length ? '(' + where.join(') AND (') + ')' : ''}
+            AND searchcodes.searchcode IN (${db.in(searchbinds, grams)})
+            GROUP BY assets.id
+            HAVING cnt = ${grams.length}
+          ) a
+          WHERE (${wordlikes.join(') AND (')})
+          ORDER BY a.name
+          LIMIT 100
+      `
+      const rows = await db.getall<{ id: string, name: string, term: string, cnt: number }>(query, [...binds, ...searchbinds, ...wordbinds])
+      if (rows.length) assetRows = rows
+    }
+
+    // if there are no results there, get the searchcodes of the query words and search for those
+    if (!assetRows) {
+      let wordcount = 0
+      const codelikes: string[] = []
+      const codebinds: string[] = []
+      for (const w of words) {
+        const codes = searchCodes(w)
+        if (codes.length) {
+          wordcount++
+          codelikes.push(...codes.map(c => 'searchcodes.searchcode LIKE ?'))
+          codebinds.push(...codes.map(c => `${c}%`))
+        }
+      }
+      if (codelikes.length) {
+        const query = `
+          SELECT assets.id, assets.name, assets_searchstrings.term, COUNT(*) as cnt
+          FROM assets
+          INNER JOIN assets_searchcodes on assets.id  = assets_searchcodes.assetId
+          INNER JOIN searchcodes on assets_searchcodes.codeId = searchcodes.id
+          INNER JOIN assetfolders ON assets.folderId = assetfolders.id
+          INNER JOIN pagetrees ON assetfolders.pagetreeId = pagetrees.id
+          INNER JOIN sites ON assetfolders.siteId = sites.id
+          LEFT JOIN assets_searchstrings ON assets.id = assets_searchstrings.assetId
+          ${joins.size ? Array.from(joins.values()).join('\n') : ''}
+          WHERE
+          ${where.length ? '(' + where.join(') AND (') + ')' : ''}
+          AND (${codelikes.join(') OR (')})
+          GROUP BY assets.id
+          HAVING cnt >= ${wordcount}
+          ORDER BY cnt DESC, assets.name, assets_searchstrings.term
+          LIMIT 100
+        `
+        const rows = await db.getall<{ id: string, name: string, term: string, cnt: number }>(query, [...binds, ...codebinds])
+        if (rows.length) assetRows = rows
+      }
+    }
+    if (!isNaN(parseInt(filter.search))) {
+      const query = 'SELECT id, name FROM assets WHERE dataId = ?'
+      const rows = await db.getall<{ id: string, name: string }>(query, [parseInt(filter.search)])
+      if (rows.length) {
+        const assetRow = { id: rows[0].id, name: rows[0].name, term: '', cnt: 150 } // giving this a lot of weight because if you search for an asset ID, you'd expect to be the top result
+        assetRows ??= []
+        assetRows.push(assetRow)
+      }
+    }
+    if (assetRows) {
+      where.push(`assets.id IN (${db.in(binds, assetRows.map(r => r.id))})`)
+      // gives higher weight to results that include the full search phrase rather than the individual split up search words
+      searchweights = assetRows.reduce((acc, curr) => {
+        return {
+          ...acc,
+          [curr.id]: curr.cnt + (normalizeForSearch(curr.name).includes(lcSearch) || normalizeForSearch(curr.term).includes(lcSearch) ? 100 : 0)
+        }
+      }, {})
+    } else {
+      filter.noresults = true
+    }
+  }
+  return { binds, where, joins, searchweights }
 }
 
 export async function getAssets (filter?: AssetFilter, tdb: Queryable = db) {
-  const { binds, where, joins } = await processFilters(filter, tdb)
+  const { binds, where, joins, searchweights } = await processFilters(filter, tdb)
+  if (filter?.noresults) return []
   const assetrows = await tdb.getall(`
     SELECT assets.id, assets.dataId, assets.name, assets.linkId, assets.folderId, assets.deletedAt, assets.deletedBy, assets.deleteState,
     binaries.bytes AS filesize, binaries.mime, binaries.shasum, binaries.meta,
@@ -210,6 +313,7 @@ export async function getAssets (filter?: AssetFilter, tdb: Queryable = db) {
     a.resolvedPath = `/${a.pathSplit.map(id => namesById[id].name).join('/')}/${a.name as string}`
     a.resolvedPathWithoutSitename = shiftPath(a.resolvedPath)
   }
+  if (searchweights) return sortby(assets, a => searchweights[a.internalId], true, 'name')
   return assets
 }
 
@@ -402,9 +506,13 @@ export async function compressDownloads () {
   }
 }
 
+function getFullTextForIndexing (data: any) {
+  return templateRegistry.serverConfig.assetMeta?.getFulltext?.(data)?.filter(isNotBlank) ?? []
+}
+
 export function getIndexes (data: any) {
   const indexes = data.legacyId ? [{ name: 'legacyId', value: data.legacyId }] : []
-  const texts = templateRegistry.serverConfig.assetMeta?.getFulltext?.(data)?.filter(isNotBlank) ?? []
+  const texts = getFullTextForIndexing(data)
   const links = parseLinks(templateRegistry.serverConfig.assetMeta?.getLinks?.(data)).flatMap(processLink)
   const moreLinks = texts.flatMap(extractLinksFromText).flatMap(processLink)
 
@@ -447,7 +555,9 @@ export async function createAsset (versionedService: VersionedService, userId: s
       INSERT INTO assets (name, folderId, linkId, dataId, shasum)
       VALUES(?, ?, ?, ?, ?)`, [name, folder.id, linkId, dataId, args.checksum])
   })
-  return (await getAssets({ internalIds: [newInternalId] }))[0]
+  const newAsset = (await getAssets({ internalIds: [newInternalId] }))[0]
+  await setAssetSearchCodes({ internalId: newAsset.internalId, name: newAsset.name as string }, db)
+  return newAsset
 }
 
 export async function replaceAsset (versionedService: VersionedService, userId: string, args: ReplaceAssetInput) {
@@ -475,10 +585,11 @@ export async function updateAssetMeta (versionedService: VersionedService, asset
       meta
   }
   await versionedService.update(asset.intDataId, newData, getIndexes(newData), { user: userId })
+  await setAssetSearchCodes({ internalId: asset.internalId, name: asset.name as string, metaFields: getFullTextForIndexing(newData) }, db)
   if (newData.legacyId && stamps) await versionedService.setStamps(asset.intDataId, stamps, db)
 }
 
-export async function renameAsset (assetId: string, name: string, folderInternalIdPath: string) {
+export async function renameAsset (versionedService: VersionedService, internalId: number, assetId: string, name: string, folderInternalIdPath: string) {
   const affectedRows = await db.update(`
     UPDATE assets a
     LEFT JOIN assets adupe ON a.id != adupe.id AND a.folderId=adupe.folderId AND adupe.name=?
@@ -487,6 +598,8 @@ export async function renameAsset (assetId: string, name: string, folderInternal
     WHERE a.dataId=? AND adupe.id IS NULL AND fdupe.id IS NULL
   `, [name, folderInternalIdPath, name, name, assetId])
   if (affectedRows === 0) throw new Error('Rename failed, likely the name became unavailable.')
+  const data = await versionedService.get(Number(assetId))
+  await setAssetSearchCodes({ internalId, name, metaFields: getFullTextForIndexing(data?.data ?? {}) }, db)
 }
 
 export async function moveAssets (targetFolder: AssetFolder, assets: Asset[], folders: AssetFolder[]) {
@@ -561,7 +674,8 @@ async function copyAsset (a: AssetRowWithPagetreeId, targetrow: AssetFolderRow, 
   const dataId = await versionedService.create('asset', data.data, [], user, db)
   const linkId = a.pagetreeId === targetrow.pagetreeId || await db.getval('SELECT a.linkId FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE f.pagetreeId=? AND a.linkId=?', [targetrow.pagetreeId, a.linkId]) ? nanoid(10) : a.linkId
 
-  await db.insert('INSERT INTO assets (name, folderId, linkId, dataId, shasum) VALUES (?, ?, ?, ?, ?)', [a.name, targetrow.id, linkId, dataId, a.shasum])
+  const newInternalId = await db.insert('INSERT INTO assets (name, folderId, linkId, dataId, shasum) VALUES (?, ?, ?, ?, ?)', [a.name, targetrow.id, linkId, dataId, a.shasum])
+  await setAssetSearchCodes({ internalId: newInternalId, name: a.name, metaFields: getFullTextForIndexing(data.data) }, db)
 }
 
 async function copyFolder (f: AssetFolderRow, targetrow: AssetFolderRow, user: string, versionedService: VersionedService, db: Queryable) {
@@ -678,4 +792,22 @@ export async function requestResizes (asset: Asset, opts?: { force?: boolean }) 
     ON DUPLICATE KEY UPDATE binaryId=binaryId
   `, [asset.checksum])
   await db.delete('DELETE FROM requestedresizes WHERE completed < NOW() - INTERVAL 1 HOUR')
+}
+
+export async function setAssetSearchCodes (asset: { internalId: number, name: string, metaFields?: string[] }, db: Queryable) {
+  const searchcodes = Array.from(new Set([normalizeForSearch(asset.name), ...(asset.metaFields ?? []).map(normalizeForSearch)].flatMap(splitWords).flatMap(w => [...searchCodes(w), ...quadgrams(w)])))
+  const codeIds = await ensureSearchCodes(searchcodes, db)
+  if (codeIds.length) {
+    let binds = [asset.internalId]
+    await db.delete(`DELETE FROM assets_searchcodes WHERE assetId=? AND codeId NOT IN (${db.in(binds, codeIds)})`, binds)
+    binds = []
+    await db.insert(`INSERT INTO assets_searchcodes (assetId, codeId) VALUES ${db.in(binds, codeIds.map(id => [asset.internalId, id]))} ON DUPLICATE KEY UPDATE codeId=codeId`, binds)
+  } else {
+    await db.delete('DELETE FROM assets_searchcodes WHERE assetId=?', [asset.internalId])
+  }
+  if (asset.metaFields?.length) {
+    await db.insert('INSERT INTO assets_searchstrings (assetId, term) VALUES (?, ?) ON DUPLICATE KEY UPDATE term=VALUES(term)', [asset.internalId, asset.metaFields.join(' ')])
+  } else {
+    await db.delete('DELETE FROM assets_searchstrings WHERE assetId = ?', [asset.internalId])
+  }
 }

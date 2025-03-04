@@ -191,6 +191,11 @@ export class AssetFilter {
   viewForEdit?: boolean
 
   linkIds?: string[]
+
+  noresults?: boolean
+
+  @Field({ nullable: true, description: 'Return assets that match the query, in order of best match. Limited to 100 results.' })
+  search?: string
 }
 
 export enum DownloadsResolution {
