@@ -295,7 +295,7 @@ export class AssetService extends DosGatoService<Asset> {
     } else if (siblings.some(s => s.name === name) || siblingFolders.some(f => f.name === name)) response.addMessage('That name is already taken.', 'name')
     else response.addMessage(`Name: ${name} is available.`, 'name', MutationMessageType.success)
     if (response.hasErrors() || validateOnly || asset.name === name) return response
-    await renameAsset(this.svc(VersionedService), asset.internalId, assetId, name, folder!.path)
+    await renameAsset(this.svc(VersionedService), asset.internalId, assetId, name, asset.extension, folder!.path)
     this.loaders.clear()
     const newAsset = await this.raw.findById(assetId)
     response.success = true

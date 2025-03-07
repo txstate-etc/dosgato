@@ -3,13 +3,14 @@ import { DateTime } from 'luxon'
 import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
+import { lookup } from 'mime-types'
 import { intersect, isBlank, isNotBlank, isNotNull, keyby, pick, sortby, stringify } from 'txstate-utils'
 import {
   Asset, type AssetFilter, AssetResize, type VersionedService, AssetFolder, fileHandler, DownloadRecord,
   type DownloadsFilter, DownloadsResolution, type AssetFolderRow, DeleteState, processDeletedFilters,
   normalizePath, AssetServiceInternal, numerate, NameConflictError, templateRegistry, processLink,
   singleValueIndexesToIndexes, parseLinks, shiftPath, normalizeForSearch, splitWords, searchCodes,
-  quadgrams, ensureSearchCodes
+  ensureSearchCodes, ngrams
 } from '../internal.js'
 import { extractLinksFromText } from '@dosgato/templating'
 
@@ -184,7 +185,7 @@ async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
   if (filter.search?.length) {
     const lcSearch = normalizeForSearch(filter.search)
     const words = splitWords(lcSearch)
-    const grams = words.flatMap(quadgrams)
+    const grams = words.flatMap(w => ngrams(w, 3))
     let assetRows: { id: string, name: string, term: string, cnt: number }[] | undefined
 
     // check asset name and the meta fields specified for full text indexing
@@ -258,13 +259,27 @@ async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
         if (rows.length) assetRows = rows
       }
     }
-    if (!isNaN(parseInt(filter.search))) {
+    // if the search query only contains a number, assume they are searching for an asset by ID
+    if (filter.search.match(/^[0-9]*$/)) {
       const query = 'SELECT id, name FROM assets WHERE dataId = ?'
       const rows = await db.getall<{ id: string, name: string }>(query, [parseInt(filter.search)])
       if (rows.length) {
         const assetRow = { id: rows[0].id, name: rows[0].name, term: '', cnt: 150 } // giving this a lot of weight because if you search for an asset ID, you'd expect to be the top result
         assetRows ??= []
         assetRows.push(assetRow)
+      }
+    }
+    // it's possible they are searching for a file by name with extension
+    if (filter.search.match(/\.[a-zA-Z0-9]{2,6}$/)) {
+      const filename = filter.search.substring(0, filter.search.lastIndexOf('.'))
+      const mime = lookup(filter.search.substring(filter.search.lastIndexOf('.')))
+      if (mime) {
+        const query = 'SELECT assets.id, assets.name FROM assets JOIN binaries ON assets.shasum = binaries.shasum WHERE assets.name = ? and binaries.mime = ?'
+        const rows = await db.getall<{ id: string, name: string }>(query, [filename, mime])
+        if (rows.length) {
+          assetRows ??= []
+          assetRows.push(...rows.map(r => ({ id: r.id, name: r.name, term: '', cnt: 150 })))
+        }
       }
     }
     if (assetRows) {
@@ -506,7 +521,7 @@ export async function compressDownloads () {
   }
 }
 
-function getFullTextForIndexing (data: any) {
+export function getFullTextForIndexing (data: any) {
   return templateRegistry.serverConfig.assetMeta?.getFulltext?.(data)?.filter(isNotBlank) ?? []
 }
 
@@ -589,7 +604,7 @@ export async function updateAssetMeta (versionedService: VersionedService, asset
   if (newData.legacyId && stamps) await versionedService.setStamps(asset.intDataId, stamps, db)
 }
 
-export async function renameAsset (versionedService: VersionedService, internalId: number, assetId: string, name: string, folderInternalIdPath: string) {
+export async function renameAsset (versionedService: VersionedService, internalId: number, assetId: string, name: string, extension: string, folderInternalIdPath: string) {
   const affectedRows = await db.update(`
     UPDATE assets a
     LEFT JOIN assets adupe ON a.id != adupe.id AND a.folderId=adupe.folderId AND adupe.name=?
@@ -795,7 +810,9 @@ export async function requestResizes (asset: Asset, opts?: { force?: boolean }) 
 }
 
 export async function setAssetSearchCodes (asset: { internalId: number, name: string, metaFields?: string[] }, db: Queryable) {
-  const searchcodes = Array.from(new Set([normalizeForSearch(asset.name), ...(asset.metaFields ?? []).map(normalizeForSearch)].flatMap(splitWords).flatMap(w => [...searchCodes(w), ...quadgrams(w)])))
+  const namecodes: string[] = splitWords(normalizeForSearch(asset.name)).flatMap(w => [...searchCodes(w), ...ngrams(w, 3)])
+  const metadatacodes: string[] = (asset.metaFields ?? []).map(normalizeForSearch).flatMap(splitWords).flatMap(w => [...searchCodes(w), ...ngrams(w, 4)])
+  const searchcodes = Array.from(new Set([...namecodes, ...metadatacodes]))
   const codeIds = await ensureSearchCodes(searchcodes, db)
   if (codeIds.length) {
     let binds = [asset.internalId]

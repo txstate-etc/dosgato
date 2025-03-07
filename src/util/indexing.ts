@@ -96,3 +96,11 @@ export function quadgrams (word: string) {
   }
   return ret
 }
+
+export function ngrams (word: string, n: number) {
+  const ret: string[] = []
+  for (let i = 0; i + n <= word.length; i++) {
+    ret.push(word.substring(i, i + n))
+  }
+  return ret
+}
