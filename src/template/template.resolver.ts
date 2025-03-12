@@ -51,6 +51,12 @@ export class TemplateResolver {
     }
   }
 
+  @FieldResolver(returns => [Template], { description: 'Page templates that allow this template in one of their areas. Empty array for page or data templates.' })
+  async rootPageTemplates (@Ctx() ctx: Context, @Root() template: Template) {
+    if (template.type !== TemplateType.COMPONENT) return []
+    return await ctx.svc(TemplateService).getRootPageTemplates(template.key)
+  }
+
   @FieldResolver(returns => TemplatePermissions, {
     description: `Reveal the simplified results after all authorization rules are taken into account
       for the current user. Makes it easy to light up, disable, or hide buttons in the UI.`

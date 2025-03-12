@@ -1,11 +1,11 @@
 import { ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
-import { isNotNull, stringify, unique, mapConcurrent } from 'txstate-utils'
+import { Cache, isNotNull, stringify, unique, mapConcurrent, keyby } from 'txstate-utils'
 import {
   type Template, type TemplateFilter, getTemplates, getTemplatesByPagetree, getTemplatesBySite,
   DosGatoService, authorizeForPagetrees, authorizeForSite, setUniversal, PagetreeServiceInternal,
   SiteServiceInternal, type Page, collectTemplates, PageServiceInternal,
-  deauthorizeTemplate, getTemplatePagetreePairs, templateRegistry
+  deauthorizeTemplate, getTemplatePagetreePairs, templateRegistry, TemplateType
 } from '../internal.js'
 
 const templatesByIdLoader = new PrimaryKeyLoader({
@@ -43,6 +43,30 @@ const mayUseTemplateInPagetreeLoader = new PrimaryKeyLoader({
   extractId: row => ({ pagetreeId: String(row.pagetreeId), templateKey: row.templateKey })
 })
 
+async function getAvailableComponents (templateKey: string, svc: TemplateServiceInternal): Promise<string[]> {
+  const areas = (await svc.loaders.get(templatesByKeyLoader).load(templateKey))?.areas ?? []
+  if (!areas.length) return []
+  const directKeys = unique((areas?.map(a => a.availableComponents) ?? []).flat()).filter(k => k !== templateKey)
+  const indirectKeys = (await Promise.all(directKeys.map(async (k) => await getAvailableComponents(k, svc)))).flat()
+  return unique([...directKeys, ...indirectKeys])
+}
+
+async function getAvailableComponentsInTemplate (templateKey: string, svc: TemplateServiceInternal) {
+  const keys = await getAvailableComponents(templateKey, svc)
+  return await svc.loaders.loadMany(templatesByKeyLoader, keys)
+}
+
+const pageTemplateAvailableComponents = new Cache(async (_key: string, svc: TemplateServiceInternal) => {
+  const pageTemplateKeys = (await getTemplates({ types: [TemplateType.PAGE] })).filter(t => !t.deleted).map(t => t.key)
+  const availableComponentsByPageTemplateKey = await Promise.all(pageTemplateKeys.map(async (key) => {
+    return {
+      key,
+      availableComponents: (await getAvailableComponentsInTemplate(key, svc)).map(t => t.key)
+    }
+  }))
+  return keyby(availableComponentsByPageTemplateKey, 'key')
+})
+
 export class TemplateServiceInternal extends BaseService {
   #findCache = new Map<string, Template[]>()
   async find (filter?: TemplateFilter) {
@@ -77,6 +101,12 @@ export class TemplateServiceInternal extends BaseService {
   async findByPagetreeId (pagetreeId: string, filter?: TemplateFilter) {
     return await this.loaders.get(templatesByPagetreeIdLoader, filter).load(pagetreeId)
   }
+
+  async getRootPageTemplates (componentTemplateKey: string) {
+    const templatesCache = await pageTemplateAvailableComponents.get('', this)
+    const pageTemplatesAllowingComponent = Object.keys(templatesCache).filter(key => templatesCache[key].availableComponents.includes(componentTemplateKey))
+    return await this.ctx.loaders.loadMany(templatesByKeyLoader, pageTemplatesAllowingComponent)
+  }
 }
 
 export class TemplateService extends DosGatoService<Template> {
@@ -104,6 +134,10 @@ export class TemplateService extends DosGatoService<Template> {
 
   async findByPagetreeId (pagetreeId: string, filter?: TemplateFilter) {
     return this.removeUnauthorized(await this.raw.findByPagetreeId(pagetreeId, filter))
+  }
+
+  async getRootPageTemplates (templateKey: string) {
+    return this.removeUnauthorized(await this.raw.getRootPageTemplates(templateKey))
   }
 
   async authorizeForPagetrees (templateKey: string, pagetreeIds: string[]) {
