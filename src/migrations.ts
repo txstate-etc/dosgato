@@ -1,8 +1,8 @@
 import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
-import { sortby } from 'txstate-utils'
+import { isNotNull, sortby } from 'txstate-utils'
 import { init } from './createdb.js'
-import { type DBMigration, VersionedService, searchCodes, setPageSearchCodes } from './internal.js'
+import { type DBMigration, VersionedService, getFullTextForIndexing, searchCodes, setAssetSearchCodes, setPageSearchCodes } from './internal.js'
 
 const dgMigrations: DBMigration[] = [
   {
@@ -170,6 +170,21 @@ const dgMigrations: DBMigration[] = [
         DEFAULT CHARACTER SET = utf8mb4
         DEFAULT COLLATE = utf8mb4_general_ci
       `)
+      // make existing assets searchable
+      const assets = await db.getall<{ internalId: number, name: string, data: string }>(`
+        SELECT assets.id AS internalId, assets.name, storage.data
+        FROM assets LEFT JOIN storage on assets.dataId = storage.id
+      `)
+      for (const asset of assets) {
+        try {
+          const data = JSON.parse(asset.data)
+          const indexedFields = getFullTextForIndexing(data)
+          await setAssetSearchCodes({ internalId: asset.internalId, name: asset.name, metaFields: indexedFields }, db)
+        } catch {
+          console.error(`Unable to add search codes for asset ${asset.internalId}`)
+          continue
+        }
+      }
     }
   }
 ]
