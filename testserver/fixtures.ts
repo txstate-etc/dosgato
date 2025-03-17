@@ -750,7 +750,7 @@ export async function fixtures () {
       const dataId = await versionedService.create('asset', { shasum: b64urlchecksum, uploadedFilename: name + '.' + (extension(mime) || '') }, indexes, creator, db)
       await db.insert('INSERT IGNORE INTO binaries (shasum, mime, meta, bytes) VALUES (?,?,?,?)', [b64urlchecksum, mime, stringify(width && height ? { width, height } : {}), size])
       const newInternalId = await db.insert('INSERT INTO assets (name, folderId, linkId, dataId, shasum) VALUES (?,?,?,?,?)', [name, folder, nanoid(10), dataId, b64urlchecksum])
-      await setAssetSearchCodes({ internalId: newInternalId, name }, db)
+      await setAssetSearchCodes([{ internalId: newInternalId, name }], db)
       return newInternalId
     })
     return id

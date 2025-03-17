@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
-import { isNotNull, sortby } from 'txstate-utils'
+import { batch, isNotNull, set, sortby } from 'txstate-utils'
 import { init } from './createdb.js'
 import { type DBMigration, VersionedService, getFullTextForIndexing, searchCodes, setAssetSearchCodes, setPageSearchCodes } from './internal.js'
 
@@ -143,7 +143,7 @@ const dgMigrations: DBMigration[] = [
     }
   },
   {
-    id: 20250304100000,
+    id: 20250317100000,
     description: 'add indexing tables for searching asset names and metadata',
     run: async db => {
       await db.execute(`
@@ -175,16 +175,26 @@ const dgMigrations: DBMigration[] = [
         SELECT assets.id AS internalId, assets.name, storage.data
         FROM assets LEFT JOIN storage on assets.dataId = storage.id
       `)
-      for (const asset of assets) {
-        try {
-          const data = JSON.parse(asset.data)
-          const indexedFields = getFullTextForIndexing(data)
-          await setAssetSearchCodes({ internalId: asset.internalId, name: asset.name, metaFields: indexedFields }, db)
-        } catch {
-          console.error(`Unable to add search codes for asset ${asset.internalId}`)
-          continue
+      const batched = batch(assets, 25)
+      let counter = 0
+      for (const assetBatch of batched) {
+        if (counter % 1000 === 0) console.log(`Processing asset batch ${counter + 1} of ${batched.length}...`)
+        const searchCodeData: { internalId: number, name: string, metaFields: string[] }[] = []
+        for (const asset of assetBatch) {
+          try {
+            const data = JSON.parse(asset.data)
+            const indexedFields = getFullTextForIndexing(data)
+            searchCodeData.push({ internalId: asset.internalId, name: asset.name, metaFields: indexedFields })
+          } catch (err: any) {
+            console.error(`Unable to add search codes for asset ${asset.internalId}`)
+            console.error(err)
+            continue
+          }
         }
+        await setAssetSearchCodes(searchCodeData, db)
+        counter++
       }
+      console.log('finished adding search codes for assets')
     }
   }
 ]

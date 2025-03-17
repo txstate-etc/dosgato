@@ -571,7 +571,7 @@ export async function createAsset (versionedService: VersionedService, userId: s
       VALUES(?, ?, ?, ?, ?)`, [name, folder.id, linkId, dataId, args.checksum])
   })
   const newAsset = (await getAssets({ internalIds: [newInternalId] }))[0]
-  await setAssetSearchCodes({ internalId: newAsset.internalId, name: newAsset.name as string }, db)
+  await setAssetSearchCodes([{ internalId: newAsset.internalId, name: newAsset.name as string }], db)
   return newAsset
 }
 
@@ -600,7 +600,7 @@ export async function updateAssetMeta (versionedService: VersionedService, asset
       meta
   }
   await versionedService.update(asset.intDataId, newData, getIndexes(newData), { user: userId })
-  await setAssetSearchCodes({ internalId: asset.internalId, name: asset.name as string, metaFields: getFullTextForIndexing(newData) }, db)
+  await setAssetSearchCodes([{ internalId: asset.internalId, name: asset.name as string, metaFields: getFullTextForIndexing(newData) }], db)
   if (newData.legacyId && stamps) await versionedService.setStamps(asset.intDataId, stamps, db)
 }
 
@@ -614,7 +614,7 @@ export async function renameAsset (versionedService: VersionedService, internalI
   `, [name, folderInternalIdPath, name, name, assetId])
   if (affectedRows === 0) throw new Error('Rename failed, likely the name became unavailable.')
   const data = await versionedService.get(Number(assetId))
-  await setAssetSearchCodes({ internalId, name, metaFields: getFullTextForIndexing(data?.data ?? {}) }, db)
+  await setAssetSearchCodes([{ internalId, name, metaFields: getFullTextForIndexing(data?.data ?? {}) }], db)
 }
 
 export async function moveAssets (targetFolder: AssetFolder, assets: Asset[], folders: AssetFolder[]) {
@@ -690,7 +690,7 @@ async function copyAsset (a: AssetRowWithPagetreeId, targetrow: AssetFolderRow, 
   const linkId = a.pagetreeId === targetrow.pagetreeId || await db.getval('SELECT a.linkId FROM assets a INNER JOIN assetfolders f ON a.folderId=f.id WHERE f.pagetreeId=? AND a.linkId=?', [targetrow.pagetreeId, a.linkId]) ? nanoid(10) : a.linkId
 
   const newInternalId = await db.insert('INSERT INTO assets (name, folderId, linkId, dataId, shasum) VALUES (?, ?, ?, ?, ?)', [a.name, targetrow.id, linkId, dataId, a.shasum])
-  await setAssetSearchCodes({ internalId: newInternalId, name: a.name, metaFields: getFullTextForIndexing(data.data) }, db)
+  await setAssetSearchCodes([{ internalId: newInternalId, name: a.name, metaFields: getFullTextForIndexing(data.data) }], db)
 }
 
 async function copyFolder (f: AssetFolderRow, targetrow: AssetFolderRow, user: string, versionedService: VersionedService, db: Queryable) {
@@ -809,22 +809,47 @@ export async function requestResizes (asset: Asset, opts?: { force?: boolean }) 
   await db.delete('DELETE FROM requestedresizes WHERE completed < NOW() - INTERVAL 1 HOUR')
 }
 
-export async function setAssetSearchCodes (asset: { internalId: number, name: string, metaFields?: string[] }, db: Queryable) {
-  const namecodes: string[] = splitWords(normalizeForSearch(asset.name)).flatMap(w => [...searchCodes(w), ...ngrams(w, 3)])
-  const metadatacodes: string[] = (asset.metaFields ?? []).map(normalizeForSearch).flatMap(splitWords).flatMap(w => [...searchCodes(w), ...ngrams(w, 4)])
-  const searchcodes = Array.from(new Set([...namecodes, ...metadatacodes]))
-  const codeIds = await ensureSearchCodes(searchcodes, db)
-  if (codeIds.length) {
-    let binds = [asset.internalId]
-    await db.delete(`DELETE FROM assets_searchcodes WHERE assetId=? AND codeId NOT IN (${db.in(binds, codeIds)})`, binds)
-    binds = []
-    await db.insert(`INSERT INTO assets_searchcodes (assetId, codeId) VALUES ${db.in(binds, codeIds.map(id => [asset.internalId, id]))} ON DUPLICATE KEY UPDATE codeId=codeId`, binds)
-  } else {
-    await db.delete('DELETE FROM assets_searchcodes WHERE assetId=?', [asset.internalId])
+export async function setAssetSearchCodes (assets: { internalId: number, name: string, metaFields?: string[] }[], db: Queryable) {
+  const searchCodesDeleteNotIn: { assetId: number, codeIds: number[] }[] = []
+  const searchCodesInserts: { assetId: number, codeId: number }[] = []
+  const searchCodesDeleteAll: number[] = []
+  const searchStringsInserts: { assetId: number, term: string }[] = []
+  const searchStringsDeleteAll: number[] = []
+  for (const asset of assets) {
+    const namecodes: string[] = splitWords(normalizeForSearch(asset.name)).flatMap(w => [...searchCodes(w), ...ngrams(w, 3)])
+    const metadatacodes: string[] = (asset.metaFields ?? []).map(normalizeForSearch).flatMap(splitWords).flatMap(w => [...searchCodes(w), ...ngrams(w, 4)])
+    const searchcodes = Array.from(new Set([...namecodes, ...metadatacodes]))
+    const codeIds = await ensureSearchCodes(searchcodes, db)
+    if (codeIds.length) {
+      searchCodesDeleteNotIn.push({ assetId: asset.internalId, codeIds })
+      searchCodesInserts.push(...codeIds.map(id => ({ assetId: asset.internalId, codeId: id })))
+    } else {
+      searchCodesDeleteAll.push(asset.internalId)
+    }
+    if (asset.metaFields?.length) {
+      searchStringsInserts.push({ assetId: asset.internalId, term: asset.metaFields.join(' ') })
+    } else {
+      searchStringsDeleteAll.push(asset.internalId)
+    }
   }
-  if (asset.metaFields?.length) {
-    await db.insert('INSERT INTO assets_searchstrings (assetId, term) VALUES (?, ?) ON DUPLICATE KEY UPDATE term=VALUES(term)', [asset.internalId, asset.metaFields.join(' ')])
-  } else {
-    await db.delete('DELETE FROM assets_searchstrings WHERE assetId = ?', [asset.internalId])
+  let binds: number[] = []
+  if (searchCodesDeleteNotIn.length) {
+    await db.delete(`DELETE FROM assets_searchcodes WHERE ${searchCodesDeleteNotIn.map((item: { assetId: number, codeIds: number[] }) => `assetId=${db.in(binds, [item.assetId])} AND codeId NOT IN (${db.in(binds, item.codeIds)})`).join(' OR ')}`, binds)
+  }
+  if (searchCodesInserts.length) {
+    binds = []
+    await db.insert(`INSERT INTO assets_searchcodes (assetId, codeId) VALUES ${db.in(binds, searchCodesInserts.map(i => [i.assetId, i.codeId]))} ON DUPLICATE KEY UPDATE codeId=codeId`, binds)
+  }
+  if (searchCodesDeleteAll.length) {
+    binds = []
+    await db.delete(`DELETE FROM assets_searchcodes WHERE assetId IN (${db.in(binds, searchCodesDeleteAll)})`, binds)
+  }
+  if (searchStringsInserts.length) {
+    binds = []
+    await db.insert(`INSERT INTO assets_searchstrings (assetId, term) VALUES ${db.in(binds, searchStringsInserts.map(i => [i.assetId, i.term]))} ON DUPLICATE KEY UPDATE term=term`, binds)
+  }
+  if (searchStringsDeleteAll.length) {
+    binds = []
+    await db.delete(`DELETE FROM assets_searchstrings WHERE assetId IN (${db.in(binds, searchStringsDeleteAll)})`, binds)
   }
 }
