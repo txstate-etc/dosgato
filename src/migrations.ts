@@ -175,7 +175,7 @@ const dgMigrations: DBMigration[] = [
         SELECT assets.id AS internalId, assets.name, storage.data
         FROM assets LEFT JOIN storage on assets.dataId = storage.id
       `)
-      const batched = batch(assets, 25)
+      const batched = batch(assets, 10)
       let counter = 0
       for (const assetBatch of batched) {
         if (counter % 1000 === 0) console.log(`Processing asset batch ${counter + 1} of ${batched.length}...`)
