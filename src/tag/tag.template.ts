@@ -26,7 +26,7 @@ export const tagTemplate: APIDataTemplate<UserTagGroupData> = {
       else {
         const lc = tag.name.toLocaleLowerCase()
         if (tagNames.has(lc)) feedback.push({ message: 'Name is already used above.', path: `tags.${i}.name` })
-        if (lc.length > 20) feedback.push({ message: 'Name exceeds the maximum length of 20 characters.', path: `tags.${i}.name` })
+        if (lc.length > 38) feedback.push({ message: 'Name exceeds the maximum length of 38 characters.', path: `tags.${i}.name` })
         tagNames.add(lc)
       }
     }
