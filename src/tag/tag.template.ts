@@ -10,10 +10,9 @@ export const tagTemplate: APIDataTemplate<UserTagGroupData> = {
   nopublish: true,
   getTags: data => [...data.tags.map(t => t.id), ...data.applicable],
   validate: async (data, extras, nameIsTaken) => {
-    console.log(data)
     const feedback: ValidationFeedback[] = []
-    if (isBlank(data.title)) feedback.push({ message: 'Title is required.', path: 'title' })
-    if (nameIsTaken) feedback.push({ message: 'That title is already in use.', path: 'title' })
+    if (isBlank(data.title)) feedback.push({ message: 'Tag Set Name is required.', path: 'title' })
+    if (nameIsTaken) feedback.push({ message: 'That name is already in use.', path: 'title' })
     if (!data.applicable?.length) feedback.push({ message: 'Must select at least one applicable type.', path: 'applicable' })
     if (!data.tags?.length) {
       feedback.push({ message: "At least one tag is required. Disable any tags you don't want to be active." })
@@ -27,6 +26,7 @@ export const tagTemplate: APIDataTemplate<UserTagGroupData> = {
       else {
         const lc = tag.name.toLocaleLowerCase()
         if (tagNames.has(lc)) feedback.push({ message: 'Name is already used above.', path: `tags.${i}.name` })
+        if (lc.length > 20) feedback.push({ message: 'Name exceeds the maximum length of 20 characters.', path: `tags.${i}.name` })
         tagNames.add(lc)
       }
     }
