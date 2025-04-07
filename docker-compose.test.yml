@@ -29,7 +29,7 @@ services:
       mysql:
         condition: service_healthy
   mysql:
-    image: mariadb
+    image: percona/percona-server:8.4
     logging:
       driver: none
     environment:
@@ -40,7 +40,8 @@ services:
     volumes:
       - dosgatotestdb:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      #test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "$$MYSQL_USER", "--password=$$MYSQL_PASSWORD"]
       interval: 5s
       timeout: 5s
       retries: 6

@@ -56,9 +56,9 @@ async function processFilters (filter?: UserFilter) {
     }
     if (isNotNull(filter.system)) {
       if (filter.system) {
-        where.push('users.system IS TRUE')
+        where.push('users.`system` IS TRUE')
       } else {
-        where.push('users.system IS FALSE')
+        where.push('users.`system` IS FALSE')
       }
     }
   }
@@ -165,7 +165,7 @@ export async function addTrainings (trainingId: string, userIds: string[]) {
 }
 
 export async function createUser (id: string, firstname: string, lastname: string, email: string, trainings: string[] | undefined, system: boolean) {
-  const userInternalId = await db.insert('INSERT INTO users (login, firstname, lastname, email, system) VALUES (?, ?, ?, ?, ?)', [id, firstname, lastname, email, system])
+  const userInternalId = await db.insert('INSERT INTO users (login, firstname, lastname, email, `system`) VALUES (?, ?, ?, ?, ?)', [id, firstname, lastname, email, system])
   await syncTrainings(userInternalId, trainings)
   return userInternalId
 }

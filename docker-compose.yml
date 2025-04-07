@@ -22,7 +22,7 @@ services:
     depends_on:
       - mysql
   mysql:
-    image: mariadb
+    image: percona/percona-server:8.4
     ports:
       - 3306:3306
     environment:

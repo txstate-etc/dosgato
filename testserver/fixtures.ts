@@ -32,7 +32,7 @@ export async function fixtures () {
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("ed16", "Test", "SiteRoles", "ed16@example.com")'),
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("ed17", "Test", "PageRoles1", "ed17@example.com")'),
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("ed18", "Test", "PageRoles2", "ed18@example.com")'),
-    db.insert('INSERT INTO users (login, lastname, email, system) VALUES ("service1", "ServiceAccount1", "sa1@example.com", true)')
+    db.insert('INSERT INTO users (login, lastname, email, `system`) VALUES ("service1", "ServiceAccount1", "sa1@example.com", true)')
   ])
 
   const basicId = await db.getval('SELECT MIN(id) FROM trainings')
@@ -40,13 +40,13 @@ export async function fixtures () {
   await db.insert(`INSERT INTO users_trainings (userId, trainingId) VALUES ${db.in(binds, [su01, su02, su03, ed01, ed02, ed03, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18].map(lgn => [lgn, basicId]))}`, binds)
 
   const [group1, group2, group3, group4, group5, group6, group7] = await Promise.all([
-    db.insert('INSERT INTO groups (name) VALUES ("group1")'),
-    db.insert('INSERT INTO groups (name) VALUES ("group2")'),
-    db.insert('INSERT INTO groups (name) VALUES ("group3")'),
-    db.insert('INSERT INTO groups (name) VALUES ("group4")'),
-    db.insert('INSERT INTO groups (name) VALUES ("group5")'),
-    db.insert('INSERT INTO groups (name) VALUES ("group6")'),
-    db.insert('INSERT INTO groups (name) VALUES ("group7")')
+    db.insert('INSERT INTO `groups` (name) VALUES ("group1")'),
+    db.insert('INSERT INTO `groups` (name) VALUES ("group2")'),
+    db.insert('INSERT INTO `groups` (name) VALUES ("group3")'),
+    db.insert('INSERT INTO `groups` (name) VALUES ("group4")'),
+    db.insert('INSERT INTO `groups` (name) VALUES ("group5")'),
+    db.insert('INSERT INTO `groups` (name) VALUES ("group6")'),
+    db.insert('INSERT INTO `groups` (name) VALUES ("group7")')
   ])
 
   const [artCollegeOrg, mathDeptOrg, officeOrg] = await Promise.all([

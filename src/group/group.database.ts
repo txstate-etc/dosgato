@@ -37,7 +37,7 @@ export const groupHierarchyCache = new Cache(async () => {
   const [relationships, groups] = await Promise.all([
     db.getall<{ childId: number, parentId: number }>('SELECT * FROM groups_groups'),
     db.getall(`
-      SELECT DISTINCT g.* FROM groups g
+      SELECT DISTINCT g.* FROM \`groups\` g
       INNER JOIN groups_groups gg ON g.id=gg.childId OR g.id=gg.parentId
     `)
   ])
@@ -59,17 +59,17 @@ function processFilters (filter?: GroupFilter) {
   const joins = new Map<string, string>()
 
   if (filter?.ids?.length) {
-    where.push(`groups.id IN (${db.in(binds, filter.ids)})`)
+    where.push(`g.id IN (${db.in(binds, filter.ids)})`)
   }
   if (filter?.root) {
-    where.push('groups.id NOT IN (SELECT childId FROM groups_groups)')
+    where.push('g.id NOT IN (SELECT childId FROM groups_groups)')
   }
   return { binds, where, joins }
 }
 
 export async function getGroups (filter?: GroupFilter) {
   const { binds, where, joins } = processFilters(filter)
-  let query = 'SELECT groups.* FROM groups'
+  let query = 'SELECT g.* FROM `groups` g'
   if (joins.size) {
     query += Array.from(joins.values()).join('\n')
   }
@@ -83,8 +83,8 @@ export async function getGroups (filter?: GroupFilter) {
 export async function getGroupsWithUser (userIds: string[]) {
   const binds: string[] = []
   const rows = await db.getall(`
-    SELECT users.login, groups.* FROM groups
-    INNER JOIN users_groups ON groups.id = users_groups.groupId
+    SELECT users.login, g.* FROM \`groups\` g
+    INNER JOIN users_groups ON g.id = users_groups.groupId
     INNER JOIN users ON users.id = users_groups.userId
     WHERE users.login IN (${db.in(binds, userIds)})`, binds)
   return rows.map(row => ({ key: row.login, value: new Group(row) }))
@@ -93,24 +93,24 @@ export async function getGroupsWithUser (userIds: string[]) {
 export async function getGroupsWithRole (roleIds: string[], filter?: GroupFilter) {
   const { binds, where, joins } = processFilters(filter)
   if (!joins.has('groups_roles')) {
-    joins.set('groups_roles', 'INNER JOIN groups_roles on groups.id = groups_roles.groupId')
+    joins.set('groups_roles', 'INNER JOIN groups_roles on g.id = groups_roles.groupId')
   }
   where.push(`groups_roles.roleId IN (${db.in(binds, roleIds)})`)
-  const groups = await db.getall(`SELECT groups.*, groups_roles.roleId as roleId
-                                  FROM groups
+  const groups = await db.getall(`SELECT g.*, groups_roles.roleId as roleId
+                                  FROM \`groups\` g
                                   ${Array.from(joins.values()).join('\n')}
                                   WHERE (${where.join(') AND (')})`, binds)
   return groups.map(row => ({ key: String(row.roleId), value: new Group(row) }))
 }
 
 export async function groupNameIsUnique (name: string) {
-  const count = await db.getval('SELECT COUNT(*) FROM groups WHERE name = ?', [name])
+  const count = await db.getval('SELECT COUNT(*) FROM `groups` WHERE name = ?', [name])
   return count === 0
 }
 
 export async function createGroup (name: string, parent?: Group) {
   return await db.transaction(async db => {
-    const groupId = await db.insert('INSERT INTO groups (name) VALUES (?)', [name])
+    const groupId = await db.insert('INSERT INTO `groups` (name) VALUES (?)', [name])
     if (parent) {
       await db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [parent.id, groupId])
     }
@@ -119,7 +119,7 @@ export async function createGroup (name: string, parent?: Group) {
 }
 
 export async function updateGroup (id: string, name: string) {
-  return await db.update('UPDATE groups SET name = ? WHERE id = ?', [name, id])
+  return await db.update('UPDATE `groups` SET name = ? WHERE id = ?', [name, id])
 }
 
 export async function deleteGroup (id: string) {
@@ -129,7 +129,7 @@ export async function deleteGroup (id: string) {
       db.delete('DELETE FROM groups_groups WHERE parentId = ? OR childId = ?', [id, id]),
       db.delete('DELETE FROM users_groups WHERE groupId = ?', [id])
     ])
-    await db.delete('DELETE FROM groups where id = ?', [id])
+    await db.delete('DELETE FROM `groups` where id = ?', [id])
   })
 }
 

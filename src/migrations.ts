@@ -257,7 +257,7 @@ export async function resetdb () {
       db.execute('DROP TABLE IF EXISTS binaries'),
       db.execute('DROP TABLE IF EXISTS pages'),
       db.execute('DROP TABLE IF EXISTS roles'),
-      db.execute('DROP TABLE IF EXISTS groups'),
+      db.execute('DROP TABLE IF EXISTS `groups`'),
       db.execute('DROP TABLE IF EXISTS comments'),
       db.execute('DROP TABLE IF EXISTS pagetrees'),
       db.execute('DROP TABLE IF EXISTS assetfolders'),
@@ -289,7 +289,7 @@ export async function seeddb (tdb: Queryable = db) {
     tdb.insert('INSERT INTO pagerules (`roleId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1, 1]),
     tdb.insert('INSERT INTO datarules (`roleId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?)', [superuserRole, 1, 1, 1, 1, 1, 1, 1]),
     tdb.insert('INSERT INTO templaterules (`roleId`, `use`) VALUES (?,?)', [superuserRole, 1]),
-    tdb.insert('INSERT INTO users (login, firstname, lastname, email, system, lastlogin, lastlogout, disabledAt) VALUES ("system", "", "System User", "", true, null, null, null)')
+    tdb.insert('INSERT INTO users (login, firstname, lastname, email, `system`, lastlogin, lastlogout, disabledAt) VALUES ("system", "", "System User", "", true, null, null, null)')
   ])
   await tdb.insert('INSERT INTO users_roles (userId, roleId) VALUES (?, ?)', [userId, superuserRole])
 }
