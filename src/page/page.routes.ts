@@ -65,6 +65,9 @@ interface RootPage {
     undelete: boolean
     unpublish: boolean
   }
+  userTags: {
+    id: string
+  }[]
 }
 
 async function handleUpload (req: FastifyRequest) {
@@ -437,6 +440,9 @@ export async function createPageRoutes (app: FastifyInstance) {
     const binds: any[] = []
     const children = await db.getall<{ dataId: number, path: string }>(`SELECT dataId, path FROM pages WHERE path IN (${db.in(binds, pagesToKeep.map(p => '/' + String(p.id)))}) AND deleteState IN (0, 1)`, binds)
     const childrenByPath = groupby(children, 'path')
+    const tagBinds: any[] = []
+    const userTags = await db.getall(`SELECT * FROM pages_tags WHERE pageId IN (${db.in(tagBinds, pagesToKeep.map(p => p.id))})`, tagBinds)
+    const tagsByPageId = groupby(userTags, 'pageId')
 
     const ret: RootPage[] = pagesToKeep.map(p => ({
       id: String(p.dataId),
@@ -467,7 +473,8 @@ export async function createPageRoutes (app: FastifyInstance) {
       published: !!p.published,
       publishedAt: p.publishedAt?.toISOString(),
       children: childrenByPath['/' + String(p.id)]?.map(c => ({ id: String(c.dataId) })) ?? [],
-      permissions: permsByPageInternalId[p.id]
+      permissions: permsByPageInternalId[p.id],
+      userTags: tagsByPageId[p.id]?.map(t => ({ id: t.tagId })) ?? []
     }))
     return ret
   })
