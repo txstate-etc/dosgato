@@ -356,7 +356,8 @@ export class PageService extends DosGatoService<Page> {
   raw = this.svc(PageServiceInternal)
 
   postFilter (pages: Page[], filter?: PageFilter) {
-    return filter?.viewForEdit ? pages.filter(p => this.mayViewForEdit(p)) : pages
+    const authorized = filter?.viewForEdit ? pages.filter(p => this.mayViewForEdit(p)) : pages
+    return filter?.search?.length ? authorized.slice(0, 200) : authorized
   }
 
   async find (filter: PageFilter) {
@@ -367,7 +368,7 @@ export class PageService extends DosGatoService<Page> {
       else filter.noresults = true
     }
     const ret = await this.raw.find(filter)
-    if (filter.links?.length || filter.paths?.length || filter.ids?.length) return ret.filter(p => this.mayViewIndividual(p))
+    if (filter.links?.length || filter.paths?.length || filter.ids?.length) return this.postFilter(ret.filter(p => this.mayViewIndividual(p)), filter)
     return this.postFilter(this.removeUnauthorized(ret), filter)
   }
 

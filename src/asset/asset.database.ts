@@ -217,7 +217,7 @@ async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
           ) a
           WHERE (${wordlikes.join(') AND (')})
           ORDER BY a.name
-          LIMIT 100
+          LIMIT 1000
       `
       const rows = await db.getall<{ id: string, name: string, term: string, cnt: number }>(query, [...binds, ...searchbinds, ...wordbinds])
       if (rows.length) assetRows = rows
@@ -253,7 +253,7 @@ async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
           GROUP BY assets.id
           HAVING cnt >= ${wordcount}
           ORDER BY cnt DESC, assets.name, assets_searchstrings.term
-          LIMIT 100
+          LIMIT 1000
         `
         const rows = await db.getall<{ id: string, name: string, term: string, cnt: number }>(query, [...binds, ...codebinds])
         if (rows.length) assetRows = rows

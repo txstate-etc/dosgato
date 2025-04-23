@@ -197,7 +197,8 @@ export class AssetService extends DosGatoService<Asset> {
   raw = this.svc(AssetServiceInternal)
 
   async postFilter (assets: Asset[], filter?: AssetFilter) {
-    return filter?.viewForEdit ? assets.filter(a => this.mayViewForEdit(a)) : assets
+    const authorized = filter?.viewForEdit ? assets.filter(a => this.mayViewForEdit(a)) : assets
+    return filter?.search?.length ? authorized.slice(0, 200) : authorized
   }
 
   async find (filter: AssetFilter) {

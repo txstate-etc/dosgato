@@ -293,7 +293,7 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
         ) p
         WHERE (${wordlikes.join(') AND (')})
         ORDER BY p.path, p.name
-        LIMIT 100
+        LIMIT 1000
       `
       const rows = await db.getall<{ id: string, name: string, title: string, cnt: number }>(query, [...binds, ...ibinds, ...wordbinds])
       if (rows.length) pageRows = rows
@@ -326,7 +326,7 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
           GROUP BY pages.id
           HAVING cnt >= ${wordcount}
           ORDER BY cnt DESC, pages.path, pages.name
-          LIMIT 100
+          LIMIT 1000
         `
         const rows = await db.getall<{ id: string, name: string, title: string, cnt: number }>(query, [...binds, ...codebinds])
         if (rows.length) pageRows = rows
