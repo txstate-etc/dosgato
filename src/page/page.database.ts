@@ -350,10 +350,11 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db) {
   if (filter.noresults) return []
   const pagerows = await tdb.getall(`
     SELECT pages.*, pagetrees.type as pagetreeType, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned, tags.tag IS NOT NULL as published,
-    sites.name as siteName, sites.launchEnabled
+    sites.name as siteName, sites.launchEnabled, storage.version as latestVersion, tags.version as publishedVersion
     FROM pages
     INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id
     INNER JOIN sites ON pages.siteId = sites.id
+    INNER JOIN storage ON storage.id = pages.dataId
     LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
     ${joins.size ? Array.from(joins.values()).join('\n') : ''}
     ${where.length ? `WHERE (${where.join(') AND (')})` : ''}

@@ -1,9 +1,9 @@
 import type { LinkDefinition, ComponentData, PageData, PageExtras, AssetLink, AssetFolderLink } from '@dosgato/templating'
-import { BaseService, ValidatedResponse, MutationMessageType } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse, MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import type { DateTime } from 'luxon'
+import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
-import { equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, set, someAsync, sortby } from 'txstate-utils'
+import { Cache, equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, omit, set, someAsync, sortby } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, type Page, type PageFilter, PageResponse, PagesResponse,
   createPage, getPages, movePages, deletePages, renamePage, TemplateService, type TemplateFilter,
@@ -16,6 +16,7 @@ import {
   type SearchRule, removeUnreachableComponents
 } from '../internal.js'
 import { getTagPageIds } from '../tag/tag.database.js'
+import LRUCache from 'lru-cache'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
@@ -94,6 +95,15 @@ export const pagesByTagIdLoader = new ManyJoinedLoader({
   idLoader: [pagesByInternalIdLoader, pagesByDataIdLoader]
 })
 
+const pageDataCache = new Cache(async (key: { pageIntDataId: number, version: number, toSchemaVersion: string, extras: Omit<PageExtras, 'query'> }, ctx: Context) => {
+  const versioned = await ctx.svc(VersionedService).get(key.pageIntDataId, { version: key.version })
+  if (!versioned) throw new Error('Asked for page data version that does not exist.')
+  const extras = { ...key.extras, query: ctx.query.bind(ctx) }
+  return await migratePage(versioned.data, extras, DateTime.fromISO(key.toSchemaVersion))
+}, {
+  storageClass: new LRUCache({ max: 250 })
+})
+
 export class PageServiceInternal extends BaseService {
   async find (filter: PageFilter) {
     filter = await this.processFilters(filter)
@@ -153,18 +163,16 @@ export class PageServiceInternal extends BaseService {
   }
 
   async getData (page: Page, version?: number, published?: boolean, toSchemaVersion = templateRegistry.currentSchemaVersion) {
-    const [versioned, extras] = await Promise.all([
-      this.svc(VersionedService).get(page.intDataId, { tag: published ? 'published' : undefined, version }),
-      this.pageExtras(page)
-    ])
-    if (!versioned) throw new Error('Asked for page data version that does not exist.')
-    return await migratePage(versioned.data, extras, toSchemaVersion)
+    const pageVersion = version ?? (published ? page.publishedVersion : page.latestVersion)
+    if (!pageVersion) throw new Error('Asked for published page data but page is not published.')
+    const extras = this.pageExtras(page)
+    return await pageDataCache.get({ pageIntDataId: page.intDataId, version: pageVersion, toSchemaVersion: toSchemaVersion.toISO()!, extras: omit(extras, 'query') }, this.ctx)
   }
 
-  async pageExtras (page: Page) {
+  pageExtras (page: Page) {
     return {
       query: this.ctx.query.bind(this.ctx),
-      siteId: String(page.siteInternalId),
+      siteId: page.siteId,
       pagetreeId: page.pagetreeId,
       parentId: String(page.parentInternalId),
       pagePath: page.resolvedPath,
@@ -744,7 +752,7 @@ export class PageService extends DosGatoService<Page> {
     if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
     await this.checkLatestVersion(dataId, dataVersion)
     const pageData = await this.raw.getData(page, dataVersion)
-    const extras = await this.raw.pageExtras(page)
+    const extras = this.raw.pageExtras(page)
     const migrated = await migratePage(pageData, extras, editedSchemaVersion)
     if (migrated.templateKey !== data.templateKey) throw new Error('You may not change page templates while updating properties. Use changePageTemplate instead.')
 
@@ -780,7 +788,7 @@ export class PageService extends DosGatoService<Page> {
     if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
     await this.checkLatestVersion(dataId, dataVersion)
     const pageData = await this.raw.getData(page, dataVersion)
-    const extras = await this.raw.pageExtras(page)
+    const extras = this.raw.pageExtras(page)
     const migrated = await migratePage(pageData, extras, editedSchemaVersion)
 
     const response = new PageResponse({ success: true })
@@ -815,7 +823,7 @@ export class PageService extends DosGatoService<Page> {
     const pageData = await this.raw.getData(page, dataVersion)
 
     // migrate the stored page data to match the schemaversion the UI was using
-    const extras = await this.raw.pageExtras(page)
+    const extras = this.raw.pageExtras(page)
     const migrated = await migratePage(pageData, extras, editedSchemaVersion)
 
     // perform the operation to add the component to the requested area or location
@@ -901,7 +909,7 @@ export class PageService extends DosGatoService<Page> {
     const pageData = await this.raw.getData(page, dataVersion)
 
     // migrate the stored page data to match the schemaversion the UI was using
-    const extras = await this.raw.pageExtras(page)
+    const extras = this.raw.pageExtras(page)
     let migrated = await migratePage(pageData, extras, editedSchemaVersion)
 
     // perform the operation to move the component from one place to another
@@ -984,7 +992,7 @@ export class PageService extends DosGatoService<Page> {
     const pageData = await this.raw.getData(page, dataVersion)
 
     // migrate the stored page data to match the schemaversion of the admin UI
-    const extras = await this.raw.pageExtras(page)
+    const extras = this.raw.pageExtras(page)
     const migrated = await migratePage(pageData, extras, editedSchemaVersion)
 
     // execute the deletion
@@ -1015,7 +1023,7 @@ export class PageService extends DosGatoService<Page> {
     if (this.opRestricted(page, 'changetemplate') || !this.mayUpdate(page)) throw new Error("You are not permitted to change this page's template.")
     const pageData = await this.raw.getData(page, dataVersion)
 
-    const extras = await this.raw.pageExtras(page)
+    const extras = this.raw.pageExtras(page)
     const fullymigrated = await migratePage(pageData, extras)
 
     const template = await this.svc(TemplateServiceInternal).findByKey(templateKey)

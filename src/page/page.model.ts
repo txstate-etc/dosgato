@@ -108,6 +108,8 @@ export class Page {
   published: boolean
   resolvedPath!: string
   resolvedPathWithoutSitename!: string
+  latestVersion: number
+  publishedVersion?: number
 
   // this is a helper property for determining whether templates can be kept on a page
   // see TemplateService.mayKeepOnPage()
@@ -139,6 +141,8 @@ export class Page {
     this.published = !!row.published
     this.launchState = row.launchEnabled
     this.siteName = row.siteName
+    this.latestVersion = row.latestVersion
+    this.publishedVersion = row.publishedVersion
   }
 }
 
