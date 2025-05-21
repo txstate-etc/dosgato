@@ -62,11 +62,12 @@ export class TagService extends TagServiceInternal {
     return new PagesResponse({ success: true, pages })
   }
 
-  async setPageTags (tagIds: string[], pageDataId: string) {
-    const page = await this.svc(PageServiceInternal).findById(pageDataId)
-    if (!page || !this.svc(PageService).mayUpdate(page)) throw new Error('You are not authorized to edit this page.')
-    await replaceUserTags(tagIds, page.internalId)
+  async setPageTags (tagIds: string[], pageDataIds: string[], includeChildren?: boolean) {
+    const pages = await this.svc(PageServiceInternal).findByIds(pageDataIds)
+    const pageSvc = this.svc(PageService)
+    if (pages.some(p => !pageSvc.mayUpdate(p))) throw new Error('You are not authorized to edit all of the selected pages.')
+    await replaceUserTags(tagIds, pages.map(p => p.internalId), includeChildren)
     this.loaders.clear()
-    return new PageResponse({ success: true, page })
+    return new PagesResponse({ success: true, pages })
   }
 }

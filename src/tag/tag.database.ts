@@ -1,4 +1,5 @@
 import db from 'mysql2-async/db'
+import { DeleteStateAll, DeleteStateDefault, getPages } from '../internal.js'
 
 export async function getPageTagIds (internalIds: number[]) {
   const binds: number[] = []
@@ -28,17 +29,30 @@ export async function removeUserTags (tagIds: string[], pageInternalIds: number[
   await db.insert(`DELETE FROM pages_tags WHERE (tagId, pageId) IN (${db.in(binds, pairs)})`, binds)
 }
 
-export async function replaceUserTags (tagIds: string[], pageInternalId: number) {
+export async function replaceUserTags (tagIds: string[], pageInternalIds: number[], includeChildren?: boolean) {
   await db.transaction(async db => {
-    let binds: any[] = [pageInternalId]
-    let query = 'DELETE FROM pages_tags WHERE pageId = ?'
+    let binds: any[] = []
+    let childInternalIds: number[] = []
+    if (includeChildren) {
+      const refetchedPages = await getPages({ internalIds: pageInternalIds }, db)
+      const children = await getPages({ deleteStates: DeleteStateDefault, internalIdPathsRecursive: refetchedPages.map(page => `${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`) }, db)
+      childInternalIds = children.map(p => p.internalId)
+    }
+
+    let query = `DELETE FROM pages_tags WHERE pageId IN (${db.in(binds, [...pageInternalIds, ...childInternalIds])})`
     if (tagIds.length) {
       query += ` AND tagId NOT IN (${db.in(binds, tagIds)})`
     }
     await db.delete(query, binds)
     binds = []
     if (tagIds.length) {
-      await db.insert(`INSERT INTO pages_tags (tagId, pageId) VALUES ${db.in(binds, tagIds.map(tagId => [tagId, pageInternalId]))} ON DUPLICATE KEY UPDATE tagId=tagId`, binds)
+      const values: string[] = []
+      for (const tagId of tagIds) {
+        for (const pageInternalId of [...pageInternalIds, ...childInternalIds]) {
+          values.push(`('${tagId}', ${pageInternalId})`)
+        }
+      }
+      await db.insert(`INSERT INTO pages_tags (tagId, pageId) VALUES ${values.join(', ')} ON DUPLICATE KEY UPDATE tagId=tagId`)
     }
   })
 }

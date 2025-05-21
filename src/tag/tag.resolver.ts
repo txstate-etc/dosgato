@@ -19,8 +19,8 @@ export class UserTagResolver {
     return await ctx.svc(TagService).removeTagsFromPages(tagIds, pageIds)
   }
 
-  @Mutation(returns => PageResponse, { description: 'Replace the user tags on the given page. Any pre-existing non-listed tags will be removed.' })
-  async replaceTagsOnPage (@Ctx() ctx: Context, @Arg('tagIds', type => [ID]) tagIds: string[], @Arg('pageId', type => ID) pageId: string) {
-    return await ctx.svc(TagService).setPageTags(tagIds, pageId)
+  @Mutation(returns => PagesResponse, { description: 'Replace the user tags on the given pages. Any pre-existing non-listed tags will be removed.' })
+  async replaceTagsOnPage (@Ctx() ctx: Context, @Arg('tagIds', type => [ID]) tagIds: string[], @Arg('pageIds', type => [ID]) pageIds: string[], @Arg('includeChildren', { nullable: true }) includeChildren?: boolean) {
+    return await ctx.svc(TagService).setPageTags(tagIds, pageIds, includeChildren)
   }
 }

@@ -65,11 +65,11 @@ describe('tags', () => {
     expect(pages[0].id).to.equal(pageId)
   })
   it('should replace tags on a page', async () => {
-    const { replaceTagsOnPage } = await query<{ replaceTagsOnPage: { success: boolean, page: { id: string, userTags: { name: string }[] } } }>(`
+    const { replaceTagsOnPage } = await query<{ replaceTagsOnPage: { success: boolean, pages: { id: string, userTags: { name: string }[] }[] } }>(`
       mutation tagPage ($tagId: ID!, $pageId: ID!) {
-        replaceTagsOnPage (tagIds: [$tagId], pageId: $pageId) {
+        replaceTagsOnPage (tagIds: [$tagId], pageIds: [$pageId]) {
           success
-          page {
+          pages {
             id
             userTags {
               name
@@ -79,17 +79,17 @@ describe('tags', () => {
       }
     `, { tagId: twoId, pageId })
     expect(replaceTagsOnPage.success).to.be.true
-    expect(replaceTagsOnPage.page.id).to.equal(pageId)
-    expect(replaceTagsOnPage.page.userTags).to.deep.equal([{ name: 'Two' }])
+    expect(replaceTagsOnPage.pages[0].id).to.equal(pageId)
+    expect(replaceTagsOnPage.pages[0].userTags).to.deep.equal([{ name: 'Two' }])
   })
   it('should replace all tags on a page with NO tags', async () => {
     const { pages } = await query('{ pages(filter: { deleteStates: [NOTDELETED] }) { id name } }')
     pageId = pages[0].id
-    const { replaceTagsOnPage } = await query<{ replaceTagsOnPage: { success: boolean, page: { id: string, userTags: { name: string }[] } } }>(`
+    const { replaceTagsOnPage } = await query<{ replaceTagsOnPage: { success: boolean, pages: { id: string, userTags: { name: string }[] }[] } }>(`
       mutation replaceTagsOnPage ($pageId: ID!, $tagIds: [ID!]!) {
-        replaceTagsOnPage(pageId: $pageId, tagIds: $tagIds) {
+        replaceTagsOnPage(pageIds: [$pageId], tagIds: $tagIds) {
         success
-        page {
+        pages {
             id
             userTags {
               name
@@ -99,8 +99,8 @@ describe('tags', () => {
       }
     `, { tagIds: [], pageId })
     expect(replaceTagsOnPage.success).to.be.true
-    expect(replaceTagsOnPage.page.id).to.equal(pageId)
-    expect(replaceTagsOnPage.page.userTags).to.deep.equal([])
+    expect(replaceTagsOnPage.pages[0].id).to.equal(pageId)
+    expect(replaceTagsOnPage.pages[0].userTags).to.deep.equal([])
   })
   it('should remove a tag from a page', async () => {
     const { removeTagsFromPages } = await query<{ removeTagsFromPages: { success: boolean, pages: { id: string, userTags: { name: string }[] }[] } }>(`
@@ -119,5 +119,60 @@ describe('tags', () => {
     expect(removeTagsFromPages.success).to.be.true
     expect(removeTagsFromPages.pages[0].id).to.equal(pageId)
     expect(removeTagsFromPages.pages[0].userTags).to.deep.equal([])
+  })
+  it('should tag multiple pages with multiple tags', async () => {
+    const { pages } = await query('{ pages(filter: { deleteStates: [NOTDELETED] }) { id name } }')
+    if (pages.length > 2) {
+      const page1Id = pages[pages.length - 1].id
+      const page2Id = pages[pages.length - 2].id
+      const { replaceTagsOnPage } = await query<{ replaceTagsOnPage: { success: boolean, pages: { id: string, userTags: { name: string }[] }[] } }>(`
+        mutation replaceTagsOnPage ($pageIds: [ID!]!, $tagIds: [ID!]!) {
+          replaceTagsOnPage(pageIds: $pageIds, tagIds: $tagIds) {
+            success
+            pages {
+              id
+              userTags {
+                name
+              }
+            }
+          }
+        }
+      `, { tagIds: [oneId, twoId], pageIds: [page1Id, page2Id] })
+      expect(replaceTagsOnPage.success).to.be.true
+      expect(replaceTagsOnPage.pages[0].id).to.be.oneOf([page1Id, page2Id])
+      expect(replaceTagsOnPage.pages[0].userTags).to.deep.equal([{ name: 'One' }, { name: 'Two' }])
+      expect(replaceTagsOnPage.pages[1].id).to.be.oneOf([page1Id, page2Id])
+      expect(replaceTagsOnPage.pages[1].userTags).to.deep.equal([{ name: 'One' }, { name: 'Two' }])
+    } else {
+      console.warn('Not enough pages to test multiple tagging')
+    }
+  })
+  it('should tag a page and all of its descendants', async () => {
+    const { pages } = await query('{ pages(filter: { deleteStates: [NOTDELETED] }) { id name path pagetree { id } } }')
+    const peoplePage = pages.find(p => p.name === 'people')
+    if (peoplePage) {
+      const peoplePageId = peoplePage.id
+      const { replaceTagsOnPage } = await query<{ replaceTagsOnPage: { success: boolean, pages: { id: string, userTags: { name: string }[] }[] } }>(`
+        mutation tagPage ($tagIds: [ID!]!, $pageId: ID!, $includeChildren: Boolean) {
+          replaceTagsOnPage (tagIds: $tagIds, pageIds: [$pageId], includeChildren: $includeChildren) {
+            success
+            pages {
+              id
+              userTags {
+                name
+              }
+            }
+          }
+        }
+      `, { tagIds: [oneId, twoId], pageId: peoplePageId, includeChildren: true })
+      expect(replaceTagsOnPage.success).to.be.true
+      expect(replaceTagsOnPage.pages[0].userTags).to.deep.equal([{ name: 'One' }, { name: 'Two' }])
+      const { pages: childPages } = await query(`{ pages(filter: { deleteStates: [NOTDELETED], pagetreeIds: [${peoplePage.pagetree.id}], parentPaths: ["${peoplePage.path}"]  }) { id name userTags { name } } }`)
+      for (const childPage of childPages) {
+        expect(childPage.userTags).to.deep.equal([{ name: 'One' }, { name: 'Two' }])
+      }
+    } else {
+      console.warn('Could not find people page to test child page tagging')
+    }
   })
 })
