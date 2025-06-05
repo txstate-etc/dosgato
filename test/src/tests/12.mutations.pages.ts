@@ -116,10 +116,17 @@ describe('pages mutations', () => {
     expect(String(movedPages[0].dataId)).to.equal(firstPageToMove.id)
   })
   it('should not move a page into its own subtree', async () => {
-    const { page: movingPage } = await createPage('movingpageC', testSite6PageRootId, 'keyp2')
-    const { page: middlePage } = await createPage('otherpage', movingPage.id, 'keyp2')
-    const { page: targetPage } = await createPage('targetpageB', middlePage.id, 'keyp2')
-    await expect(query('mutation movePages ($pageIds: [ID!]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { pages { name, parent { name } } } }', { pageIds: [movingPage.id], parentId: targetPage.id })).to.be.rejected
+    const { page: topPage } = await createPage('movingpageC', testSite6PageRootId, 'keyp2')
+    const { page: middlePage } = await createPage('otherpage', topPage.id, 'keyp2')
+    const { page: deepestPage } = await createPage('targetpageB', middlePage.id, 'keyp2')
+    console.log('top to deepest')
+    await expect(query('mutation movePages ($pageIds: [ID!]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { pages { name, parent { name } } } }', { pageIds: [topPage.id], parentId: deepestPage.id })).to.be.rejected
+    console.log('top to middle')
+    await expect(query('mutation movePages ($pageIds: [ID!]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { pages { name, parent { name } } } }', { pageIds: [topPage.id], parentId: middlePage.id })).to.be.rejected
+    console.log('top to top')
+    await expect(query('mutation movePages ($pageIds: [ID!]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { pages { name, parent { name } } } }', { pageIds: [topPage.id], parentId: topPage.id })).to.be.rejected
+    console.log('deepest to deepest')
+    await expect(query('mutation movePages ($pageIds: [ID!]!, $parentId: ID!) { movePages (pageIds: $pageIds, targetId: $parentId) { pages { name, parent { name } } } }', { pageIds: [deepestPage.id], parentId: deepestPage.id })).to.be.rejected
   })
   it('should not move a page to a different site', async () => {
     const { page: movingPage } = await createPage('movingpageD', testSite6PageRootId, 'keyp1')

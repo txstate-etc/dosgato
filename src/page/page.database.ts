@@ -451,7 +451,7 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
       throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
     }
 
-    if (pages.some(page => parent.id === page.id || parent.path.startsWith(page.pathAsParent + '/'))) {
+    if (pages.some(page => page.id === parent.id || page.pathAsParent === parent.path || parent.path.startsWith(page.pathAsParent + '/'))) {
       throw new Error('Cannot move a page into its own subtree.')
     }
 
