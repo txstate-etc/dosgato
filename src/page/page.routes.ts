@@ -274,7 +274,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     })
     if (!firstInternalId) throw new HttpError(400, 'No valid page exports were uploaded.')
     const page = (await svcPageInternal.findByInternalId(firstInternalId))!
-    logMutation(new Date().getTime() - startTime.getTime(), 'importPage', 'mutation uploadImportPage (RESTful)', user.id, { parentId: parent.id }, { success: true, pagesImported: Object.values(parentsByPath).map(p => p.id) }, []).catch(console.error)
+    logMutation(new Date().getTime() - startTime.getTime(), 'importPage', 'mutation uploadImportPage (RESTful)', user.id, { parentId: parent.id }, { success: true, pagesImported: Object.values(parentsByPath).map(p => p.id) }, [], ctx).catch(console.error)
     return { success: true, id: page.id, linkId: page.linkId }
   })
 
@@ -336,7 +336,7 @@ export async function createPageRoutes (app: FastifyInstance) {
       ...pick(pageRecord, 'createdBy', 'createdAt', 'modifiedBy', 'modifiedAt', 'linkId')
     })
     const page = (await svcPageInternal.findByInternalId(pageInternalId))!
-    logMutation(new Date().getTime() - startTime.getTime(), 'importPage', 'mutation uploadMigratePage (RESTful)', user.id, { parentId: parent.id, name: newPageName }, { success: true, id: page.id }, []).catch(console.error)
+    logMutation(new Date().getTime() - startTime.getTime(), 'importPage', 'mutation uploadMigratePage (RESTful)', user.id, { parentId: parent.id, name: newPageName }, { success: true, id: page.id }, [], ctx).catch(console.error)
     return { success: true, id: page.id, linkId: page.linkId, messages: response.messages }
   })
 

@@ -32,7 +32,7 @@ const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
   await updateLastLogin(userId, tokenIssuedAt)
 })
 
-async function updateLogin (queryTime: number, operationName: string, query: string, auth: any, variables: any, data: any, errors?: GraphQLError[]) {
+async function updateLogin (queryTime: number, operationName: string, query: string, auth: any, variables: any, data: any, errors: GraphQLError[] | undefined, ctx: Context) {
   await loginCache.get(auth.sub ?? auth.client_id, Number(auth.iat))
 }
 
@@ -250,7 +250,7 @@ export class DGServer {
     ]
     scalarsMap.push(...(opts.scalarsMap ?? []))
 
-    const after = async (...args: [queryTime: number, operationName: string, query: string, auth: any, variables: any, data: any, errors: GraphQLError[] | undefined]) => {
+    const after = async (...args: [queryTime: number, operationName: string, query: string, auth: any, variables: any, data: any, errors: GraphQLError[] | undefined, ctx: Context]) => {
       await Promise.all([
         opts.after?.(...args),
         logMutation(...args),
