@@ -65,7 +65,7 @@ export async function placeFile (readStream: Readable, filename: string, mimeGue
       curSize += chunk.length
       if (curSize >= 1024) {
         const received = Buffer.concat(bufs)
-        mime = magic.getMime(received)
+        mime = magic.detect(received)
         isDetected = mime !== 'application/x-ole-storage' || curSize > 20971520
       }
     }
