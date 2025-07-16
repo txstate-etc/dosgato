@@ -114,9 +114,11 @@ export async function getData (filter?: DataFilter) {
   let query = `SELECT data.*, templates.key AS templateKey,
     templates.deleted = 1 OR sites.deletedAt IS NOT NULL as orphaned,
     datafolders.name AS folderName, sites.name AS siteName,
-    tags.tag IS NOT NULL as published
+    tags.tag IS NOT NULL AS published, storage.version AS latestVersion,
+    tags.version AS publishedVersion
   FROM data
   INNER JOIN templates ON data.templateId = templates.id
+  INNER JOIN storage ON data.dataId = storage.id
   LEFT JOIN sites ON data.siteId = sites.id
   LEFT JOIN datafolders on data.folderId = datafolders.id
   LEFT JOIN tags ON tags.id = data.dataId AND tags.tag = 'published'`

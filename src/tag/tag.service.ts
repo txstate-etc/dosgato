@@ -27,7 +27,9 @@ const tagNameCache = new Cache(async (_: any, ctx: Context) => {
   const tagsByName: Record<string, string[]> = {}
   const tagIds = new Set<string>()
   for (const group of groups) {
+    if (group.disabled) continue
     for (const tag of group.tags) {
+      if (tag.disabled) continue
       const lcName = tag.name.toLocaleLowerCase()
       tagsByName[lcName] ??= []
       tagsByName[lcName].push(tag.id)

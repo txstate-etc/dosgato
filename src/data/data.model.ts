@@ -36,6 +36,8 @@ export class Data {
   published: boolean
   resolvedPath: string
   resolvedPathWithoutSitename: string
+  latestVersion: number
+  publishedVersion?: number
 
   constructor (row: any) {
     this.internalId = row.id
@@ -56,6 +58,8 @@ export class Data {
     this.published = !!row.published
     this.resolvedPath = '/' + [row.siteName ?? 'global', row.folderName, row.name].filter(isNotBlank).join('/')
     this.resolvedPathWithoutSitename = '/' + [row.folderName, row.name].filter(isNotBlank).join('/')
+    this.latestVersion = row.latestVersion
+    this.publishedVersion = row.publishedVersion ?? undefined
   }
 }
 

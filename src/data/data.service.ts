@@ -109,6 +109,15 @@ export class DataServiceInternal extends BaseService {
     return versioned?.data
   }
 
+  async reindex (data: Data) {
+    const dataData = await this.getData(data)
+    await this.svc(VersionedService).setIndexes(data.intDataId, data.latestVersion, getDataIndexes(dataData))
+    if (data.publishedVersion && data.publishedVersion !== data.latestVersion) {
+      const publishedData = await this.getData(data, { version: data.publishedVersion })
+      await this.svc(VersionedService).setIndexes(data.intDataId, data.publishedVersion, getDataIndexes(publishedData))
+    }
+  }
+
   async getTemplateKey (data: Data) {
     const content = await this.getData(data)
     return content.templateKey

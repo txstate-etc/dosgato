@@ -1,8 +1,8 @@
 import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
-import { batch, isNotNull, set, sortby } from 'txstate-utils'
+import { batch, sortby } from 'txstate-utils'
 import { init } from './createdb.js'
-import { type DBMigration, VersionedService, getFullTextForIndexing, searchCodes, setAssetSearchCodes, setPageSearchCodes } from './internal.js'
+import { type DBMigration, DataServiceInternal, VersionedService, getFullTextForIndexing, setAssetSearchCodes, setPageSearchCodes, systemContext } from './internal.js'
 
 const dgMigrations: DBMigration[] = [
   {
@@ -195,6 +195,16 @@ const dgMigrations: DBMigration[] = [
         counter++
       }
       console.log('finished adding search codes for assets')
+    }
+  },
+  {
+    id: 20250716134500,
+    description: 're-index data with template dosgato-core-tags since we updated the template to index tag names in addition to ids',
+    run: async db => {
+      const ctx = systemContext()
+      const dataSvc = ctx.svc(DataServiceInternal)
+      const dataGroups = await dataSvc.findByTemplate('dosgato-core-tags')
+      for (const dataGroup of dataGroups) await dataSvc.reindex(dataGroup)
     }
   }
 ]

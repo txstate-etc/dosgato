@@ -168,6 +168,15 @@ export class PageServiceInternal extends BaseService {
     return await pageDataCache.get({ pageIntDataId: page.intDataId, version: pageVersion, toSchemaVersion: toSchemaVersion.toISO()!, extras: omit(extras, 'query') }, this.ctx)
   }
 
+  async reindex (page: Page) {
+    const pageData = await this.getData(page)
+    await this.svc(VersionedService).setIndexes(page.intDataId, page.latestVersion, getPageIndexes(pageData))
+    if (page.publishedVersion && page.publishedVersion !== page.latestVersion) {
+      const publishedData = await this.getData(page, page.publishedVersion)
+      await this.svc(VersionedService).setIndexes(page.intDataId, page.publishedVersion, getPageIndexes(publishedData))
+    }
+  }
+
   pageExtras (page: Page) {
     return {
       query: this.ctx.query.bind(this.ctx),
