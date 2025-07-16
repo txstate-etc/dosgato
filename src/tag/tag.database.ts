@@ -1,12 +1,12 @@
 import db from 'mysql2-async/db'
-import { DeleteStateAll, DeleteStateDefault, getPages } from '../internal.js'
+import { DeleteStateDefault, getPages } from '../internal.js'
 
-export async function getPageTagIds (internalIds: number[]) {
+export async function getPageTagsByPageIds (internalIds: number[]) {
   const binds: number[] = []
   return await db.getall<{ tagId: string, pageId: number }>(`SELECT tagId, pageId FROM pages_tags WHERE pageId IN (${db.in(binds, internalIds)})`, binds)
 }
 
-export async function getTagPageIds (tagIds: string[]) {
+export async function getPageTagsByTagIds (tagIds: string[]) {
   const binds: number[] = []
   return await db.getall<{ tagId: string, pageId: number }>(`SELECT tagId, pageId FROM pages_tags WHERE tagId IN (${db.in(binds, tagIds)})`, binds)
 }

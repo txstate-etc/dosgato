@@ -13,9 +13,8 @@ import {
   normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService,
   systemContext, collectComponents, makePathSafe, LaunchState, type DGRestrictOperations, fireEvent, setPageSearchCodes,
   AssetServiceInternal, getPageLinks, type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput,
-  type SearchRule, removeUnreachableComponents
+  type SearchRule, removeUnreachableComponents, getPageTagsByTagIds, TagServiceInternal
 } from '../internal.js'
-import { getTagPageIds } from '../tag/tag.database.js'
 import LRUCache from 'lru-cache'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -86,7 +85,7 @@ const pagesByPathLoader = new OneToManyLoader({
 
 export const pagesByTagIdLoader = new ManyJoinedLoader({
   fetch: async (tagIds: string[], filters: PageFilter) => {
-    const rows = await getTagPageIds(tagIds)
+    const rows = await getPageTagsByTagIds(tagIds)
     if (!rows.length) return []
     const pages = await getPages({ ...filters, internalIds: intersect({ skipEmpty: true }, rows.map(r => r.pageId), filters.internalIds) })
     const pagesByInternalId = keyby(pages, 'internalId')
@@ -356,6 +355,26 @@ export class PageServiceInternal extends BaseService {
       if (!dataIds.length) filter.noresults = true
       filter.ids = intersect({ skipEmpty: true }, filter.ids, dataIds)
     }
+    if (isNotBlank(filter.search)) {
+      // extract 'tag:tagname' and 'tag:"tag name with spaces"' from the search query
+      const searchTags: string[] = []
+      filter.search = filter.search.replace(/\btag:\s*("([^"]+)"|([^"\s]+))\s*/g, (match, p1, p2, p3) => {
+        const tag = p2 ?? p3
+        if (tag) {
+          searchTags.push(tag)
+          return ''
+        } else return match
+      })
+      if (searchTags.length) {
+        const tagIds = await this.svc(TagServiceInternal).findTagIdsByTagNamesOrIds(searchTags)
+        if (!tagIds.length) filter.noresults = true
+        else {
+          filter.userTagsAny ??= []
+          filter.userTagsAny.push(...tagIds)
+        }
+      }
+    }
+
     return filter
   }
 }

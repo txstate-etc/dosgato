@@ -2,6 +2,7 @@ services:
   dosgato-test:
     build:
       context: test
+    attach: true
     environment:
       MYSQL_USER: dosgato # might not need these environment variables. Does test need to connect to DB?
       MYSQL_PASS: password
@@ -16,6 +17,7 @@ services:
   dosgato-api:
     build:
       context: .
+    attach: false
     environment:
       NODE_ENV: development
       MYSQL_USER: dosgato
@@ -30,8 +32,7 @@ services:
         condition: service_healthy
   mysql:
     image: percona/percona-server:8.4
-    logging:
-      driver: none
+    attach: false
     environment:
       MYSQL_ROOT_PASSWORD: secret
       MYSQL_DATABASE: dosgatotest

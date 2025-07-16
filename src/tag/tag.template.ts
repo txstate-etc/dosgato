@@ -8,7 +8,7 @@ export const tagTemplate: APIDataTemplate<UserTagGroupData> = {
   name: 'Tags',
   computeName: data => data.title,
   nopublish: true,
-  getTags: data => [...data.tags.map(t => t.id), ...data.applicable],
+  getTags: data => [...data.tags.flatMap(t => [t.id, t.name]), ...data.applicable],
   validate: async (data, extras, nameIsTaken) => {
     const feedback: ValidationFeedback[] = []
     if (isBlank(data.title)) feedback.push({ message: 'Tag Set Name is required.', path: 'title' })

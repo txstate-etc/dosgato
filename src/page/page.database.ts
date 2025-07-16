@@ -222,7 +222,7 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
     })()
   ])
 
-  // next to last to it can use most filters that have come before
+  // next to last so it can use most filters that have come before
   if (filter.userTagsAny?.length) {
     const mybinds = [...binds]
     const pageIds = await db.getvals(`

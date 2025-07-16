@@ -175,4 +175,15 @@ describe('tags', () => {
       console.warn('Could not find people page to test child page tagging')
     }
   })
+  it('should be able to search for pages by tag when tag:tagname is in the search string', async () => {
+    const { pages } = await query('{ pages(filter: { search: "tag:One" }) { id name userTags { name } } }')
+    expect(pages).to.have.lengthOf.at.least(1)
+    for (const page of pages) {
+      expect(page.userTags).to.deep.include({ name: 'One' })
+    }
+  })
+  it('should return no pages when searching for a tag that does not exist', async () => {
+    const { pages } = await query<{ pages: { id: string, name: string, userTags: { name: string }[] }[] }>('query searchByNonExistentTag { pages (filter: { search: "tag:NonExistentTag" }) { id name userTags { name } } }')
+    expect(pages).to.have.lengthOf(0)
+  })
 })

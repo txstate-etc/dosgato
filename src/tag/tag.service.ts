@@ -1,10 +1,10 @@
-import { BaseService, ValidatedResponse, type Context } from '@txstate-mws/graphql-server'
+import { BaseService, type Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, ParentDocumentLoader } from 'dataloader-factory'
-import { DataServiceInternal, type Page, PageResponse, PageService, PageServiceInternal, PagesResponse, type UserTag, UserTagGroup, VersionedService } from '../internal.js'
-import { addUserTags, getPageTagIds, getTagPageIds, removeUserTags, replaceUserTags } from './tag.database.js'
+import { Cache } from 'txstate-utils'
+import { addUserTags, getPageTagsByPageIds, removeUserTags, replaceUserTags, DataServiceInternal, type Page, PageService, PageServiceInternal, PagesResponse, type UserTag, UserTagGroup, VersionedService } from '../internal.js'
 
 export const tagIdsByPageIdLoader = new OneToManyLoader({
-  fetch: async (pageIds: number[]) => await getPageTagIds(pageIds),
+  fetch: async (pageIds: number[]) => await getPageTagsByPageIds(pageIds),
   extractKey: row => row.pageId
 })
 
@@ -19,6 +19,24 @@ export const groupByTagIdLoader = new ParentDocumentLoader({
   childIds: group => group.tags.map(t => t.id)
 })
 
+const tagNameCache = new Cache(async (_: any, ctx: Context) => {
+  const dataSvc = ctx.svc(DataServiceInternal)
+  const dataGroups = await dataSvc.findByTemplate('dosgato-core-tags')
+  const data = await Promise.all(dataGroups.map(async g => await dataSvc.getData(g)))
+  const groups = dataGroups.map((g, i) => new UserTagGroup(data[i], g))
+  const tagsByName: Record<string, string[]> = {}
+  const tagIds = new Set<string>()
+  for (const group of groups) {
+    for (const tag of group.tags) {
+      const lcName = tag.name.toLocaleLowerCase()
+      tagsByName[lcName] ??= []
+      tagsByName[lcName].push(tag.id)
+      tagIds.add(tag.id)
+    }
+  }
+  return { tagsByName, tagIds }
+})
+
 export class TagServiceInternal extends BaseService {
   async findGroupsByTagIds (tagIds: string[]) {
     return await this.loaders.loadMany(groupByTagIdLoader, tagIds)
@@ -26,6 +44,13 @@ export class TagServiceInternal extends BaseService {
 
   async findGroupByTagId (tagId: string) {
     return await this.loaders.get(groupByTagIdLoader).load(tagId)
+  }
+
+  async findTagIdsByTagNamesOrIds (tagNamesOrIds: string[]) {
+    const { tagsByName, tagIds } = await tagNameCache.get(undefined, this.ctx)
+    const tagNamesLc = tagNamesOrIds.filter(t => !tagIds.has(t)).map(t => t.toLocaleLowerCase())
+    const alreadyIds = tagNamesOrIds.filter(t => tagIds.has(t))
+    return [...alreadyIds, ...tagNamesLc.flatMap(name => tagsByName[name] ?? [])]
   }
 
   async findTagsByPage (page: Page, includeDisabled?: boolean, includeInternal?: boolean) {
