@@ -1,6 +1,8 @@
 /* eslint-disable no-trailing-spaces */
 import { BaseService, ValidatedResponse, type MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { type Queryable } from 'mysql2-async'
+import db from 'mysql2-async/db'
 import { isNotNull, intersect, isNull, keyby, isBlank } from 'txstate-utils'
 import {
   type Data, type DataFilter, getData, VersionedService, appendPath, DosGatoService,
@@ -10,7 +12,6 @@ import {
   type DataFolder, type Site, TemplateService, DataRoot, migrateData, DataRootService, publishDataEntryDeletions,
   DeleteState, popPath, DeleteStateAll, DataRuleService, systemContext, makeSafe, numerateLoop
 } from '../internal.js'
-import db from 'mysql2-async/db'
 
 const dataByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => await getData({ internalIds, deleteStates: DeleteStateAll }),
@@ -109,12 +110,12 @@ export class DataServiceInternal extends BaseService {
     return versioned?.data
   }
 
-  async reindex (data: Data) {
+  async reindex (data: Data, tdb: Queryable = db) {
     const dataData = await this.getData(data)
-    await this.svc(VersionedService).setIndexes(data.intDataId, data.latestVersion, getDataIndexes(dataData))
+    await this.svc(VersionedService).setIndexes(data.intDataId, data.latestVersion, getDataIndexes(dataData), tdb)
     if (data.publishedVersion && data.publishedVersion !== data.latestVersion) {
       const publishedData = await this.getData(data, { version: data.publishedVersion })
-      await this.svc(VersionedService).setIndexes(data.intDataId, data.publishedVersion, getDataIndexes(publishedData))
+      await this.svc(VersionedService).setIndexes(data.intDataId, data.publishedVersion, getDataIndexes(publishedData), tdb)
     }
   }
 

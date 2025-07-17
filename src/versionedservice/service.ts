@@ -347,12 +347,16 @@ export class VersionedService extends BaseService {
   /**
    * Completely overwrite all the indexes for a specific version of an object.
    */
-  async setIndexes (id: number, version: number, indexes: Index[]) {
-    await db.transaction(async db => {
-      // this method expects to already be in a transaction because it's shared by
-      // create, update, and restore and they all do more work in the same transaction
-      await this._setIndexes(id, version, indexes, db)
-    })
+  async setIndexes (id: number, version: number, indexes: Index[], tdb?: Queryable) {
+    if (tdb) {
+      await this._setIndexes(id, version, indexes, tdb)
+    } else {
+      await db.transaction(async db => {
+        // this method expects to already be in a transaction because it's shared by
+        // create, update, and restore and they all do more work in the same transaction
+        await this._setIndexes(id, version, indexes, db)
+      })
+    }
   }
 
   /**

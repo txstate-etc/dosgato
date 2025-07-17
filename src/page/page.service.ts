@@ -1,7 +1,9 @@
 import type { LinkDefinition, ComponentData, PageData, PageExtras, AssetLink, AssetFolderLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import LRUCache from 'lru-cache'
 import { DateTime } from 'luxon'
+import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { Cache, equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, omit, set, someAsync, sortby } from 'txstate-utils'
 import {
@@ -15,7 +17,6 @@ import {
   AssetServiceInternal, getPageLinks, type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput,
   type SearchRule, removeUnreachableComponents, getPageTagsByTagIds, TagServiceInternal
 } from '../internal.js'
-import LRUCache from 'lru-cache'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
   fetch: async (internalIds: number[]) => {
@@ -168,12 +169,12 @@ export class PageServiceInternal extends BaseService {
     return await pageDataCache.get({ pageIntDataId: page.intDataId, version: pageVersion, toSchemaVersion: toSchemaVersion.toISO()!, extras: omit(extras, 'query') }, this.ctx)
   }
 
-  async reindex (page: Page) {
+  async reindex (page: Page, tdb: Queryable = db) {
     const pageData = await this.getData(page)
-    await this.svc(VersionedService).setIndexes(page.intDataId, page.latestVersion, getPageIndexes(pageData))
+    await this.svc(VersionedService).setIndexes(page.intDataId, page.latestVersion, getPageIndexes(pageData), tdb)
     if (page.publishedVersion && page.publishedVersion !== page.latestVersion) {
       const publishedData = await this.getData(page, page.publishedVersion)
-      await this.svc(VersionedService).setIndexes(page.intDataId, page.publishedVersion, getPageIndexes(publishedData))
+      await this.svc(VersionedService).setIndexes(page.intDataId, page.publishedVersion, getPageIndexes(publishedData), tdb)
     }
   }
 

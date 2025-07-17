@@ -204,7 +204,7 @@ const dgMigrations: DBMigration[] = [
       const ctx = systemContext()
       const dataSvc = ctx.svc(DataServiceInternal)
       const dataGroups = await dataSvc.findByTemplate('dosgato-core-tags')
-      for (const dataGroup of dataGroups) await dataSvc.reindex(dataGroup)
+      for (const dataGroup of dataGroups) await dataSvc.reindex(dataGroup, db)
     }
   }
 ]
