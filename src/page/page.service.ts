@@ -368,7 +368,7 @@ export class PageServiceInternal extends BaseService {
     if (isNotBlank(filter.search)) {
       // extract 'tag:tagname' and 'tag:"tag name with spaces"' from the search query
       const searchTags: string[] = []
-      filter.search = filter.search.replace(/\btag:\s*("([^"]+)"|([^"\s]+))\s*/g, (match, p1, p2, p3) => {
+      filter.search = filter.search.replace(/\btag:\s*("([^"]+)"|([^"\s]+))\s*/gi, (match, p1, p2, p3) => {
         const tag = p2 ?? p3
         if (tag) {
           searchTags.push(tag)
