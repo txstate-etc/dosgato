@@ -5,9 +5,12 @@ import { stringify } from 'txstate-utils'
 
 export async function logMutation (queryTime: number, operationName: string, query: string, auth: any, variables: any, data: any, errors: GraphQLError[] | undefined, ctx: Context) {
   if (!variables?.validateOnly && query.trimStart().startsWith('mutation') && data?.[Object.keys(data)[0]].success) {
+    const componentData = variables?.data?.templateKey?.length
+      ? { data: { redacted: true, templateKey: variables.data.templateKey } }
+      : variables?.data ? { data: { redacted: true } } : {}
     await db.insert(`
       INSERT INTO mutationlog (userId, query, mutation, variables)
       SELECT id, ?, ?, ? FROM users WHERE login=?
-    `, [query, operationName, stringify({ ...variables, ...(variables?.data ? { data: 'redacted' } : {}) }), auth.sub ?? auth.client_id])
+    `, [query, operationName, stringify({ ...variables, ...componentData }), auth.sub ?? auth.client_id])
   }
 }
