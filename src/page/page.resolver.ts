@@ -4,11 +4,11 @@ import { DateTime } from 'luxon'
 import { get, isNull } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
 import {
-  Pagetree, Role, JsonData, Site, Template, TemplateFilter,
-  User, UserService, ObjectVersion, VersionedService, Page, PageFilter, PagePermission, PagePermissions,
-  PageResponse, PagesResponse, PageService, RoleService, TemplateService, UrlSafeString,
-  DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal, SchemaVersionScalar, SiteServiceInternal, VersionFilter,
-  UserTag, TagService, getPageLinks
+  Pagetree, Role, JsonData, Site, Template, TemplateFilter, User, UserService, ObjectVersion, VersionedService,
+  Page, PageFilter, PagePermission, PagePermissions, PageResponse, PagesResponse, PageService, RoleService,
+  TemplateService, UrlSafeString, DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal,
+  SchemaVersionScalar, SiteServiceInternal, VersionFilter, UserTag, TagService, getPageLinks, Asset,
+  AssetFilter, AssetFolderFilter
 } from '../internal.js'
 
 @Resolver(of => Page)
@@ -94,6 +94,16 @@ export class PageResolver {
     if (!paths.length) return {}
     const data = await ctx.svc(PageService).getData(page, version, published, schemaversion)
     return paths.reduce<Record<string, any>>((ret, path) => { ret[path] = get(data, path); return ret }, {})
+  }
+
+  @FieldResolver(returns => [Asset], { description: 'Returns a list of all the assets referenced on this page.' })
+  async assets (@Ctx() ctx: Context, @Root() page: Page, @Arg('published', { nullable: true }) published?: boolean, @Arg('filter', { nullable: true }) filter?: AssetFilter) {
+    return await ctx.svc(PageService).getReferencedAssets(page, published, filter)
+  }
+
+  @FieldResolver(returns => [Asset], { description: 'Returns a list of all the asset folders referenced on this page.' })
+  async assetFolders (@Ctx() ctx: Context, @Root() page: Page, @Arg('published', { nullable: true }) published?: boolean, @Arg('filter', { nullable: true }) filter?: AssetFolderFilter) {
+    return await ctx.svc(PageService).getReferencedAssetFolders(page, published, filter)
   }
 
   @FieldResolver(returns => [String], { description: 'Returns a list of all the tags this page was given by its page template\'s getTags function.' })

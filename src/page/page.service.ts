@@ -9,13 +9,14 @@ import { Cache, equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNu
 import {
   VersionedService, templateRegistry, DosGatoService, type Page, type PageFilter, PageResponse, PagesResponse,
   createPage, getPages, movePages, deletePages, renamePage, TemplateService, type TemplateFilter,
-  getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage,
-  PagetreeServiceInternal, collectTemplates, TemplateServiceInternal, SiteServiceInternal,
-  PagetreeType, DeleteState, publishPageDeletions, type CreatePageExtras, parsePath,
-  normalizePath, validateRecurse, type Template, type PageRuleGrants, DeleteStateAll, PageRuleService, SiteRuleService,
-  systemContext, collectComponents, makePathSafe, LaunchState, type DGRestrictOperations, fireEvent, setPageSearchCodes,
-  AssetServiceInternal, getPageLinks, type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput,
-  type SearchRule, removeUnreachableComponents, getPageTagsByTagIds, TagServiceInternal
+  getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage, PagetreeServiceInternal,
+  collectTemplates, TemplateServiceInternal, SiteServiceInternal, PagetreeType, DeleteState, publishPageDeletions,
+  type CreatePageExtras, parsePath, normalizePath, validateRecurse, type Template, type PageRuleGrants,
+  DeleteStateAll, PageRuleService, SiteRuleService, systemContext, collectComponents, makePathSafe, LaunchState,
+  type DGRestrictOperations, fireEvent, setPageSearchCodes, AssetServiceInternal, getPageLinks,
+  type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
+  removeUnreachableComponents, getPageTagsByTagIds, TagServiceInternal, type AssetFilter, AssetService,
+  type AssetFolderFilter
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -459,6 +460,20 @@ export class PageService extends DosGatoService<Page> {
 
   async getTags (page: Page, published?: boolean) {
     return await this.svc(VersionedService).getCurrentIndexValues(page.intDataId, 'dg_tag', published)
+  }
+
+  async getReferencedAssets (page: Page, published?: boolean, filter?: AssetFilter) {
+    const data = await this.raw.getData(page, undefined, published)
+    const links = getPageLinks(data)
+    const assetLinks = links.filter(l => l.type === 'asset' && l.source === 'assets') as AssetLink[]
+    return await this.svc(AssetService).find({ ...filter, links: assetLinks.map(l => ({ linkId: l.id, checksum: l.checksum!, path: l.path!, siteId: l.siteId!, context: { pagetreeId: page.pagetreeId } })) })
+  }
+
+  async getReferencedAssetFolders (page: Page, published?: boolean, filter?: AssetFolderFilter) {
+    const data = await this.raw.getData(page, undefined, published)
+    const links = getPageLinks(data)
+    const folderLinks = links.filter(l => l.type === 'assetfolder' && l.source === 'assets') as AssetFolderLink[]
+    return folderLinks.length ? await this.svc(AssetFolderServiceInternal).find({ ...filter, links: folderLinks.map(l => ({ linkId: l.id, path: l.path, siteId: l.siteId!, context: { pagetreeId: page.pagetreeId } })) }) : []
   }
 
   async getData (page: Page, version?: number, published?: boolean, toSchemaVersion = templateRegistry.currentSchemaVersion) {
