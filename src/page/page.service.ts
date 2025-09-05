@@ -466,6 +466,7 @@ export class PageService extends DosGatoService<Page> {
     const data = await this.raw.getData(page, undefined, published)
     const links = getPageLinks(data)
     const assetLinks = links.filter(l => l.type === 'asset' && l.source === 'assets') as AssetLink[]
+    if (!assetLinks.length) return []
     return await this.svc(AssetService).find({ ...filter, links: assetLinks.map(l => ({ linkId: l.id, checksum: l.checksum!, path: l.path!, siteId: l.siteId!, context: { pagetreeId: page.pagetreeId } })) })
   }
 
@@ -473,7 +474,8 @@ export class PageService extends DosGatoService<Page> {
     const data = await this.raw.getData(page, undefined, published)
     const links = getPageLinks(data)
     const folderLinks = links.filter(l => l.type === 'assetfolder' && l.source === 'assets') as AssetFolderLink[]
-    return folderLinks.length ? await this.svc(AssetFolderServiceInternal).find({ ...filter, links: folderLinks.map(l => ({ linkId: l.id, path: l.path, siteId: l.siteId!, context: { pagetreeId: page.pagetreeId } })) }) : []
+    if (!folderLinks.length) return []
+    return await this.svc(AssetFolderServiceInternal).find({ ...filter, links: folderLinks.map(l => ({ linkId: l.id, path: l.path, siteId: l.siteId!, context: { pagetreeId: page.pagetreeId } })) })
   }
 
   async getData (page: Page, version?: number, published?: boolean, toSchemaVersion = templateRegistry.currentSchemaVersion) {

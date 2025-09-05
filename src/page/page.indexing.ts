@@ -33,7 +33,6 @@ export function getPageIndexes (page: PageData): Index[] {
 }
 
 export function getPageLinks (page: PageData): LinkDefinition[] {
-  const storage: Record<string, Set<string>> = {}
   const components = collectReachableComponents(page)
   const links = components.flatMap(c => templateRegistry.get(c.templateKey)?.getLinks(c)?.filter(isNotNull) ?? [])
 
