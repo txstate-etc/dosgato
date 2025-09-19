@@ -12,7 +12,7 @@ import {
   AssetRuleResolver, AssetRulePermissionsResolver, DataPermissionsResolver, DataResolver,
   DataRuleResolver, DataRulePermissionsResolver, AssetFolderResolver, AssetFolderPermissionsResolver,
   PagePermissionsResolver, PageResolver, PageRulePermissionsResolver, PageRuleResolver,
-  PagetreePermissionsResolver, PagetreeResolver, RolePermissionsResolver, RoleResolver,
+  PagetreePermissionsResolver, PagetreeResolver, PagetreeType, RolePermissionsResolver, RoleResolver,
   SitePermissionsResolver, SiteResolver, SiteCommentResolver, SiteRulePermissionsResolver, SiteRuleResolver,
   TemplateAreaResolver, TemplatePermissionsResolver, TemplateResolver, UserPermissionsResolver, UserResolver,
   DataFolderPermissionsResolver, DataFolderResolver, GroupPermissionsResolver, GroupResolver,
@@ -23,9 +23,9 @@ import {
   AssetResizeResolver, compressDownloads, scheduler, DayOfWeek, createPageRoutes, bootstrap, fileHandler,
   FilenameSafeString, FilenameSafeStringScalar, FilenameSafePath, FilenameSafePathScalar, createCommentRoutes,
   SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
-  duplicateSite, createUser, systemContext, UserService, type PagetreeType, type Role, type DGContext,
+  duplicateSite, createUser, systemContext, UserService, type Role, type DGContext,
   type DGRestrictOperations, dgContextMixin, createUserRoutes, syncUsers, type EventInfo, makeSafe,
-  tagTemplate, UserTagResolver
+  tagTemplate, UserTagResolver, TemplateService, TemplateServiceInternal, PagetreeServiceInternal
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -171,10 +171,33 @@ export class DGServer {
           for (const trainingSite of trainingSites) {
             const tSiteName = trainingSiteName(userId, trainingSite)
             const site = await ctx.svc(SiteServiceInternal).findByName(tSiteName)
-            if (site) continue
-            const trainingTemplateSite = await ctx.svc(SiteServiceInternal).findByName(trainingSite)
+            const [trainingTemplateSite, [trainingTemplatePagetree]] = await Promise.all([
+              ctx.svc(SiteServiceInternal).findByName(trainingSite),
+              ctx.svc(PagetreeServiceInternal).findBySiteId(trainingSite, { types: [PagetreeType.PRIMARY] })
+            ])
             if (!trainingTemplateSite) continue
-            const siteId = await duplicateSite(trainingTemplateSite.id, tSiteName, ctx.svc(VersionedService), userId, ctx)
+
+            const siteId = site?.id ?? await duplicateSite(trainingTemplateSite.id, tSiteName, ctx.svc(VersionedService), userId, ctx)
+
+            const [approvedTemplatesTarget, approvedTemplatesPagetreeTarget, approvedTemplatesActual] = await Promise.all([
+              ctx.svc(TemplateServiceInternal).findBySiteId(trainingTemplateSite.id),
+              ctx.svc(TemplateServiceInternal).findByPagetreeId(trainingTemplatePagetree.id),
+              ctx.svc(TemplateServiceInternal).findBySiteId(siteId)
+            ])
+            const approvedTemplateKeysActual = new Set(approvedTemplatesActual.map(t => t.key))
+            const approvedTemplateKeysTarget = new Set(approvedTemplatesTarget.map(t => t.key).concat(approvedTemplatesPagetreeTarget.map(t => t.key)))
+            const templatesToAdd = [...approvedTemplateKeysTarget].filter(k => !approvedTemplateKeysActual.has(k))
+            const templatesToRemove = [...approvedTemplateKeysActual].filter(k => !approvedTemplateKeysTarget.has(k))
+            for (const tKey of templatesToAdd) {
+              await ctx.svc(TemplateService).authorizeForSite(tKey, siteId)
+            }
+            for (const tKey of templatesToRemove) {
+              await ctx.svc(TemplateService).deauthorizeTemplate(tKey, siteId)
+            }
+
+            // we can skip creating roles and rules if the site already existed
+            if (site) continue
+
             // TODO: what if they had a site that got deleted and we are now making a second site for them, but the role is there?
             const roleId = String(await createRole(tSiteName + '-editor'))
             await createPageRule({ roleId, siteId, grants: { create: true, delete: true, move: true, publish: true, unpublish: true, update: true, undelete: false } })
