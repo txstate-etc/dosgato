@@ -206,6 +206,13 @@ const dgMigrations: DBMigration[] = [
       const dataGroups = await dataSvc.findByTemplate('dosgato-core-tags')
       for (const dataGroup of dataGroups) await dataSvc.reindex(dataGroup, db)
     }
+  },
+  {
+    id: 20250919120000,
+    description: 'add organization parentId to support organization hierarchies',
+    run: async db => {
+      await db.execute('ALTER TABLE organizations ADD COLUMN parentId SMALLINT UNSIGNED')
+    }
   }
 ]
 

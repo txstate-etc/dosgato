@@ -89,6 +89,13 @@ export class SiteResolver {
     return await ctx.svc(OrganizationService).findById(site.organizationId)
   }
 
+  @FieldResolver(returns => Organization, { nullable: true, description: 'Return an ancestor organization if it exists.' })
+  async ancestorOrganization (@Ctx() ctx: Context, @Root() site: Site, @Arg('level', type => Number, { nullable: true, description: '0 for immediate parent, 1 for grandparent, etc. Default is 0.' }) level?: number, @Arg('topDown', { nullable: true, description: 'If true, level 0 is the largest organization and the immediate parent is the last level. Default is false.' }) topDown?: boolean) {
+    if (!site.organizationId || !ctx.svc(SiteService).mayViewForEdit(site)) return undefined
+    const [org] = await ctx.svc(OrganizationService).findAncestors(site.organizationId, topDown, [level ?? 0])
+    return org
+  }
+
   @FieldResolver(returns => [User])
   async managers (@Ctx() ctx: Context, @Root() site: Site) {
     return await ctx.svc(UserService).findSiteManagers(site.id)

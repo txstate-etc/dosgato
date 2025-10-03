@@ -1,4 +1,5 @@
 import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
+import { optionalString } from 'txstate-utils'
 import { Field, ID, InputType, ObjectType } from 'type-graphql'
 
 @ObjectType({
@@ -17,10 +18,13 @@ export class Organization {
   @Field(type => ID, { nullable: true })
   externalId: string
 
+  parentId?: string
+
   constructor (row: any) {
     this.id = String(row.id)
     this.externalId = row.externalId
     this.name = row.name
+    this.parentId = optionalString(row.parentId)
   }
 }
 

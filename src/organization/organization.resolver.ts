@@ -14,6 +14,16 @@ export class OrganizationResolver {
     return await ctx.svc(SiteServiceInternal).findByOrganization(org)
   }
 
+  @FieldResolver(returns => [Organization])
+  async ancestors (
+    @Ctx() ctx: Context,
+    @Root() org: Organization,
+    @Arg('topDown', { nullable: true, description: 'If true, the list will be ordered from the largest organization down to the immediate parent. Default is false, meaning the immediate parent is first and the largest organization is last.' }) topDown?: boolean,
+    @Arg('indexes', type => [Number], { nullable: true, description: 'If provided, only the ancestors at these indexes will be returned. For instance, if you only want the grandparent, provide [1] (0 is the immediate parent). Alternatively, if you want the next-to-largest organization (VP-level), set topDown to true and indexes to [1] ([0] is for the largest organization).' }) indexes?: number[]
+  ) {
+    return await ctx.svc(OrganizationService).findAncestors(org.id, topDown, indexes)
+  }
+
   @Mutation(returns => OrganizationResponse)
   async createOrganization (@Ctx() ctx: Context,
     @Arg('name') name: string,
