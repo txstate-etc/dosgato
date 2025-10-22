@@ -25,7 +25,8 @@ import {
   SiteServiceInternal, createRole, createPageRule, createAssetRule, addRolesToUser, VersionedService,
   duplicateSite, createUser, systemContext, UserService, type Role, type DGContext,
   type DGRestrictOperations, dgContextMixin, createUserRoutes, syncUsers, type EventInfo, makeSafe,
-  tagTemplate, UserTagResolver, TemplateService, TemplateServiceInternal, PagetreeServiceInternal
+  tagTemplate, UserTagResolver, TemplateService, TemplateServiceInternal, PagetreeServiceInternal,
+  RoleServiceInternal
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -171,11 +172,9 @@ export class DGServer {
           for (const trainingSite of trainingSites) {
             const tSiteName = trainingSiteName(userId, trainingSite)
             const site = await ctx.svc(SiteServiceInternal).findByName(tSiteName)
-            const [trainingTemplateSite, [trainingTemplatePagetree]] = await Promise.all([
-              ctx.svc(SiteServiceInternal).findByName(trainingSite),
-              ctx.svc(PagetreeServiceInternal).findBySiteId(trainingSite, { types: [PagetreeType.PRIMARY] })
-            ])
+            const trainingTemplateSite = await ctx.svc(SiteServiceInternal).findByName(trainingSite)
             if (!trainingTemplateSite) continue
+            const [trainingTemplatePagetree] = await ctx.svc(PagetreeServiceInternal).findBySiteId(trainingTemplateSite.id, { types: [PagetreeType.PRIMARY] })
 
             const siteId = site?.id ?? await duplicateSite(trainingTemplateSite.id, tSiteName, ctx.svc(VersionedService), userId, ctx)
 
@@ -195,10 +194,10 @@ export class DGServer {
               await ctx.svc(TemplateService).deauthorizeTemplate(tKey, siteId)
             }
 
-            // we can skip creating roles and rules if the site already existed
-            if (site) continue
+            const [role] = await ctx.svc(RoleServiceInternal).find({ names: [tSiteName + '-editor'] })
+            // we can skip creating roles and rules if the role already exists
+            if (role) continue
 
-            // TODO: what if they had a site that got deleted and we are now making a second site for them, but the role is there?
             const roleId = String(await createRole(tSiteName + '-editor'))
             await createPageRule({ roleId, siteId, grants: { create: true, delete: true, move: true, publish: true, unpublish: true, update: true, undelete: false } })
             await createAssetRule({ roleId, siteId, grants: { create: true, delete: true, move: true, update: true, undelete: false } })
