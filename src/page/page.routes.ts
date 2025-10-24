@@ -395,7 +395,7 @@ export async function createPageRoutes (app: FastifyInstance) {
         AND p.deleteState IN (0, 1)
         AND s.deletedAt IS NULL
         AND pt.deletedAt IS NULL
-        ${ctx.authInfo.pageSiteIds ? `AND s.id IN (${db.in(sbinds, ctx.authInfo.pageSiteIds)})` : ''}
+        ${ctx.authInfo.pageSiteIds ? `AND s.id IN (${db.in(sbinds, ctx.authInfo.pageSiteIds.concat(['-1']))})` : ''}
       ORDER BY siteName, p.path, p.name
     `, sbinds)
 

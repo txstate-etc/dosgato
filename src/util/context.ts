@@ -96,7 +96,7 @@ interface AuthInfo {
   templateRules: TemplateRule[]
   groupsById: Record<string, Group>
   user: User | undefined
-  pageSiteIds: string[]
+  pageSiteIds?: string[]
 }
 
 export interface DGContext extends Context {
