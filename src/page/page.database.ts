@@ -517,7 +517,7 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
   if (!pageData) throw new Error('Tried to copy a page with corrupted data.')
   delete pageData.data.legacyId
   const extras = {
-    query: systemContext().query,
+    query: (await systemContext()).query,
     siteId: page.siteId,
     pagetreeId: page.pagetreeId,
     parentId: parent.id,

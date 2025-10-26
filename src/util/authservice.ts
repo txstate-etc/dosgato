@@ -82,6 +82,8 @@ export async function getEnabledUser (ctx: DGContext) {
   return user
 }
 
-export function systemContext () {
-  return new DGMockContext({ sub: 'system' })
+export async function systemContext () {
+  const ctx = new DGMockContext({ sub: 'system' })
+  await ctx.waitForAuth()
+  return ctx
 }

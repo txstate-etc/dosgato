@@ -250,7 +250,7 @@ export class DataService extends DosGatoService<Data> {
       ]
     }
     // validate data
-    const systemCtx = systemContext()
+    const systemCtx = await systemContext()
     const migrated = await migrateData(systemCtx, args.data, dataroot.id, args.folderId)
     const newName = safeComputedName(tmpl.computeName(migrated))
     const finalName = numerateLoop(newName, new Set(siblings.map(s => s.name)))
@@ -275,7 +275,7 @@ export class DataService extends DosGatoService<Data> {
     const tmpl = templateRegistry.getDataTemplate(args.data.templateKey)
     const dataRootId = `${data.siteId ?? 'global'}-${args.data.templateKey}`
     const folder = data.folderInternalId ? await this.svc(DataFolderServiceInternal).findByInternalId(data.folderInternalId) : undefined
-    const systemCtx = systemContext()
+    const systemCtx = await systemContext()
     const migrated = await migrateData(systemCtx, args.data, dataRootId, folder?.id, data.id)
     const usedNames = await this.raw.getConflictNames(data.folderInternalId, data.siteId, data.templateKey, data.name)
     const newName = safeComputedName(tmpl.computeName(migrated))

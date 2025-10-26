@@ -201,7 +201,7 @@ const dgMigrations: DBMigration[] = [
     id: 20250716134500,
     description: 're-index data with template dosgato-core-tags since we updated the template to index tag names in addition to ids',
     run: async db => {
-      const ctx = systemContext()
+      const ctx = await systemContext()
       const dataSvc = ctx.svc(DataServiceInternal)
       const dataGroups = await dataSvc.findByTemplate('dosgato-core-tags')
       for (const dataGroup of dataGroups) await dataSvc.reindex(dataGroup, db)

@@ -699,7 +699,7 @@ export class PageService extends DosGatoService<Page> {
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const extras = {
-      query: systemContext().query,
+      query: (await systemContext()).query,
       siteId: site.id,
       pagetreeId: pagetree.id,
       parentId: parent.id,
@@ -732,7 +732,7 @@ export class PageService extends DosGatoService<Page> {
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const extras: PageExtras = {
-      query: systemContext().query,
+      query: (await systemContext()).query,
       siteId: site.id,
       pagetreeId: pagetree.id,
       parentId: parent?.id,

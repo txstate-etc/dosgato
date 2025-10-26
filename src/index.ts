@@ -157,7 +157,7 @@ export class DGServer {
       }
       const createTrainingSite = new Cache(async (userId: string) => {
         if (isBlank(userId) || ['anonymous', 'render'].includes(userId)) return
-        const ctx = systemContext()
+        const ctx = await systemContext()
         try {
           let user = await ctx.svc(UserServiceInternal).findById(userId)
           if (!user) {
@@ -196,7 +196,7 @@ export class DGServer {
 
             const [role] = await ctx.svc(RoleServiceInternal).find({ names: [tSiteName + '-editor'] })
             // we can skip creating roles and rules if the role already exists
-            if (role) continue
+            if (role != null) continue
 
             const roleId = String(await createRole(tSiteName + '-editor'))
             await createPageRule({ roleId, siteId, grants: { create: true, delete: true, move: true, publish: true, unpublish: true, update: true, undelete: false } })

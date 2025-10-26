@@ -181,7 +181,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     const site = (await ctx.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const parent = page.parentInternalId ? (await ctx.svc(PageServiceInternal).findByInternalId(page.parentInternalId)) : undefined
     const extras = {
-      query: systemContext().query,
+      query: (await systemContext()).query,
       siteId: site.id,
       pagetreeId: pagetree.id,
       parentId: parent?.id,
@@ -247,7 +247,7 @@ export async function createPageRoutes (app: FastifyInstance) {
 
         const newPagePath = appendPath(actualParent.resolvedPath, newPageName)
         const extras = {
-          query: systemContext().query,
+          query: (await systemContext()).query,
           siteId: actualParent.siteId,
           pagetreeId: actualParent.pagetreeId,
           parentId: actualParent.id,
@@ -311,7 +311,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     const pagetree = (await ctx.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const site = (await ctx.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const extras = {
-      query: systemContext().query,
+      query: (await systemContext()).query,
       siteId: site.id,
       pagetreeId: pagetree.id,
       parentId: parent.id,

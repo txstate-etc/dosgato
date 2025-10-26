@@ -148,7 +148,7 @@ export class SiteService extends DosGatoService<Site> {
     // validate root page data
     const linkId = extra?.linkId ?? nanoid(10)
     const extras: PageExtras = {
-      query: systemContext().query,
+      query: (await systemContext()).query,
       pagePath: `/${name}`,
       name,
       linkId,
