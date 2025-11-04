@@ -1,7 +1,7 @@
 import type { LinkDefinition, ComponentData, PageData, PageExtras, AssetLink, AssetFolderLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import LRUCache from 'lru-cache'
+import { LRUCache } from 'lru-cache'
 import { DateTime } from 'luxon'
 import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'

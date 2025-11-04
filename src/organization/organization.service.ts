@@ -26,7 +26,7 @@ export class OrganizationServiceInternal extends BaseService {
     if (!orgId) return []
     const parent = await this.findById(orgId)
     if (!parent) return []
-    return [parent, ...(await this.findAncestorsRecursive(parent.id))]
+    return [parent, ...(await this.findAncestorsRecursive(parent.parentId))]
   }
 
   async findAncestors (orgId: string, topDown?: boolean, indexes?: number[]): Promise<Organization[]> {
