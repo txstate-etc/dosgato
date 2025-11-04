@@ -198,8 +198,11 @@ export class PageFilter {
   @Field(type => [String], { nullable: true, description: 'Return pages referenced by the given launched URLs (e.g. "http://history.example.edu/about" points to "/about" inside the history site). Only returns pages from the primary pagetree. Protocol (http/https) may or may not be present but will be ignored if present.' })
   launchedUrls?: string[]
 
-  @Field(type => Boolean, { nullable: true, description: 'Only return pages that have been published. Implies filter activePagetree -> true.' })
+  @Field(type => Boolean, { nullable: true, description: 'Only return pages that have been published. Will return pages in archives and sandboxes as long as they have a published version. Use the `live` filter for pages that are fully live, or combine this with `launchStates` and/or `pagetreeTypes` to get pages that are closer to being available to the public.' })
   published?: boolean
+
+  @Field(type => Boolean, { nullable: true, description: 'Only return pages that have not been published. When combined with `published`, these filters cancel each other out and you will get all pages.' })
+  unpublished?: boolean
 
   @Field(type => Boolean, { nullable: true, description: 'Only return pages that are published, in the active pagetree, and on a launched site.' })
   live?: boolean
