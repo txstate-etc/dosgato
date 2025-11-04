@@ -8,14 +8,17 @@ import {
   Page, PageFilter, PagePermission, PagePermissions, PageResponse, PagesResponse, PageService, RoleService,
   TemplateService, UrlSafeString, DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal,
   SchemaVersionScalar, SiteServiceInternal, VersionFilter, UserTag, TagService, getPageLinks, Asset,
-  AssetFilter, AssetFolderFilter
+  AssetFilter, AssetFolderFilter, PaginationResponse, PageInformation, DGContext,
+  Pagination
 } from '../internal.js'
 
 @Resolver(of => Page)
 export class PageResolver {
   @Query(returns => [Page])
-  async pages (@Ctx() ctx: Context, @Arg('filter', { nullable: true }) filter?: PageFilter) {
-    return await ctx.svc(PageService).find({ ...filter, deleteStates: filter?.deleteStates ?? [DeleteStateInput.NOTDELETED, DeleteStateInput.MARKEDFORDELETE] })
+  async pages (@Ctx() ctx: DGContext, @Arg('filter', { nullable: true }) filter?: PageFilter, @Arg('pagination', { nullable: true }) pagination?: Pagination) {
+    return await ctx.executePaginated<Page[]>('pages', pagination, async (pageInfo) => {
+      return await ctx.svc(PageService).find({ ...filter, deleteStates: filter?.deleteStates ?? [DeleteStateInput.NOTDELETED, DeleteStateInput.MARKEDFORDELETE] }, pageInfo)
+    })
   }
 
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the page is not in the soft-deleted state.' })
@@ -427,5 +430,18 @@ export class PagePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may undelete this page. Returns false when the page is not deleted.' })
   undelete (@Ctx() ctx: Context, @Root() page: Page) {
     return ctx.svc(PageService).mayUndelete(page)
+  }
+}
+
+@Resolver(of => PageInformation)
+export class PageInformationResolver {
+  @Query(returns => PageInformation)
+  pageInfo (@Ctx() ctx: Context) {
+    return new PageInformation()
+  }
+
+  @FieldResolver(returns => PaginationResponse)
+  async pages (@Ctx() ctx: DGContext) {
+    return await ctx.getPaginationInfo('pages')
   }
 }

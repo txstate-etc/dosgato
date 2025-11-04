@@ -8,7 +8,7 @@ import db from 'mysql2-async/db'
 import { Cache, equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, omit, set, someAsync, sortby } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, type Page, type PageFilter, PageResponse, PagesResponse,
-  createPage, getPages, movePages, deletePages, renamePage, TemplateService, type TemplateFilter,
+  createPage, getPages, movePages, deletePages, type PaginationResponse, renamePage, TemplateService, type TemplateFilter,
   getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage, PagetreeServiceInternal,
   collectTemplates, TemplateServiceInternal, SiteServiceInternal, PagetreeType, DeleteState, publishPageDeletions,
   type CreatePageExtras, parsePath, normalizePath, validateRecurse, type Template, type PageRuleGrants,
@@ -106,10 +106,10 @@ const pageDataCache = new Cache(async (key: { pageIntDataId: number, version: nu
 })
 
 export class PageServiceInternal extends BaseService {
-  async find (filter: PageFilter) {
+  async find (filter: PageFilter, pageInfo?: PaginationResponse) {
     filter = await this.processFilters(filter)
 
-    const pages = await getPages(filter)
+    const pages = await getPages(filter, db, pageInfo)
     for (const page of pages) {
       this.loaders.get(pagesByInternalIdLoader).prime(page.internalId, page)
       this.loaders.get(pagesByDataIdLoader).prime(page.id, page)
@@ -393,21 +393,27 @@ export class PageServiceInternal extends BaseService {
 export class PageService extends DosGatoService<Page> {
   raw = this.svc(PageServiceInternal)
 
-  postFilter (pages: Page[], filter?: PageFilter) {
-    const authorized = filter?.viewForEdit ? pages.filter(p => this.mayViewForEdit(p)) : pages
-    return filter?.search?.length ? authorized.slice(0, 200) : authorized
+  postFilter (pages: Page[], filter?: PageFilter, pageInfo?: PaginationResponse) {
+    let authorized = filter?.viewForEdit ? pages.filter(p => this.mayViewForEdit(p)) : pages
+    if (pageInfo && filter?.viewForEdit) {
+      // we have to do pagination here because viewForEdit cannot be done at the DB layer
+      // getPages will have ignored pageInfo after seeing viewForEdit was set
+      pageInfo.finalPage = Math.ceil(authorized.length / pageInfo.perPage) || 1
+      authorized = authorized.slice((pageInfo.page - 1) * pageInfo.perPage, pageInfo.page * pageInfo.perPage)
+    }
+    return authorized
   }
 
-  async find (filter: PageFilter) {
+  async find (filter: PageFilter, pageInfo?: PaginationResponse) {
     // performance boost for limited editors, don't make removeUnauthorized do quite as much work
     const siteIds = this.ctx.authInfo.pageSiteIds
     if (filter?.viewForEdit && siteIds != null) {
       if (siteIds.length) filter.siteIds = intersect({ skipEmpty: true }, filter.siteIds, siteIds)
       else filter.noresults = true
     }
-    const ret = await this.raw.find(filter)
+    const ret = await this.raw.find(filter, pageInfo)
     if (filter.links?.length || filter.paths?.length || filter.ids?.length) return this.postFilter(ret.filter(p => this.mayViewIndividual(p)), filter)
-    return this.postFilter(this.removeUnauthorized(ret), filter)
+    return this.postFilter(this.removeUnauthorized(ret), filter, pageInfo)
   }
 
   async findById (id: string) {

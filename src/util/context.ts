@@ -3,9 +3,9 @@ import type { FastifyRequest } from 'fastify'
 import {
  AssetRule, DataRule, type GlobalRule, PageRule, RoleServiceInternal, RulePathMode, SiteRule, getPageRules, getAssetRules,
   getDataRules, getSiteRules, getGlobalRules, getTemplateRules, type GlobalRuleGrants, type TemplateRule, type Role, getUsers,
-  GroupServiceInternal, type Group, type User
+  GroupServiceInternal, PaginationResponse, type Group, type User, type Pagination
 } from '../internal.js'
-import { Cache, isNotNull, keyby } from 'txstate-utils'
+import { Cache, isNotNull, keyby, sleep } from 'txstate-utils'
 
 async function fetchPageRules (netid: string, roleIds: string[]) {
   if (netid === 'anonymous') return [new PageRule({ path: '/', mode: RulePathMode.SELFANDSUB })]
@@ -104,6 +104,8 @@ export interface DGContext extends Context {
   login: string
 
   waitForAuth: () => Promise<void>
+  executePaginated: <T> (queryType: string, paged: Pagination | undefined, work: (pageInfo: PaginationResponse) => Promise<T> | T) => Promise<T | undefined>
+  getPaginationInfo: (queryType: string) => Promise<PaginationResponse | undefined>
 }
 
 export type DGContextClass = typeof Context & (new (req: FastifyRequest) => DGContext)
@@ -119,6 +121,41 @@ export function dgContextMixin (Ctx: typeof Context): DGContextClass {
     async waitForAuth () {
       await super.waitForAuth()
       this.authInfo = await authCache.get(this.login, this)
+    }
+
+    protected paginationPromises: Record<string, Promise<PaginationResponse>> = {}
+    protected allPaginationPromises: Record<string, Promise<PaginationResponse>> = {}
+
+    async executePaginated <T> (queryType: string, paged: Pagination | undefined, work: (pageInfo: PaginationResponse) => Promise<T> | T) {
+      const paginationRequested = paged?.page != null
+      if (paginationRequested && this.paginationPromises[queryType] != null) throw new Error('Cannot execute more than one paginated request per top-level Query resolver.')
+      const pageInfo = new PaginationResponse({ page: paged?.page ?? 1, perPage: paged?.perPage ?? 1000000 })
+      let ret: T | undefined
+      const executePromise = new Promise<PaginationResponse>((resolve, reject) => {
+        try {
+          const result = work(pageInfo)
+          if (result instanceof Promise) {
+            result.then(r => {
+              ret = r
+              resolve(pageInfo)
+            }).catch(reject)
+          } else {
+            ret = result
+            resolve(pageInfo)
+          }
+        } catch (e) {
+          reject(e)
+        }
+      })
+      if (paginationRequested) this.paginationPromises[queryType] = executePromise
+      else this.allPaginationPromises[queryType] = executePromise
+      await executePromise
+      return ret
+    }
+
+    async getPaginationInfo (queryType: string): Promise<PaginationResponse | undefined> {
+      await sleep(1)
+      return (await (this.paginationPromises[queryType] ?? this.allPaginationPromises[queryType]))
     }
   }
 }

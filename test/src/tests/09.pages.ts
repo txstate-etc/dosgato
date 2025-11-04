@@ -13,6 +13,18 @@ describe('pages', () => {
     expect(pageIds).to.not.have.members([ids[3], ids[4], ids[5]])
   })
   it.skip('should get pages filtered by links', async () => {})
+  it('should get pages paginated', async () => {
+    const resp1 = await query('{ pages(pagination: { page: 1, perPage: 2 }) { id name } pageInfo { pages { finalPage } } }')
+    expect(resp1.pages).to.have.lengthOf(2)
+    expect(resp1.pageInfo.pages.finalPage).to.be.greaterThan(1)
+  })
+  it('should filter and paginate at the same time', async () => {
+    const resp = await query('{ pages(filter: { beneath: "/site3" }, pagination: { page: 1, perPage: 2 }) { id name path } }')
+    expect(resp.pages).to.have.lengthOf(2)
+    for (const p of resp.pages) {
+      expect(p.path.startsWith('/site3')).to.be.true
+    }
+  })
   it('should get pages, filtered by pagetree type', async () => {
     const resp = await query('{ pages(filter: {pagetreeTypes: [SANDBOX]}) { id name pagetree { id type } } }')
     for (const page of resp.pages) {

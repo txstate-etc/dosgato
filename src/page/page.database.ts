@@ -3,7 +3,7 @@ import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, unique, sortby } from 'txstate-utils'
-import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState, searchCodes, splitWords, quadgrams, normalizeForSearch, removeUnreachableComponents } from '../internal.js'
+import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState, searchCodes, splitWords, quadgrams, normalizeForSearch, removeUnreachableComponents, type PaginationResponse } from '../internal.js'
 import { type PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 
@@ -346,9 +346,26 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
   return { binds, where, joins, searchweights }
 }
 
-export async function getPages (filter: PageFilter, tdb: Queryable = db) {
+export async function getPages (filter: PageFilter, tdb: Queryable = db, pageInfo?: PaginationResponse) {
   const { binds, where, joins, searchweights } = await processFilters(filter, tdb)
   if (filter.noresults) return []
+  let limit = ''
+  if (pageInfo && !filter.viewForEdit) {
+    const offset = (pageInfo.page - 1) * pageInfo.perPage
+    limit = `LIMIT ${pageInfo.perPage} OFFSET ${offset}`
+    const totalCount = await tdb.getval<number>(`
+      SELECT COUNT(DISTINCT pages.id) as cnt
+      FROM pages
+      INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id
+      INNER JOIN sites ON pages.siteId = sites.id
+      INNER JOIN storage ON storage.id = pages.dataId
+      LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
+      ${joins.size ? Array.from(joins.values()).join('\n') : ''}
+      ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
+    `, binds)
+    pageInfo.finalPage = Math.ceil(totalCount! / pageInfo.perPage)
+  }
+
   const pagerows = await tdb.getall(`
     SELECT pages.*, pagetrees.type as pagetreeType, sites.deletedAt IS NOT NULL OR pagetrees.deletedAt IS NOT NULL as orphaned, tags.tag IS NOT NULL as published,
     sites.name as siteName, sites.launchEnabled, storage.version as latestVersion, tags.version as publishedVersion
@@ -359,7 +376,8 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db) {
     LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
     ${joins.size ? Array.from(joins.values()).join('\n') : ''}
     ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
-    ORDER BY pages.\`path\`, pages.displayOrder, pages.name`, binds)
+    ORDER BY pages.\`path\`, pages.displayOrder, pages.name
+    ${limit}`, binds)
   const pages = pagerows.map(p => new Page(p))
   const ancestorIds = new Set<number>()
   for (const p of pages) {

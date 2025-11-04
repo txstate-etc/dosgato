@@ -26,7 +26,7 @@ import {
   duplicateSite, createUser, systemContext, UserService, type Role, type DGContext,
   type DGRestrictOperations, dgContextMixin, createUserRoutes, syncUsers, type EventInfo, makeSafe,
   tagTemplate, UserTagResolver, TemplateService, TemplateServiceInternal, PagetreeServiceInternal,
-  RoleServiceInternal
+  RoleServiceInternal, PageInformationResolver
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -238,6 +238,7 @@ export class DGServer {
       GroupResolver,
       GroupPermissionsResolver,
       OrganizationResolver,
+      PageInformationResolver,
       PageResolver,
       PagePermissionsResolver,
       PageRuleResolver,
