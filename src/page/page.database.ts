@@ -189,8 +189,9 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
   }
 
   // published
-  if (filter.published) {
-    where.push('tags.tag IS NOT NULL')
+  if (filter.published != null) {
+    if (filter.published) where.push('tags.tag IS NOT NULL')
+    else where.push('tags.tag IS NULL')
   }
 
   await Promise.all([
