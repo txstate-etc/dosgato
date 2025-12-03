@@ -17,7 +17,7 @@ services:
   dosgato-api:
     build:
       context: .
-    attach: false
+    attach: true
     environment:
       NODE_ENV: development
       MYSQL_USER: dosgato

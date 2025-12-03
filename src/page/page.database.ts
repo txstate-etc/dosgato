@@ -264,10 +264,12 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
   }
   if (filter.userTags?.length) {
     const tagTemptable: { category: number, tag: string }[] = []
+    const categorySet = new Set<number>()
     for (let i = 0; i < filter.userTags.length; i++) {
       const tagList = filter.userTags[i].filter(isNotBlank)
       if (!tagList.length) continue
       tagTemptable.push(...tagList.map(t => ({ category: i, tag: t })))
+      categorySet.add(i)
     }
     if (tagTemptable.length) {
       const mybinds = [...tagTemptable.flatMap(t => [t.category, t.tag]), ...binds]
@@ -288,7 +290,7 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
         ${where.length ? '(' + where.join(') AND (') + ')' : ''}
         GROUP BY pages.id
         HAVING tagCount = ?
-      `, [...mybinds, tagTemptable.length])
+      `, [...mybinds, categorySet.size])
       if (!pageIds.length) filter.noresults = true
       else where.push(`pages.id IN (${db.in(binds, pageIds)})`)
     }

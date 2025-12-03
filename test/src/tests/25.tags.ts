@@ -6,6 +6,8 @@ import { randomid } from 'txstate-utils'
 describe('tags', () => {
   const oneId = randomid()
   const twoId = randomid()
+  const blueId = randomid()
+  const redId = randomid()
   let pageId: string
   it('should be able to create a new global tag group', async () => {
     const { createDataEntry } = await query<{ createDataEntry: { success: boolean, messages: any[], data: { id: string, name: string, data: { applicable: ('page' | 'asset' | 'data')[], tags: [{ id: string, name: string }] } } } }>('mutation createDataEntry ($data: JsonData!) { createDataEntry (args: { data: $data }) { success messages { message } data { id name data } } }',
@@ -22,13 +24,19 @@ describe('tags', () => {
           }, {
             id: twoId,
             name: 'Two'
+          }, {
+            id: blueId,
+            name: 'Blue'
+          }, {
+            id: redId,
+            name: 'Red'
           }]
         }
       }
     )
     expect(createDataEntry.success).to.be.true
     expect(createDataEntry.data.name).to.equal('autotest-tag-group')
-    expect(createDataEntry.data.data.tags.length).to.equal(2)
+    expect(createDataEntry.data.data.tags.length).to.equal(4)
   })
   it('should be able to tag a page', async () => {
     const { pages } = await query('{ pages (filter: { published: true }) { id } }')
@@ -63,6 +71,48 @@ describe('tags', () => {
     const { pages } = await query<{ pages: { id: string }[] }>('query findByAnyTags ($tagIds: [ID!]!) { pages (filter: { userTagsAny: $tagIds }) { id } }', { tagIds: [oneId, twoId] })
     expect(pages.length).to.equal(1)
     expect(pages[0].id).to.equal(pageId)
+  })
+  it('should include pages when they match at least one tag in each set in userTags', async () => {
+    await query(`
+      mutation tagPage ($tagId: ID!, $pageId: ID!) {
+        addTagsToPages (tagIds: [$tagId], pageIds: [$pageId]) {
+          success
+          pages {
+            id
+            userTags {
+              name
+            }
+          }
+        }
+      }
+    `, { tagId: blueId, pageId })
+    await Promise.all([
+      (async () => {
+        const { pages } = await query<{ pages: { id: string }[] }>('query findByTagSets ($userTags: [[ID!]!]!) { pages (filter: { userTags: $userTags }) { id } }', { userTags: [[oneId, twoId], [blueId, redId]] })
+        expect(pages.length).to.equal(1)
+        expect(pages[0].id).to.equal(pageId)
+      })(),
+      (async () => {
+        const { pages } = await query<{ pages: { id: string }[] }>('query findByTagSets ($userTags: [[ID!]!]!) { pages (filter: { userTags: $userTags }) { id } }', { userTags: [[oneId, twoId], [blueId, redId]] })
+        expect(pages.length).to.equal(1)
+        expect(pages[0].id).to.equal(pageId)
+      })(),
+      (async () => {
+        const { pages } = await query<{ pages: { id: string }[] }>('query findByTagSets ($userTags: [[ID!]!]!) { pages (filter: { userTags: $userTags }) { id } }', { userTags: [[oneId], [blueId, redId]] })
+        expect(pages.length).to.equal(1)
+        expect(pages[0].id).to.equal(pageId)
+      })(),
+      (async () => {
+        const { pages } = await query<{ pages: { id: string }[] }>('query findByTagSets ($userTags: [[ID!]!]!) { pages (filter: { userTags: $userTags }) { id } }', { userTags: [[oneId, twoId], [blueId]] })
+        expect(pages.length).to.equal(1)
+        expect(pages[0].id).to.equal(pageId)
+      })(),
+      (async () => {
+        const { pages } = await query<{ pages: { id: string }[] }>('query findByTagSets ($userTags: [[ID!]!]!) { pages (filter: { userTags: $userTags }) { id } }', { userTags: [[oneId], [blueId]] })
+        expect(pages.length).to.equal(1)
+        expect(pages[0].id).to.equal(pageId)
+      })()
+    ])
   })
   it('should replace tags on a page', async () => {
     const { replaceTagsOnPage } = await query<{ replaceTagsOnPage: { success: boolean, pages: { id: string, userTags: { name: string }[] }[] } }>(`
