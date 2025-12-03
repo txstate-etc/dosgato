@@ -285,7 +285,7 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
         LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
         ${joins.size ? Array.from(joins.values()).join('\n') : ''}
         WHERE
-        ${where.length ? '(' + where.join(') AND (') + ') AND' : ''}
+        ${where.length ? '(' + where.join(') AND (') + ')' : ''}
         GROUP BY pages.id
         HAVING tagCount = ?
       `, [...mybinds, tagTemptable.length])
