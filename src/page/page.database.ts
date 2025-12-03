@@ -262,7 +262,37 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
     if (!pageIds.length) filter.noresults = true
     else where.push(`pages.id IN (${db.in(binds, pageIds)})`)
   }
-
+  if (filter.userTags?.length) {
+    const tagTemptable: { category: number, tag: string }[] = []
+    for (let i = 0; i < filter.userTags.length; i++) {
+      const tagList = filter.userTags[i].filter(isNotBlank)
+      if (!tagList.length) continue
+      tagTemptable.push(...tagList.map(t => ({ category: i, tag: t })))
+    }
+    if (tagTemptable.length) {
+      const mybinds = [...tagTemptable.flatMap(t => [t.category, t.tag]), ...binds]
+      const tagSQL = `
+        SELECT ? AS category, ? AS tag
+        ${tagTemptable.slice(1).map(row => 'UNION ALL SELECT ?, ?').join('\n')}
+      `
+      const pageIds = await db.getvals(`
+        SELECT DISTINCT pages.id, COUNT(DISTINCT filterTags.category) as tagCount
+        FROM pages
+        INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id
+        INNER JOIN sites ON pages.siteId = sites.id
+        INNER JOIN pages_tags ON pages.id = pages_tags.pageId
+        INNER JOIN (${tagSQL}) AS filterTags ON filterTags.tag = pages_tags.tagId
+        LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
+        ${joins.size ? Array.from(joins.values()).join('\n') : ''}
+        WHERE
+        ${where.length ? '(' + where.join(') AND (') + ') AND' : ''}
+        GROUP BY pages.id
+        HAVING tagCount = ?
+      `, [...mybinds, tagTemptable.length])
+      if (!pageIds.length) filter.noresults = true
+      else where.push(`pages.id IN (${db.in(binds, pageIds)})`)
+    }
+  }
   // search query - goes last so it can re-use all the previous filters
   if (filter.search?.length) {
     const lcSearch = normalizeForSearch(filter.search)

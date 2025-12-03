@@ -2,7 +2,7 @@ import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/grap
 import { DateTime } from 'luxon'
 import { isBlank, isNotBlank, isNotNull, titleCase } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
-import { UrlSafeString, PagetreeType, UrlSafePath, LaunchState } from '../internal.js'
+import { UrlSafeString, PagetreeType, UrlSafePath, LaunchState, UserTag } from '../internal.js'
 
 export enum DeleteState {
   NOTDELETED = 0,
@@ -233,6 +233,9 @@ export class PageFilter {
 
   @Field(type => [ID], { nullable: true, description: 'Return pages that have been user-tagged with all of the specified tags. This field is distinct from `tagsAll` in that `tagsAll` searches tags that are assigned automatically by template definitions, whereas this searches a different kind of tag, one assigned directly by an editor.' })
   userTagsAll?: string[]
+
+  @Field(type => [[ID]], { nullable: true, description: 'Return pages that match multiple sets of tags. Each inner array represents a set of tags of which at least one of them should apply to the page, and the outer array indicates that all of those sets must match.' })
+  userTags?: string[][]
 
   @Field({ nullable: true, description: 'Return pages that match the query, in order of best match. Limited to 100 results.' })
   search?: string
