@@ -283,7 +283,7 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
         INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id
         INNER JOIN sites ON pages.siteId = sites.id
         INNER JOIN pages_tags ON pages.id = pages_tags.pageId
-        INNER JOIN (${tagSQL}) AS filterTags ON filterTags.tag = pages_tags.tagId
+        INNER JOIN (${tagSQL}) AS filterTags ON CONVERT(filterTags.tag USING ascii) = pages_tags.tagId
         LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
         ${joins.size ? Array.from(joins.values()).join('\n') : ''}
         WHERE
