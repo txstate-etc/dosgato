@@ -236,7 +236,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
     if (dataFolders.some(d => !this.mayUndelete(d))) {
       throw new Error('You are not permitted to restore one or more data folders.')
     }
-    await undeleteDataFolders(dataFolders.map(f => f.id))
+    await undeleteDataFolders(this.svc(VersionedService), this.login, dataFolders.map(f => f.id))
     this.loaders.clear()
     const restoredFolders = await this.raw.findByIds(dataFolders.map(f => f.id))
     return new DataFoldersResponse({ dataFolders: restoredFolders, success: true })

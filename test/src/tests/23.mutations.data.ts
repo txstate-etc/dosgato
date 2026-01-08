@@ -202,6 +202,39 @@ describe('data mutations', () => {
         }
       }`, { folderIds: [folder.id] })).to.be.rejected
   })
+  it('should republish data in a folder when undeleting the folder for a data template where the nopublish flag is set to true', async () => {
+    const { dataFolder: folder } = await createDataFolder('song-folder', 'songdatakey')
+    const { data: dataEntry1 } = await createDataEntry({ templateKey: 'songdatakey', title: 'Teardrops On My Guitar', artist: 'Taylor Swift', genre: 'country' }, undefined, folder.id)
+    const { data: dataEntry2 } = await createDataEntry({ templateKey: 'songdatakey', title: 'Our Song', artist: 'Taylor Swift', genre: 'country' }, undefined, folder.id)
+    const { deleteDataFolders: { dataFolders } } = await query(`
+      mutation DeleteDataFolders ($folderIds: [ID!]!) {
+        deleteDataFolders (folderIds: $folderIds) {
+          success
+          dataFolders {
+            data {
+              published
+            }
+          }
+        }
+      }`, { folderIds: [folder.id] })
+    for (const d of dataFolders[0].data) {
+      expect(d.published).to.be.false
+    }
+    const { undeleteDataFolders: { dataFolders: undeletedFolders } } = await query(`
+      mutation UndeleteDataFolders ($folderIds: [ID!]!) {
+        undeleteDataFolders (folderIds: $folderIds) {
+          success
+          dataFolders {
+            data {
+              published
+            }
+          }
+        }
+      }`, { folderIds: [folder.id] })
+    for (const d of undeletedFolders[0].data) {
+      expect(d.published).to.be.true
+    }
+  })
   it('should move global data folders to a site', async () => {
     const { dataFolder: folder1 } = await createDataFolder('moving-datafolder-1', 'keyd1')
     const { dataFolder: folder2 } = await createDataFolder('moving-datafolder-2', 'keyd1')
@@ -851,5 +884,33 @@ describe('data mutations', () => {
     const { data: dataX } = await query(`{ data(filter: {folderIds: ["${folderX.id}"]}) { id } }`)
     ids = dataX.map((d: any) => d.id)
     expect(ids).to.have.ordered.members([data4.id, data2.id])
+  })
+  it('should publish data on creation when the nopublish flag is set', async () => {
+    const { success, data } = await createDataEntry({ templateKey: 'songdatakey', name: 'Amarillo By Morning', artist: 'George Strait', genre: 'country' })
+    expect(success).to.be.true
+    const { data: publishedData } = await query(`{ data(filter: {ids: ["${data.id}"] }) { published } }`)
+    expect(publishedData[0].published).to.be.true
+  })
+  it('should republish data when a data entry with the nopublish flag set is deleted and then undeleted', async () => {
+    const { data: dataEntry } = await createDataEntry({ templateKey: 'songdatakey', name: 'Friends in Low Places', artist: 'Garth Brooks', genre: 'country' })
+    const id = dataEntry.id
+    await query(`
+      mutation DeleteDataEntries ($dataIds: [ID!]!) {
+        deleteDataEntries (dataIds: $dataIds) {
+          success
+        }
+      }
+    `, { dataIds: [dataEntry.id] })
+    const { data: deletedData } = await query(`{ data(filter: {ids: ["${id}"] }) { published } }`)
+    expect(deletedData[0].published).to.be.false
+    const { undeleteDataEntries: { success, data } } = await query(`
+      mutation UndeleteDataEntries ($dataIds: [ID!]!) {
+        undeleteDataEntries (dataIds: $dataIds) {
+          success
+          data { published }
+        }
+      }
+    `, { dataIds: [id] })
+    expect(data[0].published).to.be.true
   })
 })

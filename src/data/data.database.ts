@@ -3,7 +3,7 @@ import { isNotBlank, isNotNull, sortby } from 'txstate-utils'
 import { type Queryable } from 'mysql2-async'
 import {
   Data, type DataFilter, type VersionedService, type CreateDataInput, getDataIndexes, DataFolder,
-  Site, type MoveDataTarget, DeleteState, processDeletedFilters
+  Site, type MoveDataTarget, DeleteState, processDeletedFilters, templateRegistry
 } from '../internal.js'
 import { DateTime } from 'luxon'
 
@@ -317,8 +317,18 @@ export async function publishDataEntryDeletions (data: Data[], userInternalId: n
   return await db.update(`UPDATE data SET deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE dataId IN (${db.in(binds, data.map(d => d.intDataId))})`, binds)
 }
 
-export async function undeleteDataEntries (data: Data[]) {
+export async function undeleteDataEntries (versionedService: VersionedService, userId: string, data: Data[]) {
   const binds: (string | number)[] = [DeleteState.NOTDELETED]
   const dataIds = data.map(d => d.intDataId)
-  return await db.update(`UPDATE data SET deletedAt = NULL, deletedBy = NULL, deleteState = ? where dataId IN (${db.in(binds, dataIds)})`, binds)
+  return await db.transaction(async db => {
+    const updated = await db.update(`UPDATE data SET deletedAt = NULL, deletedBy = NULL, deleteState = ? where dataId IN (${db.in(binds, dataIds)})`, binds)
+    // if a data template has nopublish set, reapply the published tag
+    for (const d of data) {
+      const tmpl = templateRegistry.getDataTemplate(d.templateKey)
+      if (tmpl?.nopublish) {
+        await versionedService.tag(d.intDataId, 'published', undefined, userId, undefined, db)
+      }
+    }
+    return updated
+  })
 }

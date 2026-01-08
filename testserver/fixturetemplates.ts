@@ -240,3 +240,14 @@ export const ArticleData: APIDataTemplate = {
   },
   computeName: data => data.title
 }
+
+export const SongData: APIDataTemplate = {
+  type: 'data',
+  templateKey: 'songdatakey',
+  name: 'Songs',
+  migrations: [],
+  getLinks: (data: any) => [],
+  getFulltext: (data: any) => [data.title, data.artist],
+  computeName: data => data.title,
+  nopublish: true
+}

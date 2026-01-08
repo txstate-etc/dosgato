@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { DataFolder, type DataFolderFilter, Site, DeleteState, type VersionedService, processDeletedFilters } from '../internal.js'
+import { DataFolder, type DataFolderFilter, Site, DeleteState, type VersionedService, processDeletedFilters, templateRegistry } from '../internal.js'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 
 function pathsToTuples (paths: string[]) {
@@ -158,11 +158,23 @@ export async function finalizeDataFolderDeletion (guids: string[], userInternalI
   })
 }
 
-export async function undeleteDataFolders (guids: string[]) {
+export async function undeleteDataFolders (versionedService: VersionedService, userId: string, guids: string[]) {
   await db.transaction(async db => {
     const folderInternalIds = await db.getvals<number>(`SELECT id FROM datafolders WHERE guid IN (${db.in([], guids)})`, guids)
+    const templateKey = await db.getval<string>('SELECT templates.key FROM datafolders INNER JOIN templates ON datafolders.templateId = templates.id WHERE datafolders.id = ?', [folderInternalIds[0]])
     const binds: number[] = [DeleteState.NOTDELETED]
     await db.update(`UPDATE datafolders SET deletedBy = null, deletedAt = null, deleteState = ? WHERE id IN (${db.in(binds, folderInternalIds)})`, binds)
     await db.update(`UPDATE data SET deletedBy = null, deletedAt = null, deleteState = ? WHERE folderId IN (${db.in([], folderInternalIds)})`, binds)
+    if (templateKey) {
+      // get the template from the registry
+      const tmpl = templateRegistry.getDataTemplate(templateKey)
+      // if nopublish is set, get the entries and reapply the published tag
+      if (tmpl?.nopublish) {
+        const dataEntryIds = await db.getvals<number>(`SELECT dataId FROM data WHERE folderId IN (${db.in([], folderInternalIds)})`, folderInternalIds)
+        for (const dataId of dataEntryIds) {
+          await versionedService.tag(dataId, 'published', undefined, userId, undefined, db)
+        }
+      }
+    }
   })
 }

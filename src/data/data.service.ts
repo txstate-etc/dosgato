@@ -404,7 +404,7 @@ export class DataService extends DosGatoService<Data> {
       throw new Error('Current user is not permitted to restore one or more data entries')
     }
     try {
-      await undeleteDataEntries(data)
+      await undeleteDataEntries(this.svc(VersionedService), this.login, data)
       this.loaders.clear()
       const restored = await this.raw.findByIds(data.map(d => d.dataId))
       return new DataMultResponse({ success: true, data: restored })
