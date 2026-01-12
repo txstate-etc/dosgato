@@ -30,13 +30,29 @@ export class Role {
   name: string
 
   @Field({ nullable: true })
+  description?: string
+
+  @Field({ nullable: true })
   siteId?: string
 
   constructor (row: any) {
     this.id = String(row.id)
     this.name = row.name
+    this.description = optionalString(row.description)
     this.siteId = optionalString(row.siteId)
   }
+}
+
+@InputType()
+export class RoleInput {
+  @Field(type => UrlSafeString, { description: 'name of the role' })
+  name!: string
+
+  @Field(type => String, { nullable: true, description: 'Optional description for the role' })
+  description?: string
+
+  @Field(type => ID, { nullable: true, description: 'Optional site ID to associate the role with a specific site.' })
+  siteId?: string
 }
 
 @InputType()

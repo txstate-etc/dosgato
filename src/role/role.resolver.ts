@@ -4,11 +4,10 @@ import { isNull } from 'txstate-utils'
 import {
   AssetRule, AssetRuleService, AssetRuleFilter, DataRule, DataRuleService, GlobalRule, GlobalRuleService,
   PageRule, PageRuleService, SiteRule, SiteRuleFilter, SiteRuleService, Group, GroupFilter,
-  GroupService, User, UserFilter, UserService, Role, RoleFilter, RolePermissions, RoleResponse,
+  GroupService, User, UserFilter, UserService, Role, RoleFilter, RoleInput, RolePermissions, RoleResponse,
   RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType, Site,
   UrlSafeString, GlobalRuleServiceInternal, SiteRuleServiceInternal, AssetRuleServiceInternal,
-  DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, SiteServiceInternal
-} from '../internal.js'
+  DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, SiteServiceInternal} from '../internal.js'
 
 @Resolver(of => Role)
 export class RoleResolver {
@@ -78,13 +77,13 @@ export class RoleResolver {
 
   // MUTATIONS
   @Mutation(returns => RoleResponse)
-  async createRole (@Ctx() ctx: Context, @Arg('name', type => UrlSafeString, { description: 'name of the role being created' }) name: string, @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean): Promise<RoleResponse> {
-    return await ctx.svc(RoleService).create(name, validateOnly)
+  async createRole (@Ctx() ctx: Context, @Arg('input', type => RoleInput) input: RoleInput, @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean): Promise<RoleResponse> {
+    return await ctx.svc(RoleService).create(input, validateOnly)
   }
 
-  @Mutation(returns => RoleResponse, { description: 'Give a role a new name' })
-  async updateRole (@Ctx() ctx: Context, @Arg('roleId', type => ID) roleId: string, @Arg('name', type => UrlSafeString) name: string, @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean): Promise<RoleResponse> {
-    return await ctx.svc(RoleService).update(roleId, name, validateOnly)
+  @Mutation(returns => RoleResponse, { description: 'Update a role\'s name, description, or site' })
+  async updateRole (@Ctx() ctx: Context, @Arg('roleId', type => ID) roleId: string, @Arg('input', type => RoleInput) input: RoleInput, @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean): Promise<RoleResponse> {
+    return await ctx.svc(RoleService).update(roleId, input, validateOnly)
   }
 
   @Mutation(returns => ValidatedResponse)

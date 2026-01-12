@@ -7,7 +7,8 @@ import {
   getRolesForUsers, removeRoleFromUser, updateRole, removeRoleFromGroup, addRoleToGroups,
   GroupServiceInternal, GlobalRuleServiceInternal, SiteRuleServiceInternal, AssetRuleServiceInternal,
   DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, GlobalRuleService, AssetRuleService,
-  DataRuleService, PageRuleService, SiteRuleService, TemplateRuleService, roleNameIsUnique, assignRoleToUsers
+  DataRuleService, PageRuleService, SiteRuleService, TemplateRuleService, roleNameIsUnique, assignRoleToUsers,
+  type RoleInput
 } from '../internal.js'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
@@ -143,30 +144,30 @@ export class RoleService extends DosGatoService<Role> {
     return this.removeUnauthorized(await this.raw.findBySiteId(siteId))
   }
 
-  async create (name: string, validateOnly?: boolean) {
+  async create (input: RoleInput, validateOnly?: boolean) {
     if (!this.mayCreate()) throw new Error('Current user is not permitted to create roles.')
     const response = new RoleResponse({ success: true })
-    if (!(await roleNameIsUnique(name))) {
-      response.addMessage(`Role ${name}  already exists`, 'name')
+    if (!(await roleNameIsUnique(input.name))) {
+      response.addMessage(`Role ${input.name}  already exists`, 'name')
     }
     if (validateOnly || response.hasErrors()) return response
-    const id = await createRole(name)
+    const id = await createRole(input)
     response.role = await this.raw.findById(String(id))
     return response
   }
 
-  async update (id: string, name: string, validateOnly?: boolean) {
+  async update (id: string, input: RoleInput, validateOnly?: boolean) {
     const role = await this.raw.findById(id)
     if (!role) throw new Error('Role to be edited does not exist.')
     if (!this.mayUpdate(role)) throw new Error('Current user is not permitted to update role names.')
     const response = new RoleResponse({ success: true })
-    if (name !== role.name && !(await roleNameIsUnique(name))) {
-      response.addMessage(`Role ${name}  already exists`, 'name')
+    if (input.name !== role.name && !(await roleNameIsUnique(input.name))) {
+      response.addMessage(`Role ${input.name}  already exists`, 'name')
     }
     if (validateOnly || response.hasErrors()) {
       return response
     }
-    await updateRole(id, name)
+    await updateRole(id, input)
     this.loaders.clear()
     response.role = await this.raw.findById(id)
     return response

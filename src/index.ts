@@ -198,7 +198,7 @@ export class DGServer {
             // we can skip creating roles and rules if the role already exists
             if (role != null) continue
 
-            const roleId = String(await createRole(tSiteName + '-editor'))
+            const roleId = String(await createRole({ name: tSiteName + '-editor' }))
             await createPageRule({ roleId, siteId, grants: { create: true, delete: true, move: true, publish: true, unpublish: true, update: true, undelete: false } })
             await createAssetRule({ roleId, siteId, grants: { create: true, delete: true, move: true, update: true, undelete: false } })
             await addRolesToUser([roleId], user.internalId)

@@ -21,7 +21,7 @@ describe('data rule mutations', () => {
     sitehash = hashify(sites, 'name')
   })
   it('should create a data rule', async () => {
-    const { role } = await createRole('datarulestestA')
+    const { role } = await createRole({ name: 'datarulestestA' })
     const { createDataRule: { success, dataRule } } =
     await query(`mutation CreateDataRule ($args: CreateDataRuleInput!)
     {
@@ -57,7 +57,7 @@ describe('data rule mutations', () => {
     expect(dataRule.grants.undelete).to.be.false
   })
   it('should not allow an unauthorized user to create a data rule', async () => {
-    const { role } = await createRole('datarulestestB')
+    const { role } = await createRole({ name: 'datarulestestB' })
     await expect(queryAs('ed07', `mutation CreateDataRule ($args: CreateDataRuleInput!)
     {
       createDataRule (args: $args) {
@@ -96,7 +96,7 @@ describe('data rule mutations', () => {
     expect(messages[0].message).to.equal('The proposed rule would have more privilege than you currently have, so you cannot create it.')
   })
   it('should update a data rule', async () => {
-    const { role } = await createRole('datarulestestC')
+    const { role } = await createRole({ name: 'datarulestestC' })
     const { createDataRule: { dataRule } } = await query(`mutation CreateDataRule ($args: CreateDataRuleInput!)
     {
       createDataRule (args: $args) {
@@ -135,7 +135,7 @@ describe('data rule mutations', () => {
     }`, { args: { ruleId: '1', templateId: 'keyd2' } })).to.be.rejected
   })
   it('should remove a data rule', async () => {
-    const { role } = await createRole('datarulestestD')
+    const { role } = await createRole({ name: 'datarulestestD' })
     const { createDataRule: { dataRule } } = await query(`mutation CreateDataRule ($args: CreateDataRuleInput!)
     {
       createDataRule (args: $args) {
@@ -155,7 +155,7 @@ describe('data rule mutations', () => {
     expect(roles[0].dataRules).to.not.deep.include({ id: dataRule.id })
   })
   it('should not allow an unauthorized user to remove a data rule', async () => {
-    const { role } = await createRole('datarulestestE')
+    const { role } = await createRole({ name: 'datarulestestE' })
     const { createDataRule: { dataRule } } = await query(`mutation CreateDataRule ($args: CreateDataRuleInput!)
     {
       createDataRule (args: $args) {

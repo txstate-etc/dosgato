@@ -21,7 +21,7 @@ describe('page rule mutations', () => {
     sitehash = hashify(sites, 'name')
   })
   it('should create a page rule', async () => {
-    const { role } = await createRole('pagerulestestA')
+    const { role } = await createRole({ name: 'pagerulestestA' })
     const { createPageRule: { success, pageRule } } =
     await query(`mutation CreatePageRule ($args: CreatePageRuleInput!)
     {
@@ -59,7 +59,7 @@ describe('page rule mutations', () => {
     expect(pageRule.grants.undelete).to.be.false
   })
   it('should not allow an unauthorized user to create a page rule', async () => {
-    const { role } = await createRole('pagerulestestB')
+    const { role } = await createRole({ name: 'pagerulestestB' })
     await expect(queryAs('ed07', `mutation CreatePageRule ($args: CreatePageRuleInput!)
     {
       createPageRule (args: $args) {
@@ -98,7 +98,7 @@ describe('page rule mutations', () => {
     expect(messages[0].message).to.equal('The proposed rule would have more privilege than you currently have, so you cannot create it.')
   })
   it('should update a page rule', async () => {
-    const { role } = await createRole('pagerulestestC')
+    const { role } = await createRole({ name: 'pagerulestestC' })
     const { createPageRule: { pageRule } } = await query(`mutation CreatePageRule ($args: CreatePageRuleInput!)
     {
       createPageRule (args: $args) {
@@ -137,7 +137,7 @@ describe('page rule mutations', () => {
     }`, { args: { ruleId: '1', mode: 'SUB' } })).to.be.rejected
   })
   it('should remove a page rule', async () => {
-    const { role } = await createRole('pagerulestestD')
+    const { role } = await createRole({ name: 'pagerulestestD' })
     const { createPageRule: { pageRule } } = await query(`mutation CreatePageRule ($args: CreatePageRuleInput!)
     {
       createPageRule (args: $args) {
@@ -157,7 +157,7 @@ describe('page rule mutations', () => {
     expect(roles[0].pageRules).to.not.deep.include({ id: pageRule.id })
   })
   it('should not allow an unauthorized user to remove a page rule', async () => {
-    const { role } = await createRole('pagerulestestE')
+    const { role } = await createRole({ name: 'pagerulestestE' })
     const { createPageRule: { pageRule } } = await query(`mutation CreatePageRule ($args: CreatePageRuleInput!)
     {
       createPageRule (args: $args) {

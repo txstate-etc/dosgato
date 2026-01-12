@@ -213,6 +213,13 @@ const dgMigrations: DBMigration[] = [
     run: async db => {
       await db.execute('ALTER TABLE organizations ADD COLUMN parentId SMALLINT UNSIGNED')
     }
+  },
+  {
+    id: 20260109164500,
+    description: 'add description field to roles table',
+    run: async db => {
+      await db.execute('ALTER TABLE roles ADD COLUMN description VARCHAR(255) DEFAULT NULL')
+    }
   }
 ]
 

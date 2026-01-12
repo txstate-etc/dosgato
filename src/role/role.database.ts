@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { Role, type RoleFilter } from '../internal.js'
+import { type RoleInput, Role, type RoleFilter } from '../internal.js'
 
 export async function getRoles (filter?: RoleFilter) {
   const binds: string[] = []
@@ -81,12 +81,12 @@ export async function roleNameIsUnique (name: string) {
   return count === 0
 }
 
-export async function createRole (name: string) {
-  return await db.insert('INSERT INTO roles (name) VALUES (?)', [name])
+export async function createRole (input: RoleInput) {
+  return await db.insert('INSERT INTO roles (name, description, siteId) VALUES (?, ?, ?)', [input.name, input.description ?? null, input.siteId ?? null])
 }
 
-export async function updateRole (id: string, name: string) {
-  return await db.update('UPDATE roles SET name = ? WHERE id = ?', [name, id])
+export async function updateRole (id: string, input: RoleInput) {
+  return await db.update('UPDATE roles SET name = ?, description = ?, siteId = ? WHERE id = ?', [input.name, input.description ?? null, input.siteId ?? null, id])
 }
 
 export async function deleteRole (id: string) {
