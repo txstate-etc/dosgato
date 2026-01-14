@@ -67,7 +67,7 @@ export class SiteResolver {
     if (withDataPermission) dataRules = dataRules.filter(r => withDataPermission.some(p => r.grants[p]))
     if (withPagePermission) pageRules = pageRules.filter(r => withPagePermission.some(p => r.grants[p]))
     const roleIds = [...siteRules.map(r => r.roleId), ...assetRules.map(r => r.roleId), ...dataRules.map(r => r.roleId), ...pageRules.map(r => r.roleId)]
-    return await ctx.svc(RoleService).findByIds(unique(roleIds))
+    return await ctx.svc(RoleService).findByIds(unique(roleIds), filter)
   }
 
   @FieldResolver(returns => Role, { description: 'Each site has exactly one primary role associated with it. This association gives the site managers authority to assign/unassign that role or any of its subroles to/from any valid user. This is completely different logic from the `Site.roles` property which returns roles based on the permissions granted by the role (see its description for details).' })
