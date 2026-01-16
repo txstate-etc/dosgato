@@ -98,10 +98,19 @@ export class DataRule {
 
 @InputType()
 export class DataRuleFilter {
+  @Field(type => [ID], { nullable: true })
   ids?: string[]
+
+  @Field(type => [ID], { nullable: true })
   roleIds?: string[]
+
+  @Field(type => [ID], { nullable: true })
   siteIds?: (string | null)[]
+
+  @Field({ nullable: true })
   global?: boolean
+
+  @Field(type => [ID], { nullable: true })
   templateIds?: (string | null)[]
 }
 

@@ -7,7 +7,9 @@ import {
   GroupService, User, UserFilter, UserService, Role, RoleFilter, RoleInput, RolePermissions, RoleResponse,
   RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType, Site,
   UrlSafeString, GlobalRuleServiceInternal, SiteRuleServiceInternal, AssetRuleServiceInternal,
-  DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, SiteServiceInternal} from '../internal.js'
+  DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, SiteServiceInternal,
+  DataRuleFilter, PageRuleFilter
+} from '../internal.js'
 
 @Resolver(of => Role)
 export class RoleResolver {
@@ -32,13 +34,13 @@ export class RoleResolver {
   }
 
   @FieldResolver(returns => [DataRule])
-  async dataRules (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(DataRuleServiceInternal).findByRoleId(role.id)
+  async dataRules (@Ctx() ctx: Context, @Root() role: Role, @Arg('filter', { nullable: true }) filter?: DataRuleFilter) {
+    return await ctx.svc(DataRuleServiceInternal).findByRoleId(role.id, filter)
   }
 
   @FieldResolver(returns => [PageRule])
-  async pageRules (@Ctx() ctx: Context, @Root() role: Role) {
-    return await ctx.svc(PageRuleServiceInternal).findByRoleId(role.id)
+  async pageRules (@Ctx() ctx: Context, @Root() role: Role, @Arg('filter', { nullable: true }) filter?: PageRuleFilter) {
+    return await ctx.svc(PageRuleServiceInternal).findByRoleId(role.id, filter)
   }
 
   @FieldResolver(returns => [TemplateRule])
