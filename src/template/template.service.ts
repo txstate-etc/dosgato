@@ -235,6 +235,19 @@ export class TemplateService extends DosGatoService<Template> {
   }
 
   /**
+   * Returns true when the site allows the template or the template is universal. If the user
+   * has a role that allows them to use the template, it will not be taken into account.
+   */
+  async mayUseOnPageWithoutRole (template: Template, page: Page) {
+    if (template.type === 'component') {
+      const pageTemplate = templateRegistry.getPageTemplate(page.templateKey)
+      if (pageTemplate.disallowSet.has(template.key)) return false
+    }
+    if (template.universal) return true
+    return !!(await this.loaders.get(mayUseTemplateInPagetreeLoader).load({ pagetreeId: page.pagetreeId, templateKey: template.key }))
+  }
+
+  /**
    * This should be used on page updates to validate whether a template is valid for a
    * page. It may say 'yes' on templates that would otherwise not be valid because they
    * are already on the page. This allows people with extra authority to add certain

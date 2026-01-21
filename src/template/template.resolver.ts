@@ -104,6 +104,13 @@ export class TemplatePermissionsResolver {
     if (!page) return false
     return await ctx.svc(TemplateService).mayUseOnPage(template, page)
   }
+
+  @FieldResolver(returns => Boolean, { description: 'Authenticated user has permission to use this template on the given page without relying on a grant from a role.' })
+  async useOnPageWithoutRole (@Ctx() ctx: Context, @Root() template: Template, @Arg('pageId', type => ID) pageId: string) {
+    const page = await ctx.svc(PageService).findById(pageId)
+    if (!page) return false
+    return await ctx.svc(TemplateService).mayUseOnPageWithoutRole(template, page)
+  }
 }
 
 @Resolver(of => TemplateArea)
