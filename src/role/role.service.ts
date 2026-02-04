@@ -150,6 +150,9 @@ export class RoleService extends DosGatoService<Role> {
     if (!(await roleNameIsUnique(input.name))) {
       response.addMessage(`Role ${input.name}  already exists`, 'name')
     }
+    if (input.description && input.description.length > 200) {
+      response.addMessage('Role description cannot exceed 200 characters', 'description')
+    }
     if (validateOnly || response.hasErrors()) return response
     const id = await createRole(input)
     response.role = await this.raw.findById(String(id))
@@ -163,6 +166,9 @@ export class RoleService extends DosGatoService<Role> {
     const response = new RoleResponse({ success: true })
     if (input.name !== role.name && !(await roleNameIsUnique(input.name))) {
       response.addMessage(`Role ${input.name}  already exists`, 'name')
+    }
+    if (input.description && input.description.length > 200) {
+      response.addMessage('Role description cannot exceed 200 characters', 'description')
     }
     if (validateOnly || response.hasErrors()) {
       return response
