@@ -4,7 +4,8 @@ import { isNotBlank, isNotNull, someAsync, unique, isBlank } from 'txstate-utils
 import {
   DosGatoService, GroupService, User, type UserFilter, UserResponse, getUsers, createUser,
   getUsersInGroup, getUsersWithRole, getUsersBySite, getUsersByInternalId, UsersResponse,
-  type UpdateUserInput, updateUser, disableUsers, enableUsers, getUsersManagingGroups, SiteRuleService, getTrainingsForUsers, addTrainings
+  type UpdateUserInput, updateUser, disableUsers, enableUsers, getUsersManagingGroups, SiteRuleService, getTrainingsForUsers, addTrainings,
+  RoleService
 } from '../internal.js'
 
 const usersByInternalIdLoader = new PrimaryKeyLoader({
@@ -143,10 +144,19 @@ export class UserService extends DosGatoService<User, User> {
   async findByRoleId (roleId: string, direct?: boolean, filter?: UserFilter) {
     const users = await this.raw.findByRoleId(roleId, direct, filter)
     if (this.haveGlobalPerm('manageAccess')) return users
+    // If the role is associated with a site and the current user is an owner, manager, or other person with access to that site, go ahead and return the users
+    const role = await this.svc(RoleService).findById(roleId)
+    if (role?.siteId && (this.ctx.authInfo.ownedOrManagedSiteIds?.includes(role.siteId) || this.ctx.authInfo.pageSiteIds?.includes(role.siteId))) {
+      return users
+    }
     return users.filter(u => u.id === this.login)
   }
 
   async findSiteManagers (siteId: string) {
+    // The site owner and managers should be able to see the site managers
+    if (this.ctx.authInfo.ownedOrManagedSiteIds?.includes(siteId) || this.ctx.authInfo.pageSiteIds?.includes(siteId)) {
+      return await this.raw.findSiteManagers(siteId)
+    }
     if (this.ctx.authInfo.siteRules.some(sr => SiteRuleService.applies(sr, siteId) && sr.grants.governance)) {
       return this.removeUnauthorized(await this.raw.findSiteManagers(siteId))
     }

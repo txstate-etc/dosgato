@@ -15,6 +15,32 @@ registerEnumType(RuleType, {
   name: 'RuleType'
 })
 
+export enum RoleAccessLevel {
+  EDITOR = 'editor',
+  CONTRIBUTOR = 'contributor',
+  READONLY = 'readonly'
+}
+registerEnumType(RoleAccessLevel, {
+  name: 'RoleAccessLevel',
+  description: `The level of access granted by a role. This is a general indicator of the level
+  of access granted by a role, but the specific permissions granted by a role are determined by
+  the rules associated with the role.`,
+  valuesConfig: {
+    EDITOR: {
+      description: `An editor has the necessary permissions to create, update, move, publish,
+      unpublish, and delete pages in all pagetrees in a given site. They can also create, update, move,
+      and delete that site's assets.`
+    },
+    CONTRIBUTOR: {
+      description: `A contributor has limited permissions on a given site. They might only have access to a
+      specific page or set of pages, or they might only have access to a particular type of pagetree.`
+    },
+    READONLY: {
+      description: 'A readonly role has the necessary permissions to view pages in a given site, but cannot make any changes.'
+    }
+  }
+})
+
 @ObjectType({
   description: `A role links a user or group to a set of rules that grant
   access to various objects in the system. Typically, each rule grants access to one
@@ -35,11 +61,15 @@ export class Role {
   @Field({ nullable: true })
   siteId?: string
 
+  @Field(type => RoleAccessLevel, { nullable: true })
+  access?: RoleAccessLevel
+
   constructor (row: any) {
     this.id = String(row.id)
     this.name = row.name
     this.description = optionalString(row.description)
     this.siteId = optionalString(row.siteId)
+    this.access = row.access
   }
 }
 
@@ -53,6 +83,9 @@ export class RoleInput {
 
   @Field(type => ID, { nullable: true, description: 'Optional site ID to associate the role with a specific site.' })
   siteId?: string
+
+  @Field(type => RoleAccessLevel, { nullable: true })
+  access?: RoleAccessLevel
 }
 
 @InputType()
@@ -74,6 +107,9 @@ export class RoleFilter {
 
   @Field(type => [UrlSafeString], { nullable: true, description: 'Exclude roles matching one of the given names.' })
   notNames?: string[]
+
+  @Field(type => [RoleAccessLevel], { nullable: true, description: 'Return roles matching any of the given access levels.' })
+  accessLevels?: RoleAccessLevel[]
 }
 
 @ObjectType()

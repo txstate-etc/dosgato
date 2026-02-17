@@ -75,7 +75,7 @@ export async function fixtures () {
     datarolestest1, datarolestest2, pagerolestest1, pagerolestest2] = await Promise.all([
     db.getval('SELECT id FROM roles WHERE name="superuser"') as Promise<number>,
     db.insert('INSERT INTO roles (name) VALUES ("editor")'),
-    db.insert('INSERT INTO roles (name) VALUES ("site1-editor")'),
+    db.insert('INSERT INTO roles (name, description, access) VALUES ("site1-editor", "can edit site 1", "editor")'),
     db.insert('INSERT INTO roles (name) VALUES ("site2-editor")'),
     db.insert('INSERT INTO roles (name, siteId) VALUES ("site3-editor", ?)', [site3]),
     db.insert('INSERT INTO roles (name) VALUES ("group6role")'),

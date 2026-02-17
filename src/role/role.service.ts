@@ -274,6 +274,7 @@ export class RoleService extends DosGatoService<Role> {
 
   mayView (role: Role) {
     if (this.haveGlobalPerm('manageAccess')) return true
+    if (role.siteId && (this.ctx.authInfo.ownedOrManagedSiteIds?.includes(role.siteId) || this.ctx.authInfo.pageSiteIds?.includes(role.siteId))) return true
     return this.ctx.authInfo.roles.some(r => r.id === role.id)
   }
 

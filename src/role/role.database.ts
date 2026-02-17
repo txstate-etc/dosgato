@@ -17,6 +17,9 @@ export async function getRoles (filter?: RoleFilter) {
   if (filter?.users?.length) {
     where.push(`users.login IN (${db.in(binds, filter.users)})`)
   }
+  if (filter?.accessLevels?.length) {
+    where.push(`roles.access IN (${db.in(binds, filter.accessLevels)})`)
+  }
   if (filter?.siteIds?.length) {
     joins.set('site', 'LEFT JOIN sites ON sites.id = roles.siteId')
     where.push(`sites.id IN (${db.in(binds, filter.siteIds)})`)
@@ -82,11 +85,11 @@ export async function roleNameIsUnique (name: string) {
 }
 
 export async function createRole (input: RoleInput) {
-  return await db.insert('INSERT INTO roles (name, description, siteId) VALUES (?, ?, ?)', [input.name, input.description ?? null, input.siteId ?? null])
+  return await db.insert('INSERT INTO roles (name, description, siteId, access) VALUES (?, ?, ?, ?)', [input.name, input.description ?? null, input.siteId ?? null, input.access ?? null])
 }
 
 export async function updateRole (id: string, input: RoleInput) {
-  return await db.update('UPDATE roles SET name = ?, description = ?, siteId = ? WHERE id = ?', [input.name, input.description ?? null, input.siteId ?? null, id])
+  return await db.update('UPDATE roles SET name = ?, description = ?, siteId = ?, access = ? WHERE id = ?', [input.name, input.description ?? null, input.siteId ?? null, input.access ?? null, id])
 }
 
 export async function deleteRole (id: string) {

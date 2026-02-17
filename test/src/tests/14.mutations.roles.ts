@@ -16,6 +16,11 @@ describe('roles mutations', () => {
     expect(success).to.be.true
     expect(role.description).to.equal('This is a test role')
   })
+  it ('should create a new role with access level', async () => {
+    const { success, role } = await createRole({ name: 'role with access level', access: 'EDITOR' })
+    expect(success).to.be.true
+    expect(role.access).to.equal('EDITOR')
+  })
   it('should return an error when trying to add a new role with an existing name', async () => {
     const { success, messages } = await createRole({ name: 'editor' })
     expect(success).to.be.false
@@ -42,6 +47,14 @@ describe('roles mutations', () => {
   it('should not allow an unauthorized user to update a role name', async () => {
     const { role: roleBB } = await createRole({ name: 'roleBB' })
     await expect(queryAs('ed07', 'mutation UpdateRole ($roleId: String!, $name: UrlSafeString!) { updateRole (roleId: $roleId, name: $name) { success role { id name } } }', { roleId: roleBB.id, name: 'roleBUpdated' })).to.be.rejected
+  })
+  it('should add a description and access level to a role', async () => {
+    const { role: roleCC } = await createRole({ name: 'roleCC' })
+    const { updateRole: { success } } = await query('mutation UpdateRole ($roleId: ID!, $input: RoleInput!) { updateRole (roleId: $roleId, input: $input) { success role { id name description access } } }', { roleId: roleCC.id, input: { name: 'roleCC', description: 'This is roleCC', access: 'READONLY' } })
+    expect(success).to.be.true
+    const { roles } = await query(`{ roles(filter: { ids: [${roleCC.id}]}) { id name description access } }`)
+    expect(roles[0].description).to.equal('This is roleCC')
+    expect(roles[0].access).to.equal('READONLY')
   })
   it('should delete a role', async () => {
     const { role: roleD } = await createRole({ name: 'roleD' })

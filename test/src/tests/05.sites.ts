@@ -22,6 +22,7 @@ describe('sites', () => {
         rootAssetFolder { id name }
         launched
         roles { id name }
+        auditRoles { name }
         comments { id comment }
       }
     }`)
@@ -118,6 +119,9 @@ describe('sites', () => {
     }`)
     expect(resp.sites[0].roles).to.deep.include({ name: 'siterolestest1' })
     expect(resp.sites[0].roles).to.not.deep.include({ name: 'siterolestest2' })
+  })
+  it('should get the audit roles for a site', async () => {
+    expect(sitehash.site3.auditRoles).to.deep.include({ name: 'site3-editor' })
   })
   it('should return whether or not a site is launched', async () => {
     expect(sitehash.site1.launched).to.be.true

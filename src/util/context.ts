@@ -3,9 +3,9 @@ import type { FastifyRequest } from 'fastify'
 import {
  AssetRule, DataRule, type GlobalRule, PageRule, RoleServiceInternal, RulePathMode, SiteRule, getPageRules, getAssetRules,
   getDataRules, getSiteRules, getGlobalRules, getTemplateRules, type GlobalRuleGrants, type TemplateRule, type Role, getUsers,
-  GroupServiceInternal, PaginationResponse, type Group, type User, type Pagination
+  GroupServiceInternal, PaginationResponse, type Group, type User, type Pagination, SiteServiceInternal
 } from '../internal.js'
-import { Cache, isNotNull, keyby, sleep } from 'txstate-utils'
+import { Cache, isNotNull, keyby, sleep, unique } from 'txstate-utils'
 
 async function fetchPageRules (netid: string, roleIds: string[]) {
   if (netid === 'anonymous') return [new PageRule({ path: '/', mode: RulePathMode.SELFANDSUB })]
@@ -69,6 +69,14 @@ async function fetchGroups (login: string, ctx: DGContext) {
   return keyby(groups, 'id')
 }
 
+async function fetchSitesOwnedOrManaged (userInternalId: number, ctx: DGContext) {
+  const [sitesOwned, sitesManaged] = await Promise.all([
+    ctx.svc(SiteServiceInternal).findByOwnerInternalId(userInternalId),
+    ctx.svc(SiteServiceInternal).findByManagerInternalId(userInternalId)
+  ])
+  return unique([...sitesOwned, ...sitesManaged].map(s => s.id))
+}
+
 const authCache = new Cache(async (login: string, ctx: DGContext) => {
   const roles = await ctx.svc(RoleServiceInternal).findByUserId(login)
   const roleIds = roles.map(r => r.id)
@@ -83,7 +91,8 @@ const authCache = new Cache(async (login: string, ctx: DGContext) => {
     fetchUser(login)
   ])
   const pageSiteIds = pageRules.some(r => r.grants.viewForEdit && r.siteId == null) ? undefined : pageRules.map(r => r.siteId).filter(isNotNull)
-  return { roles, pageRules, assetRules, siteRules, dataRules, globalGrants, templateRules, groupsById, user, pageSiteIds } as AuthInfo
+  const ownedOrManagedSiteIds = user ? await fetchSitesOwnedOrManaged(user.internalId, ctx) : []
+  return { roles, pageRules, assetRules, siteRules, dataRules, globalGrants, templateRules, groupsById, user, pageSiteIds, ownedOrManagedSiteIds } as AuthInfo
 }, { freshseconds: 30 })
 
 interface AuthInfo {
@@ -97,6 +106,7 @@ interface AuthInfo {
   groupsById: Record<string, Group>
   user: User | undefined
   pageSiteIds?: string[]
+  ownedOrManagedSiteIds?: string[]
 }
 
 export interface DGContext extends Context {

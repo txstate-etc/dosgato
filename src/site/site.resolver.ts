@@ -9,7 +9,7 @@ import {
   SiteResponse, UpdateSiteManagementInput, SiteService, RoleService, DataRoot, DataRootService,
   DataRootFilter, SiteComment, SiteCommentService, JsonData, UrlSafeString, PagetreeServiceInternal,
   RoleFilter, LaunchState, SiteRuleServiceInternal, AssetRuleServiceInternal, DataRuleServiceInternal,
-  PageRuleServiceInternal
+  PageRuleServiceInternal, UserServiceInternal
 } from '../internal.js'
 
 @Resolver(of => Site)
@@ -70,13 +70,22 @@ export class SiteResolver {
     return await ctx.svc(RoleService).findByIds(unique(roleIds), filter)
   }
 
+  // TODO: Do we need this one anymore? The description includes logic from a path we didn't take
   @FieldResolver(returns => Role, { description: 'Each site has exactly one primary role associated with it. This association gives the site managers authority to assign/unassign that role or any of its subroles to/from any valid user. This is completely different logic from the `Site.roles` property which returns roles based on the permissions granted by the role (see its description for details).' })
   async role (@Ctx() ctx: Context, @Root() site: Site) {
     return await ctx.svc(RoleService).findBySiteId(site.id)
   }
 
+  @FieldResolver(returns => [Role], { description: 'Returns a list of all roles that belong specifically to this site.' })
+  async auditRoles (@Ctx() ctx: Context, @Root() site: Site) {
+    return await ctx.svc(RoleService).findBySiteId(site.id)
+  }
+
   @FieldResolver(returns => User, { nullable: true })
   async owner (@Ctx() ctx: Context, @Root() site: Site) {
+    if (ctx.svc(SiteService).mayViewDashboard(site) && isNotNull(site.ownerId)) {
+      return await ctx.svc(UserServiceInternal).findByInternalId(site.ownerId)
+    }
     if (!ctx.svc(SiteService).mayViewForEdit(site)) return undefined
     if (isNotNull(site.ownerId)) {
       return await ctx.svc(UserService).findByInternalId(site.ownerId)

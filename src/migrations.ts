@@ -220,6 +220,13 @@ const dgMigrations: DBMigration[] = [
     run: async db => {
       await db.execute('ALTER TABLE roles ADD COLUMN description VARCHAR(255) DEFAULT NULL')
     }
+  },
+  {
+    id: 20260205154500,
+    description: 'add role access to allow admins to mark roles as editor, contributor, or readonly',
+    run: async db => {
+      await db.execute('ALTER TABLE roles ADD COLUMN access ENUM(\'editor\', \'contributor\', \'readonly\')')
+    }
   }
 ]
 

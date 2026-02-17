@@ -35,8 +35,8 @@ export async function queryAs <T = any> (login: string, query: string, variables
   }
 }
 
-export async function createRole (input: { name: string, description?: string, siteId?: string }, username?: string) {
-  const { createRole: { success, role, messages } } = await queryAs((username ?? 'su01'), 'mutation CreateRole ($input: RoleInput!) { createRole (input: $input) { success messages { message } role { id name description site { id } } } }', { input })
+export async function createRole (input: { name: string, description?: string, siteId?: string, access?: string }, username?: string) {
+  const { createRole: { success, role, messages } } = await queryAs((username ?? 'su01'), 'mutation CreateRole ($input: RoleInput!) { createRole (input: $input) { success messages { message } role { id name description site { id } access } } }', { input })
   return { success, role, messages }
 }
 

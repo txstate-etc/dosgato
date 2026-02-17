@@ -259,6 +259,7 @@ export class SiteService extends DosGatoService<Site> {
 
   mayView (site: Site) {
     if (this.mayViewForEdit(site)) return true
+    if (this.ctx.authInfo.ownedOrManagedSiteIds?.includes(site.id)) return true
     // visible if any page in the site is visible
     return this.ctx.authInfo.pageRules.some(r => r.grants.viewForEdit && (!r.siteId || r.siteId === site.id))
   }
@@ -270,6 +271,13 @@ export class SiteService extends DosGatoService<Site> {
   mayViewManagerUI () {
     if (this.haveGlobalPerm('createSites')) return true
     return this.ctx.authInfo.siteRules.some(r => r.grants.viewForEdit)
+  }
+
+  mayViewDashboard (site: Site) {
+    if (this.mayViewForEdit(site)) return true
+    if (this.ctx.authInfo.ownedOrManagedSiteIds?.includes(site.id)) return true
+    if (this.ctx.authInfo.pageSiteIds?.includes(site.id)) return true
+    return false
   }
 
   mayCreate () {

@@ -12,6 +12,13 @@ describe('roles', () => {
       expect(roleIds).to.include(role.id)
     }
   })
+  it('should retrieve the description and access level of a role', async () => {
+    const resp = await query('{ roles(filter: { users: ["ed02"] }) { name description access } }')
+    const site1role = resp.roles.find((r: any) => r.name === 'site1-editor')
+    expect(site1role).to.exist
+    expect(site1role.description).to.equal('can edit site 1')
+    expect(site1role.access).to.equal('EDITOR')
+  })
   it('should retrieve roles by user', async () => {
     const resp = await query('{ roles(filter: { users: ["su03"] }) { id name } }')
     expect(resp.roles).to.have.lengthOf(2)
