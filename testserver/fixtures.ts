@@ -10,7 +10,7 @@ import { VersionedService, type Index, setAssetSearchCodes, setPageSearchCodes }
 
 export async function fixtures () {
   console.info('running fixtures()')
-  const [su01, su02, su03, ed01, ed02, ed03, ed04, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18] = await Promise.all([
+  const [su01, su02, su03, ed01, ed02, ed03, ed04, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18, service1, dbOwner, dbManager1, dbManager2, dbEditor1, dbEditor2, dbContributor1, dbContributor2, dbReadonly1, dbReadonly2] = await Promise.all([
     db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("su01", "Michael", "Scott", "su01@example.com", null, null, null)'),
     db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("su02", "Elizabeth", "Bennet", "su02@example.com", null, null, null)'),
     db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("su03", "Marge", "Simpson", "su03@example.com", "2021-09-01 12:43:00", "2021-09-01 16:28:00", null)'),
@@ -32,7 +32,17 @@ export async function fixtures () {
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("ed16", "Test", "SiteRoles", "ed16@example.com")'),
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("ed17", "Test", "PageRoles1", "ed17@example.com")'),
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("ed18", "Test", "PageRoles2", "ed18@example.com")'),
-    db.insert('INSERT INTO users (login, lastname, email, `system`) VALUES ("service1", "ServiceAccount1", "sa1@example.com", true)')
+    db.insert('INSERT INTO users (login, lastname, email, `system`) VALUES ("service1", "ServiceAccount1", "sa1@example.com", true)'),
+    // dashboard users
+    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_owner", "Indiana", "Jones", "dashboard1@example.com")'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_manager1", "Sarah", "Connor", "dashboard2@example.com")'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_manager2", "Frodo", "Baggins", "dashboard3@example.com")'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_editor1", "Daisy", "Buchanan", "dashboard4@example.com")'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_editor2", "Fox", "Mulder", "dashboard5@example.com")'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_contributor1", "Ferris", "Bueller", "dashboard6@example.com")'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_contributor2", "Marty", "McFly", "dashboard7@example.com")'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_readonly1", "Michael", "Corleone", "dashboard8@example.com")'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_readonly2", "Jane", "Eyre", "dashboard9@example.com")')
   ])
 
   const basicId = await db.getval('SELECT MIN(id) FROM trainings')
@@ -55,7 +65,7 @@ export async function fixtures () {
     db.insert('INSERT INTO organizations (name, externalId) VALUES ("The Office", ?)', [nanoid(10)])
   ])
 
-  const [site1, site2, site3, site4, site5, site6, site7, site8, deletedsite] = ([
+  const [site1, site2, site3, site4, site5, site6, site7, site8, deletedsite, dashboardTest] = ([
     await db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath, launchEnabled) VALUES (?,?,?,?,?,?)', ['site1', artCollegeOrg, ed02, 'www.college.edu', '/site1/', true]),
     await db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site2', mathDeptOrg, su01]),
     await db.insert('INSERT INTO sites (name, organizationId, ownerId, launchHost, launchPath, launchEnabled) VALUES (?,?,?,?,?,?)', ['site3', officeOrg, su03, 'www.example.com', '/site3/', true]),
@@ -64,7 +74,8 @@ export async function fixtures () {
     await db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site6', officeOrg, su02]),
     await db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site7', officeOrg, su01]),
     await db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['site8', officeOrg, su02]),
-    await db.insert('INSERT INTO sites (name, organizationId, ownerId, deletedAt, deletedBy) VALUES (?,?,?, NOW(), ?)', ['deletedsite', artCollegeOrg, ed10, su01])
+    await db.insert('INSERT INTO sites (name, organizationId, ownerId, deletedAt, deletedBy) VALUES (?,?,?, NOW(), ?)', ['deletedsite', artCollegeOrg, ed10, su01]),
+    await db.insert('INSERT INTO sites (name, organizationId, ownerId) VALUES (?,?,?)', ['dashboard-test', officeOrg, dbOwner])
   ])
 
   const [superuserRole, editorRole, site1editorRole, site2editorRole, site3editorRole, group6Role, group7Role,
@@ -72,7 +83,7 @@ export async function fixtures () {
     site5siterulestest3, siteLauncherRole, templaterulestest1, templaterulestest2, assetrulestest1, assetrulestest2,
     assetrulestest3, assetrulestest4, assetrulestest5, pagerulestest1, pagerulestest2, pagerulestest3, pagerulestest4,
     datarulestest1, datarulestest2, datarulestest3, datarulestest4, siterolestest1, siterolestest2,
-    datarolestest1, datarolestest2, pagerolestest1, pagerolestest2] = await Promise.all([
+    datarolestest1, datarolestest2, pagerolestest1, pagerolestest2, dashboardEditor, dashboardContributor1, dashboardContributor2, dashboardReadonly] = await Promise.all([
     db.getval('SELECT id FROM roles WHERE name="superuser"') as Promise<number>,
     db.insert('INSERT INTO roles (name) VALUES ("editor")'),
     db.insert('INSERT INTO roles (name, description, access) VALUES ("site1-editor", "can edit site 1", "editor")'),
@@ -107,10 +118,14 @@ export async function fixtures () {
     db.insert('INSERT INTO roles (name) VALUES ("datarolestest1")'),
     db.insert('INSERT INTO roles (name) VALUES ("datarolestest2")'),
     db.insert('INSERT INTO roles (name) VALUES ("pagerolestest1")'),
-    db.insert('INSERT INTO roles (name) VALUES ("pagerolestest2")')
+    db.insert('INSERT INTO roles (name) VALUES ("pagerolestest2")'),
+    db.insert('INSERT INTO roles (name, siteId, description, access) VALUES (?,?,?,?)', ['dashboard-test-editor', dashboardTest, 'Can edit the dashboard-test site', 'editor']),
+    db.insert('INSERT INTO roles (name, siteId, description, access) VALUES (?,?,?,?)', ['dashboard-test-about-editor', dashboardTest, 'Can edit the dashboard-test about page', 'contributor']),
+    db.insert('INSERT INTO roles (name, siteId, description, access) VALUES (?,?,?,?)', ['dashboard-test-sandbox-contributor', dashboardTest, 'Can only edit dashboard-test sandboxes', 'contributor']),
+    db.insert('INSERT INTO roles (name, siteId, description, access) VALUES (?,?,?,?)', ['dashboard-test-readonly', dashboardTest, 'dashboard-test Readonly', 'readonly'])
   ])
 
-  const [pagetree1, pagetree2, pagetree3sandbox, pagetree3, pagetree4, pagetree4archive, pagetree4deleted, pagetree5, pagetree6, pagetree7, pagetree8, deletedSitePrimary] = await Promise.all([
+  const [pagetree1, pagetree2, pagetree3sandbox, pagetree3, pagetree4, pagetree4archive, pagetree4deleted, pagetree5, pagetree6, pagetree7, pagetree8, deletedSitePrimary, dashboardPrimary, dashboardArchive, dashboardSandbox] = await Promise.all([
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['site1', site1, 'primary']),
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['site2', site2, 'primary']),
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['site3-sandbox', site3, 'sandbox']),
@@ -122,7 +137,10 @@ export async function fixtures () {
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['site6', site6, 'primary']),
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['site7', site7, 'primary']),
     db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['site8', site8, 'primary']),
-    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['deletedsite', deletedsite, 'primary'])
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['deletedsite', deletedsite, 'primary']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['dashboard-test', dashboardTest, 'primary']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['dashboard-test-archive', dashboardTest, 'archive']),
+    db.insert('INSERT INTO pagetrees (name, siteId, type) VALUES (?,?,?)', ['dashboard-test-sandbox', dashboardTest, 'sandbox'])
   ])
 
   const [pagetemplate1, pagetemplate2, pagetemplate3, datatemplate1, datatemplate2, articleTemplate, linkTemplate] = await Promise.all([
@@ -147,7 +165,10 @@ export async function fixtures () {
     db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?, ?, ?, ?, ?)', [deletedsite, deletedSitePrimary, nanoid(10), '/', 'deletedsite']),
     db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?, ?, ?, ?, ?)', [site4, pagetree4archive, nanoid(10), '/', 'site4-archive']),
     db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?, ?, ?, ?, ?)', [site4, pagetree4deleted, nanoid(10), '/', 'site4-archive-1']),
-    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?, ?, ?, ?, ?)', [site3, pagetree3sandbox, nanoid(10), '/', 'site3-sandbox'])
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?, ?, ?, ?, ?)', [site3, pagetree3sandbox, nanoid(10), '/', 'site3-sandbox']),
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?, ?, ?, ?, ?)', [dashboardTest, dashboardPrimary, nanoid(10), '/', 'dashboard-test']),
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?, ?, ?, ?, ?)', [dashboardTest, dashboardArchive, nanoid(10), '/', 'dashboard-test-archive']),
+    db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?, ?, ?, ?, ?)', [dashboardTest, dashboardSandbox, nanoid(10), '/', 'dashboard-test-sandbox'])
   ])
   const site1Images = await db.insert('INSERT INTO assetfolders (siteId, pagetreeId, linkId, path, name) VALUES (?, ?, ?, ?, ?)', [site1, pagetree1, nanoid(10), `/${site1AssetRoot}`, 'images'])
   const [assetFolderA, assetFolderB, assetFolderC, assetFolderD, assetFolderE] = await Promise.all([
@@ -178,7 +199,8 @@ export async function fixtures () {
     db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetree6, site6]),
     db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetree7, site7]),
     db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [pagetree8, site8]),
-    db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [deletedSitePrimary, deletedsite])
+    db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [deletedSitePrimary, deletedsite]),
+    db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [dashboardPrimary, dashboardTest])
   ])
 
   await Promise.all([
@@ -187,7 +209,8 @@ export async function fixtures () {
   ])
 
   await Promise.all([
-    db.update('UPDATE roles SET siteId = ? WHERE id = ?', [site3, site3editorRole])
+    db.update('UPDATE roles SET siteId = ? WHERE id = ?', [site3, site3editorRole]),
+    db.update('UPDATE roles set siteId = ? WHERE id IN (?, ?, ?, ?)', [dashboardTest, dashboardEditor, dashboardContributor1, dashboardContributor2, dashboardReadonly])
   ])
 
   await Promise.all([
@@ -238,6 +261,12 @@ export async function fixtures () {
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed09, siterolestest2]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed17, pagerolestest1]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed18, pagerolestest2]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [dbEditor1, dashboardEditor]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [dbEditor2, dashboardEditor]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [dbContributor1, dashboardContributor1]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [dbContributor2, dashboardContributor2]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [dbReadonly1, dashboardReadonly]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [dbReadonly2, dashboardReadonly]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group3, site2editorRole]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group1, site3editorRole]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group3, editorRole]),
@@ -249,6 +278,8 @@ export async function fixtures () {
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site3, ed01]),
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site3, ed03]),
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site2, ed10]),
+    db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [dashboardTest, dbManager1]),
+    db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [dashboardTest, dbManager2]),
     db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree1, pagetemplate1!]),
     db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree2, pagetemplate3!]),
     db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetree3sandbox, pagetemplate2!]),
@@ -259,7 +290,8 @@ export async function fixtures () {
     db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site3, pagetemplate3!]),
     db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site1, pagetemplate3!]),
     db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site6, pagetemplate3!]),
-    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site3, linkTemplate!])
+    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [site3, linkTemplate!]),
+    db.insert('INSERT INTO sites_templates (siteId, templateId) VALUES (?,?)', [dashboardTest, pagetemplate1!])
   ])
 
   await Promise.all([
@@ -291,7 +323,8 @@ export async function fixtures () {
     db.insert('INSERT INTO assetrules (`roleId`, `move`) VALUES (?,?)', [assetrulestest5, 1]),
     db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `path`, `mode`, `create`, `update`, `move`) VALUES (?,?,?,?,?,?,?)', [assetrulestest5, site1, '/images', 'self', 1, 1, 1]),
     db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `create`, `update`, `move`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?)', [siterolestest1, site6, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `update`) VALUES (?,?,?)', [siterolestest2, site6, 1])
+    db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `update`) VALUES (?,?,?)', [siterolestest2, site6, 1]),
+    db.insert('INSERT INTO assetrules (`roleId`, `siteId`, `create`, `update`, `move`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?)', [dashboardEditor, dashboardTest, 1, 1, 1, 1, 1])
   ])
   await Promise.all([
     db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `path`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?,?)', [site1editorRole, site1, '/', 1, 1, 1, 1, 1, 1, 1, 1]),
@@ -302,7 +335,10 @@ export async function fixtures () {
     db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `create`, `update`, `move`) VALUES (?,?,?,?,?)', [siterolestest2, site6, 1, 1, 1]),
     db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?)', [pagerolestest1, site7, 1, 1, 1, 1, 1, 1, 1]),
     db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `create`, `update`, `move`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?)', [pagerolestest2, site7, 1, 1, 1, 1, 1]),
-    db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `path`, `create`, `update`, `move`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?)', [site3editorRole, site3, '/', 1, 1, 1, 1, 1])
+    db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `path`, `create`, `update`, `move`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?)', [site3editorRole, site3, '/', 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `path`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?,?)', [dashboardEditor, dashboardTest, '/', 1, 1, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO pagerules (`roleId`, `siteId`, `path`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?,?)', [dashboardContributor1, dashboardTest, 'about', 1, 1, 1, 1, 1, 1, 1]),
+    db.insert('INSERT INTO pagerules (`roleId`, `pagetreeType`, `siteId`, `path`, `create`, `update`, `move`, `publish`, `unpublish`, `delete`, `undelete`) VALUES (?,?,?,?,?,?,?,?,?,?,?)', [dashboardContributor2, 'sandbox', dashboardTest, '/', 1, 1, 1, 1, 1, 1, 1])
   ])
   await Promise.all([
     db.insert('INSERT INTO datarules (`roleId`, `create`, `update`, `move`) VALUES (?,?,?,?)', [datarulestest1, 1, 1, 1]),
@@ -641,6 +677,16 @@ export async function fixtures () {
   /* Deleted Site */
   await createPage('deletedsite', nanoid(10), deletedSitePrimary, null, 1, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Page in Deleted Site', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp3'] }])
 
+  /* Dashboard Test Site - Primary Pagetree */
+  const dashboardTestPrimaryRootPageLinkId = nanoid(10)
+  const dashboardTestPrimaryAboutPageLinkId = nanoid(10)
+  const dashboardTestArchiveRootPageLinkId = nanoid(10)
+  const dashboardTestSandboxRootPageLinkId = nanoid(10)
+
+  const dashboardRootID = await createPage('dashboard-test', dashboardTestPrimaryRootPageLinkId, dashboardPrimary, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Dashboard Test Site Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
+  await createPage('about', dashboardTestPrimaryAboutPageLinkId, dashboardPrimary, dashboardRootID, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'About', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
+  await createPage('dashboard-test-archive', dashboardTestArchiveRootPageLinkId, dashboardArchive, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Dashboard Test Archive Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
+  await createPage('dashboard-test-sandbox', dashboardTestSandboxRootPageLinkId, dashboardSandbox, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Dashboard Test Sandbox Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
   /* Data */
   const [datafolder1, datafolder2, datafolder3, datafolder4, datafolder5, datafolder6, globalcolordata, deletedsitedatafolder] = await Promise.all([
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site2datafolder', nanoid(10), site2, datatemplate1!]),
