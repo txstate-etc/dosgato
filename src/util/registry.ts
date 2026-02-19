@@ -24,7 +24,7 @@ class TemplateRegistry {
   protected migrations: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
   public migrationsForward: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
   public migrationsBackward: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
-  public currentSchemaVersion = existsSync('/.builddate') ? DateTime.fromMillis(Number(readFileSync('/.builddate', 'ascii').trim())) : DateTime.local()
+  public currentSchemaVersion = existsSync('/.builddate') ? DateTime.fromMillis(Number(readFileSync('/.builddate', 'ascii').trim() || (() => { throw new Error('Invalid build date') })())) : DateTime.local()
   public serverConfig!: Omit<DGStartOpts, 'templates'> & { customContext: DGContextClass }
 
   register (template: APIAnyTemplate) {
