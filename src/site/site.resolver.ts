@@ -186,6 +186,11 @@ export class SitePermissionsResolver {
     return ctx.svc(SiteService).mayViewForEdit(site)
   }
 
+  @FieldResolver(returns => Boolean, { description: 'Current user has permission to audit this site.' })
+  audit (@Ctx() ctx: Context, @Root() site: Site) {
+    return ctx.svc(SiteService).mayAudit(site)
+  }
+
   @FieldResolver(returns => Boolean, { description: 'Current user has permission to set or update the public URL for this site.' })
   launch (@Ctx() ctx: Context, @Root() site: Site) {
     return ctx.svc(SiteService).mayLaunch(site)

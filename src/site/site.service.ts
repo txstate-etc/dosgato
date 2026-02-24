@@ -280,6 +280,11 @@ export class SiteService extends DosGatoService<Site> {
     return false
   }
 
+  mayAudit (site: Site) {
+    if (this.ctx.authInfo.ownedOrManagedSiteIds?.includes(site.id)) return true
+    return this.haveGlobalPerm('manageAccess') || this.haveSitePerm(site, 'viewForEdit')
+  }
+
   mayCreate () {
     return this.haveGlobalPerm('createSites')
   }
