@@ -84,6 +84,11 @@ export async function roleNameIsUnique (name: string) {
   return count === 0
 }
 
+export async function accessLevelUniqueForSite (siteId: string, access: string, roleName: string) {
+  const role = await db.getrow('SELECT * FROM roles WHERE siteId = ? AND access = ? AND name != ?', [siteId, access, roleName])
+  return role === undefined
+}
+
 export async function createRole (input: RoleInput) {
   return await db.insert('INSERT INTO roles (name, description, siteId, access) VALUES (?, ?, ?, ?)', [input.name, input.description ?? null, input.siteId ?? null, input.access ?? null])
 }

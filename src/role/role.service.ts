@@ -1,6 +1,6 @@
 import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { intersect, isNotNull, unique } from 'txstate-utils'
+import { intersect, isBlank, isNotNull, unique } from 'txstate-utils'
 import {
   DosGatoService, GroupService, UserService, type Role, type RoleFilter, RoleResponse,
   addRolesToUser, createRole, deleteRole, getRoles, getRolesWithGroup, getRolesWithManager,
@@ -8,7 +8,8 @@ import {
   GroupServiceInternal, GlobalRuleServiceInternal, SiteRuleServiceInternal, AssetRuleServiceInternal,
   DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, GlobalRuleService, AssetRuleService,
   DataRuleService, PageRuleService, SiteRuleService, TemplateRuleService, roleNameIsUnique, assignRoleToUsers,
-  type RoleInput
+  type RoleInput,
+  accessLevelUniqueForSite
 } from '../internal.js'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
@@ -153,6 +154,15 @@ export class RoleService extends DosGatoService<Role> {
     if (input.description && input.description.length > 200) {
       response.addMessage('Role description cannot exceed 200 characters', 'description')
     }
+    if (input.siteId && isBlank(input.access)) {
+      response.addMessage('Access level must be specified when creating a site-specific role.', 'access')
+    }
+    // We only allow one role per site to be designated as the editor role. Same for the read-only role.
+    if (input.siteId && input.access && input.access !== 'contributor') {
+      if (!await accessLevelUniqueForSite(input.siteId, input.access, input.name)) {
+        response.addMessage(`A role with ${input.access} access level already exists for this site.`, 'access')
+      }
+    }
     if (validateOnly || response.hasErrors()) return response
     const id = await createRole(input)
     response.role = await this.raw.findById(String(id))
@@ -169,6 +179,15 @@ export class RoleService extends DosGatoService<Role> {
     }
     if (input.description && input.description.length > 200) {
       response.addMessage('Role description cannot exceed 200 characters', 'description')
+    }
+    if (input.siteId && isBlank(input.access)) {
+      response.addMessage('Access level must be specified when creating a site-specific role.', 'access')
+    }
+    // We only allow one role per site to be designated as the editor role. Same for the read-only role.
+    if (input.siteId && input.access && input.access !== 'contributor') {
+      if (!await accessLevelUniqueForSite(input.siteId, input.access, input.name)) {
+        response.addMessage(`A role with ${input.access} access level already exists for this site.`, 'access')
+      }
     }
     if (validateOnly || response.hasErrors()) {
       return response
