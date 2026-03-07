@@ -2,7 +2,7 @@ import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
 import { batch, sortby } from 'txstate-utils'
 import { init } from './createdb.js'
-import { type DBMigration, DataServiceInternal, VersionedService, getFullTextForIndexing, setAssetSearchCodes, setPageSearchCodes, systemContext } from './internal.js'
+import { type DBMigration, DataServiceInternal, PageServiceInternal, VersionedService, getFullTextForIndexing, getPages, setAssetSearchCodes, setPageSearchCodes, systemContext } from './internal.js'
 
 const dgMigrations: DBMigration[] = [
   {
@@ -226,6 +226,12 @@ const dgMigrations: DBMigration[] = [
     description: 'add role access to allow admins to mark roles as editor, contributor, or readonly',
     run: async db => {
       await db.execute('ALTER TABLE roles ADD COLUMN access ENUM(\'editor\', \'contributor\', \'readonly\')')
+    }
+  }, {
+    id: 20260306134500,
+    description: 're-index pages since we are introducing substring search in this release',
+    run: async db => {
+      await PageServiceInternal.reindexAll({}, db)
     }
   }
 ]

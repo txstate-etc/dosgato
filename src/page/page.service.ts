@@ -1,4 +1,4 @@
-import type { LinkDefinition, ComponentData, PageData, PageExtras, AssetLink, AssetFolderLink } from '@dosgato/templating'
+import { getKeywords, type LinkDefinition, type ComponentData, type PageData, type PageExtras, type AssetLink, type AssetFolderLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { LRUCache } from 'lru-cache'
@@ -16,7 +16,7 @@ import {
   type DGRestrictOperations, fireEvent, setPageSearchCodes, AssetServiceInternal, getPageLinks,
   type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
   removeUnreachableComponents, getPageTagsByTagIds, TagServiceInternal, type AssetFilter, AssetService,
-  type AssetFolderFilter
+  type AssetFolderFilter, getPageTexts
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -176,6 +176,21 @@ export class PageServiceInternal extends BaseService {
     if (page.publishedVersion && page.publishedVersion !== page.latestVersion) {
       const publishedData = await this.getData(page, page.publishedVersion)
       await this.svc(VersionedService).setIndexes(page.intDataId, page.publishedVersion, getPageIndexes(publishedData), tdb)
+    }
+  }
+
+  static async reindexAll (filter?: PageFilter, db?: Queryable) {
+    const pages = await getPages(filter ?? {}, db)
+    let ctx: Context
+    let pageSvc: PageServiceInternal
+    for (let i = 0; i < pages.length; i++) {
+      if (i % 500 === 0) {
+        console.info(`Re-indexing page ${i + 1} of ${pages.length}...`)
+        // acquire a new system context every 500 pages to allow garbage collection
+        ctx = await systemContext()
+        pageSvc = ctx.svc(PageServiceInternal)
+      }
+      await pageSvc!.reindex(pages[i], db)
     }
   }
 
@@ -384,6 +399,76 @@ export class PageServiceInternal extends BaseService {
           filter.userTagsAny.push(...tagIds)
         }
       }
+    }
+    if (filter.phraseSearch?.length) {
+      const versionedSvc = this.svc(VersionedService)
+      const matchedDataIds = new Set<string>()
+
+      await Promise.all(filter.phraseSearch.map(async (entry) => {
+        const exactGrams = new Set<string>()
+        const prefixGrams = new Set<string>()
+        for (const word of getKeywords(entry.query)) {
+          if (word.length <= 4) {
+            if (entry.substring) prefixGrams.add(word)
+            else exactGrams.add(word)
+          } else {
+            for (let i = 0; i < word.length - 4; i++) {
+              exactGrams.add(word.slice(i, i + 5))
+            }
+          }
+        }
+
+        const rules: SearchRule[] = []
+        if (exactGrams.size) rules.push({ allIn: Array.from(exactGrams), indexName: 'fulltext' })
+        // we store 5-grams plus whole words of 4 or less characters, so if the search term is 4 or
+        // less characters and substring search is enabled, we need to also look for it as a prefix
+        // of one of the existing words or grams
+        // it's not perfect because it will miss a suffix match on a 2 or 3 character search term, but
+        // it's pretty good and it's not worth the extra index size to store separate prefix grams for
+        // short words
+        for (const prefix of prefixGrams) rules.push({ startsWith: prefix, indexName: 'fulltext' })
+
+        const tagsToSearch: string[] = []
+        if (entry.published === true) tagsToSearch.push('published')
+        else if (entry.published === false) tagsToSearch.push('latest')
+        else tagsToSearch.push('published', 'latest')
+
+        let candidateDataIds: string[]
+        if (rules.length > 0) {
+          const perTagResults = await Promise.all(tagsToSearch.map(async tag =>
+            await versionedSvc.find(rules, 'page', tag, filter.ids)
+          ))
+          candidateDataIds = Array.from(new Set(perTagResults.flat()))
+        } else {
+          candidateDataIds = filter.ids ?? []
+        }
+
+        if (!candidateDataIds.length) return
+
+        const pages = await this.findByIds(candidateDataIds)
+        const escaped = entry.query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const regex = entry.substring ? new RegExp(escaped, 'i') : new RegExp(`\\b${escaped}\\b`, 'i')
+
+        await Promise.all(pages.map(async page => {
+          const checks: Promise<void>[] = []
+          if (entry.published !== false && page.publishedVersion) {
+            checks.push((async () => {
+              const data = await this.getData(page, undefined, true)
+              if (getPageTexts(data).some(t => regex.test(t))) matchedDataIds.add(page.dataId)
+            })())
+          }
+          if (entry.published !== true) {
+            checks.push((async () => {
+              const data = await this.getData(page, undefined, false)
+              if (getPageTexts(data).some(t => regex.test(t))) matchedDataIds.add(page.dataId)
+            })())
+          }
+          await Promise.all(checks)
+        }))
+      }))
+
+      if (!matchedDataIds.size) filter.noresults = true
+      else filter.ids = intersect({ skipEmpty: true }, filter.ids, Array.from(matchedDataIds))
     }
 
     return filter

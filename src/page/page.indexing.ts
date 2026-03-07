@@ -1,4 +1,4 @@
-import { type LinkDefinition, extractLinksFromText, type PageData } from '@dosgato/templating'
+import { type LinkDefinition, extractLinksFromText, type PageData, getKeywords } from '@dosgato/templating'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { processLink, templateRegistry, type Index, type SingleValueIndex, collectReachableComponents } from '../internal.js'
 
@@ -16,7 +16,7 @@ export function getPageIndexes (page: PageData): Index[] {
 
   if (isNotBlank(page.legacyId)) storage.legacyId = new Set([page.legacyId])
   storage.template = new Set(components.map(c => c.templateKey).filter(isNotBlank))
-  // storage.fulltext = new Set()
+  storage.fulltext = new Set()
   for (const component of components) {
     const texts = (templateRegistry.get(component.templateKey)?.getFulltext?.(component) ?? []).filter(isNotBlank)
     const moreLinks = texts.flatMap(extractLinksFromText).flatMap(processLink)
@@ -24,12 +24,26 @@ export function getPageIndexes (page: PageData): Index[] {
       storage[index.name] ??= new Set()
       storage[index.name].add(index.value)
     }
-    // disabling full-text indexing for now as it's just too much data, we'll revisit
-    // later - maybe send it to another system like elasticsearch that's more accustomed to fulltext indexing
-    // const words = texts.flatMap(t => getKeywords(t))
-    // for (const word of words) storage.fulltext.add(word)
+
+    for (const text of texts) {
+      for (const word of getKeywords(text)) {
+        if (word.length <= 4) {
+          storage.fulltext.add(word)
+        } else {
+          for (let i = 0; i < word.length - 4; i++) {
+            storage.fulltext.add(word.slice(i, i + 5))
+          }
+        }
+      }
+    }
   }
   return Object.keys(storage).map(k => ({ name: k, values: Array.from(storage[k]) }))
+}
+
+export function getPageTexts (page: PageData): string[] {
+  const components = collectReachableComponents(page)
+  const texts = components.flatMap(c => templateRegistry.get(c.templateKey)?.getFulltext?.(c) ?? []).filter(isNotBlank)
+  return texts
 }
 
 export function getPageLinks (page: PageData): LinkDefinition[] {

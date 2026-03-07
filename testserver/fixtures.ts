@@ -411,6 +411,10 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp1', 'keyc1', 'keyc2']
+    },
+    {
+      name: 'fulltext',
+      values: ['asket', 'baske', 'home', 'ketry', 'sketr']
     }
   ]
   const site1pagetree1Root = await createPage('site1', rootLinkId, pagetree1, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Basketry Home', areas: { links: [], main: [] } }, indexes)
@@ -456,6 +460,10 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp1', 'keyc1']
+    },
+    {
+      name: 'fulltext',
+      values: ['ation', 'catio', 'locat', 'ocati']
     }
   ]
   await createPage('location', locationLinkId, pagetree1, site1pagetree1About, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Location', areas: { links: [], main: [] } }, indexes)
@@ -473,6 +481,10 @@ export async function fixtures () {
     {
       name: 'templateKey',
       values: ['keyp1', 'keyc1', 'keyc2']
+    },
+    {
+      name: 'fulltext',
+      values: ['eople', 'peopl']
     }
   ]
   const site1pagetree1People = await createPage('people', peopleLinkId, pagetree1, site1pagetree1About, 2, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'People', areas: { links: [], main: [] } }, indexes)
@@ -482,6 +494,10 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp1', 'keyc3']
+    },
+    {
+      name: 'fulltext',
+      values: ['acult', 'culty', 'facul']
     }
   ]
   const facultyPageId = await createPage('faculty', facultyLinkId, pagetree1, site1pagetree1People, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Faculty', areas: { links: [], main: [] } }, indexes)
@@ -494,6 +510,10 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp1', 'keyc3']
+    },
+    {
+      name: 'fulltext',
+      values: ['staff']
     }
   ]
   await createPage('staff', staffLinkId, pagetree1, site1pagetree1People, 2, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Staff', areas: { links: [], main: [] } }, indexes)
@@ -511,6 +531,10 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp1', 'keyc2']
+    },
+    {
+      name: 'fulltext',
+      values: ['grams', 'ogram', 'progr', 'rogra']
     }
   ]
   const site1pagetree1Programs = await createPage('programs', programsLinkId, pagetree1, site1pagetree1Root, 2, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Programs', areas: { links: [], main: [] } }, indexes)
@@ -528,6 +552,10 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp1', 'keyc3']
+    },
+    {
+      name: 'fulltext',
+      values: ['aduat', 'dergr', 'duate', 'ergra', 'gradu', 'grams', 'nderg', 'ogram', 'progr', 'radua', 'rgrad', 'rogra', 'under']
     }
   ]
   await createPage('undergrad', ugradLinkId, pagetree1, site1pagetree1Programs, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Undergraduate Programs', areas: { links: [], main: [] } }, indexes)
@@ -545,6 +573,10 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp1', 'keyc3']
+    },
+    {
+      name: 'fulltext',
+      values: ['aduat', 'duate', 'gradu', 'grams', 'ogram', 'progr', 'radua', 'rogra']
     }
   ]
   await createPage('grad', gradLinkId, pagetree1, site1pagetree1Programs, 2, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Graduate Programs', areas: { links: [], main: [] } }, indexes)
@@ -554,6 +586,10 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp1', 'keyc2', 'keyc3']
+    },
+    {
+      name: 'fulltext',
+      values: ['conta', 'ntact', 'ontac']
     }
   ]
   await createPage('contact', contactLinkId, pagetree1, site1pagetree1Root, 3, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Contact Us', areas: { links: [], main: [] } }, indexes)
@@ -563,6 +599,10 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp1', 'keyc1']
+    },
+    {
+      name: 'fulltext',
+      values: ['ecial', 'event', 'pecia', 'speci', 'vents']
     }
   ]
   const site1pagetree1Events = await createPage('events', eventsLinkId, pagetree1, site1pagetree1About, 3, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Special Events', areas: { links: [], main: [] } }, indexes)
@@ -573,6 +613,10 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp1', 'keyc1']
+    },
+    {
+      name: 'fulltext',
+      values: ['avori', 'cipes', 'ecipe', 'favor', 'orite', 'recip', 'vorit']
     }
   ]
   const site1pagetree1Recipes = await createPage('recipes', recipesLinkId, pagetree1, site1pagetree1About, 4, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Favorite Recipes', areas: { links: [], main: [] } }, indexes)
@@ -585,6 +629,10 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp2', 'keyc3']
+    },
+    {
+      name: 'fulltext',
+      values: ['home', 'site']
     }
   ]
   const site2rootpageid = await createPage('site2', site2RootLinkId, pagetree2, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 2 Home', areas: { main: [] } }, indexes)
@@ -608,6 +656,10 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp3', 'keyc1', 'keyc2']
+    },
+    {
+      name: 'fulltext',
+      values: ['home', 'site']
     }
   ]
   const site3pagetree3Root = await createPage('site3', site3RootLinkId, pagetree3, null, 1, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Site 3 Home', areas: { main: [] } }, indexes)
@@ -624,10 +676,14 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp3']
+    },
+    {
+      name: 'fulltext',
+      values: ['map', 'site']
     }
   ]
   await createPage('sitemap', site3SiteMapLinkId, pagetree3, site3pagetree3Root, 2, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Site Map', areas: { main: [] } }, indexes)
-  await createPage('about-my-parrot', nanoid(10), pagetree3, site3pagetree3Root, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'About My Parrot', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }])
+  await createPage('about-my-parrot', nanoid(10), pagetree3, site3pagetree3Root, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'About My Parrot', areas: { links: [], main: [] } }, [{ name: 'templateKey', values: ['keyp1'] }, { name: 'fulltext', values: ['arrot', 'parro'] }])
 
   /* Site 3, Sandbox Pages */
   const site3SandboxRootLinkId = nanoid(10)
@@ -644,6 +700,10 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp2', 'keyc1', 'keyc2']
+    },
+    {
+      name: 'fulltext',
+      values: ['home', 'site']
     }
   ]
   const site3SandboxRoot = await createPage('site3-sandbox', site3SandboxRootLinkId, pagetree3sandbox, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 3 Home', areas: { main: [] } }, indexes)
@@ -652,30 +712,34 @@ export async function fixtures () {
     {
       name: 'template',
       values: ['keyp2']
+    },
+    {
+      name: 'fulltext',
+      values: ['site']
     }
   ]
   await createPage('about', site3AboutPageLinkId, pagetree3sandbox, site3SandboxRoot, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'About Site 3', areas: { main: [] } }, indexes)
 
   /* Site 4 */
-  await createPage('site4', nanoid(10), pagetree4, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
-  await createPage('site4-archive', nanoid(10), pagetree4archive, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
-  await createPage('site4-archive-1', nanoid(10), pagetree4deleted, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
+  await createPage('site4', nanoid(10), pagetree4, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }, { name: 'fulltext', values: ['home', 'site'] }])
+  await createPage('site4-archive', nanoid(10), pagetree4archive, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }, { name: 'fulltext', values: ['home', 'site'] }])
+  await createPage('site4-archive-1', nanoid(10), pagetree4deleted, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 4 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }, { name: 'fulltext', values: ['home', 'site'] }])
 
   /* Site 5 */
-  await createPage('site5', nanoid(10), pagetree5, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 5 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
+  await createPage('site5', nanoid(10), pagetree5, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 5 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }, { name: 'fulltext', values: ['home', 'site'] }])
 
   /* Site 6 */
-  await createPage('site6', nanoid(10), pagetree6, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 6 Home', areas: { main: [] } }, [{ name: 'template', values: ['keyp2'] }])
+  await createPage('site6', nanoid(10), pagetree6, null, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Site 6 Home', areas: { main: [] } }, [{ name: 'template', values: ['keyp2'] }, { name: 'fulltext', values: ['home', 'site'] }])
 
   /* Site 7 */
-  await createPage('site7', nanoid(10), pagetree7, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 7 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
+  await createPage('site7', nanoid(10), pagetree7, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Site 7 Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }, { name: 'fulltext', values: ['home', 'site'] }])
 
   /* Site 8 */
-  const page8id = await createPage('site8', nanoid(10), pagetree8, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Asset Test Site Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
-  await createPage('validation-error-page', nanoid(10), pagetree8, page8id, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Validation Error Page', areas: { main: [{ templateKey: 'keyc1', text: 'Link with no target' }] } }, [{ name: 'template', values: ['keyp2'] }])
+  const page8id = await createPage('site8', nanoid(10), pagetree8, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Asset Test Site Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }, { name: 'fulltext', values: ['asset', 'home', 'site', 'test'] }])
+  await createPage('validation-error-page', nanoid(10), pagetree8, page8id, 1, { templateKey: 'keyp2', savedAtVersion: getSavedAtVersion(), title: 'Validation Error Page', areas: { main: [{ templateKey: 'keyc1', text: 'Link with no target' }] } }, [{ name: 'template', values: ['keyp2'] }, { name: 'fulltext', values: ['alida', 'arget', 'ation', 'datio', 'error', 'idati', 'lidat', 'link', 'page', 'targe', 'valid'] }])
 
   /* Deleted Site */
-  await createPage('deletedsite', nanoid(10), deletedSitePrimary, null, 1, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Page in Deleted Site', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp3'] }])
+  await createPage('deletedsite', nanoid(10), deletedSitePrimary, null, 1, { templateKey: 'keyp3', savedAtVersion: getSavedAtVersion(), title: 'Page in Deleted Site', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp3'] }, { name: 'fulltext', values: ['delet', 'elete', 'leted', 'page', 'site'] }])
 
   /* Dashboard Test Site - Primary Pagetree */
   const dashboardTestPrimaryRootPageLinkId = nanoid(10)
@@ -683,10 +747,10 @@ export async function fixtures () {
   const dashboardTestArchiveRootPageLinkId = nanoid(10)
   const dashboardTestSandboxRootPageLinkId = nanoid(10)
 
-  const dashboardRootID = await createPage('dashboard-test', dashboardTestPrimaryRootPageLinkId, dashboardPrimary, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Dashboard Test Site Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
+  const dashboardRootID = await createPage('dashboard-test', dashboardTestPrimaryRootPageLinkId, dashboardPrimary, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Dashboard Test Site Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }, { name: 'fulltext', values: ['ashbo', 'board', 'dashb', 'hboar', 'home', 'shboa', 'site', 'test'] }])
   await createPage('about', dashboardTestPrimaryAboutPageLinkId, dashboardPrimary, dashboardRootID, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'About', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
-  await createPage('dashboard-test-archive', dashboardTestArchiveRootPageLinkId, dashboardArchive, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Dashboard Test Archive Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
-  await createPage('dashboard-test-sandbox', dashboardTestSandboxRootPageLinkId, dashboardSandbox, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Dashboard Test Sandbox Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }])
+  await createPage('dashboard-test-archive', dashboardTestArchiveRootPageLinkId, dashboardArchive, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Dashboard Test Archive Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }, { name: 'fulltext', values: ['archi', 'ashbo', 'board', 'chive', 'dashb', 'hboar', 'home', 'rchiv', 'shboa', 'test'] }])
+  await createPage('dashboard-test-sandbox', dashboardTestSandboxRootPageLinkId, dashboardSandbox, null, 1, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'Dashboard Test Sandbox Home', areas: { links: [], main: [] } }, [{ name: 'template', values: ['keyp1'] }, { name: 'fulltext', values: ['andbo', 'ashbo', 'board', 'dashb', 'hboar', 'home', 'ndbox', 'sandb', 'shboa', 'test'] }])
   /* Data */
   const [datafolder1, datafolder2, datafolder3, datafolder4, datafolder5, datafolder6, globalcolordata, deletedsitedatafolder] = await Promise.all([
     db.insert('INSERT INTO datafolders (name, guid, siteId, templateId) VALUES (?,?,?,?)', ['site2datafolder', nanoid(10), site2, datatemplate1!]),
@@ -829,6 +893,10 @@ export async function fixtures () {
     {
       name: 'link_asset_checksum',
       values: [bobcatImageData.shasum]
+    },
+    {
+      name: 'fulltext',
+      values: ['asset', 'block', 'bobca', 'image', 'obcat', 'page', 'ssets', 'statu', 'tatue', 'text']
     }
   ]
 

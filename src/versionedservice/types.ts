@@ -88,7 +88,10 @@ export interface SearchNotInRule extends SearchBaseRule {
 export interface SearchStartsWithRule extends SearchBaseRule {
   startsWith: string | number
 }
-export type SearchRule = SearchEqualRule | SearchNotEqualRule | SearchInRule | SearchNotInRule | SearchGreaterRule | SearchLessRule | SearchStartsWithRule
+export interface SearchAllInRule extends SearchBaseRule {
+  allIn: (string | number)[]
+}
+export type SearchRule = SearchEqualRule | SearchNotEqualRule | SearchInRule | SearchNotInRule | SearchGreaterRule | SearchLessRule | SearchStartsWithRule | SearchAllInRule
 
 export class NotFoundError extends Error {
   constructor (message?: string) {

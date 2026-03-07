@@ -385,4 +385,16 @@ describe('pages', () => {
     expect(pages.map(p => p.name)).to.include('about-my-parrot')
     expect(pages.map(p => p.title)).to.include('About Site 3')
   })
+  it('should search pages by phrase', async () => {
+    const { pages } = await query('{ pages(filter: { phraseSearch: [{ query: "Programs" }] }) { id name title } }')
+    expect(pages.length).to.be.greaterThanOrEqual(1)
+    const titles = pages.map((p: any) => p.title)
+    expect(titles).to.include('Programs')
+  })
+  it('should support substring mode in phrase search', async () => {
+    const { pages: withSubstring } = await query('{ pages(filter: { phraseSearch: [{ query: "rogram", substring: true }] }) { id name title } }')
+    expect(withSubstring.map((p: any) => p.title)).to.include('Programs')
+    const { pages: withoutSubstring } = await query('{ pages(filter: { phraseSearch: [{ query: "rogram" }] }) { id name title } }')
+    expect(withoutSubstring.map((p: any) => p.title)).to.not.include('Programs')
+  })
 })

@@ -239,6 +239,21 @@ export class PageFilter {
 
   @Field({ nullable: true, description: 'Return pages that match the query, in order of best match. Limited to 100 results.' })
   search?: string
+
+  @Field(type => [PhraseSearchInput], { nullable: true, description: 'Return pages whose content contains one of the given phrases. Each entry is OR\'ed: a page matching any entry is returned. The `published` field on each entry controls whether to search published data, latest data, or both.' })
+  phraseSearch?: PhraseSearchInput[]
+}
+
+@InputType()
+export class PhraseSearchInput {
+  @Field({ nullable: true, description: 'true = only match published data, false = only match latest data, undefined = match both.' })
+  published?: boolean
+
+  @Field({ description: 'The phrase to search for in page content.' })
+  query!: string
+
+  @Field({ nullable: true, description: 'When true, match the query anywhere within words (substring match). When false or undefined, require word boundary matches.' })
+  substring?: boolean
 }
 
 @InputType()

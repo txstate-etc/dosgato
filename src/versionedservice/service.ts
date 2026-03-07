@@ -2,16 +2,16 @@
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import jsonPatch from 'fast-json-patch'
+import { DateTime } from 'luxon'
 import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { createHash } from 'node:crypto'
-import { clone, intersect } from 'txstate-utils'
+import { batch, clone, intersect } from 'txstate-utils'
 import {
   type Index, type IndexJoinedStorage, type IndexStorage, type IndexStringified, NotFoundError,
   type SearchRule, type Tag, UpdateConflictError, type Versioned, type VersionedCommon,
   type VersionedStorage, type VersionStorage, type VersionFilter
 } from '../internal.js'
-import { DateTime } from 'luxon'
 const { applyPatch, compare } = jsonPatch
 
 const storageLoader = new PrimaryKeyLoader({
@@ -308,6 +308,30 @@ export class VersionedService extends BaseService {
       } else if ('startsWith' in rule) {
         where.push('v.value LIKE ?')
         binds.push(zerofill(rule.startsWith) + '%')
+      } else if ('allIn' in rule) {
+        if (!rule.allIn.length) return []
+        const chunks = batch(rule.allIn.map(v => zerofill(v)), 500)
+        const chunkResults = await Promise.all(chunks.map(async chunk => {
+          const chunkWhere = [...permwhere, 'n.name=?']
+          const chunkBinds = [...permbinds, rule.indexName]
+          const [checksums, smallvals] = sortChecksums(chunk)
+          const ors = []
+          if (checksums.length) ors.push(`v.checksum IN (${unhexIn(chunkBinds, checksums)})`)
+          if (smallvals.length) ors.push(`v.value IN (${db.in(chunkBinds, smallvals)})`)
+          if (ors.length) chunkWhere.push(ors.join(' OR '))
+          return await tdb.getvals<string>(`
+            SELECT CAST(s.id AS CHAR(50))
+            FROM storage s
+            INNER JOIN indexes i ON i.id=s.id
+            INNER JOIN indexnames n ON i.name_id=n.id
+            INNER JOIN indexvalues v ON i.value_id=v.id
+            ${join.join('\n')}
+            WHERE (${chunkWhere.join(') AND (')})
+            GROUP BY s.id
+            HAVING COUNT(DISTINCT v.value) = ${chunk.length}
+          `, chunkBinds)
+        }))
+        return intersect(...chunkResults)
       }
 
       return await tdb.getvals<string>(`
