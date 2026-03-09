@@ -231,7 +231,9 @@ const dgMigrations: DBMigration[] = [
     id: 20260306134500,
     description: 're-index pages since we are introducing substring search in this release',
     run: async db => {
-      await PageServiceInternal.reindexAll({}, db)
+      // I'm intentionally kicking this off as a background task, it's not changing anything except index data
+      // so there's no need to hold the startup process for it
+      PageServiceInternal.reindexAll({}, db).catch(console.error)
     }
   }
 ]
