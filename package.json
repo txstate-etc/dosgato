@@ -8,7 +8,7 @@
   },
   "types": "./dist/index.d.ts",
   "dependencies": {
-    "@dosgato/templating": "^1.1.4",
+    "@dosgato/templating": "^1.1.15",
     "@fastify/multipart": "^8.0.0",
     "@txstate-mws/graphql-server": "^2.3.7",
     "archiver": "^7.0.1",

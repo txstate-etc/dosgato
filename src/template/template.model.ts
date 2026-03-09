@@ -58,6 +58,9 @@ export class Template {
   @Field({ nullable: true, description: 'Category underneath which this template should be displayed when asking a user to choose a template.' })
   displayCategory?: string
 
+  @Field({ nullable: true, description: 'If this page template belongs to a certain theme, this will be the name of that theme. This is just informational and can be used by the front end to group templates by theme. It has no bearing on the actual rendering of the page.' })
+  templateTheme?: string
+
   _areasByName: Record<string, TemplateArea | undefined>
 
   constructor (row: any) {
@@ -73,6 +76,7 @@ export class Template {
     this._areasByName = keyby(this.areas, 'name')
     this.global = tmpl.type === 'data' ? tmpl.global : undefined
     if (tmpl.type === 'page') this.templateProperties = tmpl.templateProperties
+    if (tmpl.type === 'page') this.templateTheme = tmpl.templateTheme
     this.nopublish = (tmpl.type === 'data') ? !!tmpl.nopublish : false
   }
 }

@@ -23,7 +23,8 @@ export const PageTemplate1: APIPageTemplate = {
       errors.push({ path: 'title', message: 'Page title must be at least 5 characters.' })
     }
     return errors
-  }
+  },
+  templateTheme: 'Space'
 }
 
 export const PageTemplate2: APIPageTemplate = {
@@ -49,7 +50,8 @@ export const PageTemplate2: APIPageTemplate = {
       errors.push({ path: 'title', message: 'Page title is required.' })
     }
     return errors
-  }
+  },
+  templateTheme: 'Prairie'
 }
 
 export const PageTemplate3: APIPageTemplate = {
