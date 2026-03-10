@@ -819,19 +819,7 @@ export class PageService extends DosGatoService<Page> {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
-    const parent = page.parentInternalId ? await this.findByInternalId(page.parentInternalId) : undefined
-    const pagetree = (await this.svc(PagetreeServiceInternal).findById(page.pagetreeId))!
-    const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const extras: PageExtras = {
-      query: (await systemContext()).query,
-      siteId: site.id,
-      pagetreeId: pagetree.id,
-      parentId: parent?.id,
-      pagePath: `${parent?.resolvedPath ?? ''}/${page.name}`,
-      name: page.name,
-      linkId: page.linkId,
-      pageId: page.id
-    }
+    const extras = this.raw.pageExtras(page)
     const migrated = await migratePage(data, extras)
     await this.validatePageTemplates(data, { page })
     const response = await this.validatePageData(migrated, extras)
