@@ -9,7 +9,7 @@ import {
   TemplateService, UrlSafeString, DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal,
   SchemaVersionScalar, SiteServiceInternal, VersionFilter, UserTag, TagService, getPageLinks, Asset,
   AssetFilter, AssetFolderFilter, PaginationResponse, PageInformation, DGContext,
-  Pagination
+  Pagination, ScheduledPublish, ScheduledPublishFilter, ScheduledPublishService
 } from '../internal.js'
 
 @Resolver(of => Page)
@@ -206,6 +206,17 @@ export class PageResolver {
       tags: tags.map(t => t.tag),
       user: versioned.modifiedBy
     })
+  }
+
+  @FieldResolver(returns => [ScheduledPublish], { description: 'Scheduled publish/unpublish entries for this page.' })
+  async schedules (@Ctx() ctx: Context, @Root() page: Page, @Arg('filter', { nullable: true }) filter?: ScheduledPublishFilter) {
+    return await ctx.svc(ScheduledPublishService).findByPageInternalId(page.internalId, filter)
+  }
+
+  @FieldResolver(returns => Boolean, { description: 'True if this page has any scheduled publish entries matching the given filter. Useful for conditionally showing a schedule history button.' })
+  async hasSchedules (@Ctx() ctx: Context, @Root() page: Page, @Arg('filter', { nullable: true }) filter?: ScheduledPublishFilter) {
+    const count = await ctx.svc(ScheduledPublishService).count({ ...filter, pageInternalIds: [page.internalId] })
+    return count > 0
   }
 
   @FieldResolver(returns => PagePermissions, {
@@ -430,6 +441,16 @@ export class PagePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may undelete this page. Returns false when the page is not deleted.' })
   undelete (@Ctx() ctx: Context, @Root() page: Page) {
     return ctx.svc(PageService).mayUndelete(page)
+  }
+
+  @FieldResolver(returns => Boolean, { description: 'User may schedule a publish for this page. False if an active publish schedule already exists.' })
+  async schedulePublish (@Ctx() ctx: Context, @Root() page: Page) {
+    return await ctx.svc(PageService).maySchedulePublish(page)
+  }
+
+  @FieldResolver(returns => Boolean, { description: 'User may schedule an unpublish for this page. False if an active unpublish schedule already exists.' })
+  async scheduleUnpublish (@Ctx() ctx: Context, @Root() page: Page) {
+    return await ctx.svc(PageService).mayScheduleUnpublish(page)
   }
 }
 

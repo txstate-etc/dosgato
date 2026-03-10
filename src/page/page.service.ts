@@ -16,7 +16,8 @@ import {
   type DGRestrictOperations, fireEvent, setPageSearchCodes, AssetServiceInternal, getPageLinks,
   type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
   removeUnreachableComponents, getPageTagsByTagIds, TagServiceInternal, type AssetFilter, AssetService,
-  type AssetFolderFilter, getPageTexts
+  type AssetFolderFilter, getPageTexts,
+  ScheduledPublishServiceInternal, ScheduledPublishAction, ScheduledPublishStatus
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -673,7 +674,7 @@ export class PageService extends DosGatoService<Page> {
     return true
   }
 
-   async mayUnpublish (page: Page, parentBeingUnpublished?: boolean) {
+  async mayUnpublish (page: Page, parentBeingUnpublished?: boolean) {
     // root page of a site/pagetree cannot be unpublished if the site is live
     if (!page.parentInternalId && (await this.isLive(page))) return false
     if (this.opRestricted(page, 'unpublish')) return false
@@ -695,6 +696,21 @@ export class PageService extends DosGatoService<Page> {
   mayUndelete (page: Page) {
     if (page.deleteState === DeleteState.NOTDELETED || page.orphaned) return false
     return page.deleteState === DeleteState.MARKEDFORDELETE ? this.havePagePerm(page, 'delete') : this.havePagePerm(page, 'undelete')
+  }
+
+  async maySchedulePublish (page: Page, excludeScheduleId?: number) {
+    if (!this.checkPerm(page, 'publish', false)) return false
+    if (page.pagetreeType === PagetreeType.ARCHIVE) return false
+    const existing = await this.svc(ScheduledPublishServiceInternal).findByPageInternalId(page.internalId)
+    return !existing.some(s => s.action !== ScheduledPublishAction.UNPUBLISH && s.status === ScheduledPublishStatus.PENDING && s.internalId !== excludeScheduleId)
+  }
+
+  async mayScheduleUnpublish (page: Page, excludeScheduleId?: number) {
+    if (!page.parentInternalId && (await this.isLive(page))) return false
+    if (this.opRestricted(page, 'unpublish')) return false
+    if (!this.checkPerm(page, 'unpublish', false)) return false
+    const existing = await this.svc(ScheduledPublishServiceInternal).findByPageInternalId(page.internalId)
+    return !existing.some(s => s.action === ScheduledPublishAction.UNPUBLISH && s.status === ScheduledPublishStatus.PENDING && s.internalId !== excludeScheduleId)
   }
 
   /**

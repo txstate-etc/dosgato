@@ -2,7 +2,7 @@ import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
 import { batch, sortby } from 'txstate-utils'
 import { init } from './createdb.js'
-import { type DBMigration, DataServiceInternal, PageServiceInternal, VersionedService, getFullTextForIndexing, getPages, setAssetSearchCodes, setPageSearchCodes, systemContext } from './internal.js'
+import { type DBMigration, DataServiceInternal, PageServiceInternal, ScheduledPublishAction, ScheduledPublishRecurrence, ScheduledPublishStatus, VersionedService, getFullTextForIndexing, getPages, setAssetSearchCodes, setPageSearchCodes, systemContext } from './internal.js'
 
 const dgMigrations: DBMigration[] = [
   {
@@ -235,6 +235,34 @@ const dgMigrations: DBMigration[] = [
       // so there's no need to hold the startup process for it
       PageServiceInternal.reindexAll({}, db).catch(console.error)
     }
+  }, {
+    id: 20260307100000,
+    description: 'create scheduledpublishes table for scheduled publish/unpublish actions',
+    run: async db => {
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS scheduledpublishes (
+          id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          pageInternalId INT UNSIGNED NOT NULL,
+          action ENUM(${Object.values(ScheduledPublishAction).map(a => `'${a}'`).join(', ')}) NOT NULL,
+          targetDate DATETIME NOT NULL,
+          status ENUM(${Object.values(ScheduledPublishStatus).map(s => `'${s}'`).join(', ')}) NOT NULL DEFAULT '${ScheduledPublishStatus.PENDING}',
+          recur ENUM(${Object.values(ScheduledPublishRecurrence).map(r => `'${r}'`).join(', ')}),
+          recurInterval SMALLINT UNSIGNED,
+          timezone VARCHAR(64),
+          error TEXT,
+          createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          createdBy VARCHAR(255) NOT NULL,
+          updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updatedBy VARCHAR(255) NOT NULL,
+          FOREIGN KEY (pageInternalId) REFERENCES pages(id) ON DELETE CASCADE,
+          INDEX idx_status_targetDate (status, targetDate),
+          INDEX idx_pageInternalId_status (pageInternalId, status)
+        )
+        ENGINE=InnoDB
+        DEFAULT CHARACTER SET = utf8mb4
+        DEFAULT COLLATE = utf8mb4_general_ci
+      `)
+    }
   }
 ]
 
@@ -313,7 +341,9 @@ export async function resetdb () {
       db.execute('DROP TABLE IF EXISTS pages_searchcodes'),
       db.execute('DROP TABLE IF EXISTS assets_searchcodes'),
       db.execute('DROP TABLE IF EXISTS assets_searchstrings'),
-      db.execute('DROP TABLE IF EXISTS searchcodes')
+      db.execute('DROP TABLE IF EXISTS searchcodes'),
+      db.execute('DROP TABLE IF EXISTS scheduledpublishes'),
+      db.execute('DROP TABLE IF EXISTS pages_tags')
     ])
     await db.execute('SET FOREIGN_KEY_CHECKS = 1')
   })

@@ -9,8 +9,8 @@ import {
   PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, type PagetreeType,
   SiteService, SiteServiceInternal, templateRegistry, VersionedService, createPageInTransaction,
   getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput, migratePage,
-  systemContext, type DGContext, LaunchState, setPageSearchCodes,
-  removeUnreachableComponents, appendPath, collectComponents
+  systemContext, type DGContext, LaunchState, setPageSearchCodes, removeUnreachableComponents,
+  appendPath, collectComponents, ScheduledPublishStatus, ScheduledPublishAction
 } from '../internal.js'
 
 export interface PageExport {
@@ -42,6 +42,12 @@ interface RootPage {
   published: boolean
   publishedAt?: string
   hasUnpublishedChanges: boolean
+  schedules: {
+    id: string
+    status: ScheduledPublishStatus
+    action: ScheduledPublishAction
+    targetDate: string
+  }[]
   deleteState: string
   children: {
     id: string
@@ -64,6 +70,8 @@ interface RootPage {
     delete: boolean
     undelete: boolean
     unpublish: boolean
+    schedulePublish: boolean
+    scheduleUnpublish: boolean
   }
   userTags: {
     id: string
@@ -382,22 +390,30 @@ export async function createPageRoutes (app: FastifyInstance) {
     const ctx = templateRegistry.getCtx(req)
     await getEnabledUser(ctx)
     const sbinds: any[] = []
-    const pages = await db.getall<{ id: number, linkId: string, dataId: number, name: string, path: string, title: string, templateKey: string, siteId: number, siteName: string, siteLaunchState: number, pagetreeId: number, deleteState: DeleteState, pagetreeName: string, pagetreeType: PagetreeType, modifiedBy: string, modified: Date, version: number, published: 0 | 1, publishedAt?: Date, hasUnpublishedChanges: boolean }>(`
-      SELECT p.*, pt.name AS pagetreeName, pt.type as pagetreeType, st.modifiedBy, st.modified, st.version,
-        t.id IS NOT NULL as published, t.date as publishedAt, (t.version IS NULL OR t.version != st.version) as hasUnpublishedChanges,
-        s.name as siteName, s.launchEnabled as siteLaunchState
-      FROM pages p
-      INNER JOIN sites s ON p.siteId = s.id
-      INNER JOIN pagetrees pt ON p.pagetreeId = pt.id
-      INNER JOIN storage st ON p.dataId = st.id
-      LEFT JOIN tags t ON st.id=t.id AND t.tag='published'
-      WHERE p.path='/'
-        AND p.deleteState IN (0, 1)
-        AND s.deletedAt IS NULL
-        AND pt.deletedAt IS NULL
-        ${ctx.authInfo.pageSiteIds ? `AND s.id IN (${db.in(sbinds, ctx.authInfo.pageSiteIds.concat(['-1']))})` : ''}
-      ORDER BY siteName, p.path, p.name
-    `, sbinds)
+    const [pages, scheduled] = await Promise.all([
+      db.getall<{ id: number, linkId: string, dataId: number, name: string, path: string, title: string, templateKey: string, siteId: number, siteName: string, siteLaunchState: number, pagetreeId: number, deleteState: DeleteState, pagetreeName: string, pagetreeType: PagetreeType, modifiedBy: string, modified: Date, version: number, published: 0 | 1, publishedAt?: Date, hasUnpublishedChanges: boolean }>(`
+        SELECT p.*, pt.name AS pagetreeName, pt.type as pagetreeType, st.modifiedBy, st.modified, st.version,
+          t.id IS NOT NULL as published, t.date as publishedAt, (t.version IS NULL OR t.version != st.version) as hasUnpublishedChanges,
+          s.name as siteName, s.launchEnabled as siteLaunchState
+        FROM pages p
+        INNER JOIN sites s ON p.siteId = s.id
+        INNER JOIN pagetrees pt ON p.pagetreeId = pt.id
+        INNER JOIN storage st ON p.dataId = st.id
+        LEFT JOIN tags t ON st.id=t.id AND t.tag='published'
+        WHERE p.path='/'
+          AND p.deleteState IN (0, 1)
+          AND s.deletedAt IS NULL
+          AND pt.deletedAt IS NULL
+          ${ctx.authInfo.pageSiteIds ? `AND s.id IN (${db.in(sbinds, ctx.authInfo.pageSiteIds.concat(['-1']))})` : ''}
+        ORDER BY siteName, p.path, p.name
+      `, sbinds),
+      db.getall<{ id: number, pageInternalId: number, action: ScheduledPublishAction, targetDate: Date }>(
+        'SELECT sp.id, sp.pageInternalId, sp.action, sp.targetDate FROM scheduledpublishes sp INNER JOIN pages p ON sp.pageInternalId = p.id WHERE p.path="/" AND p.deleteState IN (0, 1) AND sp.status=?',
+        [ScheduledPublishStatus.PENDING]
+      )
+    ])
+    const scheduledByPageInternalId = groupby(scheduled, 'pageInternalId')
+    console.log('scheduledByPageInternalId', scheduledByPageInternalId)
 
     const permsByPageInternalId: Record<number, RootPage['permissions'] & { viewForEdit: boolean }> = {}
     function hasPerm (rules: PageRule[], perm: keyof PageRule['grants']) {
@@ -412,15 +428,17 @@ export async function createPageRoutes (app: FastifyInstance) {
       const applicableToPagetree = ctx.authInfo.pageRules.filter(r => PageRuleService.appliesToPagetree(r, page))
       const applicableRules = applicableToPagetree.filter(r => PageRuleService.appliesToPath(r, '/'))
       const applicableToChildRules = applicableToPagetree.filter(r => PageRuleService.appliesToChildOfPath(r, '/'))
-      const [create, update, mayDelete, move, publish, undelete, unpublish, viewForEdit] = [
+      const [create, update, mayDelete, move, publish, undelete, unpublish, viewForEdit, schedulePublish, scheduleUnpublish] = [
         hasPerm(applicableRules, 'create'),
         hasPerm(applicableRules, 'update'),
         false,
         false,
         hasPerm(applicableRules, 'publish') && p.deleteState === DeleteState.NOTDELETED,
         false,
-        hasPerm(applicableRules, 'unpublish') && !!p.published,
-        hasPerm([...applicableRules, ...applicableToChildRules], 'viewForEdit')
+        hasPerm(applicableRules, 'unpublish') && !!p.published && !ctx.svc(PageService).opRestricted(page, 'unpublish'),
+        hasPerm([...applicableRules, ...applicableToChildRules], 'viewForEdit'),
+        hasPerm(applicableRules, 'publish') && !scheduledByPageInternalId[page.internalId]?.some(s => s.action === ScheduledPublishAction.PUBLISH),
+        hasPerm(applicableRules, 'unpublish') && !scheduledByPageInternalId[page.internalId]?.some(s => s.action === ScheduledPublishAction.UNPUBLISH) && !ctx.svc(PageService).opRestricted(page, 'unpublish')
       ]
       if (viewForEdit) pagesToKeep.push(p)
       permsByPageInternalId[p.id] = {
@@ -431,7 +449,9 @@ export async function createPageRoutes (app: FastifyInstance) {
         publish,
         undelete,
         unpublish,
-        viewForEdit
+        viewForEdit,
+        schedulePublish,
+        scheduleUnpublish
       }
     }
 
@@ -452,6 +472,7 @@ export async function createPageRoutes (app: FastifyInstance) {
       path: '/' + p.name,
       deleteState: DeleteState[p.deleteState],
       hasUnpublishedChanges: p.hasUnpublishedChanges,
+      schedules: scheduledByPageInternalId[p.id]?.map(s => ({ id: String(s.id), status: ScheduledPublishStatus.PENDING, action: s.action, targetDate: s.targetDate.toISOString() })) ?? [],
       modifiedAt: p.modified.toISOString(),
       modifiedBy: {
         id: p.modifiedBy

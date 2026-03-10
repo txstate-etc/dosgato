@@ -26,7 +26,8 @@ import {
   duplicateSite, createUser, systemContext, UserService, type Role, type DGContext,
   type DGRestrictOperations, dgContextMixin, createUserRoutes, syncUsers, type EventInfo, makeSafe,
   tagTemplate, UserTagResolver, TemplateService, TemplateServiceInternal, PagetreeServiceInternal,
-  RoleServiceInternal, PageInformationResolver
+  RoleServiceInternal, PageInformationResolver,
+  ScheduledPublishResolver, ScheduledPublishPermissionsResolver, executeScheduledPublishes
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -260,7 +261,9 @@ export class DGServer {
       UserResolver,
       UserPermissionsResolver,
       UserTagResolver,
-      VersionResolver
+      VersionResolver,
+      ScheduledPublishResolver,
+      ScheduledPublishPermissionsResolver
     ];
     (resolvers as any[]).push(...(opts.resolvers ?? []))
 
@@ -283,6 +286,7 @@ export class DGServer {
 
     await scheduler.schedule('compressDownloads', compressDownloads, { duringHour: 5, duringDayOfWeek: DayOfWeek.TUESDAY })
     if (templateRegistry.serverConfig.userLookup) await scheduler.schedule('syncUsers', syncUsers, { duringHour: 4 })
+    await scheduler.schedule('scheduledPublishes', executeScheduledPublishes, { minutesBetween: 2 })
     await this.gqlServer.start({
       ...opts,
       customContext: templateRegistry.serverConfig.customContext,

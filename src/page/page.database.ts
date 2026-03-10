@@ -3,7 +3,7 @@ import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, unique, sortby } from 'txstate-utils'
-import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState, searchCodes, splitWords, quadgrams, normalizeForSearch, removeUnreachableComponents, type PaginationResponse } from '../internal.js'
+import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState, searchCodes, splitWords, quadgrams, normalizeForSearch, removeUnreachableComponents, type PaginationResponse, cancelActiveSchedulesForPages } from '../internal.js'
 import { type PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 
@@ -661,6 +661,7 @@ export async function publishPageDeletions (pages: Page[], userInternalId: numbe
       // if we got a duplicate key error, try again and it will generate new linkIds
       await update()
     }
+    await cancelActiveSchedulesForPages(unique([...pageInternalIds, ...childInternalIds]), db)
   })
 }
 

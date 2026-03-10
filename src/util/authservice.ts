@@ -87,3 +87,9 @@ export async function systemContext () {
   await ctx.waitForAuth()
   return ctx
 }
+
+export async function userContext (login: string) {
+  const ctx = new DGMockContext({ sub: login })
+  await ctx.waitForAuth()
+  return ctx
+}
