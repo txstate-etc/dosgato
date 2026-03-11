@@ -101,10 +101,10 @@ export async function createScheduledPublish (pageInternalId: number, action: Sc
   })
 }
 
-export async function updateScheduledPublish (id: number, updates: { targetDate: Date, recur: ScheduledPublishRecurrence | null, recurInterval: number | null, timezone: string | null, updatedBy: string }, tdb: Queryable = db) {
+export async function updateScheduledPublish (id: number, updates: { action: ScheduledPublishAction, targetDate: Date, recur: ScheduledPublishRecurrence | null, recurInterval: number | null, timezone: string | null, updatedBy: string }, tdb: Queryable = db) {
   await tdb.update(
-    'UPDATE scheduledpublishes SET targetDate = ?, recur = ?, recurInterval = ?, timezone = ?, updatedAt = NOW(), updatedBy = ? WHERE id = ?',
-    [updates.targetDate, updates.recur, updates.recurInterval, updates.timezone, updates.updatedBy, id]
+    'UPDATE scheduledpublishes SET action = ?, targetDate = ?, recur = ?, recurInterval = ?, timezone = ?, updatedAt = NOW(), updatedBy = ? WHERE id = ?',
+    [updates.action, updates.targetDate, updates.recur, updates.recurInterval, updates.timezone, updates.updatedBy, id]
   )
 }
 

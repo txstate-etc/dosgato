@@ -177,6 +177,9 @@ export class CreateScheduledPublishInput {
 
 @InputType()
 export class UpdateScheduledPublishInput {
+  @Field(type => ScheduledPublishAction)
+  action!: ScheduledPublishAction
+
   @Field({ description: 'New target date. Must be at least 5 minutes in the future.' })
   targetDate!: DateTime
 

@@ -116,10 +116,15 @@ export class ScheduledPublishService extends DosGatoService<ScheduledPublish> {
   async update (scheduledPublishId: string, args: UpdateScheduledPublishInput, validateOnly?: boolean) {
     const schedule = await this.raw.findById(Number(scheduledPublishId))
     if (!schedule || !await this.mayEdit(schedule)) throw new Error('You are not permitted to edit this schedule.')
+    if ((schedule.action === ScheduledPublishAction.UNPUBLISH && args.action !== ScheduledPublishAction.UNPUBLISH) ||
+      (schedule.action !== ScheduledPublishAction.UNPUBLISH && args.action === ScheduledPublishAction.UNPUBLISH)) {
+      throw new Error('An unpublish schedule cannot be changed to a publish schedule, and vice versa.')
+    }
     const response = new ScheduledPublishResponse({ success: true })
     validate(response, args)
     if (response.hasErrors() || validateOnly) return response
     await updateScheduledPublish(schedule.internalId, {
+      action: args.action,
       targetDate: args.targetDate.toJSDate(),
       recur: args.recurrence?.type ?? null,
       recurInterval: args.recurrence ? (args.recurrence.interval ?? 1) : null,
@@ -165,17 +170,17 @@ const maxRecurInterval: Record<ScheduledPublishRecurrence, number> = {
 
 function validate (response: ScheduledPublishResponse, args: CreateScheduledPublishInput | UpdateScheduledPublishInput) {
   if (args.targetDate <= DateTime.now().plus({ minutes: 5 })) {
-    response.addMessage('Target date must be at least 5 minutes in the future.', 'targetDate', MutationMessageType.error)
+    response.addMessage('Target date must be at least 5 minutes in the future.', 'args.targetDate', MutationMessageType.error)
   }
   if (args.targetDate > DateTime.now().plus({ years: 1 })) {
-    response.addMessage('Target date may not be more than a year in the future.', 'targetDate', MutationMessageType.error)
+    response.addMessage('Target date may not be more than a year in the future.', 'args.targetDate', MutationMessageType.error)
   }
   if (args.recurrence) {
     const interval = args.recurrence.interval ?? 1
     if (interval < 1) {
-      response.addMessage('Recurrence interval must be at least 1.', 'recurrence.interval', MutationMessageType.error)
+      response.addMessage('Recurrence interval must be at least 1.', 'args.recurrence.interval', MutationMessageType.error)
     } else if (interval > maxRecurInterval[args.recurrence.type]) {
-      response.addMessage(`Recurrence interval may not exceed ${maxRecurInterval[args.recurrence.type]} for ${args.recurrence.type} recurrence.`, 'recurrence.interval', MutationMessageType.error)
+      response.addMessage(`Recurrence interval may not exceed ${maxRecurInterval[args.recurrence.type]} for ${args.recurrence.type} recurrence.`, 'args.recurrence.interval', MutationMessageType.error)
     }
   }
 }

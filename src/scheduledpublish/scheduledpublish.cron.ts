@@ -12,6 +12,7 @@ const recurDurationKey: Record<ScheduledPublishRecurrence, 'days' | 'weeks' | 'm
 export async function executeScheduledPublishes () {
   const due = await getDueSchedules()
   for (const schedule of due) {
+    let permissionsError = false
     try {
       const ctx = await userContext(schedule.updatedBy)
       if (schedule.action === ScheduledPublishAction.UNPUBLISH) {
@@ -22,9 +23,10 @@ export async function executeScheduledPublishes () {
       await updateScheduledPublishStatus(schedule.internalId, ScheduledPublishStatus.COMPLETED)
     } catch (err: any) {
       console.error('Scheduled publish failed:', err)
+      permissionsError = err.message.includes('permitted')
       await updateScheduledPublishStatus(schedule.internalId, ScheduledPublishStatus.FAILED, err.message)
     }
-    if (schedule.recurrence) {
+    if (schedule.recurrence && !permissionsError) {
       try {
         const { type, interval, timezone } = schedule.recurrence
         const nextDate = schedule.targetDate
