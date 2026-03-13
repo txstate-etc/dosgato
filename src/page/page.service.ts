@@ -178,6 +178,7 @@ export class PageServiceInternal extends BaseService {
       const publishedData = await this.getData(page, page.publishedVersion)
       await this.svc(VersionedService).setIndexes(page.intDataId, page.publishedVersion, getPageIndexes(publishedData), tdb)
     }
+    await this.svc(VersionedService).deleteOtherIndexes(page.intDataId, [page.latestVersion, page.publishedVersion].filter(isNotNull), tdb)
   }
 
   static async reindexAll (filter?: PageFilter, db?: Queryable) {
@@ -841,10 +842,14 @@ export class PageService extends DosGatoService<Page> {
     const response = await this.validatePageData(migrated, extras)
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(migrated)
-      await db.transaction(async db => {
-        await this.svc(VersionedService).update(page!.intDataId, migrated, indexes, { user: this.login, comment, version: dataVersion })
+      const newVersion = await db.transaction(async db => {
+        const v = await this.svc(VersionedService).update(page!.intDataId, migrated, indexes, { user: this.login, comment, version: dataVersion }, db)
         await db.update('UPDATE pages SET title=?, templateKey=? WHERE id=?', [migrated.title, migrated.templateKey, page!.internalId])
+        return v
       })
+      const keepVersions = [newVersion]
+      if (page.publishedVersion) keepVersions.push(page.publishedVersion)
+      await this.svc(VersionedService).deleteOtherIndexes(page.intDataId, keepVersions)
       this.loaders.clear()
       page = await this.raw.findById(dataId)
     }
@@ -868,8 +873,11 @@ export class PageService extends DosGatoService<Page> {
     if (meta?.version === restoreVersion) response.addMessage('This is already the latest version.')
     if (!tmpl || !await this.svc(TemplateService).mayKeepOnPage(tmpl.key, page, tmpl)) response.addMessage('This version may not be restored because it uses a page template that is no longer available.')
     if (!validateOnly && response.success) {
+      const extras = this.raw.pageExtras(page)
+      const migrated = await migratePage(data, extras)
+      const indexes = getPageIndexes(migrated)
       await db.transaction(async db => {
-        await this.svc(VersionedService).restore(page!.intDataId, { version: restoreVersion }, { user: this.login, tdb: db })
+        await this.svc(VersionedService).restore(page!.intDataId, { version: restoreVersion }, { indexes, user: this.login, tdb: db })
         await db.update('UPDATE pages SET title=?, templateKey=? WHERE id=?', [data.title, data.templateKey, page!.internalId])
       })
       this.loaders.clear()
@@ -1263,6 +1271,10 @@ export class PageService extends DosGatoService<Page> {
       await db.transaction(async db => {
         for (const p of pages) await this.svc(VersionedService).tag(p.intDataId, 'published', undefined, this.login)
       })
+      // published tag always points to latest, so only that version's indexes are needed
+      await Promise.all(pages.map(async p => {
+        await this.svc(VersionedService).deleteOtherIndexes(p.intDataId, [p.latestVersion])
+      }))
       this.loaders.clear()
       await Promise.all(pages.map(async page => { await fireEvent({ type: 'publish', page }) }))
       return new ValidatedResponse({ success: true })

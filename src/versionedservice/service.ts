@@ -495,11 +495,13 @@ export class VersionedService extends BaseService {
           VALUES (?, ?, ?, ?, ?, ?, ?)
         `, [current.id, current.version, current.modified, current.markedAt ?? null, current.modifiedBy, current.comment, JSON.stringify(undo)])
         await this._setIndexes(current.id, newversion, indexes, db)
+        return newversion
       }
+      return current.version
     }
-    if (tdb) await action(tdb)
-    else await db.transaction(action, { retries: 2 })
+    const newversion = tdb ? await action(tdb) : await db.transaction(action, { retries: 2 })
     this.loaders.get(storageLoader).clear(id)
+    return newversion
   }
 
   /**
@@ -734,21 +736,39 @@ export class VersionedService extends BaseService {
   }
 
   /**
+   * Delete all index rows for an object except those belonging to the specified versions.
+   * This is useful for pruning indexes that will never be queried again, e.g. intermediate
+   * draft versions between the published version and the latest version.
+   */
+  async deleteOtherIndexes (id: number, keepVersions: number[], tdb: Queryable = db) {
+    if (!keepVersions.length) return
+    const binds: any[] = [id]
+    await tdb.execute(`DELETE FROM indexes WHERE id=? AND version NOT IN (${tdb.in(binds, keepVersions)})`, binds)
+    ;(async () => {
+      await VersionedService.cleanIndexValues()
+      await VersionedService.optimize()
+    })().catch(console.error)
+  }
+
+  /**
    * internal method to defragment and optimize the database tables
    */
   protected static async optimize () {
     if (VersionedService.optimizingTables) return
     try {
       VersionedService.optimizingTables = true
-      const tables = await db.getvals<string>(`
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE data_free > 50*1024*1024 AND data_free / data_length > 0.25
-        AND table_schema=DATABASE()
-        AND table_name IN ('storage','versions','tags','indexes','indexvalues')
-        order by data_free
-      `)
-      for (const table of tables) await db.execute(`OPTIMIZE TABLE ${table}`)
+      await db.transaction(async db => {
+        const tables = await db.getall<{ table_name: string, data_free: number, data_length: number }>(`
+          SELECT table_name, data_free, data_length
+          FROM information_schema.tables
+          WHERE table_schema=DATABASE()
+          AND table_name IN ('storage','versions','tags','indexes','indexvalues')
+          order by data_free
+          FOR UPDATE
+        `)
+        const tablesToOptimize = tables.filter(table => table.data_free > 50 * 1024 * 1024 && table.data_free / table.data_length > 0.25)
+        for (const table of tablesToOptimize) await db.execute(`OPTIMIZE TABLE ${table.table_name}`)
+      })
     } finally {
       VersionedService.optimizingTables = false
     }
@@ -762,7 +782,10 @@ export class VersionedService extends BaseService {
     if (VersionedService.cleaningIndexValues) return
     try {
       VersionedService.cleaningIndexValues = true
-      await db.execute('DELETE v FROM indexvalues v LEFT JOIN indexes i ON v.id=i.value_id WHERE i.value_id IS NULL')
+      await db.transaction(async db => {
+        await db.execute('SELECT * FROM dbversion FOR UPDATE')
+        await db.execute('DELETE v FROM indexvalues v LEFT JOIN indexes i ON v.id=i.value_id WHERE i.value_id IS NULL')
+      })
     } finally {
       VersionedService.cleaningIndexValues = false
     }
