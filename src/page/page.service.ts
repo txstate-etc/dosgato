@@ -16,8 +16,8 @@ import {
   type DGRestrictOperations, fireEvent, setPageSearchCodes, AssetServiceInternal, getPageLinks,
   type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
   removeUnreachableComponents, getPageTagsByTagIds, TagServiceInternal, type AssetFilter, AssetService,
-  type AssetFolderFilter, getPageTexts,
-  ScheduledPublishServiceInternal, ScheduledPublishAction, ScheduledPublishStatus
+  type AssetFolderFilter, getPageTexts, ScheduledPublishServiceInternal, ScheduledPublishAction, ScheduledPublishStatus,
+  type DGContext
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -197,8 +197,9 @@ export class PageServiceInternal extends BaseService {
   }
 
   pageExtras (page: Page) {
+    const systemCtx = (this.ctx as DGContext).systemCtx
     return {
-      query: this.ctx.query.bind(this.ctx),
+      query: systemCtx.query.bind(systemCtx),
       siteId: page.siteId,
       pagetreeId: page.pagetreeId,
       parentId: String(page.parentInternalId),
@@ -807,7 +808,7 @@ export class PageService extends DosGatoService<Page> {
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const extras = {
-      query: (await systemContext()).query,
+      query: this.ctx.systemCtx.query.bind(this.ctx.systemCtx),
       siteId: site.id,
       pagetreeId: pagetree.id,
       parentId: parent.id,

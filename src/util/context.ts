@@ -3,7 +3,8 @@ import type { FastifyRequest } from 'fastify'
 import {
  AssetRule, DataRule, type GlobalRule, PageRule, RoleServiceInternal, RulePathMode, SiteRule, getPageRules, getAssetRules,
   getDataRules, getSiteRules, getGlobalRules, getTemplateRules, type GlobalRuleGrants, type TemplateRule, type Role, getUsers,
-  GroupServiceInternal, PaginationResponse, type Group, type User, type Pagination, SiteServiceInternal
+  GroupServiceInternal, PaginationResponse, type Group, type User, type Pagination, SiteServiceInternal,
+  systemContext
 } from '../internal.js'
 import { Cache, isNotNull, keyby, sleep, unique } from 'txstate-utils'
 
@@ -112,6 +113,7 @@ interface AuthInfo {
 export interface DGContext extends Context {
   authInfo: AuthInfo
   login: string
+  systemCtx: DGContext
 
   waitForAuth: () => Promise<void>
   executePaginated: <T> (queryType: string, paged: Pagination | undefined, work: (pageInfo: PaginationResponse) => Promise<T> | T) => Promise<T | undefined>
@@ -124,13 +126,16 @@ export type DGMockContextClass = typeof Context & (new (claims: any) => DGContex
 export function dgContextMixin (Ctx: typeof Context): DGContextClass {
   return class extends Ctx {
     authInfo!: AuthInfo
+    systemCtx!: DGContext
     get login () {
       return this.auth?.sub ?? this.auth?.client_id ?? 'anonymous'
     }
 
     async waitForAuth () {
       await super.waitForAuth()
+      const systemCtxPromise = this.login === 'system' ? undefined : systemContext()
       this.authInfo = await authCache.get(this.login, this)
+      this.systemCtx = systemCtxPromise ? await systemCtxPromise : this
     }
 
     protected paginationPromises: Record<string, Promise<PaginationResponse>> = {}
