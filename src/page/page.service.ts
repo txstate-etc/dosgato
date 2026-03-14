@@ -171,14 +171,14 @@ export class PageServiceInternal extends BaseService {
     return await pageDataCache.get({ pageIntDataId: page.intDataId, version: pageVersion, toSchemaVersion: toSchemaVersion.toISO()!, extras: omit(extras, 'query') }, this.ctx as DGContext)
   }
 
-  async reindex (page: Page, tdb?: Queryable) {
+  async reindex (page: Page, tdb?: Queryable, { skipCleanup }: { skipCleanup?: boolean } = {}) {
     const pageData = await this.getData(page)
     await this.svc(VersionedService).setIndexes(page.intDataId, page.latestVersion, getPageIndexes(pageData), tdb)
     if (page.publishedVersion && page.publishedVersion !== page.latestVersion) {
       const publishedData = await this.getData(page, page.publishedVersion)
       await this.svc(VersionedService).setIndexes(page.intDataId, page.publishedVersion, getPageIndexes(publishedData), tdb)
     }
-    await this.svc(VersionedService).deleteOtherIndexes(page.intDataId, [page.latestVersion, page.publishedVersion].filter(isNotNull), tdb)
+    await this.svc(VersionedService).deleteOtherIndexes(page.intDataId, [page.latestVersion, page.publishedVersion].filter(isNotNull), tdb, { skipCleanup })
   }
 
   static async reindexAll (filter?: PageFilter, db?: Queryable) {
@@ -193,11 +193,12 @@ export class PageServiceInternal extends BaseService {
         pageSvc = ctx.svc(PageServiceInternal)
       }
       try {
-        await pageSvc!.reindex(pages[i], db)
+        await pageSvc!.reindex(pages[i], db, { skipCleanup: true })
       } catch (e) {
         console.error(`Error re-indexing page with id ${pages[i].id}:`, e)
       }
     }
+    await VersionedService.cleanAndOptimize()
   }
 
   pageExtras (page: Page) {

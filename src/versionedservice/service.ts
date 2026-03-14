@@ -740,14 +740,21 @@ export class VersionedService extends BaseService {
    * This is useful for pruning indexes that will never be queried again, e.g. intermediate
    * draft versions between the published version and the latest version.
    */
-  async deleteOtherIndexes (id: number, keepVersions: number[], tdb: Queryable = db) {
+  async deleteOtherIndexes (id: number, keepVersions: number[], tdb: Queryable = db, { skipCleanup }: { skipCleanup?: boolean } = {}) {
     if (!keepVersions.length) return
     const binds: any[] = [id]
     await tdb.execute(`DELETE FROM indexes WHERE id=? AND version NOT IN (${tdb.in(binds, keepVersions)})`, binds)
-    ;(async () => {
-      await VersionedService.cleanIndexValues()
-      await VersionedService.optimize()
-    })().catch(console.error)
+    if (!skipCleanup) {
+      ;(async () => {
+        await VersionedService.cleanIndexValues()
+        await VersionedService.optimize()
+      })().catch(console.error)
+    }
+  }
+
+  static async cleanAndOptimize () {
+    await VersionedService.cleanIndexValues()
+    await VersionedService.optimize()
   }
 
   /**
