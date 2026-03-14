@@ -290,17 +290,19 @@ export class DGServer {
       },
       resolvers,
       scalarsMap,
-      after
-    })
-    if (shouldResetDb && process.env.SKIP_FIXTURES !== 'true') {
-      console.info('running fixtures')
-      await opts.fixtures?.()
-      if (process.env.SKIP_BOOTSTRAP !== 'true') {
-        console.info('importing bootstrap files')
-        await bootstrap()
+      after,
+      beforeStartup: async () => {
+        if (shouldResetDb && process.env.SKIP_FIXTURES !== 'true') {
+          console.info('running fixtures')
+          await opts.fixtures?.()
+          if (process.env.SKIP_BOOTSTRAP !== 'true') {
+            console.info('importing bootstrap files')
+            await bootstrap()
+          }
+          console.info('finished fixtures')
+        }
       }
-      console.info('finished fixtures')
-    }
+    })
   }
 }
 
