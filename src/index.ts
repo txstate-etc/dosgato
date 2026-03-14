@@ -132,15 +132,6 @@ export class DGServer {
     await syncRegistryWithDB()
 
     await fileHandler.init()
-    if (shouldResetDb && process.env.SKIP_FIXTURES !== 'true') {
-      console.info('running fixtures')
-      await opts.fixtures?.()
-      if (process.env.SKIP_BOOTSTRAP !== 'true') {
-        console.info('importing bootstrap files')
-        await bootstrap()
-      }
-      console.info('finished fixtures')
-    }
 
     await createAssetRoutes(this.app)
     await createPageRoutes(this.app)
@@ -301,6 +292,15 @@ export class DGServer {
       scalarsMap,
       after
     })
+    if (shouldResetDb && process.env.SKIP_FIXTURES !== 'true') {
+      console.info('running fixtures')
+      await opts.fixtures?.()
+      if (process.env.SKIP_BOOTSTRAP !== 'true') {
+        console.info('importing bootstrap files')
+        await bootstrap()
+      }
+      console.info('finished fixtures')
+    }
   }
 }
 
