@@ -279,18 +279,16 @@ export async function migrations (moreMigrations?: DBMigration[]) {
   }
 
   await db.transaction(async db => {
-    const usedIds = new Set(await db.getvals<number>('SELECT id FROM dbversion FOR UPDATE'))
+    const usedIds = new Set(await db.getvals<number>('SELECT id FROM dbversion'))
     const allMigrations = sortby(dgMigrations.concat(moreMigrations ?? []), 'id')
     for (const migration of allMigrations) {
       if (usedIds.has(migration.id)) continue
-      if (!usedIds.has(migration.id)) {
-        console.info('Running migration', migration.id, ':', migration.description)
-        await migration.run(db)
-        await db.insert('INSERT INTO dbversion (id) VALUES (?)', [migration.id])
-        console.info('Successfully migrated to', migration.id)
-      }
+      console.info('Running migration', migration.id, ':', migration.description)
+      await migration.run(db)
+      await db.insert('INSERT INTO dbversion (id) VALUES (?)', [migration.id])
+      console.info('Successfully migrated to', migration.id)
     }
-  })
+  }, { lockForWrite: 'dbversion' })
 }
 
 export async function resetdb () {
