@@ -233,7 +233,7 @@ const dgMigrations: DBMigration[] = [
     run: async db => {
       // I'm intentionally kicking this off as a background task, it's not changing anything except index data
       // so there's no need to hold the startup process for it
-      PageServiceInternal.reindexAll().catch(console.error)
+      PageServiceInternal.reindexAll().catch(e => { console.error('Error re-indexing pages:', e) })
     }
   }, {
     id: 20260307100000,

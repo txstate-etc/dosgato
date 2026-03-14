@@ -186,13 +186,17 @@ export class PageServiceInternal extends BaseService {
     let ctx: Context
     let pageSvc: PageServiceInternal
     for (let i = 0; i < pages.length; i++) {
-      if (i % 500 === 0) {
+      if (i % 50 === 0) {
         console.info(`Re-indexing page ${i + 1} of ${pages.length}...`)
-        // acquire a new system context every 500 pages to allow garbage collection
+        // acquire a new system context every 50 pages to allow garbage collection
         ctx = await systemContext()
         pageSvc = ctx.svc(PageServiceInternal)
       }
-      await pageSvc!.reindex(pages[i], db)
+      try {
+        await pageSvc!.reindex(pages[i], db)
+      } catch (e) {
+        console.error(`Error re-indexing page with id ${pages[i].id}:`, e)
+      }
     }
   }
 
