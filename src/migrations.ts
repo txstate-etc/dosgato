@@ -278,17 +278,23 @@ export async function migrations (moreMigrations?: DBMigration[]) {
     `)
   }
 
-  await db.transaction(async db => {
+  const lockAcquired = await db.getval<number>('SELECT GET_LOCK("dosgato_migrations", -1)')
+  if (!lockAcquired) throw new Error('Failed to acquire migration lock')
+  try {
     const usedIds = new Set(await db.getvals<number>('SELECT id FROM dbversion'))
     const allMigrations = sortby(dgMigrations.concat(moreMigrations ?? []), 'id')
     for (const migration of allMigrations) {
       if (usedIds.has(migration.id)) continue
       console.info('Running migration', migration.id, ':', migration.description)
-      await migration.run(db)
-      await db.insert('INSERT INTO dbversion (id) VALUES (?)', [migration.id])
+      await db.transaction(async db => {
+        await migration.run(db)
+        await db.insert('INSERT INTO dbversion (id) VALUES (?)', [migration.id])
+      })
       console.info('Successfully migrated to', migration.id)
     }
-  }, { lockForWrite: 'dbversion' })
+  } finally {
+    await db.query('SELECT RELEASE_LOCK("dosgato_migrations")')
+  }
 }
 
 export async function resetdb () {
