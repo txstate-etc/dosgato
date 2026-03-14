@@ -197,9 +197,8 @@ export class PageServiceInternal extends BaseService {
   }
 
   pageExtras (page: Page) {
-    const systemCtx = (this.ctx as DGContext).systemCtx
     return {
-      query: systemCtx.query.bind(systemCtx),
+      query: async (...args) => await (this.ctx as DGContext).systemCtx.query(...args),
       siteId: page.siteId,
       pagetreeId: page.pagetreeId,
       parentId: String(page.parentInternalId),
@@ -807,8 +806,8 @@ export class PageService extends DosGatoService<Page> {
     if (!(this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const extras = {
-      query: this.ctx.systemCtx.query.bind(this.ctx.systemCtx),
+    const extras: PageExtras = {
+      query: async (...args) => await this.ctx.systemCtx.query(...args),
       siteId: site.id,
       pagetreeId: pagetree.id,
       parentId: parent.id,
