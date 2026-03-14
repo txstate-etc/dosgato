@@ -171,7 +171,7 @@ export class PageServiceInternal extends BaseService {
     return await pageDataCache.get({ pageIntDataId: page.intDataId, version: pageVersion, toSchemaVersion: toSchemaVersion.toISO()!, extras: omit(extras, 'query') }, this.ctx as DGContext)
   }
 
-  async reindex (page: Page, tdb: Queryable = db) {
+  async reindex (page: Page, tdb?: Queryable) {
     const pageData = await this.getData(page)
     await this.svc(VersionedService).setIndexes(page.intDataId, page.latestVersion, getPageIndexes(pageData), tdb)
     if (page.publishedVersion && page.publishedVersion !== page.latestVersion) {
