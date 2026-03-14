@@ -3,7 +3,7 @@ import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, unique, sortby } from 'txstate-utils'
-import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, systemContext, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState, searchCodes, splitWords, quadgrams, normalizeForSearch, removeUnreachableComponents, type PaginationResponse, cancelActiveSchedulesForPages } from '../internal.js'
+import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState, searchCodes, splitWords, quadgrams, normalizeForSearch, removeUnreachableComponents, type PaginationResponse, cancelActiveSchedulesForPages, type DGContext } from '../internal.js'
 import { type PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 
@@ -561,6 +561,7 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
 }
 
 async function handleCopy (db: Queryable, versionedService: VersionedService, userId: string, page: Page, parent: Page, parentPath: string, displayOrder: number, includeChildren?: boolean) {
+  const ctx = (versionedService as any).ctx as DGContext
   let newPageName = page.name
   const pagesWithName = new Set(await db.getvals<string>('SELECT name FROM pages WHERE name LIKE ? AND path = ?', [`${String(page.name)}%`, parent.pathAsParent]))
   while (pagesWithName.has(newPageName)) newPageName = numerate(newPageName)
@@ -570,7 +571,7 @@ async function handleCopy (db: Queryable, versionedService: VersionedService, us
   if (!pageData) throw new Error('Tried to copy a page with corrupted data.')
   delete pageData.data.legacyId
   const extras = {
-    query: (await systemContext()).query,
+    query: ctx.systemCtx.query.bind(ctx.systemCtx),
     siteId: page.siteId,
     pagetreeId: page.pagetreeId,
     parentId: parent.id,

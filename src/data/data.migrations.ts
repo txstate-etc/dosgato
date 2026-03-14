@@ -1,8 +1,7 @@
 import { type DataData } from '@dosgato/templating'
-import { type Context } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { clone, sortby } from 'txstate-utils'
-import { templateRegistry } from '../internal.js'
+import { templateRegistry, type DGContext } from '../internal.js'
 
 /**
  * This function represents the process of migrating a piece from one schema version
@@ -16,7 +15,7 @@ import { templateRegistry } from '../internal.js'
  * the template's migrations to alter the desired date to the date of the update.
  * Otherwise the template's migration would be skipped because it's too old.
  */
-export async function migrateData (ctx: Context, data: DataData, dataRootId: string, dataFolderId?: string, dataId?: string, toSchemaVersion = templateRegistry.currentSchemaVersion) {
+export async function migrateData (ctx: DGContext, data: DataData, dataRootId: string, dataFolderId?: string, dataId?: string, toSchemaVersion = templateRegistry.currentSchemaVersion) {
   let migrated = clone(data)
   const fromSchemaVersionMillis = DateTime.fromFormat(migrated.savedAtVersion, 'yLLddHHmmss', { zone: 'UTC' }).toMillis()
   const toSchemaVersionMillis = toSchemaVersion.toMillis()
@@ -31,7 +30,7 @@ export async function migrateData (ctx: Context, data: DataData, dataRootId: str
 
   for (const migration of sortedMigrations) {
     const migrate = backward ? migration.down : migration.up
-    migrated = await migrate(migrated, { query: ctx.query, dataRootId, dataFolderId, dataId })
+    migrated = await migrate(migrated, { query: ctx.systemCtx.query.bind(ctx.systemCtx), dataRootId, dataFolderId, dataId })
   }
   migrated.savedAtVersion = toSchemaVersion.toUTC().toFormat('yLLddHHmmss')
   return migrated

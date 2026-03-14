@@ -1,5 +1,4 @@
 import { type PageData, extractLinksFromText, replaceLinksInText, type PageExtras } from '@dosgato/templating'
-import { type Context } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
@@ -8,7 +7,8 @@ import { unique, keyby, isNotNull, Cache, isNotBlank, intersect, stringify } fro
 import {
   Site, type SiteFilter, PagetreeType, type VersionedService, createSiteComment, type UpdateSiteManagementInput,
   DeletedFilter, normalizeHost, parsePath, type CreatePageExtras, createVersionedPage, getPages, type Page, createPage,
-  type AssetFolder, getAssetFolders, getAssets, createAsset, createAssetFolder, DeleteStateInput, migratePage, LaunchState, setPageSearchCodes
+  type AssetFolder, getAssetFolders, getAssets, createAsset, createAssetFolder, DeleteStateInput, migratePage, LaunchState, setPageSearchCodes,
+  type DGContext
 } from '../internal.js'
 
 const columns: string[] = ['sites.id', 'sites.name', 'sites.launchHost', 'sites.launchPath', 'sites.launchEnabled', 'sites.primaryPagetreeId', 'sites.organizationId', 'sites.ownerId', 'sites.deletedAt', 'sites.deletedBy']
@@ -290,7 +290,7 @@ interface DuplicateContext {
   newSiteId: string
   newSiteName: string
   userId: string
-  ctx: Context
+  ctx: DGContext
 }
 
 function fixLinks (obj: any, context: DuplicateContext) {
@@ -327,7 +327,7 @@ async function duplicateChildren (page: Page, into: Page, versionedService: Vers
     const childPath = path + '/' + child.name
     const versioned = await versionedService.get(child.intDataId)
     const extras: PageExtras = {
-      query: context.ctx.query,
+      query: context.ctx.systemCtx.query.bind(context.ctx.systemCtx),
       pagePath: childPath,
       name: child.name,
       linkId: child.linkId,
@@ -363,12 +363,12 @@ async function duplicateAssets (folder: AssetFolder, into: AssetFolder, versione
   }
 }
 
-export async function duplicateSite (siteId: string, newName: string, versionedService: VersionedService, userId: string, ctx: Context) {
+export async function duplicateSite (siteId: string, newName: string, versionedService: VersionedService, userId: string, ctx: DGContext) {
   const [rootPage] = await getPages({ siteIds: [siteId], maxDepth: 0 })
   const [rootFolder] = await getAssetFolders({ siteIds: [siteId], maxDepth: 0 })
   const versioned = await versionedService.get(rootPage.intDataId)
   const extras: PageExtras = {
-    query: ctx.query,
+    query: ctx.systemCtx.query.bind(ctx.systemCtx),
     pagePath: `/${newName}`,
     name: newName,
     linkId: rootPage.linkId,

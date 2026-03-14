@@ -83,7 +83,7 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (!data.templateKey || !templateRegistry.getPageTemplate(data.templateKey)) response.addMessage('Template is required.', 'data.templateKey')
     // validate root page data if a template has been chosen
     const extras: PageExtras = {
-      query: (await systemContext()).query,
+      query: this.ctx.systemCtx.query.bind(this.ctx.systemCtx),
       siteId: site.id,
       pagePath: `/${site.name}`,
       name: site.name,

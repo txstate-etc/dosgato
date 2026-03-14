@@ -250,11 +250,10 @@ export class DataService extends DosGatoService<Data> {
       ]
     }
     // validate data
-    const systemCtx = await systemContext()
-    const migrated = await migrateData(systemCtx, args.data, dataroot.id, args.folderId)
+    const migrated = await migrateData(this.ctx, args.data, dataroot.id, args.folderId)
     const newName = safeComputedName(tmpl.computeName(migrated))
     const finalName = numerateLoop(newName, new Set(siblings.map(s => s.name)))
-    const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId: dataroot.id, dataFolderId: args.folderId }, newName !== finalName) ?? []
+    const messages = await tmpl.validate?.(migrated, { query: this.ctx.systemCtx.query.bind(this.ctx.systemCtx), dataRootId: dataroot.id, dataFolderId: args.folderId }, newName !== finalName) ?? []
     for (const message of messages) {
       response.addMessage(message.message, message.path && `args.data.${message.path}`, message.type as MutationMessageType)
     }
@@ -275,12 +274,11 @@ export class DataService extends DosGatoService<Data> {
     const tmpl = templateRegistry.getDataTemplate(args.data.templateKey)
     const dataRootId = `${data.siteId ?? 'global'}-${args.data.templateKey}`
     const folder = data.folderInternalId ? await this.svc(DataFolderServiceInternal).findByInternalId(data.folderInternalId) : undefined
-    const systemCtx = await systemContext()
-    const migrated = await migrateData(systemCtx, args.data, dataRootId, folder?.id, data.id)
+    const migrated = await migrateData(this.ctx, args.data, dataRootId, folder?.id, data.id)
     const usedNames = await this.raw.getConflictNames(data.folderInternalId, data.siteId, data.templateKey, data.name)
     const newName = safeComputedName(tmpl.computeName(migrated))
     const finalName = numerateLoop(newName, usedNames)
-    const messages = await tmpl.validate?.(migrated, { query: systemCtx.query, dataRootId, dataFolderId: folder?.id, dataId: data.id }, newName !== finalName) ?? []
+    const messages = await tmpl.validate?.(migrated, { query: this.ctx.systemCtx.query.bind(this.ctx.systemCtx), dataRootId, dataFolderId: folder?.id, dataId: data.id }, newName !== finalName) ?? []
     const response = new DataResponse({ success: true })
     for (const message of messages) {
       response.addMessage(message.message, message.path && `args.data.${message.path}`, message.type as MutationMessageType)

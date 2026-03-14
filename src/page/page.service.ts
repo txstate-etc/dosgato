@@ -97,10 +97,10 @@ export const pagesByTagIdLoader = new ManyJoinedLoader({
   idLoader: [pagesByInternalIdLoader, pagesByDataIdLoader]
 })
 
-const pageDataCache = new Cache(async (key: { pageIntDataId: number, version: number, toSchemaVersion: string, extras: Omit<PageExtras, 'query'> }, ctx: Context) => {
+const pageDataCache = new Cache(async (key: { pageIntDataId: number, version: number, toSchemaVersion: string, extras: Omit<PageExtras, 'query'> }, ctx: DGContext) => {
   const versioned = await ctx.svc(VersionedService).get(key.pageIntDataId, { version: key.version })
   if (!versioned) throw new Error('Asked for page data version that does not exist.')
-  const extras = { ...key.extras, query: ctx.query.bind(ctx) }
+  const extras = { ...key.extras, query: ctx.systemCtx.query.bind(ctx.systemCtx) }
   return await migratePage(versioned.data, extras, DateTime.fromISO(key.toSchemaVersion))
 }, {
   storageClass: new LRUCache({ max: 250 })
@@ -168,7 +168,7 @@ export class PageServiceInternal extends BaseService {
     const pageVersion = version ?? (published ? page.publishedVersion : page.latestVersion)
     if (!pageVersion) throw new Error('Asked for published page data but page is not published.')
     const extras = this.pageExtras(page)
-    return await pageDataCache.get({ pageIntDataId: page.intDataId, version: pageVersion, toSchemaVersion: toSchemaVersion.toISO()!, extras: omit(extras, 'query') }, this.ctx)
+    return await pageDataCache.get({ pageIntDataId: page.intDataId, version: pageVersion, toSchemaVersion: toSchemaVersion.toISO()!, extras: omit(extras, 'query') }, this.ctx as DGContext)
   }
 
   async reindex (page: Page, tdb: Queryable = db) {
@@ -197,8 +197,9 @@ export class PageServiceInternal extends BaseService {
   }
 
   pageExtras (page: Page) {
+    const systemCtx = (this.ctx as DGContext).systemCtx
     return {
-      query: async (...args) => await (this.ctx as DGContext).systemCtx.query(...args),
+      query: systemCtx.query.bind(systemCtx),
       siteId: page.siteId,
       pagetreeId: page.pagetreeId,
       parentId: String(page.parentInternalId),
@@ -806,8 +807,8 @@ export class PageService extends DosGatoService<Page> {
     if (!(this.mayCreate(parent))) throw new Error('Current user is not permitted to create pages in the specified parent.')
     const pagetree = (await this.svc(PagetreeServiceInternal).findById(parent.pagetreeId))!
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
-    const extras: PageExtras = {
-      query: async (...args) => await this.ctx.systemCtx.query(...args),
+    const extras = {
+      query: this.ctx.systemCtx.query.bind(this.ctx.systemCtx),
       siteId: site.id,
       pagetreeId: pagetree.id,
       parentId: parent.id,
