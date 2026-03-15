@@ -529,7 +529,6 @@ export class VersionedService extends BaseService {
       await db.execute('DELETE FROM versions WHERE id=?', [id])
       await db.execute('DELETE FROM storage WHERE id=?', [id])
     })
-    VersionedService.cleanIndexValues().catch((e: Error) => { console.error(e) })
     this.loaders.get(storageLoader).clear(id)
   }
 
@@ -731,8 +730,6 @@ export class VersionedService extends BaseService {
         WHERE v.id IS NULL AND s.id IS NULL
       `)
     })
-    await this.cleanIndexValues()
-    await this.optimize()
   }
 
   /**
@@ -740,16 +737,10 @@ export class VersionedService extends BaseService {
    * This is useful for pruning indexes that will never be queried again, e.g. intermediate
    * draft versions between the published version and the latest version.
    */
-  async deleteOtherIndexes (id: number, keepVersions: number[], tdb: Queryable = db, { skipCleanup }: { skipCleanup?: boolean } = {}) {
+  async deleteOtherIndexes (id: number, keepVersions: number[], tdb: Queryable = db) {
     if (!keepVersions.length) return
     const binds: any[] = [id]
     await tdb.execute(`DELETE FROM indexes WHERE id=? AND version NOT IN (${tdb.in(binds, keepVersions)})`, binds)
-    if (!skipCleanup) {
-      ;(async () => {
-        await VersionedService.cleanIndexValues()
-        await VersionedService.optimize()
-      })().catch(console.error)
-    }
   }
 
   static async cleanAndOptimize () {
@@ -789,10 +780,17 @@ export class VersionedService extends BaseService {
     if (VersionedService.cleaningIndexValues) return
     try {
       VersionedService.cleaningIndexValues = true
-      await db.transaction(async db => {
-        await db.execute('SELECT * FROM dbversion FOR UPDATE')
-        await db.execute('DELETE v FROM indexvalues v LEFT JOIN indexes i ON v.id=i.value_id WHERE i.value_id IS NULL')
-      })
+      const RANGE_SIZE = 500000
+      const maxId = await db.getval<number>('SELECT MAX(id) FROM indexvalues') ?? 0
+      for (let rangeStart = 0; rangeStart <= maxId; rangeStart += RANGE_SIZE) {
+        await db.transaction(async db => {
+          await db.execute('SELECT * FROM dbversion FOR UPDATE')
+          await db.delete(
+            'DELETE v FROM indexvalues v LEFT JOIN indexes i ON v.id=i.value_id WHERE v.id > ? AND v.id <= ? AND i.value_id IS NULL',
+            [rangeStart, rangeStart + RANGE_SIZE]
+          )
+        })
+      }
     } finally {
       VersionedService.cleaningIndexValues = false
     }

@@ -1,6 +1,6 @@
-import { type DataData, extractLinksFromText, getKeywords } from '@dosgato/templating'
+import { type DataData, extractLinksFromText } from '@dosgato/templating'
 import { isNotBlank } from 'txstate-utils'
-import { type Index, templateRegistry, processLink } from '../internal.js'
+import { type Index, templateRegistry, processLink, getKeywords } from '../internal.js'
 
 export function getDataIndexes (data: DataData): Index[] {
   const storage: Record<string, Set<string>> = {}

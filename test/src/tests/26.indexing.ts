@@ -308,16 +308,24 @@ describe('indexing', () => {
       expect(values).to.include('bacon')
     })
 
-    it('should exclude pure numeric strings', async () => {
-      const { page } = await createPage('idx-ft-numeric', rootPageId, 'keyp3', { title: 'Year 2024 Report' })
+    it('should split strings that mix numbers and letters and discard segments less than 2 in length', async () => {
+      const { page } = await createPage('idx-ft-numeric', rootPageId, 'keyp3', { title: 'Year 2024 Report max1000 ad3flab5' })
       const dataId = page.id
       const values = await getIndexValues(dataId, page.version.version, 'fulltext')
-      expect(values).to.not.include('2024')
+      expect(values).to.include('2024')
       // "year" is 4 chars -> stored whole
       expect(values).to.include('year')
       // "report" -> 6 chars -> 5-grams
       expect(values).to.include('repor')
       expect(values).to.include('eport')
+      // "max1000" is alphanumeric -> split into "max" and "1000"
+      expect(values).to.include('max')
+      expect(values).to.include('1000')
+      // "ad3flab5" is alphanumeric -> split into "ad", "3", "flab", "5" -> "ad" is too short, "3" and "5" are numeric, so only "flab" should be included
+      expect(values).to.include('flab')
+      expect(values).to.not.include('ad')
+      expect(values).to.not.include('3')
+      expect(values).to.not.include('5')
     })
 
     it('should be searchable via phraseSearch after indexing', async () => {

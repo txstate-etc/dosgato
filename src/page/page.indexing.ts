@@ -1,4 +1,4 @@
-import { type LinkDefinition, extractLinksFromText, type PageData, getKeywords } from '@dosgato/templating'
+import { type LinkDefinition, extractLinksFromText, type PageData } from '@dosgato/templating'
 import { isNotBlank, isNotNull } from 'txstate-utils'
 import { processLink, templateRegistry, type Index, type SingleValueIndex, collectReachableComponents } from '../internal.js'
 
@@ -65,3 +65,48 @@ export function singleValueIndexesToIndexes (svIndexes: SingleValueIndex[]) {
   }
   return Object.keys(storage).map(k => ({ name: k, values: Array.from(storage[k]) }))
 }
+
+export function getKeywords (text?: string, options?: { stopwords?: boolean }) {
+  if (!text) return []
+  return Array.from(new Set(text
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .split(/[^a-z0-9-]+/)
+    .flatMap(word => word.includes('-') ? word.split('-').concat(word.replaceAll('-', '')) : [word])
+    .flatMap(word => /\d/.test(word) && isNaN(Number(word)) ? word.split(/(?<=\d)(?=[a-z])|(?<=[a-z])(?=\d)/) : [word])
+    .filter(word =>
+      word.length > 2 &&
+      (options?.stopwords === false || !stopwords.has(word)))
+  ))
+}
+
+export const stopwords = new Set([
+  'myself', 'our', 'ours', 'ourselves',
+  'you', 'your', 'yours', 'yourself', 'yourselves',
+  'him', 'his', 'himself',
+  'she', 'her', 'hers', 'herself',
+  'its', 'itself',
+  'they', 'them', 'their', 'theirs', 'themselves',
+  'what', 'which', 'who', 'whom',
+  'this', 'that', 'these', 'those',
+  'are', 'was', 'were', 'been', 'being',
+  'have', 'has', 'had', 'having',
+  'does', 'did', 'doing',
+  'the', 'and', 'but', 'because', 'until', 'while',
+  'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during',
+  'before', 'after', 'above', 'below', 'from', 'down', 'out', 'off', 'over', 'under',
+  'again', 'further', 'then', 'once',
+  'here', 'there', 'when', 'where', 'why', 'how',
+  'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such',
+  'nor', 'not', 'only', 'own', 'same', 'than', 'too', 'very',
+  'can', 'will', 'just', 'don', 'should', 'now',
+  // HTML
+  'div', 'span', 'img', 'abbr', 'area', 'main', 'aside', 'blockquote',
+  'button', 'caption', 'code', 'del', 'strong', 'font', 'embed', 'fieldset',
+  'form', 'figure', 'iframe', 'label', 'input', 'script', 'nav', 'select',
+  'option', 'picture', 'pre', 'small', 'style', 'svg', 'sub', 'table', 'tbody',
+  'href', 'src', 'srcset', 'class', 'textarea', 'title', 'onclick',
+  'www', 'com',
+  // LinkDefinition
+  'siteId', 'path', 'type', 'assetId', 'linkId', 'url'
+])

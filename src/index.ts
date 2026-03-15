@@ -278,6 +278,7 @@ export class DGServer {
     await scheduler.schedule('compressDownloads', compressDownloads, { duringHour: 5, duringDayOfWeek: DayOfWeek.TUESDAY })
     if (templateRegistry.serverConfig.userLookup) await scheduler.schedule('syncUsers', syncUsers, { duringHour: 4 })
     await scheduler.schedule('scheduledPublishes', executeScheduledPublishes, { minutesBetween: 2 })
+    await scheduler.schedule('cleanIndexes', VersionedService.cleanAndOptimize, { duringHour: 3, duringDayOfWeek: DayOfWeek.MONDAY })
     await this.gqlServer.start({
       ...opts,
       customContext: templateRegistry.serverConfig.customContext,

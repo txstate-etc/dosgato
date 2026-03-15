@@ -1,4 +1,4 @@
-import { getKeywords, type LinkDefinition, type ComponentData, type PageData, type PageExtras, type AssetLink, type AssetFolderLink } from '@dosgato/templating'
+import type { LinkDefinition, ComponentData, PageData, PageExtras, AssetLink, AssetFolderLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { LRUCache } from 'lru-cache'
@@ -17,7 +17,7 @@ import {
   type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
   removeUnreachableComponents, getPageTagsByTagIds, TagServiceInternal, type AssetFilter, AssetService,
   type AssetFolderFilter, getPageTexts, ScheduledPublishServiceInternal, ScheduledPublishAction, ScheduledPublishStatus,
-  type DGContext
+  type DGContext, getKeywords
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -171,18 +171,18 @@ export class PageServiceInternal extends BaseService {
     return await pageDataCache.get({ pageIntDataId: page.intDataId, version: pageVersion, toSchemaVersion: toSchemaVersion.toISO()!, extras: omit(extras, 'query') }, this.ctx as DGContext)
   }
 
-  async reindex (page: Page, tdb?: Queryable, { skipCleanup }: { skipCleanup?: boolean } = {}) {
+  async reindex (page: Page, tdb?: Queryable) {
     const pageData = await this.getData(page)
     await this.svc(VersionedService).setIndexes(page.intDataId, page.latestVersion, getPageIndexes(pageData), tdb)
     if (page.publishedVersion && page.publishedVersion !== page.latestVersion) {
       const publishedData = await this.getData(page, page.publishedVersion)
       await this.svc(VersionedService).setIndexes(page.intDataId, page.publishedVersion, getPageIndexes(publishedData), tdb)
     }
-    await this.svc(VersionedService).deleteOtherIndexes(page.intDataId, [page.latestVersion, page.publishedVersion].filter(isNotNull), tdb, { skipCleanup })
+    await this.svc(VersionedService).deleteOtherIndexes(page.intDataId, [page.latestVersion, page.publishedVersion].filter(isNotNull), tdb)
   }
 
-  static async reindexAll (filter?: PageFilter, db?: Queryable) {
-    const pages = await getPages(filter ?? {}, db)
+  static async reindexAll (filter?: PageFilter) {
+    const pages = await getPages(filter ?? {})
     let ctx: Context
     let pageSvc: PageServiceInternal
     for (let i = 0; i < pages.length; i++) {
@@ -193,7 +193,7 @@ export class PageServiceInternal extends BaseService {
         pageSvc = ctx.svc(PageServiceInternal)
       }
       try {
-        await pageSvc!.reindex(pages[i], db, { skipCleanup: true })
+        await pageSvc!.reindex(pages[i])
       } catch (e) {
         console.error(`Error re-indexing page with id ${pages[i].id}:`, e)
       }
