@@ -639,18 +639,29 @@ export class VersionedService extends BaseService {
     if (!values.length) return {} as Record<string, number>
     const checksumMap = new Map(values.map(v => [createChecksum(v), v]))
     await db.execute('SELECT * FROM dbversion FOR UPDATE')
-    const insert: string[] = []
-    const binds: any[] = []
-    for (const [checksum, value] of checksumMap.entries()) {
-      insert.push('(?,UNHEX(?))')
-      binds.push(value.substring(0, 1024), checksum)
-    }
-    await db.insert(`INSERT INTO indexvalues (value, checksum) VALUES ${insert.join(',')} ON DUPLICATE KEY UPDATE value=value`, binds)
     const checksums = Array.from(checksumMap.keys())
-    const valuerows = await db.getall<[number, string]>(`SELECT id, LOWER(HEX(checksum)) FROM indexvalues WHERE checksum IN (${checksums.map(v => 'UNHEX(?)').join(',')}) LOCK IN SHARE MODE`, checksums, { rowsAsArray: true })
     const valuehash: Record<string, number> = {}
-    for (const [id, checksum] of valuerows) {
-      if (checksumMap.has(checksum)) valuehash[checksumMap.get(checksum)!] = id
+    for (const checksumBatch of batch(checksums, 100)) {
+      const existingRows = await db.getall<[number, string]>(`SELECT id, LOWER(HEX(checksum)) FROM indexvalues WHERE checksum IN (${checksumBatch.map(() => 'UNHEX(?)').join(',')}) LOCK IN SHARE MODE`, checksumBatch, { rowsAsArray: true })
+      const existingChecksums = new Set<string>()
+      for (const [id, checksum] of existingRows) {
+        existingChecksums.add(checksum)
+        if (checksumMap.has(checksum)) valuehash[checksumMap.get(checksum)!] = id
+      }
+      const newChecksums = checksumBatch.filter(c => !existingChecksums.has(c))
+      if (newChecksums.length) {
+        const insert: string[] = []
+        const binds: any[] = []
+        for (const checksum of newChecksums) {
+          insert.push('(?,UNHEX(?))')
+          binds.push(checksumMap.get(checksum)!.substring(0, 1024), checksum)
+        }
+        await db.insert(`INSERT INTO indexvalues (value, checksum) VALUES ${insert.join(',')} ON DUPLICATE KEY UPDATE value=value`, binds)
+        const newRows = await db.getall<[number, string]>(`SELECT id, LOWER(HEX(checksum)) FROM indexvalues WHERE checksum IN (${newChecksums.map(() => 'UNHEX(?)').join(',')}) LOCK IN SHARE MODE`, newChecksums, { rowsAsArray: true })
+        for (const [id, checksum] of newRows) {
+          if (checksumMap.has(checksum)) valuehash[checksumMap.get(checksum)!] = id
+        }
+      }
     }
     return valuehash
   }
@@ -681,16 +692,20 @@ export class VersionedService extends BaseService {
       .filter(e => !wanted.has(`${e.name_id}.${e.value_id}`))
       .map(e => [e.name_id, e.value_id])
     if (eliminate.length) {
-      const deletebinds = [id, version]
-      await db.execute(`DELETE FROM indexes WHERE id=? AND version=? AND (name_id, value_id) IN (${db.in(deletebinds, eliminate)})`, deletebinds)
+      for (const eliminateBatch of batch(eliminate, 100)) {
+        const deletebinds = [id, version]
+        await db.execute(`DELETE FROM indexes WHERE id=? AND version=? AND (name_id, value_id) IN (${db.in(deletebinds, eliminateBatch)})`, deletebinds)
+      }
     }
     const alreadyhave = new Set(currentEntries.map(r => `${r.name_id}.${r.value_id}`))
     const tobeadded = indexEntries.filter(e => !alreadyhave.has(`${e[2]}.${e[3]}`))
     if (tobeadded.length) {
-      const binds: (string | number)[] = []
-      await db.insert(`
-        INSERT INTO indexes (id, version, name_id, value_id) VALUES ${db.in(binds, tobeadded)} ON DUPLICATE KEY UPDATE value_id=value_id
-      `, binds)
+      for (const tobeaddedBatch of batch(tobeadded, 100)) {
+        const binds: (string | number)[] = []
+        await db.insert(`
+          INSERT INTO indexes (id, version, name_id, value_id) VALUES ${db.in(binds, tobeaddedBatch)} ON DUPLICATE KEY UPDATE value_id=value_id
+        `, binds)
+      }
     }
   }
 
