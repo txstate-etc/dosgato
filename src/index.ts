@@ -4,6 +4,7 @@ import { type FastifyInstance } from 'fastify'
 import { type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
 import { type GraphQLError, type GraphQLScalarType } from 'graphql'
 import { DateTime } from 'luxon'
+import db from 'mysql2-async/db'
 import { Cache, isBlank, isNotBlank, omit } from 'txstate-utils'
 import { type NonEmptyArray } from 'type-graphql'
 import { migrations, resetdb } from './migrations.js'
@@ -27,7 +28,10 @@ import {
   type DGRestrictOperations, dgContextMixin, createUserRoutes, syncUsers, type EventInfo, makeSafe,
   tagTemplate, UserTagResolver, TemplateService, TemplateServiceInternal, PagetreeServiceInternal,
   RoleServiceInternal, PageInformationResolver,
-  ScheduledPublishResolver, ScheduledPublishPermissionsResolver, executeScheduledPublishes
+  ScheduledPublishResolver, ScheduledPublishPermissionsResolver, executeScheduledPublishes,
+  PageServiceInternal,
+  DeleteState,
+  DeleteStateInput
 } from './internal.js'
 
 const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
@@ -279,6 +283,10 @@ export class DGServer {
     if (templateRegistry.serverConfig.userLookup) await scheduler.schedule('syncUsers', syncUsers, { duringHour: 4 })
     await scheduler.schedule('scheduledPublishes', executeScheduledPublishes, { minutesBetween: 2 })
     await scheduler.schedule('cleanIndexes', VersionedService.cleanAndOptimize, { duringHour: 3, duringDayOfWeek: DayOfWeek.MONDAY })
+    await scheduler.schedule('reindexPages', async () => {
+      const indexTarget = await db.getval<string>('SELECT value FROM settings WHERE name = "pageReindexTarget"')
+      await PageServiceInternal.reindexAll({ deleteStates: [DeleteStateInput.NOTDELETED, DeleteStateInput.MARKEDFORDELETE], lastIndexedBefore: indexTarget ? DateTime.fromISO(indexTarget) : DateTime.local().minus({ years: 1 }) }, 1000)
+    }, { minutesBetween: 10 })
     await this.gqlServer.start({
       ...opts,
       customContext: templateRegistry.serverConfig.customContext,

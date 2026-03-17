@@ -228,14 +228,6 @@ const dgMigrations: DBMigration[] = [
       await db.execute('ALTER TABLE roles ADD COLUMN access ENUM(\'editor\', \'contributor\', \'readonly\')')
     }
   }, {
-    id: 20260306134500,
-    description: 're-index pages since we are introducing substring search in this release',
-    run: async db => {
-      // I'm intentionally kicking this off as a background task, it's not changing anything except index data
-      // so there's no need to hold the startup process for it
-      PageServiceInternal.reindexAll().catch(e => { console.error('Error re-indexing pages:', e) })
-    }
-  }, {
     id: 20260307100000,
     description: 'create scheduledpublishes table for scheduled publish/unpublish actions',
     run: async db => {
@@ -262,6 +254,23 @@ const dgMigrations: DBMigration[] = [
         DEFAULT CHARACTER SET = utf8mb4
         DEFAULT COLLATE = utf8mb4_general_ci
       `)
+    }
+  }, {
+    id: 20260315090000,
+    description: 'add an indexedAt to each page so we can re-index slowly over time',
+    run: async db => {
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS settings (
+          \`name\` VARCHAR(255) PRIMARY KEY,
+          \`value\` TEXT
+        ) ENGINE=InnoDB
+        DEFAULT CHARACTER SET = utf8mb4
+        DEFAULT COLLATE = utf8mb4_general_ci
+      `)
+      await db.execute(`
+        ALTER TABLE pages
+        ADD COLUMN indexedAt DATETIME`)
+      await db.insert('INSERT INTO settings (`name`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)', ['pageReindexTarget', new Date().toISOString()])
     }
   }
 ]

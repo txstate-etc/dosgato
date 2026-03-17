@@ -8,13 +8,13 @@ import db from 'mysql2-async/db'
 import { Cache, equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, omit, set, someAsync, sortby } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, type Page, type PageFilter, PageResponse, PagesResponse,
-  createPage, getPages, movePages, deletePages, type PaginationResponse, renamePage, TemplateService, type TemplateFilter,
+  createPage, getPages, movePages, deletePages, renamePage, TemplateService, type TemplateFilter,
   getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage, PagetreeServiceInternal,
   collectTemplates, TemplateServiceInternal, SiteServiceInternal, PagetreeType, DeleteState, publishPageDeletions,
   type CreatePageExtras, parsePath, normalizePath, validateRecurse, type Template, type PageRuleGrants,
   DeleteStateAll, PageRuleService, SiteRuleService, systemContext, collectComponents, makePathSafe, LaunchState,
   type DGRestrictOperations, fireEvent, setPageSearchCodes, AssetServiceInternal, getPageLinks,
-  type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
+  PaginationResponse, type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
   removeUnreachableComponents, getPageTagsByTagIds, TagServiceInternal, type AssetFilter, AssetService,
   type AssetFolderFilter, getPageTexts, ScheduledPublishServiceInternal, ScheduledPublishAction, ScheduledPublishStatus,
   type DGContext, getKeywords
@@ -181,24 +181,24 @@ export class PageServiceInternal extends BaseService {
     await this.svc(VersionedService).deleteOtherIndexes(page.intDataId, [page.latestVersion, page.publishedVersion].filter(isNotNull), tdb)
   }
 
-  static async reindexAll (filter?: PageFilter) {
-    const pages = await getPages(filter ?? {})
+  static async reindexAll (filter?: PageFilter, batchSize?: number) {
+    const pages = await getPages(filter ?? {}, db, batchSize ? new PaginationResponse({ page: 1, perPage: batchSize }) : undefined)
     let ctx: Context
     let pageSvc: PageServiceInternal
     for (let i = 0; i < pages.length; i++) {
-      if (i % 50 === 0) {
-        console.info(`Re-indexing page ${i + 1} of ${pages.length}...`)
-        // acquire a new system context every 50 pages to allow garbage collection
+      if (i % 20 === 0) {
+        console.info(`Re-indexing page ${i + 1} (${pages[i].resolvedPath}) of ${pages.length}...`)
+        // acquire a new system context every 20 pages to allow garbage collection
         ctx = await systemContext()
         pageSvc = ctx.svc(PageServiceInternal)
       }
       try {
         await pageSvc!.reindex(pages[i])
       } catch (e) {
-        console.error(`Error re-indexing page with id ${pages[i].id}:`, e)
+        console.error(`Error re-indexing page ${pages[i].resolvedPath} (${pages[i].id}):`, e)
       }
     }
-    await VersionedService.cleanAndOptimize()
+    console.info('Finished re-indexing', pages.length, 'pages.')
   }
 
   pageExtras (page: Page) {

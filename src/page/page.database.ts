@@ -196,6 +196,12 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
     where.push('tags.tag IS NULL')
   }
 
+  // lastIndexedBefore
+  if (filter.lastIndexedBefore) {
+    where.push('pages.indexedAt IS NULL OR pages.indexedAt < ?')
+    binds.push(filter.lastIndexedBefore.toJSDate())
+  }
+
   await Promise.all([
     (async () => {
       // named paths e.g. /site1/about

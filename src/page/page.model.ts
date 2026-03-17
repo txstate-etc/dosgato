@@ -152,6 +152,7 @@ export class PageFilter {
   internalIdPaths?: string[]
   internalIdPathsRecursive?: string[]
   noresults?: boolean
+  lastIndexedBefore?: DateTime
 
   @Field(type => [ID], { nullable: true })
   ids?: string[]
