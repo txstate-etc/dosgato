@@ -278,7 +278,7 @@ export async function migrations (moreMigrations?: DBMigration[]) {
     `)
   }
 
-  const lockAcquired = await db.getval<number>('SELECT GET_LOCK("dosgato_migrations", -1)')
+  const lockAcquired = await db.getval<number>('SELECT GET_LOCK("dosgato_migrations", 259200)') // 3 days in seconds
   if (!lockAcquired) throw new Error('Failed to acquire migration lock')
   try {
     const usedIds = new Set(await db.getvals<number>('SELECT id FROM dbversion'))
