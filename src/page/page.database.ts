@@ -198,8 +198,8 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
 
   // lastIndexedBefore
   if (filter.lastIndexedBefore) {
-    where.push('pages.indexedAt IS NULL OR pages.indexedAt < ?')
-    binds.push(filter.lastIndexedBefore.toJSDate())
+    where.push('pages.indexedAt IS NULL OR pages.pubIndexedAt IS NULL OR pages.indexedAt < ? OR pages.pubIndexedAt < ?')
+    binds.push(filter.lastIndexedBefore.toJSDate(), filter.lastIndexedBefore.toJSDate())
   }
 
   await Promise.all([
@@ -725,4 +725,12 @@ export async function setPageSearchCodes (page: { internalId: number, name: stri
 
 export async function cleanSearchCodes () {
   await db.delete('DELETE sc FROM searchcodes sc LEFT JOIN pages_searchcodes psc ON psc.codeId=sc.id WHERE psc.codeId IS NULL')
+}
+
+export async function setPageIndexed (dataId: string, publishedAlso?: boolean, tdb: Queryable = db) {
+  if (publishedAlso) {
+    await tdb.update('UPDATE pages SET indexedAt = NOW(), pubIndexedAt = NOW() WHERE dataId = ?', [dataId])
+  } else {
+    await tdb.update('UPDATE pages SET indexedAt = NOW() WHERE dataId = ?', [dataId])
+  }
 }

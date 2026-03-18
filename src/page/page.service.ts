@@ -5,7 +5,7 @@ import { LRUCache } from 'lru-cache'
 import { DateTime } from 'luxon'
 import { type Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
-import { Cache, equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, omit, set, someAsync, sortby } from 'txstate-utils'
+import { batch, Cache, equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, omit, set, someAsync, sortby } from 'txstate-utils'
 import {
   VersionedService, templateRegistry, DosGatoService, type Page, type PageFilter, PageResponse, PagesResponse,
   createPage, getPages, movePages, deletePages, renamePage, TemplateService, type TemplateFilter,
@@ -17,7 +17,7 @@ import {
   PaginationResponse, type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
   removeUnreachableComponents, getPageTagsByTagIds, TagServiceInternal, type AssetFilter, AssetService,
   type AssetFolderFilter, getPageTexts, ScheduledPublishServiceInternal, ScheduledPublishAction, ScheduledPublishStatus,
-  type DGContext, getKeywords
+  type DGContext, getKeywords, setPageIndexed
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -179,6 +179,7 @@ export class PageServiceInternal extends BaseService {
       await this.svc(VersionedService).setIndexes(page.intDataId, page.publishedVersion, getPageIndexes(publishedData), tdb)
     }
     await this.svc(VersionedService).deleteOtherIndexes(page.intDataId, [page.latestVersion, page.publishedVersion].filter(isNotNull), tdb)
+    await setPageIndexed(page.dataId, true, tdb)
   }
 
   static async reindexAll (filter?: PageFilter, batchSize?: number) {
@@ -198,7 +199,7 @@ export class PageServiceInternal extends BaseService {
         console.error(`Error re-indexing page ${pages[i].resolvedPath} (${pages[i].id}):`, e)
       }
     }
-    console.info('Finished re-indexing', pages.length, 'pages.')
+    if (pages.length) console.info('Finished re-indexing', pages.length, 'pages.')
   }
 
   pageExtras (page: Page) {
@@ -850,7 +851,7 @@ export class PageService extends DosGatoService<Page> {
       const indexes = getPageIndexes(migrated)
       const newVersion = await db.transaction(async db => {
         const v = await this.svc(VersionedService).update(page!.intDataId, migrated, indexes, { user: this.login, comment, version: dataVersion }, db)
-        await db.update('UPDATE pages SET title=?, templateKey=? WHERE id=?', [migrated.title, migrated.templateKey, page!.internalId])
+        await db.update('UPDATE pages SET title=?, templateKey=?, indexedAt=NOW() WHERE id=?', [migrated.title, migrated.templateKey, page!.internalId])
         return v
       })
       const keepVersions = [newVersion]
@@ -884,7 +885,7 @@ export class PageService extends DosGatoService<Page> {
       const indexes = getPageIndexes(migrated)
       await db.transaction(async db => {
         await this.svc(VersionedService).restore(page!.intDataId, { version: restoreVersion }, { indexes, user: this.login, tdb: db })
-        await db.update('UPDATE pages SET title=?, templateKey=? WHERE id=?', [data.title, data.templateKey, page!.internalId])
+        await db.update('UPDATE pages SET title=?, templateKey=?, indexedAt=NOW() WHERE id=?', [data.title, data.templateKey, page!.internalId])
       })
       this.loaders.clear()
       page = await this.raw.findById(dataId)
@@ -925,7 +926,7 @@ export class PageService extends DosGatoService<Page> {
       const indexes = getPageIndexes(fullymigrated)
       await db.transaction(async db => {
         await this.svc(VersionedService).update(page!.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion }, db)
-        await db.update('UPDATE pages SET title=? WHERE id=?', [fullymigrated.title, page!.internalId])
+        await db.update('UPDATE pages SET title=?, indexedAt=NOW() WHERE id=?', [fullymigrated.title, page!.internalId])
         await setPageSearchCodes({ internalId: page!.internalId, name: page!.name, title: fullymigrated.title }, db)
       })
       this.loaders.clear()
@@ -962,6 +963,7 @@ export class PageService extends DosGatoService<Page> {
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(fullymigrated)
       await this.svc(VersionedService).update(page.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+      await setPageIndexed(page.dataId)
       this.loaders.clear()
       page = await this.raw.findById(dataId)
     }
@@ -1049,6 +1051,7 @@ export class PageService extends DosGatoService<Page> {
     if (!validateOnly && response.success) {
       const indexes = getPageIndexes(fullymigrated)
       await this.svc(VersionedService).update(page.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+      await setPageIndexed(page.dataId)
       this.loaders.clear()
       page = await this.raw.findById(dataId)
     }
@@ -1132,6 +1135,7 @@ export class PageService extends DosGatoService<Page> {
     // if we haven't thrown yet then we can execute the mutation
     const indexes = getPageIndexes(fullymigrated)
     await this.svc(VersionedService).update(page.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+    await setPageIndexed(page.dataId)
     this.loaders.clear()
     page = await this.raw.findById(dataId)
     const response = new PageResponse({ success: true })
@@ -1165,6 +1169,7 @@ export class PageService extends DosGatoService<Page> {
     // if we haven't thrown yet then we can execute the mutation
     const indexes = getPageIndexes(fullymigrated)
     await this.svc(VersionedService).update(page.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
+    await setPageIndexed(page.dataId)
     this.loaders.clear()
     page = await this.raw.findById(dataId)
     const response = new PageResponse({ success: true })
@@ -1191,7 +1196,7 @@ export class PageService extends DosGatoService<Page> {
       fullymigrated.templateKey = templateKey
       const indexes = getPageIndexes(fullymigrated)
       await this.svc(VersionedService).update(page.intDataId, fullymigrated, indexes, { user: this.login, comment, version: dataVersion })
-      await db.update('UPDATE pages SET templateKey=? WHERE id=?', [fullymigrated.templateKey, page.internalId])
+      await db.update('UPDATE pages SET templateKey=?, indexedAt=NOW() WHERE id=?', [fullymigrated.templateKey, page.internalId])
       this.loaders.clear()
       page = await this.raw.findById(dataId)
     }
@@ -1275,7 +1280,12 @@ export class PageService extends DosGatoService<Page> {
     pages = pages.filter(p => !p.deleted)
     try {
       await db.transaction(async db => {
-        for (const p of pages) await this.svc(VersionedService).tag(p.intDataId, 'published', undefined, this.login)
+        for (const p of pages) {
+          await this.svc(VersionedService).tag(p.intDataId, 'published', undefined, this.login)
+        }
+        for (const pageBatch of batch(pages, 100)) {
+          await db.update(`UPDATE pages SET pubIndexedAt=indexedAt WHERE dataId IN (${db.in([], pageBatch.map(p => p.dataId))})`, pageBatch.map(p => p.dataId))
+        }
       })
       // published tag always points to latest, so only that version's indexes are needed
       await Promise.all(pages.map(async p => {

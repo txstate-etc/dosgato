@@ -269,7 +269,9 @@ const dgMigrations: DBMigration[] = [
       `)
       await db.execute(`
         ALTER TABLE pages
-        ADD COLUMN indexedAt DATETIME`)
+        ADD COLUMN indexedAt DATETIME,
+        ADD COLUMN pubIndexedAt DATETIME
+      `)
       await db.insert('INSERT INTO settings (`name`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)', ['pageReindexTarget', new Date().toISOString()])
     }
   }
