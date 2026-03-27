@@ -78,4 +78,17 @@ describe('pagetrees', () => {
     expect(pagetree.roles).to.have.deep.members([{ name: 'site5-siterulestest2' }, { name: 'superuser' }])
     expect(pagetree.roles).to.not.have.deep.members([{ name: 'site5-siterulestest1' }])
   })
+  it('should get the number of non-deleted pages in a pagetree', async () => {
+    const { sites } = await query('{ sites { name pagetrees { name pageCount pages { id name } } } }')
+    const site1 = sites.find((s: any) => s.name === 'site1')
+    const pagetree = site1.pagetrees.find(p => p.name === 'site1')
+    expect(pagetree.pageCount).to.equal(pagetree.pages.length)
+  })
+  it('should get the number of published, non-deleted pages in a pagetree', async () => {
+    const { sites } = await query('{ sites { name pagetrees { name publishedPageCount pages { id name published } } } }')
+    const site1 = sites.find((s: any) => s.name === 'site1')
+    const pagetree = site1.pagetrees.find(p => p.name === 'site1')
+    const publishedPages = pagetree.pages.filter((p: any) => p.published)
+    expect(pagetree.publishedPageCount).to.equal(publishedPages.length)
+  })
 })

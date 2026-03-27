@@ -5,7 +5,8 @@ import {
   type Pagetree, type PagetreeFilter, getPagetreesById, getPagetreesBySite,
   getPagetreesByTemplate, SiteService, DosGatoService, PagetreeType, PagetreeResponse,
   promotePagetree, createPagetree, VersionedService, deletePagetree,
-  undeletePagetree, archivePagetree, SiteServiceInternal, PageService, PageServiceInternal, getPagetrees, migratePage, templateRegistry, systemContext
+  undeletePagetree, archivePagetree, SiteServiceInternal, PageService, PageServiceInternal, getPagetrees, migratePage, templateRegistry, systemContext,
+  type PagetreeStats, getPagetreeStats
 } from '../internal.js'
 
 const PagetreesByIdLoader = new PrimaryKeyLoader({
@@ -28,6 +29,13 @@ const PagetreesByTemplateIdLoader = new ManyJoinedLoader({
   idLoader: PagetreesByIdLoader
 })
 
+const PagetreeStatsLoader = new PrimaryKeyLoader({
+  fetch: async (pagetreeIds: string[]) => {
+    return await getPagetreeStats(pagetreeIds)
+  },
+  extractId: (item: PagetreeStats) => String(item.pagetreeId)
+})
+
 export class PagetreeServiceInternal extends BaseService {
   async find (filter?: PagetreeFilter) {
     const pagetrees = await getPagetrees(filter)
@@ -47,6 +55,10 @@ export class PagetreeServiceInternal extends BaseService {
 
   async findByTemplateId (templateId: string, direct?: boolean) {
     return await this.loaders.get(PagetreesByTemplateIdLoader, direct).load(templateId)
+  }
+
+  async getStats (pagetreeId: string) {
+    return await this.loaders.get(PagetreeStatsLoader).load(pagetreeId)
   }
 }
 

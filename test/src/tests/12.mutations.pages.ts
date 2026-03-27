@@ -487,6 +487,23 @@ describe('pages mutations', () => {
     expect(page.version.version === updatePage.page.version.version - 1)
     expect(page.data).to.not.deep.equal(updatePage.page.data)
   })
+  it('the last modified at time for a pagetree should be the modifiedAt time of the most recently updated page in that pagetree', async () => {
+    const { page } = await createPageReturnData('newestpage', testSite6PageRootId, 'keyp2')
+    const { updatePage } = await query<{ updatePage: { success: boolean, page: { data: any, modifiedAt: string } } }>(`
+      mutation updatePage ($pageId: ID!, $data: JsonData!, $dataVersion: Int!) {
+        updatePage (pageId: $pageId, data: $data, dataVersion: $dataVersion) {
+          success
+          page {
+            data
+            modifiedAt
+          }
+        }
+      }
+    `, { pageId: page.id, dataVersion: page.version.version, data: { ...page.data, areas: { content: [{ templateKey: 'keyc1', text: 'Link', link: '{ "type": "raw", "url": "http://www.apple.com" }' }] } } })
+    const modifiedAt = updatePage.page.modifiedAt
+    const { sites } = await query(`{ sites(filter: { ids: ["${testSite6Id}"] }) { id name pagetrees { modifiedAt } } }`)
+    expect(sites[0].pagetrees[0].modifiedAt).to.equal(modifiedAt)
+  })
   const createPageComponentQuery = `
     mutation createPageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $path: String!, $data: JsonData!, $isCopy: Boolean, $comment: String, $validateOnly: Boolean, $addToTop: Boolean) {
       createPageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, path: $path, data: $data, isCopy: $isCopy, comment: $comment, validateOnly: $validateOnly, addToTop: $addToTop) {

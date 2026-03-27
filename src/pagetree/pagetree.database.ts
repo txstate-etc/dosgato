@@ -208,3 +208,26 @@ export async function undeletePagetree (pagetreeId: string, user: User) {
     await createSiteComment(pagetree.siteId, `Restored pagetree ${pagetree.name}.`, user.internalId, db)
   })
 }
+
+export interface PagetreeStats {
+  pagetreeId: string
+  pageCount: number
+  publishedPageCount: number
+  modifiedAt: Date | null
+}
+
+export async function getPagetreeStats (pagetreeIds: string[]): Promise<PagetreeStats[]> {
+  const binds: any[] = []
+  return await db.getall<PagetreeStats>(`
+    SELECT p.pagetreeId,
+      COUNT(*) as pageCount,
+      SUM(CASE WHEN t.tag IS NOT NULL THEN 1 ELSE 0 END) as publishedPageCount,
+      MAX(s.modified) as modifiedAt
+    FROM pages p
+    INNER JOIN storage s ON s.id = p.dataId
+    LEFT JOIN tags t ON t.id = p.dataId AND t.tag = 'published'
+    WHERE p.pagetreeId IN (${db.in(binds, pagetreeIds)})
+    AND p.deleteState IN (0, 1)
+    GROUP BY p.pagetreeId
+  `, binds)
+}

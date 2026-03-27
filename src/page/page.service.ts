@@ -596,6 +596,7 @@ export class PageService extends DosGatoService<Page> {
   mayView (page: Page) {
     if (this.mayViewForEdit(page)) return true
     if (page.orphaned) return false // mayViewForEdit would have returned true if they could see orphaned page
+    if (this.mayViewForAudit(page)) return true
     return page.launchState !== LaunchState.DECOMMISSIONED && page.pagetreeType !== PagetreeType.ARCHIVE && page.deleteState === DeleteState.NOTDELETED
   }
 
@@ -619,6 +620,11 @@ export class PageService extends DosGatoService<Page> {
       if (PageRuleService.appliesToParentOfPath(pr, page.resolvedPathWithoutSitename)) return true
     }
     return false
+  }
+
+  mayViewForAudit (page: Page) {
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    return this.ctx.authInfo.ownedOrManagedSiteIds?.includes(page.siteId) || this.ctx.authInfo.pageSiteIds?.includes(page.siteId)
   }
 
   mayViewLatest (page: Page) {

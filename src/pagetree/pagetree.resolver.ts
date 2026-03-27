@@ -1,10 +1,11 @@
 import { PageData } from '@dosgato/templating'
 import { Context } from '@txstate-mws/graphql-server'
+import { DateTime } from 'luxon'
 import { unique } from 'txstate-utils'
-import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Query } from 'type-graphql'
+import { Resolver, Arg, Ctx, FieldResolver, Root, Mutation, ID, Int, Query } from 'type-graphql'
 import {
   Page, PageService, PageFilter, Role, Site, SiteService, Template, TemplateFilter, TemplateService,
-  Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, SiteRuleService,
+  Pagetree, PagetreePermission, PagetreePermissions, PagetreeResponse, PagetreeService, PagetreeServiceInternal, SiteRuleService,
   RoleService, JsonData, UrlSafeString, AssetFolder, AssetFolderService, PagetreeFilter, DeleteStateNoFinalizeRootDefault
 } from '../internal.js'
 
@@ -44,6 +45,24 @@ export class PagetreeResolver {
       ctx.svc(TemplateService).findBySiteId(pagetree.siteId, filter)
     ])
     return unique([...pagetreeTemplates, ...siteTemplates], 'key')
+  }
+
+  @FieldResolver(returns => DateTime, { nullable: true, description: 'The most recent modification date across all non-deleted pages in this pagetree.' })
+  async modifiedAt (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
+    const stats = await ctx.svc(PagetreeServiceInternal).getStats(pagetree.id)
+    return stats?.modifiedAt ? DateTime.fromJSDate(stats.modifiedAt) : null
+  }
+
+  @FieldResolver(returns => Int, { description: 'Total number of non-deleted pages in this pagetree.' })
+  async pageCount (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
+    const stats = await ctx.svc(PagetreeServiceInternal).getStats(pagetree.id)
+    return stats?.pageCount ?? 0
+  }
+
+  @FieldResolver(returns => Int, { description: 'Number of published, non-deleted pages in this pagetree.' })
+  async publishedPageCount (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
+    const stats = await ctx.svc(PagetreeServiceInternal).getStats(pagetree.id)
+    return stats?.publishedPageCount ?? 0
   }
 
   @FieldResolver(returns => [Role], { description: 'Returns a list of all roles with at least one of the specified permissions on this pagetree, or any permission if null.' })
@@ -125,5 +144,10 @@ export class PagetreePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may archive this pagetree. Returns false if pagetree is already archived.' })
   archive (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
     return ctx.svc(PagetreeService).mayArchive(pagetree)
+  }
+
+  @FieldResolver(returns => Boolean, { description: 'User has at least one applicable page rule for this pagetree, so they can see it in the page management UI.' })
+  viewPages (@Ctx() ctx: Context, @Root() pagetree: Pagetree) {
+    return ctx.svc(PagetreeService).mayView(pagetree)
   }
 }
