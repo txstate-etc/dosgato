@@ -1,7 +1,8 @@
-import { type LinkDefinition } from '@dosgato/templating'
+import { type LinkDefinition, extractLinksFromText } from '@dosgato/templating'
+import { load } from 'cheerio'
 import { doubleMetaphone } from 'double-metaphone'
 import { stemmer } from 'stemmer'
-import { ensureString, isNotNull } from 'txstate-utils'
+import { ensureString, isNotBlank, isNotNull } from 'txstate-utils'
 
 export function getHostname (urlString: string) {
   if (!urlString) return undefined
@@ -103,4 +104,37 @@ export function ngrams (word: string, n: number) {
     ret.push(word.substring(i, i + n))
   }
   return ret
+}
+
+export function extractFromHtml (html: string): { links: LinkDefinition[], texts: string[] } {
+  const $ = load(html)
+  const links: LinkDefinition[] = []
+  const texts: string[] = []
+
+  $('[href], [src]').each((_, el) => {
+    const value = $(el).attr('href') ?? $(el).attr('src')
+    if (!value) return
+    const extracted = extractLinksFromText(value)
+    if (extracted.length) {
+      links.push(...extracted)
+    } else {
+      const hostname = getHostname(value)
+      if (hostname) links.push({ type: 'url', url: value })
+    }
+  })
+
+  $('[alt]').each((_, el) => {
+    const alt = $(el).attr('alt')
+    if (isNotBlank(alt)) texts.push(alt)
+  })
+
+  $('[title]').each((_, el) => {
+    const title = $(el).attr('title')
+    if (isNotBlank(title)) texts.push(title)
+  })
+
+  const textContent = $.text()
+  if (isNotBlank(textContent)) texts.push(textContent)
+
+  return { links, texts }
 }

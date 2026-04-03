@@ -10,7 +10,7 @@ import {
   type DownloadsFilter, DownloadsResolution, type AssetFolderRow, DeleteState, processDeletedFilters,
   normalizePath, AssetServiceInternal, numerate, NameConflictError, templateRegistry, processLink,
   singleValueIndexesToIndexes, parseLinks, shiftPath, normalizeForSearch, splitWords, searchCodes,
-  ensureSearchCodes, ngrams
+  ensureSearchCodes, ngrams, extractFromHtml
 } from '../internal.js'
 import { extractLinksFromText } from '@dosgato/templating'
 
@@ -522,14 +522,21 @@ export async function compressDownloads () {
 }
 
 export function getFullTextForIndexing (data: any) {
-  return templateRegistry.serverConfig.assetMeta?.getFulltext?.(data)?.filter(isNotBlank) ?? []
+  const texts = templateRegistry.serverConfig.assetMeta?.getFulltext?.(data)?.filter(isNotBlank) ?? []
+  const htmlTexts = (templateRegistry.serverConfig.assetMeta?.getHtml?.(data) ?? []).filter(isNotBlank).flatMap(html => extractFromHtml(html).texts)
+  return [...texts, ...htmlTexts]
 }
 
 export function getIndexes (data: any) {
   const indexes = data.legacyId ? [{ name: 'legacyId', value: data.legacyId }] : []
-  const texts = getFullTextForIndexing(data)
+  const texts = templateRegistry.serverConfig.assetMeta?.getFulltext?.(data)?.filter(isNotBlank) ?? []
   const links = parseLinks(templateRegistry.serverConfig.assetMeta?.getLinks?.(data)).flatMap(processLink)
   const moreLinks = texts.flatMap(extractLinksFromText).flatMap(processLink)
+
+  const htmls = (templateRegistry.serverConfig.assetMeta?.getHtml?.(data) ?? []).filter(isNotBlank)
+  for (const html of htmls) {
+    moreLinks.push(...extractFromHtml(html).links.flatMap(processLink))
+  }
 
   return singleValueIndexesToIndexes(indexes.concat(links).concat(moreLinks))
 }

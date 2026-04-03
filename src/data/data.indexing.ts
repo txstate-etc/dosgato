@@ -1,27 +1,26 @@
 import { type DataData, extractLinksFromText } from '@dosgato/templating'
 import { isNotBlank } from 'txstate-utils'
-import { type Index, templateRegistry, processLink, getKeywords } from '../internal.js'
+import { type Index, templateRegistry, processLink, extractFromHtml, getFulltextNgrams, addIndexes } from '../internal.js'
 
 export function getDataIndexes (data: DataData): Index[] {
   const storage: Record<string, Set<string>> = {}
   storage.template = new Set([data.templateKey])
-  const indexes = templateRegistry.get(data.templateKey)?.getLinks(data).flatMap(processLink) ?? []
-  for (const index of indexes) {
-    storage[index.name] ??= new Set()
-    storage[index.name].add(index.value)
-  }
+  addIndexes(storage, templateRegistry.get(data.templateKey)?.getLinks(data).flatMap(processLink) ?? [])
 
   const tags = templateRegistry.get(data.templateKey)?.getTags?.(data)?.filter(isNotBlank) ?? []
   if (tags.length) storage.dg_tag = new Set(tags)
 
   const texts = (templateRegistry.get(data.templateKey).getFulltext?.(data) ?? []).filter(isNotBlank)
   storage.fulltext = new Set()
-  const moreLinks = texts.flatMap(extractLinksFromText).flatMap(processLink)
-  for (const index of moreLinks) {
-    storage[index.name] ??= new Set()
-    storage[index.name].add(index.value)
+  addIndexes(storage, texts.flatMap(extractLinksFromText).flatMap(processLink))
+  storage.fulltext = storage.fulltext.union(getFulltextNgrams(texts))
+
+  const htmls = (templateRegistry.get(data.templateKey).getHtml?.(data) ?? []).filter(isNotBlank)
+  for (const html of htmls) {
+    const { links: htmlLinks, texts: htmlTexts } = extractFromHtml(html)
+    addIndexes(storage, htmlLinks.flatMap(processLink))
+    storage.fulltext = storage.fulltext.union(getFulltextNgrams(htmlTexts))
   }
-  const words = texts.flatMap(t => getKeywords(t))
-  for (const word of words) storage.fulltext.add(word)
+
   return Object.keys(storage).map(k => ({ name: k, values: Array.from(storage[k]) }))
 }

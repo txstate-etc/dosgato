@@ -1,15 +1,11 @@
 import { type LinkDefinition, extractLinksFromText, type PageData } from '@dosgato/templating'
 import { isNotBlank, isNotNull } from 'txstate-utils'
-import { processLink, templateRegistry, type Index, type SingleValueIndex, collectReachableComponents } from '../internal.js'
+import { processLink, templateRegistry, type Index, type SingleValueIndex, collectReachableComponents, extractFromHtml } from '../internal.js'
 
 export function getPageIndexes (page: PageData): Index[] {
   const storage: Record<string, Set<string>> = {}
   const components = collectReachableComponents(page)
-  const indexes = components.flatMap(c => (templateRegistry.get(c.templateKey)?.getLinks(c)?.filter(isNotNull) ?? []).flatMap(processLink) ?? [])
-  for (const index of indexes) {
-    storage[index.name] ??= new Set()
-    storage[index.name].add(index.value)
-  }
+  addIndexes(storage, components.flatMap(c => (templateRegistry.get(c.templateKey)?.getLinks(c)?.filter(isNotNull) ?? []).flatMap(processLink) ?? []))
 
   const tags = components.flatMap(c => templateRegistry.get(c.templateKey)?.getTags?.(c)?.filter(isNotBlank) ?? [])
   if (tags.length) storage.dg_tag = new Set(tags)
@@ -19,22 +15,14 @@ export function getPageIndexes (page: PageData): Index[] {
   storage.fulltext = new Set()
   for (const component of components) {
     const texts = (templateRegistry.get(component.templateKey)?.getFulltext?.(component) ?? []).filter(isNotBlank)
-    const moreLinks = texts.flatMap(extractLinksFromText).flatMap(processLink)
-    for (const index of moreLinks) {
-      storage[index.name] ??= new Set()
-      storage[index.name].add(index.value)
-    }
+    addIndexes(storage, texts.flatMap(extractLinksFromText).flatMap(processLink))
+    storage.fulltext = storage.fulltext.union(getFulltextNgrams(texts))
 
-    for (const text of texts) {
-      for (const word of getKeywords(text)) {
-        if (word.length <= 4) {
-          storage.fulltext.add(word)
-        } else {
-          for (let i = 0; i < word.length - 4; i++) {
-            storage.fulltext.add(word.slice(i, i + 5))
-          }
-        }
-      }
+    const htmls = (templateRegistry.get(component.templateKey)?.getHtml?.(component) ?? []).filter(isNotBlank)
+    for (const html of htmls) {
+      const { links: htmlLinks, texts: htmlTexts } = extractFromHtml(html)
+      addIndexes(storage, htmlLinks.flatMap(processLink))
+      storage.fulltext = storage.fulltext.union(getFulltextNgrams(htmlTexts))
     }
   }
   return Object.keys(storage).map(k => ({ name: k, values: Array.from(storage[k]) }))
@@ -43,7 +31,8 @@ export function getPageIndexes (page: PageData): Index[] {
 export function getPageTexts (page: PageData): string[] {
   const components = collectReachableComponents(page)
   const texts = components.flatMap(c => templateRegistry.get(c.templateKey)?.getFulltext?.(c) ?? []).filter(isNotBlank)
-  return texts
+  const htmlTexts = components.flatMap(c => (templateRegistry.get(c.templateKey)?.getHtml?.(c) ?? []).filter(isNotBlank).flatMap(html => extractFromHtml(html).texts))
+  return [...texts, ...htmlTexts]
 }
 
 export function getPageLinks (page: PageData): LinkDefinition[] {
@@ -53,6 +42,9 @@ export function getPageLinks (page: PageData): LinkDefinition[] {
   for (const component of components) {
     const texts = (templateRegistry.get(component.templateKey)?.getFulltext?.(component) ?? []).filter(isNotBlank)
     links.push(...texts.flatMap(extractLinksFromText))
+
+    const htmls = (templateRegistry.get(component.templateKey)?.getHtml?.(component) ?? []).filter(isNotBlank)
+    links.push(...htmls.flatMap(html => extractFromHtml(html).links))
   }
   return links
 }
@@ -64,6 +56,29 @@ export function singleValueIndexesToIndexes (svIndexes: SingleValueIndex[]) {
     storage[index.name].add(index.value)
   }
   return Object.keys(storage).map(k => ({ name: k, values: Array.from(storage[k]) }))
+}
+
+export function getFulltextNgrams (texts: string[]) {
+  const set = new Set<string>()
+  for (const text of texts) {
+    for (const word of getKeywords(text)) {
+      if (word.length <= 4) {
+        set.add(word)
+      } else {
+        for (let i = 0; i < word.length - 4; i++) {
+          set.add(word.slice(i, i + 5))
+        }
+      }
+    }
+  }
+  return set
+}
+
+export function addIndexes (storage: Record<string, Set<string>>, indexes: SingleValueIndex[]) {
+  for (const index of indexes) {
+    storage[index.name] ??= new Set()
+    storage[index.name].add(index.value)
+  }
 }
 
 export function getKeywords (text?: string, options?: { stopwords?: boolean }) {

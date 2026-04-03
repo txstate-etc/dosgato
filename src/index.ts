@@ -47,6 +47,7 @@ export interface AssetMeta <DataType = any> {
   migrations?: Migration<any, { path: string }>[]
   getLinks?: LinkGatheringFn<DataType>
   getFulltext?: FulltextGatheringFn<DataType>
+  getHtml?: FulltextGatheringFn<DataType>
 }
 
 export interface DGUser {

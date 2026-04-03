@@ -349,4 +349,82 @@ describe('indexing', () => {
       expect(withoutSubstring.map((p: any) => p.id)).to.not.include(page.id)
     })
   })
+
+  describe('html indexing', () => {
+    it('should index text from HTML without markup', async () => {
+      const { page } = await createPage('idx-html-text', rootPageId, 'keyp1', {
+        title: 'HTML Text Test',
+        areas: {
+          main: [
+            { templateKey: 'richtext', title: 'RT Title', text: '<p>Phenomenology is <strong>fascinating</strong></p>' }
+          ]
+        }
+      })
+      const dataId = page.id
+      const values = await getIndexValues(dataId, page.version.version, 'fulltext')
+      // "phenomenology" -> 13 chars -> 5-grams
+      expect(values).to.include('pheno')
+      expect(values).to.include('henom')
+      expect(values).to.include('nolog')
+      expect(values).to.include('ology')
+      // "fascinating" -> 11 chars -> 5-grams
+      expect(values).to.include('fasci')
+      expect(values).to.include('natin')
+      // markup should NOT appear in the index
+      expect(values).to.not.include('stron')
+    })
+
+    it('should extract links from HTML href attributes', async () => {
+      const { page } = await createPage('idx-html-links', rootPageId, 'keyp1', {
+        title: 'HTML Links Test',
+        areas: {
+          main: [
+            { templateKey: 'richtext', title: 'RT Links', text: '<p>Visit <a href="https://example.com/page">our site</a></p>' }
+          ]
+        }
+      })
+      const dataId = page.id
+      const values = await getIndexValues(dataId, page.version.version, 'link_hostname')
+      expect(values).to.include('example.com')
+    })
+
+    it('should extract serialized LinkDefinitions from HTML attributes', async () => {
+      const linkDef = JSON.stringify({ type: 'page', siteId: 'site1', linkId: 'abc123', path: '/test' }).replace(/"/g, '&quot;')
+      const { page } = await createPage('idx-html-linkdef', rootPageId, 'keyp1', {
+        title: 'HTML LinkDef Test',
+        areas: {
+          main: [
+            { templateKey: 'richtext', title: 'RT LinkDef', text: `<p><a href="${linkDef}">link</a></p>` }
+          ]
+        }
+      })
+      const dataId = page.id
+      const values = await getIndexValues(dataId, page.version.version, 'link_page_linkId')
+      expect(values).to.include('abc123')
+    })
+
+    it('should index alt and title attributes as fulltext', async () => {
+      const { page } = await createPage('idx-html-attrs', rootPageId, 'keyp1', {
+        title: 'HTML Attrs Test',
+        areas: {
+          main: [
+            { templateKey: 'richtext', title: 'RT Attrs', text: '<img alt="Chrysanthemum" title="Beautiful flower">' }
+          ]
+        }
+      })
+      const dataId = page.id
+      const values = await getIndexValues(dataId, page.version.version, 'fulltext')
+      // "chrysanthemum" -> 13 chars -> 5-grams
+      expect(values).to.include('chrys')
+      expect(values).to.include('hrysa')
+      expect(values).to.include('hemum')
+      // "beautiful" -> 9 chars -> 5-grams
+      expect(values).to.include('beaut')
+      expect(values).to.include('autif')
+      expect(values).to.include('tiful')
+      // "flower" -> 6 chars -> 5-grams
+      expect(values).to.include('flowe')
+      expect(values).to.include('lower')
+    })
+  })
 })

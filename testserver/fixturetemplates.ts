@@ -132,7 +132,8 @@ export const RichTextComponent: APIComponentTemplate = {
   name: 'Rich Text',
   areas: {},
   migrations: [],
-  getFulltext: (data: any) => [data.title, data.text],
+  getFulltext: (data: any) => [data.title],
+  getHtml: (data: any) => [data.text],
   validate: async (data: any) => {
     const errors: ValidationFeedback[] = []
     if (isBlank(data.text)) errors.push({ message: 'Rich text is required.', path: 'text' })
