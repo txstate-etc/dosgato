@@ -25,6 +25,11 @@ async function main () {
     return userEvents
   })
 
+  server.app.delete('/userEvents', async (req, res) => {
+    userEvents.length = 0
+    return { success: true }
+  })
+
   await server.start({
     fixtures,
     userSearch: async (search: string) => {
