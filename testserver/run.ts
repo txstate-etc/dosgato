@@ -13,6 +13,18 @@ const userEvents: StoredUserEvent[] = []
 
 async function main () {
   const server = new DGServer()
+
+  server.app.post<{ Body: UserEvent }>('/userEvents', async (req, res) => {
+    const ctx = templateRegistry.getCtx(req)
+    const user = await getEnabledUser(ctx)
+    userEvents.push({ ...req.body, userId: user.id, timestamp: new Date().toISOString() })
+    return { success: true }
+  })
+
+  server.app.get('/userEvents', async (req, res) => {
+    return userEvents
+  })
+
   await server.start({
     fixtures,
     userSearch: async (search: string) => {
@@ -39,17 +51,6 @@ async function main () {
     assetMeta: {
       getFulltext: data => [data.meta?.title, data.meta?.description]
     }
-  })
-
-  server.app.post<{ Body: UserEvent }>('/userEvents', async (req, res) => {
-    const ctx = templateRegistry.getCtx(req)
-    const user = await getEnabledUser(ctx)
-    userEvents.push({ ...req.body, userId: user.id, timestamp: new Date().toISOString() })
-    return { success: true }
-  })
-
-  server.app.get('/userEvents', async (req, res) => {
-    return userEvents
   })
 }
 
