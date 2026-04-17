@@ -729,7 +729,7 @@ export class PageService extends DosGatoService<Page> {
 
   mayScheduleEdit (page: Page) {
     if (!this.checkPerm(page, 'publish', false)) return false
-    return page.pagetreeType === PagetreeType.ARCHIVE
+    return page.pagetreeType !== PagetreeType.ARCHIVE
   }
 
   /**
