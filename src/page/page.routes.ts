@@ -6,7 +6,7 @@ import { groupby, isNotBlank, pick } from 'txstate-utils'
 import {
   createPage, type CreatePageInput, createPagetree, createSite, DeleteState, getEnabledUser,
   getPageIndexes, GlobalRuleService, logMutation, makeSafe, numerate, Page, type PageRule,
-  PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, type PagetreeType,
+  PageRuleService, PageService, PageServiceInternal, PagetreeServiceInternal, PagetreeType,
   SiteService, SiteServiceInternal, templateRegistry, VersionedService, createPageInTransaction,
   getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput, migratePage,
   systemContext, type DGContext, LaunchState, setPageSearchCodes, removeUnreachableComponents,
@@ -70,6 +70,7 @@ interface RootPage {
     delete: boolean
     undelete: boolean
     unpublish: boolean
+    scheduleEdit: boolean
     schedulePublish: boolean
     scheduleUnpublish: boolean
   }
@@ -428,7 +429,7 @@ export async function createPageRoutes (app: FastifyInstance) {
       const applicableToPagetree = ctx.authInfo.pageRules.filter(r => PageRuleService.appliesToPagetree(r, page))
       const applicableRules = applicableToPagetree.filter(r => PageRuleService.appliesToPath(r, '/'))
       const applicableToChildRules = applicableToPagetree.filter(r => PageRuleService.appliesToChildOfPath(r, '/'))
-      const [create, update, mayDelete, move, publish, undelete, unpublish, viewForEdit, schedulePublish, scheduleUnpublish] = [
+      const [create, update, mayDelete, move, publish, undelete, unpublish, viewForEdit, scheduleEdit, schedulePublish, scheduleUnpublish] = [
         hasPerm(applicableRules, 'create'),
         hasPerm(applicableRules, 'update'),
         false,
@@ -437,8 +438,9 @@ export async function createPageRoutes (app: FastifyInstance) {
         false,
         hasPerm(applicableRules, 'unpublish') && !!p.published && !ctx.svc(PageService).opRestricted(page, 'unpublish'),
         hasPerm([...applicableRules, ...applicableToChildRules], 'viewForEdit'),
-        hasPerm(applicableRules, 'publish') && !scheduledByPageInternalId[page.internalId]?.some(s => s.action === ScheduledPublishAction.PUBLISH),
-        hasPerm(applicableRules, 'unpublish') && !scheduledByPageInternalId[page.internalId]?.some(s => s.action === ScheduledPublishAction.UNPUBLISH) && !ctx.svc(PageService).opRestricted(page, 'unpublish')
+        hasPerm(applicableRules, 'publish') && page.pagetreeType !== PagetreeType.ARCHIVE,
+        hasPerm(applicableRules, 'publish') && page.pagetreeType !== PagetreeType.ARCHIVE && !scheduledByPageInternalId[page.internalId]?.some(s => s.action === ScheduledPublishAction.PUBLISH),
+        hasPerm(applicableRules, 'unpublish') && page.pagetreeType !== PagetreeType.ARCHIVE && !scheduledByPageInternalId[page.internalId]?.some(s => s.action === ScheduledPublishAction.UNPUBLISH) && !ctx.svc(PageService).opRestricted(page, 'unpublish')
       ]
       if (viewForEdit) pagesToKeep.push(p)
       permsByPageInternalId[p.id] = {
@@ -450,6 +452,7 @@ export async function createPageRoutes (app: FastifyInstance) {
         undelete,
         unpublish,
         viewForEdit,
+        scheduleEdit,
         schedulePublish,
         scheduleUnpublish
       }

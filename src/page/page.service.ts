@@ -727,6 +727,11 @@ export class PageService extends DosGatoService<Page> {
     return !existing.some(s => s.action === ScheduledPublishAction.UNPUBLISH && s.status === ScheduledPublishStatus.PENDING && s.internalId !== excludeScheduleId)
   }
 
+  mayScheduleEdit (page: Page) {
+    if (!this.checkPerm(page, 'publish', false)) return false
+    return page.pagetreeType === PagetreeType.ARCHIVE
+  }
+
   /**
    * MUTATIONS
    */

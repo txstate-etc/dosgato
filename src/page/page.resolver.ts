@@ -452,6 +452,11 @@ export class PagePermissionsResolver {
   async scheduleUnpublish (@Ctx() ctx: Context, @Root() page: Page) {
     return await ctx.svc(PageService).mayScheduleUnpublish(page)
   }
+
+  @FieldResolver(returns => Boolean, { description: 'User may schedule a publish for this page, or edit an existing one.' })
+  async scheduleEdit (@Ctx() ctx: Context, @Root() page: Page) {
+    return ctx.svc(PageService).mayScheduleEdit(page)
+  }
 }
 
 @Resolver(of => PageInformation)

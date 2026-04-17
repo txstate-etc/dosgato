@@ -4,7 +4,8 @@ import { nanoid } from 'nanoid'
 import { unique, isNotBlank } from 'txstate-utils'
 import {
   Pagetree, type PagetreeFilter, PagetreeType, type VersionedService, type Site, createSiteComment, type User,
-  numerate, createVersionedPage, type CreatePageExtras, DeleteStateNoFinalizeDefault, DeleteStateInputNoFinalize, DeleteStateNoFinalizeAll, numerateBasedOnExisting, setPageSearchCodes
+  numerate, createVersionedPage, type CreatePageExtras, DeleteStateNoFinalizeDefault, DeleteStateInputNoFinalize, DeleteStateNoFinalizeAll, numerateBasedOnExisting, setPageSearchCodes,
+  ScheduledPublishStatus
 } from '../internal.js'
 
 export function processDeletedFiltersNoFinalize (filter: any, tableName: string, orphansJoins: Map<string, string>, excludeOrphansClause: string, onlyOrphansClause: string) {
@@ -172,6 +173,8 @@ export async function promotePagetree (oldPrimaryId: string, newPrimaryId: strin
     await db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [newPrimaryPagetree.id, newPrimaryPagetree.siteId])
     await db.update('UPDATE assetfolders SET name = ? WHERE pagetreeId = ? AND path = "/"', [pagetreeName, oldPrimaryId])
     await db.update('UPDATE assetfolders SET name = ? WHERE pagetreeId = ? AND path = "/"', [site.name, newPrimaryId])
+    await db.update(`UPDATE scheduledpublishes sp INNER JOIN pages p ON p.id=sp.pageInternalId SET sp.status = ? WHERE sp.status = ? AND p.pagetreeId = ?`, [ScheduledPublishStatus.CANCELLED, ScheduledPublishStatus.PENDING, oldPrimaryId])
+
     await createSiteComment(site.id, `Promoted pagetree ${newPrimaryPagetree.name} to primary.`, user.internalId, db)
     await createSiteComment(site.id, `Created new archive ${pagetreeName}.`, user.internalId, db)
   })
