@@ -6,7 +6,7 @@ import {
   ScheduledPublishAction, ScheduledPublishRecurrence, ScheduledPublishResponse, type CreateScheduledPublishInput,
   type UpdateScheduledPublishInput, PageServiceInternal, PageService,
   getScheduledPublishes, countScheduledPublishes, createScheduledPublish, updateScheduledPublish,
-  updateScheduledPublishStatus
+  updateScheduledPublishStatus, userContext
 } from '../internal.js'
 
 const scheduledPublishByIdLoader = new PrimaryKeyLoader({
@@ -159,6 +159,18 @@ export class ScheduledPublishService extends DosGatoService<ScheduledPublish> {
 
   async mayCancel (schedule: ScheduledPublish) {
     return await this.mayEdit(schedule)
+  }
+
+  async actionNotPermitted (schedule: ScheduledPublish) {
+    if (schedule.status !== ScheduledPublishStatus.PENDING) return false
+    const page = schedule.page ?? await this.svc(PageServiceInternal).findByInternalId(schedule.pageInternalId)
+    if (!page) return false
+    const ctx = await userContext(schedule.updatedBy)
+    if (schedule.action === ScheduledPublishAction.UNPUBLISH) {
+      return await ctx.svc(PageService).mayUnpublish(page)
+    } else {
+      return await ctx.svc(PageService).mayPublish(page)
+    }
   }
 }
 

@@ -56,6 +56,11 @@ export class ScheduledPublishResolver {
     return await ctx.svc(UserService).findById(schedule.updatedBy)
   }
 
+  @FieldResolver(returns => Boolean, { description: 'Returns true if the updatedBy user no longer has permission. Always false for non-pending schedules.' })
+  async actionNotPermitted (@Ctx() ctx: Context, @Root() schedule: ScheduledPublish) {
+    return await ctx.svc(ScheduledPublishService).actionNotPermitted(schedule)
+  }
+
   @FieldResolver(returns => ScheduledPublishPermissions, {
     description: 'Reveal the simplified results after all authorization rules are taken into account for the current user.'
   })
