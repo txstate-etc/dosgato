@@ -1,6 +1,6 @@
 import db from 'mysql2-async/db'
 import { type Queryable } from 'mysql2-async'
-import { ScheduledPublish, ScheduledPublishAction, type ScheduledPublishFilter, type ScheduledPublishRecurrence, ScheduledPublishStatus } from '../internal.js'
+import { ScheduledPublish, ScheduledPublishAction, type ScheduledPublishFilter, type ScheduledPublishRecurrence, ScheduledPublishStatus, type PaginationResponse } from '../internal.js'
 
 export interface ScheduledPublishRow {
   id: number
@@ -52,6 +52,14 @@ function processFilters (filter?: ScheduledPublishFilter) {
     binds.push(filter.targetDateAfter.toUTC().toSQL()!)
     where.push('sp.targetDate > ?')
   }
+  if (filter?.updatedBefore) {
+    binds.push(filter.updatedBefore.toUTC().toSQL()!)
+    where.push('sp.updatedAt < ?')
+  }
+  if (filter?.updatedAfter) {
+    binds.push(filter.updatedAfter.toUTC().toSQL()!)
+    where.push('sp.updatedAt > ?')
+  }
   if (filter?.immediate === true) {
     where.push('sp.targetDate = sp.createdAt')
   } else if (filter?.immediate === false) {
@@ -61,13 +69,26 @@ function processFilters (filter?: ScheduledPublishFilter) {
   return { binds, where, joins }
 }
 
-export async function getScheduledPublishes (filter?: ScheduledPublishFilter, tdb: Queryable = db) {
+export async function getScheduledPublishes (filter?: ScheduledPublishFilter, tdb: Queryable = db, pageInfo?: PaginationResponse) {
   const { binds, where, joins } = processFilters(filter)
+  let limit = ''
+  if (pageInfo) {
+    const offset = (pageInfo.page - 1) * pageInfo.perPage
+    limit = `LIMIT ${pageInfo.perPage} OFFSET ${offset}`
+    const totalCount = await tdb.getval<number>(`
+      SELECT COUNT(*) FROM scheduledpublishes sp
+      INNER JOIN pages ON pages.id = sp.pageInternalId
+      ${[...joins.values()].join('\n')}
+      WHERE (${where.join(') AND (')})
+    `, binds)
+    pageInfo.finalPage = Math.ceil(totalCount! / pageInfo.perPage)
+  }
   const query = `SELECT sp.*, pages.dataId AS pageDataId FROM scheduledpublishes sp
     INNER JOIN pages ON pages.id = sp.pageInternalId
     ${[...joins.values()].join('\n')}
     WHERE (${where.join(') AND (')})
-    ORDER BY sp.targetDate ASC`
+    ORDER BY (sp.status = 'PENDING') DESC, sp.targetDate DESC, sp.id DESC
+    ${limit}`
   const rows = await tdb.getall(query, binds)
   return rows.map((row: ScheduledPublishRow) => new ScheduledPublish(row))
 }

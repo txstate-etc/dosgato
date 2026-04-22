@@ -1,6 +1,7 @@
 export * from './scalars/index.js'
 export * from './versionedservice/types.js'
 
+export * from './pagination/pagination.model.js'
 export * from './page/page.model.js'
 export * from './role/role.model.js'
 export * from './access/access.model.js'
@@ -107,6 +108,7 @@ export * from './templaterule/templaterule.resolver.js'
 export * from './user/user.resolver.js'
 export * from './version/version.resolver.js'
 export * from './tag/tag.resolver.js'
+export * from './pagination/pagination.resolver.js'
 export * from './scheduledpublish/scheduledpublish.resolver.js'
 export * from './scheduledpublish/scheduledpublish.cron.js'
 

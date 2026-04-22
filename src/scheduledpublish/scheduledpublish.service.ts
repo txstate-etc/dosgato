@@ -4,7 +4,7 @@ import { DateTime } from 'luxon'
 import {
   DosGatoService, type ScheduledPublishFilter, type ScheduledPublish, ScheduledPublishStatus,
   ScheduledPublishAction, ScheduledPublishRecurrence, ScheduledPublishResponse, type CreateScheduledPublishInput,
-  type UpdateScheduledPublishInput, PageServiceInternal, PageService,
+  type UpdateScheduledPublishInput, PageServiceInternal, PageService, type PaginationResponse,
   getScheduledPublishes, countScheduledPublishes, createScheduledPublish, updateScheduledPublish,
   updateScheduledPublishStatus, userContext
 } from '../internal.js'
@@ -25,8 +25,8 @@ const scheduledPublishByPageInternalIdLoader = new OneToManyLoader({
 })
 
 export class ScheduledPublishServiceInternal extends BaseService {
-  async find (filter?: ScheduledPublishFilter) {
-    const schedules = await getScheduledPublishes(filter)
+  async find (filter?: ScheduledPublishFilter, pageInfo?: PaginationResponse) {
+    const schedules = await getScheduledPublishes(filter, undefined, pageInfo)
     for (const sp of schedules) {
       this.loaders.get(scheduledPublishByIdLoader).prime(sp.internalId, sp)
     }
@@ -49,8 +49,8 @@ export class ScheduledPublishServiceInternal extends BaseService {
 export class ScheduledPublishService extends DosGatoService<ScheduledPublish> {
   raw = this.svc(ScheduledPublishServiceInternal)
 
-  async find (filter?: ScheduledPublishFilter) {
-    const schedules = await this.raw.find(filter)
+  async find (filter?: ScheduledPublishFilter, pageInfo?: PaginationResponse) {
+    const schedules = await this.raw.find(filter, pageInfo)
     await this.loadPages(schedules)
     return this.removeUnauthorized(schedules)
   }

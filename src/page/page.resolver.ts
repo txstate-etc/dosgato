@@ -8,7 +8,7 @@ import {
   Page, PageFilter, PagePermission, PagePermissions, PageResponse, PagesResponse, PageService, RoleService,
   TemplateService, UrlSafeString, DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal,
   SchemaVersionScalar, SiteServiceInternal, VersionFilter, UserTag, TagService, getPageLinks, Asset,
-  AssetFilter, AssetFolderFilter, PaginationResponse, PageInformation, DGContext,
+  AssetFilter, AssetFolderFilter, DGContext,
   Pagination, ScheduledPublish, ScheduledPublishFilter, ScheduledPublishService
 } from '../internal.js'
 
@@ -456,18 +456,5 @@ export class PagePermissionsResolver {
   @FieldResolver(returns => Boolean, { description: 'User may schedule a publish for this page, or edit an existing one.' })
   async scheduleEdit (@Ctx() ctx: Context, @Root() page: Page) {
     return ctx.svc(PageService).mayScheduleEdit(page)
-  }
-}
-
-@Resolver(of => PageInformation)
-export class PageInformationResolver {
-  @Query(returns => PageInformation)
-  pageInfo (@Ctx() ctx: Context) {
-    return new PageInformation()
-  }
-
-  @FieldResolver(returns => PaginationResponse)
-  async pages (@Ctx() ctx: DGContext) {
-    return await ctx.getPaginationInfo('pages')
   }
 }

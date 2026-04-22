@@ -151,6 +151,12 @@ export class ScheduledPublishFilter {
   @Field({ nullable: true, description: 'Return schedules with target date after this date.' })
   targetDateAfter?: DateTime
 
+  @Field({ nullable: true, description: 'Return schedules updated before this date.' })
+  updatedBefore?: DateTime
+
+  @Field({ nullable: true, description: 'Return schedules updated after this date.' })
+  updatedAfter?: DateTime
+
   @Field(type => Boolean, { nullable: true, description: 'Filter by immediate vs scheduled. null returns all, true returns only immediate publishes, false returns only scheduled publishes.' })
   immediate?: boolean
 }
