@@ -52,6 +52,11 @@ function processFilters (filter?: ScheduledPublishFilter) {
     binds.push(filter.targetDateAfter.toUTC().toSQL()!)
     where.push('sp.targetDate > ?')
   }
+  if (filter?.immediate === true) {
+    where.push('sp.targetDate = sp.createdAt')
+  } else if (filter?.immediate === false) {
+    where.push('sp.targetDate != sp.createdAt')
+  }
 
   return { binds, where, joins }
 }
@@ -118,6 +123,16 @@ export async function cancelActiveSchedulesForPages (pageInternalIds: number[], 
   const binds: (string | number)[] = [ScheduledPublishStatus.CANCELLED, ScheduledPublishStatus.PENDING]
   await tdb.update(
     `UPDATE scheduledpublishes SET status = ? WHERE status = ? AND pageInternalId IN (${db.in(binds, pageInternalIds)})`,
+    binds
+  )
+}
+
+export async function logImmediatePublish (pageInternalIds: number[], action: ScheduledPublishAction, userId: string, tdb: Queryable = db) {
+  if (!pageInternalIds.length) return
+  const values = pageInternalIds.map(() => '(?, ?, NOW(), ?, NOW(), ?, NOW(), ?)').join(', ')
+  const binds = pageInternalIds.flatMap(id => [id, action, ScheduledPublishStatus.COMPLETED, userId, userId])
+  await tdb.execute(
+    `INSERT INTO scheduledpublishes (pageInternalId, action, targetDate, status, createdAt, createdBy, updatedAt, updatedBy) VALUES ${values}`,
     binds
   )
 }

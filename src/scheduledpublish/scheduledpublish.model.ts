@@ -96,6 +96,9 @@ export class ScheduledPublish {
   @Field({ nullable: true, description: 'Error message recorded when the scheduled action failed.' })
   error?: string
 
+  @Field({ description: 'True when this entry represents an immediate publish/unpublish rather than one that was scheduled in advance.' })
+  immediate: boolean
+
   @Field()
   createdAt: DateTime
 
@@ -116,6 +119,7 @@ export class ScheduledPublish {
     this.status = row.status as ScheduledPublishStatus
     this.recurrence = row.recur ? new ScheduledPublishRecurrenceInfo(row.recur, row.recurInterval ?? 1, row.timezone ?? 'America/Chicago') : undefined
     this.error = row.error ?? undefined
+    this.immediate = row.targetDate.getTime() === row.createdAt.getTime()
     this.createdAt = DateTime.fromJSDate(row.createdAt)
     this.createdBy = row.createdBy
     this.updatedAt = DateTime.fromJSDate(row.updatedAt)
@@ -146,6 +150,9 @@ export class ScheduledPublishFilter {
 
   @Field({ nullable: true, description: 'Return schedules with target date after this date.' })
   targetDateAfter?: DateTime
+
+  @Field(type => Boolean, { nullable: true, description: 'Filter by immediate vs scheduled. null returns all, true returns only immediate publishes, false returns only scheduled publishes.' })
+  immediate?: boolean
 }
 
 @InputType({ description: 'Recurrence configuration input.' })

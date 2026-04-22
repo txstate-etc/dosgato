@@ -17,7 +17,7 @@ import {
   PaginationResponse, type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
   removeUnreachableComponents, getPageTagsByTagIds, TagServiceInternal, type AssetFilter, AssetService,
   type AssetFolderFilter, getPageTexts, ScheduledPublishServiceInternal, ScheduledPublishAction, ScheduledPublishStatus,
-  type DGContext, getKeywords, setPageIndexed
+  logImmediatePublish, type DGContext, getKeywords, setPageIndexed
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -1280,10 +1280,11 @@ export class PageService extends DosGatoService<Page> {
   }
 
   async publishPages (dataIds: string[], includeChildren?: boolean) {
-    let pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    const rootPages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
+    let pages = rootPages
     if (includeChildren) {
-      const children = (await Promise.all(pages.map(async (page) => await this.getPageChildren(page, true)))).flat().filter(c => c.deleteState === DeleteState.NOTDELETED)
-      pages = [...pages, ...children]
+      const children = (await Promise.all(rootPages.map(async (page) => await this.getPageChildren(page, true)))).flat().filter(c => c.deleteState === DeleteState.NOTDELETED)
+      pages = [...rootPages, ...children]
     }
     if (await someAsync(pages, async (page: Page) => !(await this.mayPublish(page, true)))) {
       throw new Error('Current user is not permitted to publish one or more pages')
@@ -1297,6 +1298,7 @@ export class PageService extends DosGatoService<Page> {
         for (const pageBatch of batch(pages, 100)) {
           await db.update(`UPDATE pages SET pubIndexedAt=indexedAt WHERE dataId IN (${db.in([], pageBatch.map(p => p.dataId))})`, pageBatch.map(p => p.dataId))
         }
+        await logImmediatePublish(rootPages.map(p => p.internalId), includeChildren ? ScheduledPublishAction.PUBLISH_WITH_SUBPAGES : ScheduledPublishAction.PUBLISH, this.login, db)
       })
       // published tag always points to latest, so only that version's indexes are needed
       await Promise.all(pages.map(async p => {
@@ -1322,8 +1324,10 @@ export class PageService extends DosGatoService<Page> {
     if (await someAsync(mayUnpublishPromises, async promise => !await promise)) {
       throw new Error('Current user is not permitted to unpublish one or more pages.')
     }
+    const allUnpublished = [...actualParents, ...children]
     await db.transaction(async db => {
-      await this.svc(VersionedService).removeTags([...actualParents, ...children].map(p => p.intDataId), ['published'], db)
+      await this.svc(VersionedService).removeTags(allUnpublished.map(p => p.intDataId), ['published'], db)
+      await logImmediatePublish(actualParents.map(p => p.internalId), ScheduledPublishAction.UNPUBLISH, this.login, db)
     })
     this.loaders.clear()
     await Promise.all(pages.map(async page => { await fireEvent({ type: 'unpublish', page }) }))
