@@ -91,7 +91,7 @@ const authCache = new Cache(async (login: string, ctx: DGContext) => {
     fetchGroups(login, ctx),
     fetchUser(login)
   ])
-  if (!user || user.disabled) return { roles: [], pageRules: [], assetRules: [], siteRules: [], dataRules: [], globalGrants: { manageAccess: false, manageParentRoles: false, createSites: false, manageGlobalData: false, manageTemplates: false }, templateRules: [], groupsById: {}, user, pageSiteIds: [], ownedOrManagedSiteIds: []}
+  if ((!user || user.disabled) && !['anonymous', 'render'].includes(login)) return { roles: [], pageRules: [], assetRules: [], siteRules: [], dataRules: [], globalGrants: { manageAccess: false, manageParentRoles: false, createSites: false, manageGlobalData: false, manageTemplates: false }, templateRules: [], groupsById: {}, user, pageSiteIds: [], ownedOrManagedSiteIds: []}
   const pageSiteIds = pageRules.some(r => r.grants.viewForEdit && r.siteId == null) ? undefined : pageRules.map(r => r.siteId).filter(isNotNull)
   const ownedOrManagedSiteIds = user ? await fetchSitesOwnedOrManaged(user.internalId, ctx) : []
   return { roles, pageRules, assetRules, siteRules, dataRules, globalGrants, templateRules, groupsById, user, pageSiteIds, ownedOrManagedSiteIds } as AuthInfo
