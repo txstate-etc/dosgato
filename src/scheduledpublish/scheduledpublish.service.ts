@@ -167,9 +167,9 @@ export class ScheduledPublishService extends DosGatoService<ScheduledPublish> {
     if (!page) return false
     const ctx = await userContext(schedule.updatedBy)
     if (schedule.action === ScheduledPublishAction.UNPUBLISH) {
-      return await ctx.svc(PageService).mayUnpublish(page)
+      return !(await ctx.svc(PageService).checkPerm(page, 'unpublish', false))
     } else {
-      return await ctx.svc(PageService).mayPublish(page)
+      return !(await ctx.svc(PageService).checkPerm(page, 'unpublish', false))
     }
   }
 }

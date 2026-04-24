@@ -10,7 +10,7 @@ import { VersionedService, type Index, setAssetSearchCodes, setPageSearchCodes }
 
 export async function fixtures () {
   console.info('running fixtures()')
-  const [su01, su02, su03, ed01, ed02, ed03, ed04, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18, service1, dbOwner, dbManager1, dbManager2, dbEditor1, dbEditor2, dbContributor1, dbContributor2, dbReadonly1, dbReadonly2] = await Promise.all([
+  const [su01, su02, su03, ed01, ed02, ed03, ed04, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18, ed19, service1, dbOwner, dbManager1, dbManager2, dbEditor1, dbEditor2, dbContributor1, dbContributor2, dbReadonly1, dbReadonly2] = await Promise.all([
     db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("su01", "Michael", "Scott", "su01@example.com", null, null, null)'),
     db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("su02", "Elizabeth", "Bennet", "su02@example.com", null, null, null)'),
     db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("su03", "Marge", "Simpson", "su03@example.com", "2021-09-01 12:43:00", "2021-09-01 16:28:00", null)'),
@@ -32,6 +32,7 @@ export async function fixtures () {
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("ed16", "Test", "SiteRoles", "ed16@example.com")'),
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("ed17", "Test", "PageRoles1", "ed17@example.com")'),
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("ed18", "Test", "PageRoles2", "ed18@example.com")'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("ed19", "Disabled", "PageRoles", "ed19@example.com", null, null, "2021-08-22 15:02:00")'),
     db.insert('INSERT INTO users (login, lastname, email, `system`) VALUES ("service1", "ServiceAccount1", "sa1@example.com", true)'),
     // dashboard users
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_owner", "Indiana", "Jones", "dashboard1@example.com")'),
@@ -47,7 +48,7 @@ export async function fixtures () {
 
   const basicId = await db.getval('SELECT MIN(id) FROM trainings')
   const binds: any[] = []
-  await db.insert(`INSERT INTO users_trainings (userId, trainingId) VALUES ${db.in(binds, [su01, su02, su03, ed01, ed02, ed03, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18].map(lgn => [lgn, basicId]))}`, binds)
+  await db.insert(`INSERT INTO users_trainings (userId, trainingId) VALUES ${db.in(binds, [su01, su02, su03, ed01, ed02, ed03, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18, ed19].map(lgn => [lgn, basicId]))}`, binds)
 
   const [group1, group2, group3, group4, group5, group6, group7] = await Promise.all([
     db.insert('INSERT INTO `groups` (name) VALUES ("group1")'),
@@ -261,6 +262,7 @@ export async function fixtures () {
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed09, siterolestest2]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed17, pagerolestest1]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed18, pagerolestest2]),
+    db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [ed19, pagerolestest1]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [dbEditor1, dashboardEditor]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [dbEditor2, dashboardEditor]),
     db.insert('INSERT INTO users_roles (userId, roleId) VALUES (?,?)', [dbContributor1, dashboardContributor1]),

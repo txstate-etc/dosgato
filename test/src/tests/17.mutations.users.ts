@@ -63,6 +63,16 @@ describe('users mutations', () => {
   it('should not allow an unauthorized user to disable a user', async () => {
     await expect(queryAs('ed07', 'mutation DisableUsers ($ids: [ID!]!) { disableUsers(userIds: $ids) { success users { id firstname lastname } } }', { ids: ['su01'] })).to.be.rejected
   })
+  it('should prevent a disabled user from seeing pages their role would grant access to', async () => {
+    // ed19 is disabled but has pagerolestest1 (same role as ed17 which grants page access to site7)
+    // verify ed17 (enabled) can see site7
+    const { pages: enabledPages } = await queryAs('ed17', '{ pages(filter: { viewForEdit: true }) { id name } }')
+    expect(enabledPages).to.have.lengthOf(1)
+    expect(enabledPages[0].name).to.equal('site7')
+
+    // ed19 (disabled) should get a 403 despite having the same role
+    await expect(queryAs('ed19', '{ pages(filter: { viewForEdit: true }) { id name } }')).to.be.rejected
+  })
   it('should set the trainings for a user', async () => {
     const { updateUser: { success, user } } = await query('mutation UpdateUser ($id: ID!, $input: UpdateUserInput!) { updateUser (userId: $id, args: $input) { success user { id firstname lastname trainings { id name } } } }', { id: 'ed04', input: { firstname: 'Katniss', lastname: 'Everdeen', email: 'ed04@example.com', trainings: ['1'] } })
     expect(success).to.be.true
