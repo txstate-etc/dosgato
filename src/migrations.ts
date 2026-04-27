@@ -274,6 +274,12 @@ const dgMigrations: DBMigration[] = [
       `)
       await db.insert('INSERT INTO settings (`name`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)', ['pageReindexTarget', new Date().toISOString()])
     }
+  }, {
+    id: 20260427100000,
+    description: 'add descendant flag to scheduledpublishes to distinguish root entries from descendants caught up in a publish-with-subpages or unpublish action',
+    run: async db => {
+      await db.execute('ALTER TABLE scheduledpublishes ADD COLUMN descendant TINYINT(1) NOT NULL DEFAULT 0')
+    }
   }
 ]
 

@@ -14,6 +14,7 @@ export interface ScheduledPublishRow {
   recurInterval: number | null
   timezone: string | null
   error: string | null
+  descendant: number
   createdAt: Date
   createdBy: string
   updatedAt: Date
@@ -148,12 +149,28 @@ export async function cancelActiveSchedulesForPages (pageInternalIds: number[], 
   )
 }
 
-export async function logImmediatePublish (pageInternalIds: number[], action: ScheduledPublishAction, userId: string, tdb: Queryable = db) {
-  if (!pageInternalIds.length) return
-  const values = pageInternalIds.map(() => '(?, ?, NOW(), ?, NOW(), ?, NOW(), ?)').join(', ')
-  const binds = pageInternalIds.flatMap(id => [id, action, ScheduledPublishStatus.COMPLETED, userId, userId])
+export async function logImmediatePublish (rootIds: number[], descendantIds: number[], action: ScheduledPublishAction, userId: string, tdb: Queryable = db) {
+  if (!rootIds.length && !descendantIds.length) return
+  const binds: any[] = [action, ScheduledPublishStatus.COMPLETED]
+  const descendantClause = descendantIds.length ? `id IN (${db.in(binds, descendantIds)})` : '0'
+  binds.push(userId, userId)
   await tdb.execute(
-    `INSERT INTO scheduledpublishes (pageInternalId, action, targetDate, status, createdAt, createdBy, updatedAt, updatedBy) VALUES ${values}`,
+    `INSERT INTO scheduledpublishes (pageInternalId, action, targetDate, status, descendant, createdAt, createdBy, updatedAt, updatedBy)
+     SELECT id, ?, NOW(), ?, ${descendantClause}, NOW(), ?, NOW(), ? FROM pages WHERE id IN (${db.in(binds, [...rootIds, ...descendantIds])})`,
+    binds
+  )
+}
+
+export async function logBackdatedDescendants (pageInternalIds: number[], parentSchedule: ScheduledPublish, tdb: Queryable = db) {
+  if (!pageInternalIds.length) return
+  const binds: any[] = [
+    parentSchedule.action, parentSchedule.targetDate.toJSDate(), ScheduledPublishStatus.COMPLETED,
+    parentSchedule.createdAt.toJSDate(), parentSchedule.createdBy,
+    parentSchedule.updatedAt.toJSDate(), parentSchedule.updatedBy
+  ]
+  await tdb.execute(
+    `INSERT INTO scheduledpublishes (pageInternalId, action, targetDate, status, descendant, createdAt, createdBy, updatedAt, updatedBy)
+     SELECT id, ?, ?, ?, 1, ?, ?, ?, ? FROM pages WHERE id IN (${db.in(binds, pageInternalIds)})`,
     binds
   )
 }

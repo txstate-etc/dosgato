@@ -99,6 +99,9 @@ export class ScheduledPublish {
   @Field({ description: 'True when this entry represents an immediate publish/unpublish rather than one that was scheduled in advance.' })
   immediate: boolean
 
+  @Field({ description: 'True when this entry is for a descendant page that was caught up in a publish-with-subpages or unpublish action targeting an ancestor.' })
+  descendant: boolean
+
   @Field()
   createdAt: DateTime
 
@@ -120,6 +123,7 @@ export class ScheduledPublish {
     this.recurrence = row.recur ? new ScheduledPublishRecurrenceInfo(row.recur, row.recurInterval ?? 1, row.timezone ?? 'America/Chicago') : undefined
     this.error = row.error ?? undefined
     this.immediate = row.targetDate.getTime() === row.createdAt.getTime()
+    this.descendant = !!row.descendant
     this.createdAt = DateTime.fromJSDate(row.createdAt)
     this.createdBy = row.createdBy
     this.updatedAt = DateTime.fromJSDate(row.updatedAt)

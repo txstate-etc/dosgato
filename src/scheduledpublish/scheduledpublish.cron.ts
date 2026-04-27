@@ -16,9 +16,9 @@ export async function executeScheduledPublishes () {
     try {
       const ctx = await userContext(schedule.updatedBy)
       if (schedule.action === ScheduledPublishAction.UNPUBLISH) {
-        await ctx.svc(PageService).unpublishPages([schedule.pageDataId])
+        await ctx.svc(PageService).unpublishPages([schedule.pageDataId], schedule)
       } else {
-        await ctx.svc(PageService).publishPages([schedule.pageDataId], schedule.action === ScheduledPublishAction.PUBLISH_WITH_SUBPAGES)
+        await ctx.svc(PageService).publishPages([schedule.pageDataId], schedule.action === ScheduledPublishAction.PUBLISH_WITH_SUBPAGES, schedule)
       }
       await updateScheduledPublishStatus(schedule.internalId, ScheduledPublishStatus.COMPLETED)
     } catch (err: any) {

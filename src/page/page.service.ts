@@ -17,7 +17,7 @@ import {
   PaginationResponse, type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
   removeUnreachableComponents, getPageTagsByTagIds, TagServiceInternal, type AssetFilter, AssetService,
   type AssetFolderFilter, getPageTexts, ScheduledPublishServiceInternal, ScheduledPublishAction, ScheduledPublishStatus,
-  logImmediatePublish, type DGContext, getKeywords, setPageIndexed
+  type ScheduledPublish, logImmediatePublish, logBackdatedDescendants, type DGContext, getKeywords, setPageIndexed
 } from '../internal.js'
 
 const pagesByInternalIdLoader = new PrimaryKeyLoader({
@@ -1279,17 +1279,19 @@ export class PageService extends DosGatoService<Page> {
     return new PagesResponse({ success: true, pages: restored })
   }
 
-  async publishPages (dataIds: string[], includeChildren?: boolean) {
+  async publishPages (dataIds: string[], includeChildren?: boolean, parentSchedule?: ScheduledPublish) {
     const rootPages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    let pages = rootPages
+    let children: Page[] = []
     if (includeChildren) {
-      const children = (await Promise.all(rootPages.map(async (page) => await this.getPageChildren(page, true)))).flat().filter(c => c.deleteState === DeleteState.NOTDELETED)
-      pages = [...rootPages, ...children]
+      children = (await Promise.all(rootPages.map(async (page) => await this.getPageChildren(page, true)))).flat().filter(c => c.deleteState === DeleteState.NOTDELETED)
     }
-    if (await someAsync(pages, async (page: Page) => !(await this.mayPublish(page, true)))) {
+    const allPages = [...rootPages, ...children]
+    if (await someAsync(allPages, async (page: Page) => !(await this.mayPublish(page, true)))) {
       throw new Error('Current user is not permitted to publish one or more pages')
     }
-    pages = pages.filter(p => !p.deleted)
+    const liveRoots = rootPages.filter(p => !p.deleted)
+    const pages = [...liveRoots, ...children]
+    const action = includeChildren ? ScheduledPublishAction.PUBLISH_WITH_SUBPAGES : ScheduledPublishAction.PUBLISH
     try {
       await db.transaction(async db => {
         for (const p of pages) {
@@ -1298,7 +1300,9 @@ export class PageService extends DosGatoService<Page> {
         for (const pageBatch of batch(pages, 100)) {
           await db.update(`UPDATE pages SET pubIndexedAt=indexedAt WHERE dataId IN (${db.in([], pageBatch.map(p => p.dataId))})`, pageBatch.map(p => p.dataId))
         }
-        await logImmediatePublish(rootPages.map(p => p.internalId), includeChildren ? ScheduledPublishAction.PUBLISH_WITH_SUBPAGES : ScheduledPublishAction.PUBLISH, this.login, db)
+        // when called by the scheduled-publish cron, the parent's row already exists (it's the schedule itself), so we only insert backdated rows for the descendants
+        if (parentSchedule) await logBackdatedDescendants(children.map(p => p.internalId), parentSchedule, db)
+        else await logImmediatePublish(liveRoots.map(p => p.internalId), children.map(p => p.internalId), action, this.login, db)
       })
       // published tag always points to latest, so only that version's indexes are needed
       await Promise.all(pages.map(async p => {
@@ -1313,7 +1317,7 @@ export class PageService extends DosGatoService<Page> {
     }
   }
 
-  async unpublishPages (dataIds: string[]) {
+  async unpublishPages (dataIds: string[], parentSchedule?: ScheduledPublish) {
     const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     const children = (await Promise.all(pages.flatMap(async (page) => await this.getPageChildren(page, true)))).flat()
     const childrenById = keyby(children, 'id')
@@ -1327,7 +1331,9 @@ export class PageService extends DosGatoService<Page> {
     const allUnpublished = [...actualParents, ...children]
     await db.transaction(async db => {
       await this.svc(VersionedService).removeTags(allUnpublished.map(p => p.intDataId), ['published'], db)
-      await logImmediatePublish(actualParents.map(p => p.internalId), ScheduledPublishAction.UNPUBLISH, this.login, db)
+      // when called by the scheduled-publish cron, the parent's row already exists (it's the schedule itself), so we only insert backdated rows for the descendants
+      if (parentSchedule) await logBackdatedDescendants(children.map(p => p.internalId), parentSchedule, db)
+      else await logImmediatePublish(actualParents.map(p => p.internalId), children.map(p => p.internalId), ScheduledPublishAction.UNPUBLISH, this.login, db)
     })
     this.loaders.clear()
     await Promise.all(pages.map(async page => { await fireEvent({ type: 'unpublish', page }) }))
