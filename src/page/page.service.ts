@@ -1285,10 +1285,11 @@ export class PageService extends DosGatoService<Page> {
     if (includeChildren) {
       children = (await Promise.all(rootPages.map(async (page) => await this.getPageChildren(page, true)))).flat().filter(c => c.deleteState === DeleteState.NOTDELETED)
     }
-    const allPages = [...rootPages, ...children]
-    if (await someAsync(allPages, async (page: Page) => !(await this.mayPublish(page, true)))) {
-      throw new Error('Current user is not permitted to publish one or more pages')
-    }
+    const mayPublishes = await Promise.all([
+      ...rootPages.map(async page => await this.mayPublish(page, false)),
+      ...children.map(async page => await this.mayPublish(page, true))
+    ])
+    if (mayPublishes.some(mp => !mp)) throw new Error('Current user is not permitted to publish one or more pages')
     const liveRoots = rootPages.filter(p => !p.deleted)
     const pages = [...liveRoots, ...children]
     const action = includeChildren ? ScheduledPublishAction.PUBLISH_WITH_SUBPAGES : ScheduledPublishAction.PUBLISH

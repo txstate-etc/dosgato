@@ -32,6 +32,7 @@ describe('scheduled publishes', () => {
     const { sites } = await query('{ sites { id name rootPage { id } } }')
     const site6 = sites.find((s: any) => s.name === 'site6')
     testSite6PageRootId = site6.rootPage.id
+    await publishPage(testSite6PageRootId)
 
     const { page: testPage } = await createPage('schedpub-test1', testSite6PageRootId, 'keyp2')
     testPageId = testPage.id
