@@ -10,7 +10,8 @@ import {
   SiteService, SiteServiceInternal, templateRegistry, VersionedService, createPageInTransaction,
   getPages, jsonlGzStream, gzipJsonLToJSON, TemplateService, DeleteStateInput, migratePage,
   systemContext, type DGContext, LaunchState, setPageSearchCodes, removeUnreachableComponents,
-  appendPath, collectComponents, ScheduledPublishStatus, ScheduledPublishAction
+  appendPath, collectComponents, ScheduledPublishStatus, ScheduledPublishAction,
+  TagService, getPageTagsByPageIds
 } from '../internal.js'
 
 export interface PageExport {
@@ -76,6 +77,11 @@ interface RootPage {
   }
   userTags: {
     id: string
+    name: string
+    group: {
+      name: string
+      title: string
+    }
   }[]
 }
 
@@ -463,9 +469,21 @@ export async function createPageRoutes (app: FastifyInstance) {
     const binds: any[] = []
     const children = await db.getall<{ dataId: number, path: string }>(`SELECT dataId, path FROM pages WHERE path IN (${db.in(binds, pagesToKeep.map(p => '/' + String(p.id)))}) AND deleteState IN (0, 1)`, binds)
     const childrenByPath = groupby(children, 'path')
-    const tagBinds: any[] = []
-    const userTags = await db.getall(`SELECT * FROM pages_tags WHERE pageId IN (${db.in(tagBinds, pagesToKeep.map(p => p.id))})`, tagBinds)
-    const tagsByPageId = groupby(userTags, 'pageId')
+    const pageTagRows = await getPageTagsByPageIds(pagesToKeep.map(p => p.id))
+    const distinctTagIds = Array.from(new Set(pageTagRows.map(r => r.tagId)))
+    const tagGroups = distinctTagIds.length ? await ctx.svc(TagService).findGroupsByTagIds(distinctTagIds) : []
+    const tagInfoById = new Map<string, RootPage['userTags'][number]>()
+    for (const g of tagGroups) {
+      for (const t of g.tags) {
+        tagInfoById.set(t.id, { id: t.id, name: t.name, group: { name: g.name, title: g.title } })
+      }
+    }
+    const tagsByPageId: Record<number, RootPage['userTags']> = {}
+    for (const row of pageTagRows) {
+      const info = tagInfoById.get(row.tagId)
+      if (!info) continue
+      ;(tagsByPageId[row.pageId] ??= []).push(info)
+    }
 
     const ret: RootPage[] = pagesToKeep.map(p => ({
       id: String(p.dataId),
@@ -498,7 +516,7 @@ export async function createPageRoutes (app: FastifyInstance) {
       publishedAt: p.publishedAt?.toISOString(),
       children: childrenByPath['/' + String(p.id)]?.map(c => ({ id: String(c.dataId) })) ?? [],
       permissions: permsByPageInternalId[p.id],
-      userTags: tagsByPageId[p.id]?.map(t => ({ id: t.tagId })) ?? []
+      userTags: tagsByPageId[p.id] ?? []
     }))
     return ret
   })
