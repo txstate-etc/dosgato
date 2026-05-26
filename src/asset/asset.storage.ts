@@ -62,6 +62,10 @@ class FileSystemHandler implements FileHandler {
         out.on('close', resolve as () => void)
         out.on('error', reject)
       })
+      // when pipeline() rejects (e.g. client aborts mid-upload, ERR_STREAM_PREMATURE_CLOSE), we go to the catch block without
+      // ever awaiting flushedPromise — pipeline destroys `out`, which then rejects flushedPromise with no handler and crashes
+      // the process. claim the rejection up front.
+      flushedPromise.catch(() => {})
       await pipeline(stream, out)
       await flushedPromise
       const checksum = hash.digest('base64url')

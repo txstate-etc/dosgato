@@ -144,16 +144,27 @@ export async function handleURLUpload (url: string, modifiedAt?: string, auth?: 
 export async function handleUpload (req: FastifyRequest, maxFiles = 200) {
   const data: any = {}
   const files = []
-  for await (const part of req.parts()) {
-    if ('file' in part) {
-      if (files.length >= maxFiles) continue
-      const file = await placeFile(part.file, part.filename, part.mimetype)
-      files.push({ ...file, fieldname: part.fieldname })
-    } else {
-      data[part.fieldname] = (part as any).value
+  let aborted = false
+  req.raw.on('close', () => {
+    if (!req.raw.complete) aborted = true
+  })
+  try {
+    for await (const part of req.parts()) {
+      if (aborted) break
+      if ('file' in part) {
+        if (files.length >= maxFiles) continue
+        const file = await placeFile(part.file, part.filename, part.mimetype)
+        if (aborted) break
+        files.push({ ...file, fieldname: part.fieldname })
+      } else {
+        data[part.fieldname] = (part as any).value
+      }
     }
+  } catch (e) {
+    if (aborted) return { files: [], data, aborted: true }
+    throw e
   }
-  return { files, data }
+  return { files, data, aborted }
 }
 
 function getFolderPath (folder: AssetFolder, foldersByInternalId: Record<string, AssetFolder>): string {
@@ -188,7 +199,14 @@ export async function createAssetRoutes (app: FastifyInstance) {
 
     const ids: string[] = []
     if (req.isMultipart()) {
-      const { files, data } = await handleUpload(req)
+      const { files, data, aborted } = await handleUpload(req)
+      if (aborted) {
+        // handle the case where the client disconnected mid-upload
+        // don't try to send a response since the client is gone, just clean up and end the request
+        res.hijack()
+        res.raw.destroy()
+        return
+      }
       for (const file of files) {
         const asset = await createAsset(versionedService, user.id, {
           ...file,
@@ -244,7 +262,12 @@ export async function createAssetRoutes (app: FastifyInstance) {
     }
 
     if (req.isMultipart()) {
-      const { files } = await handleUpload(req, 1)
+      const { files, aborted } = await handleUpload(req, 1)
+      if (aborted) {
+        res.hijack()
+        res.raw.destroy()
+        return
+      }
       for (const file of files) {
         const newAsset = await replaceAsset(versionedService, user.id, {
           ...file,
