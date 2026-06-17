@@ -7,7 +7,7 @@ export const PageTemplate1: APIPageTemplate = {
   name: 'pagetemplate1',
   areas: {
     links: ['keyc1'],
-    main: ['keyc2', 'keyc3', 'richtext', 'horizontalrule', 'textimage', 'columnlayout', 'documents']
+    main: ['keyc2', 'keyc3', 'richtext', 'horizontalrule', 'textimage', 'columnlayout', 'documents', 'team']
   },
   migrations: [],
   getLinks: (data: any) => [],
@@ -183,6 +183,36 @@ export const ColumnLayout: APIComponentTemplate = {
     row: ['keyc2', 'keyc1']
   },
   displayCategory: 'Containers'
+}
+
+// Two component templates that legitimately nest into each other, forming an intentional
+// 2-cycle in the availableComponents graph (mirrors the real gato-prebuilt-orgchart-team /
+// gato-prebuilt-orgchart-teammember cycle). The API must tolerate this without infinite
+// recursion. The cycle is made reachable from a page template by adding `team` to
+// PageTemplate1.areas.main above.
+export const TeamComponent: APIComponentTemplate = {
+  type: 'component',
+  templateKey: 'team',
+  name: 'Team',
+  displayCategory: 'Containers',
+  areas: {
+    members: ['teammember']
+  },
+  migrations: [],
+  getLinks: (data: any) => [],
+  getFulltext: (data: any) => [data.title]
+}
+
+export const TeamMemberComponent: APIComponentTemplate = {
+  type: 'component',
+  templateKey: 'teammember',
+  name: 'Team Member',
+  areas: {
+    teams: ['team']
+  },
+  migrations: [],
+  getLinks: (data: any) => [],
+  getFulltext: (data: any) => [data.name]
 }
 
 export const ColorData: APIDataTemplate = {

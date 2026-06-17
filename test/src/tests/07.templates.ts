@@ -22,9 +22,19 @@ describe('templates', () => {
   })
   it('should retrieve templates by type', async () => {
     const resp = await query('{ templates(filter: { types: [COMPONENT] }) { key name } }')
-    expect(resp.templates).to.have.lengthOf(8)
+    expect(resp.templates).to.have.lengthOf(10)
     const keys = resp.templates.map((t: any) => t.key)
     expect(keys).to.include.members(['keyc1', 'keyc2', 'keyc3', 'richtext', 'horizontalrule', 'documents'])
+  })
+  it('should terminate when computing rootPageTemplates for a component in an availableComponents cycle', async () => {
+    // `team` and `teammember` reference each other, forming an intentional 2-cycle in the
+    // availableComponents graph. Resolving rootPageTemplates traverses that graph; without a
+    // cycle guard this recurses forever and OOMs the process. `team` is reachable from
+    // PageTemplate1 (keyp1), so we expect that page template back.
+    const resp = await query('{ templates(filter: { keys: ["team"] }) { key rootPageTemplates { key } } }')
+    expect(resp.templates).to.have.lengthOf(1)
+    const rootKeys = resp.templates[0].rootPageTemplates.map((t: any) => t.key)
+    expect(rootKeys).to.include('keyp1')
   })
   it('should retrieve pagetrees authorized directly for a template', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name pagetrees(direct: true) { id name } } }')
