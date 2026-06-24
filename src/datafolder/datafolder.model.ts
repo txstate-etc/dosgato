@@ -39,7 +39,7 @@ export class DataFolder {
     this.siteId = optionalString(row.siteId)
     this.deleteState = row.deleteState
     this.deleted = row.deleteState !== DeleteState.NOTDELETED
-    this.deletedAt = DateTime.fromJSDate(row.deletedAt)
+    this.deletedAt = row.deletedAt ? DateTime.fromJSDate(row.deletedAt) : undefined
     this.deletedBy = row.deletedBy
     this.templateKey = row.templateKey
     this.orphaned = row.orphaned

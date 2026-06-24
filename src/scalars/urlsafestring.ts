@@ -9,10 +9,10 @@ export class UrlSafeString extends String {}
 export const UrlSafeStringScalar = new GraphQLScalarType({
   name: 'UrlSafeString',
   description: 'This string must only contain URL-safe and lower-case characters.',
-  serialize (value: string): string {
-    return value
+  serialize (value: unknown): string {
+    return value as string
   },
-  parseValue (value: string): string {
+  parseValue (value: unknown): string {
     if (typeof value !== 'string') {
       throw new Error('UrlSafeString must be a string')
     }

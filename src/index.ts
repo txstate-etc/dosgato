@@ -38,7 +38,7 @@ const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
   await updateLastLogin(userId, tokenIssuedAt)
 })
 
-async function updateLogin (queryTime: number, operationName: string, query: string, auth: any, variables: any, data: any, errors: GraphQLError[] | undefined, ctx: Context) {
+async function updateLogin (queryTime: number, operationName: string | undefined, query: string, auth: any, variables: any, data: any, errors: GraphQLError[] | undefined, ctx: Context) {
   await loginCache.get(auth.sub ?? auth.client_id, Number(auth.iat))
 }
 
@@ -118,8 +118,8 @@ export class DGServer {
   public app: FastifyInstance
 
   constructor (config?: FastifyTxStateOptions) {
-    const logger = process.env.NODE_ENV !== 'development' ? prodLogger : { ...gqlDevLogger, trace: () => {} }
-    this.gqlServer = new GQLServer({ logger, ...config, bodyLimit: 25 * 1024 * 1024 })
+    const logger = process.env.NODE_ENV !== 'development' ? prodLogger : gqlDevLogger
+    this.gqlServer = new GQLServer({ loggerInstance: logger, ...config, bodyLimit: 25 * 1024 * 1024 })
     this.app = this.gqlServer.app
   }
 
@@ -207,8 +207,7 @@ export class DGServer {
       }, { freshseconds: 12 * 3600 })
 
       this.app.addHook('onRequest', async req => {
-        const ctx = templateRegistry.getCtx(req)
-        await ctx.waitForAuth()
+        const ctx = await templateRegistry.getCtx(req)
         await createTrainingSite.get(ctx.svc(UserService).login)
       })
     }
@@ -272,7 +271,7 @@ export class DGServer {
     ]
     scalarsMap.push(...(opts.scalarsMap ?? []))
 
-    const after = async (...args: [queryTime: number, operationName: string, query: string, auth: any, variables: any, data: any, errors: GraphQLError[] | undefined, ctx: Context]) => {
+    const after = async (...args: [queryTime: number, operationName: string | undefined, query: string, auth: any, variables: any, data: any, errors: GraphQLError[] | undefined, ctx: Context]) => {
       await Promise.all([
         opts.after?.(...args),
         logMutation(...args),

@@ -9,8 +9,7 @@
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@dosgato/templating": "^1.1.15",
-    "@fastify/multipart": "^8.0.0",
-    "@txstate-mws/graphql-server": "^2.3.13",
+    "@txstate-mws/graphql-server": "^3.0.0",
     "archiver": "^7.0.1",
     "cheerio": "^1.2.0",
     "dataloader-factory": "^4.6.2",
@@ -24,7 +23,6 @@
     "probe-image-size": "^7.2.3",
     "stemmer": "^2.0.1",
     "txstate-utils": "^1.9.3",
-    "type-graphql": "^1.1.1",
     "wasmagic": "^1.0.1"
   },
   "devDependencies": {

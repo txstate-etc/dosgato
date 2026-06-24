@@ -101,7 +101,7 @@ const pageDataCache = new Cache(async (key: { pageIntDataId: number, version: nu
   const versioned = await ctx.svc(VersionedService).get(key.pageIntDataId, { version: key.version })
   if (!versioned) throw new Error('Asked for page data version that does not exist.')
   const extras = { ...key.extras, query: ctx.systemCtx.query.bind(ctx.systemCtx) }
-  return await migratePage(versioned.data, extras, DateTime.fromISO(key.toSchemaVersion))
+  return await migratePage(versioned.data, extras, DateTime.fromISO(key.toSchemaVersion) as DateTime<true>)
 }, {
   storageClass: new LRUCache({ max: 250 })
 })
@@ -911,7 +911,7 @@ export class PageService extends DosGatoService<Page> {
     if (latestVersion.version !== dataVersion) throw new Error('Unable to update page. Another user has updated the page since you loaded it. Try again after refreshing.')
   }
 
-  async updatePageProperties (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, data: ComponentData, comment?: string, validateOnly?: boolean) {
+  async updatePageProperties (dataId: string, dataVersion: number, editedSchemaVersion: DateTime<true>, data: ComponentData, comment?: string, validateOnly?: boolean) {
     if (!data.templateKey) throw new Error('Component must have a templateKey.')
     delete data.areas
     let page = await this.raw.findById(dataId)
@@ -947,7 +947,7 @@ export class PageService extends DosGatoService<Page> {
     return response
   }
 
-  async updateComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, data: ComponentData, comment?: string, validateOnly?: boolean) {
+  async updateComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime<true>, path: string, data: ComponentData, comment?: string, validateOnly?: boolean) {
     if (!data.templateKey) throw new Error('Component must have a templateKey.')
     delete data.areas
     let page = await this.raw.findById(dataId)
@@ -982,7 +982,7 @@ export class PageService extends DosGatoService<Page> {
     return response
   }
 
-  async addComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, data: ComponentData, isCopy?: boolean, comment?: string, validateOnly?: boolean, addToTop?: boolean) {
+  async addComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime<true>, path: string, data: ComponentData, isCopy?: boolean, comment?: string, validateOnly?: boolean, addToTop?: boolean) {
     if (!data.templateKey) throw new Error('Component must have a templateKey.')
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
@@ -1070,7 +1070,7 @@ export class PageService extends DosGatoService<Page> {
     return response
   }
 
-  async moveComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, fromPath: string, toPath: string, comment?: string) {
+  async moveComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime<true>, fromPath: string, toPath: string, comment?: string) {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
@@ -1154,7 +1154,7 @@ export class PageService extends DosGatoService<Page> {
     return response
   }
 
-  async deleteComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime, path: string, comment?: string) {
+  async deleteComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime<true>, path: string, comment?: string) {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)

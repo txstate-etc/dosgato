@@ -185,7 +185,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
   app.post<{ Params: { folderId: string }, Body?: { url: string, uploadedFilename?: string, markAsDeleted?: boolean, legacyId?: string, auth?: string, modifiedBy?: string, modifiedAt?: string, createdBy?: string, createdAt?: string, linkId?: string, meta?: any } }>(
     '/assets/:folderId', async (req, res) => {
     const startTime = new Date()
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
     const folder = await ctx.svc(AssetFolderServiceInternal).findById(req.params.folderId)
     if (!folder) throw new HttpError(404, 'Specified folder does not exist.')
@@ -248,7 +248,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
   app.post<{ Params: { assetid: string }, Body?: { url: string, auth?: string, modifiedBy?: string, modifiedAt?: string } }>(
     '/assets/replace/:assetid', async (req, res) => {
     const startTime = new Date()
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
     const asset = await ctx.svc(AssetServiceInternal).findById(req.params.assetid)
     if (!asset) throw new HttpError(404, 'Specified asset does not exist.')
@@ -295,13 +295,12 @@ export async function createAssetRoutes (app: FastifyInstance) {
   })
   app.get<{ Params: { assetid: string, resizeid: string, filename: string }, Querystring: { admin?: 1 } }>(
     '/assets/:assetid/resize/:resizeid/:filename', async (req, res) => {
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     const [asset, resize] = await Promise.all([
       ctx.svc(AssetServiceInternal).findById(req.params.assetid),
       ctx.svc(AssetService).getResize(req.params.resizeid)
     ])
     if (!asset || !resize) throw new HttpError(404)
-    await ctx.waitForAuth()
     if (!ctx.svc(AssetService).mayViewIndividual(asset)) throw new HttpError(404)
 
     if (!req.query?.admin) recordDownload(resize.checksum)
@@ -320,10 +319,9 @@ export async function createAssetRoutes (app: FastifyInstance) {
   })
   app.get<{ Params: { assetid: string, width: string, '*': string }, Querystring: { admin?: 1 } }>(
     '/assets/:assetid/w/:width/*', async (req, res) => {
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     const asset = await ctx.svc(AssetServiceInternal).findById(req.params.assetid)
     if (!asset) throw new HttpError(404)
-    await ctx.waitForAuth()
     if (!ctx.svc(AssetService).mayViewIndividual(asset)) throw new HttpError(404)
     if (!asset.box) throw new HttpError(400, 'Asset is not an image - width parameter is not supported.')
     const resizes = await ctx.svc(AssetService).getResizes(asset)
@@ -356,10 +354,9 @@ export async function createAssetRoutes (app: FastifyInstance) {
     return await res.status(200).send(fileHandler.get(chosen.checksum))
   })
   async function handleLegacy (req: FastifyRequest<{ Params: { id: string, '*'?: string } }>, res: FastifyReply) {
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     const [asset] = await ctx.svc(AssetServiceInternal).find({ legacyIds: [req.params.id], pagetreeTypes: [PagetreeType.PRIMARY] })
     if (!asset) throw new HttpError(404)
-    await ctx.waitForAuth()
     if (!ctx.svc(AssetService).mayViewIndividual(asset)) throw new HttpError(404)
 
     const resizes = await ctx.svc(AssetService).getResizes(asset)
@@ -403,14 +400,13 @@ export async function createAssetRoutes (app: FastifyInstance) {
   app.get<{ Params: { id: string, '*': string } }>('/assets/legacy/:id/*', handleLegacy)
   app.get<{ Params: { id: string, '*': string }, Querystring: { admin?: 1 } }>(
     '/assets/:id/*', async (req, res) => {
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     let asset = await ctx.svc(AssetServiceInternal).findById(req.params.id)
     if (!asset) {
       const { path, extension } = parsePath([req.params.id, req.params['*']].filter(isNotBlank).join('/'))
       asset = (await ctx.svc(AssetServiceInternal).find({ paths: extension ? [path, `${path}.${extension}`] : [path] }))[0]
     }
     if (!asset) throw new HttpError(404)
-    await ctx.waitForAuth()
     if (!ctx.svc(AssetService).mayViewIndividual(asset)) throw new HttpError(404)
 
     if (!req.query?.admin) recordDownload(asset.checksum)
@@ -436,10 +432,9 @@ export async function createAssetRoutes (app: FastifyInstance) {
     return await res.status(200).send(fileHandler.get(asset.checksum))
   })
   app.get<{ Params: { folderId: string, folderName: string } }>('/assets/zip/:folderId/:folderName.zip', async (req, res) => {
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     const folder = await ctx.svc(AssetFolderServiceInternal).findById(req.params.folderId)
     if (!folder) throw new HttpError(404)
-    await ctx.waitForAuth()
     if (!ctx.svc(AssetFolderService).mayViewIndividual(folder)) throw new HttpError(404)
 
     const [folders, folderPath] = await Promise.all([
@@ -460,7 +455,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     await archive.finalize()
   })
   app.get('/assetfolders/list', async (req, res) => {
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     await getEnabledUser(ctx)
     const folders = await db.getall<{ id: number, linkId: string, name: string, path: string, deleteState: DeleteState, siteId: number, siteName: string, launchEnabled: LaunchState, pagetreeId: number, pagetreeName: string, pagetreeType: PagetreeType }>(`
       SELECT f.*, pt.name AS pagetreeName, pt.type as pagetreeType, s.name as siteName, s.launchEnabled as launchEnabled

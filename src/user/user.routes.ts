@@ -4,7 +4,7 @@ import { getEnabledUser, templateRegistry } from '../internal.js'
 
 export async function createUserRoutes (app: FastifyInstance) {
   app.get<{ Querystring: { q: string } }>('/users/external', async (req, res) => {
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     await getEnabledUser(ctx)
     const q = req.query.q
     const users = templateRegistry.serverConfig.userSearch

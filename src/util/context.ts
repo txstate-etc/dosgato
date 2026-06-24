@@ -116,7 +116,7 @@ export interface DGContext extends Context {
   login: string
   systemCtx: DGContext
 
-  waitForAuth: () => Promise<void>
+  prefetch: () => Promise<void>
   executePaginated: <T> (queryType: string, paged: Pagination | undefined, work: (pageInfo: PaginationResponse) => Promise<T> | T) => Promise<T | undefined>
   getPaginationInfo: (queryType: string) => Promise<PaginationResponse | undefined>
 }
@@ -129,11 +129,11 @@ export function dgContextMixin (Ctx: typeof Context): DGContextClass {
     authInfo!: AuthInfo
     systemCtx!: DGContext
     get login () {
-      return this.auth?.sub ?? this.auth?.client_id ?? 'anonymous'
+      return this.auth?.username ?? this.auth?.clientId ?? 'anonymous'
     }
 
-    async waitForAuth () {
-      await super.waitForAuth()
+    async prefetch () {
+      await super.prefetch()
       const systemCtxPromise = this.login === 'system' ? undefined : systemContext()
       this.authInfo = await authCache.get(this.login, this)
       this.systemCtx = systemCtxPromise ? await systemCtxPromise : this
@@ -173,7 +173,7 @@ export function dgContextMixin (Ctx: typeof Context): DGContextClass {
       await sleep(1)
       return (await (this.paginationPromises[queryType] ?? this.allPaginationPromises[queryType]))
     }
-  }
+  } as unknown as DGContextClass
 }
 
 export const DGMockContext = dgContextMixin(MockContext as any) as DGMockContextClass

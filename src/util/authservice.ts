@@ -1,4 +1,5 @@
 import { AuthError, AuthorizedServiceSync } from '@txstate-mws/graphql-server'
+import type { FastifyTxStateAuthInfo } from 'fastify-txstate'
 import {
   type Asset, type AssetFolder, type Data, type DataFolder, type Page, type Template,
   AssetRuleService, type AssetRuleGrants, DataRuleService, type DataRuleGrants, type GlobalRuleGrants,
@@ -6,7 +7,7 @@ import {
   type TemplateRuleGrants, type DataRoot, type DGContext, DGMockContext
 } from '../internal.js'
 
-export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedServiceSync<{ sub?: string, client_id?: string }, ObjType, RedactedType> {
+export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends AuthorizedServiceSync<FastifyTxStateAuthInfo, ObjType, RedactedType> {
   declare ctx: DGContext
 
   get login () {
@@ -76,20 +77,19 @@ export abstract class DosGatoService<ObjType, RedactedType = ObjType> extends Au
 }
 
 export async function getEnabledUser (ctx: DGContext) {
-  await ctx.waitForAuth()
   const user = ctx.authInfo.user
   if (!user || user.disabled) throw new AuthError()
   return user
 }
 
 export async function systemContext () {
-  const ctx = new DGMockContext({ sub: 'system' })
-  await ctx.waitForAuth()
+  const ctx = new DGMockContext({ username: 'system', clientId: 'dosgato' })
+  await ctx.prefetch()
   return ctx
 }
 
 export async function userContext (login: string) {
-  const ctx = new DGMockContext({ sub: login })
-  await ctx.waitForAuth()
+  const ctx = new DGMockContext({ username: login, clientId: 'dosgato' })
+  await ctx.prefetch()
   return ctx
 }

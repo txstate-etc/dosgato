@@ -82,7 +82,7 @@ export class Site {
     this.organizationId = optionalString(row.organizationId)
     this.ownerId = row.ownerId
     this.deleted = isNotNull(row.deletedAt)
-    this.deletedAt = DateTime.fromJSDate(row.deletedAt)
+    this.deletedAt = row.deletedAt ? DateTime.fromJSDate(row.deletedAt) : undefined
     this.deletedBy = row.deletedBy
     this.launchState = row.launchEnabled
   }

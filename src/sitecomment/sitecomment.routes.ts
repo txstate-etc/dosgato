@@ -5,7 +5,7 @@ import { GlobalRuleService, SiteService, SiteServiceInternal, createSiteComments
 
 export async function createCommentRoutes (app: FastifyInstance) {
   app.post<{ Params: { siteId: string }, Body?: { comment: string, login: string, date: string }[] }>('/site/:siteId/comments', async req => {
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
     const site = await ctx.svc(SiteServiceInternal).findById(req.params.siteId)
     if (!site) throw new HttpError(404)

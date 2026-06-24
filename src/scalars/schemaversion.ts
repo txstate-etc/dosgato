@@ -9,12 +9,12 @@ export const SchemaVersionScalar = new GraphQLScalarType({
   name: 'SchemaVersion',
   description: 'Date and Time in format yLLddHHmmss (20230101123456 for January 1, 2023 at 12:34:56). JSON parser should convert to javascript Date type.',
 
-  serialize (value: DateTime) {
-    return value.toFormat(schemaVersionFormat)
+  serialize (value: unknown) {
+    return (value as DateTime).toFormat(schemaVersionFormat)
   },
 
-  parseValue (value: string) {
-    const parsedValue = DateTime.fromFormat(value, schemaVersionFormat)
+  parseValue (value: unknown) {
+    const parsedValue = DateTime.fromFormat(value as string, schemaVersionFormat)
     if (!parsedValue.isValid) throw new Error(`Invalid date: ${parsedValue.invalidReason!} ${parsedValue.invalidExplanation!}`)
     return parsedValue
   },

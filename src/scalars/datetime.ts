@@ -5,12 +5,12 @@ export const DateTimeScalar = new GraphQLScalarType({
   name: 'DateTime',
   description: 'Date and Time in ISO 8601 string format. JSON parser should convert to javascript Date type.',
 
-  serialize (value: DateTime) {
-    return value.toISO()
+  serialize (value: unknown) {
+    return (value as DateTime).toISO()
   },
 
-  parseValue (value: string) {
-    const parsedValue = DateTime.fromISO(value)
+  parseValue (value: unknown) {
+    const parsedValue = DateTime.fromISO(value as string)
     if (!parsedValue.isValid) throw new Error(`Invalid date: ${parsedValue.invalidReason!} ${parsedValue.invalidExplanation!}`)
     return parsedValue
   },

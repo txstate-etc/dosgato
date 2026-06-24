@@ -137,7 +137,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post('/pages/site', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Site import must be multipart.')
 
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     const user = await getEnabledUser(ctx) // throws if not authenticated
     const siteService = ctx.svc(SiteService)
     const siteServiceInternal = ctx.svc(SiteServiceInternal)
@@ -156,7 +156,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post<{ Params: { siteId: string } }>('/pages/pagetree/:siteId', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Pagetree import must be multipart.')
 
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     const user = await getEnabledUser(ctx) // throws if not authenticated
     const siteServiceInternal = ctx.svc(SiteServiceInternal)
     const site = await siteServiceInternal.findById(req.params.siteId)
@@ -173,7 +173,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post<{ Params: { pageid: string } }>('/pages/update/:pageid', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Page update from export file must be multipart.')
 
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     const user = await getEnabledUser(ctx) // throws if not authorized
 
     const svcPageInternal = ctx.svc(PageServiceInternal)
@@ -231,7 +231,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post<{ Params: { parentPageId: string }, Body?: CreatePageInput }>('/pages/:parentPageId', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Page import must be multipart.')
     const startTime = new Date()
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     const svcPageInternal = ctx.svc(PageServiceInternal)
     const svcPage = ctx.svc(PageService)
     const svcTmpl = ctx.svc(TemplateService)
@@ -296,7 +296,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   app.post<{ Params: { parentPageId: string }, Body?: CreatePageInput }>('/pages/migrate/:parentPageId', async (req, res) => {
     if (!req.isMultipart()) throw new HttpError(400, 'Page import must be multipart.')
     const startTime = new Date()
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     const svcPageInternal = ctx.svc(PageServiceInternal)
     const svcPage = ctx.svc(PageService)
     const user = await getEnabledUser(ctx) // throws if not authenticated
@@ -378,7 +378,7 @@ export async function createPageRoutes (app: FastifyInstance) {
   }
 
   app.get<{ Params: { id: string }, Querystring: { withSubpages?: boolean } }>('/pages/:id', async (req, res) => {
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     await getEnabledUser(ctx)
     const page = await ctx.svc(PageService).findById(req.params.id)
     if (!page) throw new HttpError(404)
@@ -394,7 +394,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     return output
   })
   app.get('/pages/list', async (req, res) => {
-    const ctx = templateRegistry.getCtx(req)
+    const ctx = await templateRegistry.getCtx(req)
     await getEnabledUser(ctx)
     const sbinds: any[] = []
     const [pages, scheduled] = await Promise.all([

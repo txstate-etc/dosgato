@@ -76,7 +76,7 @@ export class PageResolver {
   async data (@Ctx() ctx: Context, @Root() page: Page,
     @Arg('published', { nullable: true, description: 'Return the published version of the data. When true, version arg is ignored. Throws when there is no published version.' }) published?: boolean,
     @Arg('version', type => Int, { nullable: true, description: 'Return the specified version of the data. Ignored when published arg is true. Default is latest and may fail if user has improper permissions.' }) version?: number,
-    @Arg('schemaversion', { nullable: true, description: 'Specify the preferred schema version. The API will perform any necessary migrations on the data prior to return. Default is the latest schemaversion.' }) schemaversion?: DateTime
+    @Arg('schemaversion', { nullable: true, description: 'Specify the preferred schema version. The API will perform any necessary migrations on the data prior to return. Default is the latest schemaversion.' }) schemaversion?: DateTime<true>
   ) {
     return await ctx.svc(PageService).getData(page, version, published, schemaversion)
   }
@@ -92,7 +92,7 @@ export class PageResolver {
     @Arg('paths', type => [String]) paths: string[],
     @Arg('published', { nullable: true, description: 'Return the published version of the data. When true, version arg is ignored. Throws when there is no published version.' }) published?: boolean,
     @Arg('version', type => Int, { nullable: true, description: 'Return the specified version of the data. Ignored when published arg is true. Default is latest and may fail if user has improper permissions.' }) version?: number,
-    @Arg('schemaversion', { nullable: true, description: 'Specify the preferred schema version. The API will perform any necessary migrations on the data prior to return. Default is the latest schemaversion.' }) schemaversion?: DateTime
+    @Arg('schemaversion', { nullable: true, description: 'Specify the preferred schema version. The API will perform any necessary migrations on the data prior to return. Default is the latest schemaversion.' }) schemaversion?: DateTime<true>
   ) {
     if (!paths.length) return {}
     const data = await ctx.svc(PageService).getData(page, version, published, schemaversion)
@@ -267,7 +267,7 @@ export class PageResolver {
     @Arg('dataVersion', type => Int, {
       description: "When a user begins editing a page, they view the latest version and begin making changes. If time passes, it's possible there will be a new version in the database by the time the editor saves. We pass along the version that the editor thinks they are saving against so that we can return an error if it is no longer the latest version."
     }) dataVersion: number,
-    @Arg('schemaversion', type => SchemaVersionScalar, { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime,
+    @Arg('schemaversion', type => SchemaVersionScalar, { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime<true>,
     @Arg('data', type => JsonData, { description: 'The new component data. Cannot add or update child components in any of its areas. If it includes an `areas` property, it will be ignored.' }) data: ComponentData,
     @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string,
     @Arg('validateOnly', { nullable: true, description: 'When true, the mutation will not save but will return the validation response as normal. Use this to validate user input as they type, before they hit Submit.' }) validateOnly?: boolean
@@ -281,7 +281,7 @@ export class PageResolver {
     @Arg('dataVersion', type => Int, {
       description: "When a user begins editing a page, they view the latest version and begin making changes. If time passes, it's possible there will be a new version in the database by the time the editor saves. We pass along the version that the editor thinks they are saving against so that we can return an error if it is no longer the latest version."
     }) dataVersion: number,
-    @Arg('schemaversion', type => SchemaVersionScalar, { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime,
+    @Arg('schemaversion', type => SchemaVersionScalar, { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime<true>,
     @Arg('path', { description: 'The dot-separated path within the page to the component being edited. e.g. `areas.main.1.areas.content.1`' }) path: string,
     @Arg('data', type => JsonData, { description: 'The new component data. Cannot add or update child components in any of its areas. If it includes an `areas` property, it will be ignored.' }) data: ComponentData,
     @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string,
@@ -296,7 +296,7 @@ export class PageResolver {
     @Arg('dataVersion', type => Int, {
       description: "When a user begins editing a page, they view the latest version and begin making changes. If time passes, it's possible there will be a new version in the database by the time the editor saves. We pass along the version that the editor thinks they are saving against so that we can return an error if it is no longer the latest version."
     }) dataVersion: number,
-    @Arg('schemaversion', type => SchemaVersionScalar, { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime,
+    @Arg('schemaversion', type => SchemaVersionScalar, { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime<true>,
     @Arg('path', { description: 'The dot-separated path within the page to the area being appended (e.g. `areas.main.1.areas.content`) OR the insert location if inserting above another component (e.g. `areas.main.1.areas.content.0`).' }) path: string,
     @Arg('data', type => JsonData, { description: 'The new component data. Cannot add or update child components in any of its areas. If it includes an `areas` property, it will be ignored.' }) data: ComponentData,
     @Arg('isCopy', { nullable: true, description: 'Set this when the data being inserted was copied from an existing component. It\'s important because the existing data needs to be processed to do things like regenerate unique identifiers.' }) isCopy?: boolean,
@@ -313,7 +313,7 @@ export class PageResolver {
     @Arg('dataVersion', type => Int, {
       description: "When a user begins editing a page, they view the latest version and begin making changes. If time passes, it's possible there will be a new version in the database by the time the editor saves. We pass along the version that the editor thinks they are saving against so that we can return an error if it is no longer the latest version."
     }) dataVersion: number,
-    @Arg('schemaversion', type => SchemaVersionScalar, { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime,
+    @Arg('schemaversion', type => SchemaVersionScalar, { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime<true>,
     @Arg('fromPath', { description: 'The dot-separated path within the page to the component being moved. e.g. `areas.main.1.areas.content`' }) fromPath: string,
     @Arg('toPath', { description: 'The dot-separated path within the page to the new location. This may include the desired index in the new array so that ordering is preserved (e.g. `areas.main.1.areas.content.1`), or it may just specify an area (e.g. `areas.main.1.areas.content`) and it will be appended to the end.' }) toPath: string,
     @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string
@@ -327,7 +327,7 @@ export class PageResolver {
     @Arg('dataVersion', type => Int, {
       description: "When a user begins editing a page, they view the latest version and begin making changes. If time passes, it's possible there will be a new version in the database by the time the editor saves. We pass along the version that the editor thinks they are saving against so that we can return an error if it is no longer the latest version."
     }) dataVersion: number,
-    @Arg('schemaversion', type => SchemaVersionScalar, { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime,
+    @Arg('schemaversion', type => SchemaVersionScalar, { description: 'The schemaversion of the page being edited. This will have been upgraded to match the schemaversion requested when retrieving the data. The mutation cannot determine this for itself.' }) schemaversion: DateTime<true>,
     @Arg('path', { description: 'The dot-separated path within the page to the component being deleted. e.g. `areas.main.1.areas.content.1`' }) path: string,
     @Arg('comment', { nullable: true, description: 'An optional comment describing the intent behind the update.' }) comment?: string
   ) {

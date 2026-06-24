@@ -81,8 +81,10 @@ class TemplateRegistry {
     return this.byType[type]
   }
 
-  getCtx (req: FastifyRequest) {
-    return new this.serverConfig.customContext(req) as DGContext
+  async getCtx (req: FastifyRequest) {
+    const ctx = new this.serverConfig.customContext(req) as DGContext
+    await ctx.prefetch()
+    return ctx
   }
 }
 

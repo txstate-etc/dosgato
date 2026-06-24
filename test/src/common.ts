@@ -17,7 +17,7 @@ export async function query <T = any> (query: string, variables?: any) {
 
 const tokenCache: Record<string, string> = {}
 export async function queryAs <T = any> (login: string, query: string, variables?: any) {
-  tokenCache[login] ??= jwt.sign({ sub: login }, process.env.JWT_SECRET ?? '')
+  tokenCache[login] ??= jwt.sign({ iss: 'jwt-secret', sub: login }, process.env.JWT_SECRET ?? '')
   try {
     const resp = await client.post('graphql', {
       query,
@@ -41,7 +41,7 @@ export async function createRole (input: { name: string, description?: string, s
 }
 
 export async function postMultipart (endpoint: string, payload: any, filepath: string, login: string) {
-  tokenCache[login] ??= jwt.sign({ sub: login }, process.env.JWT_SECRET ?? '')
+  tokenCache[login] ??= jwt.sign({ iss: 'jwt-secret', sub: login }, process.env.JWT_SECRET ?? '')
   try {
     const formdata = new FormData()
     formdata.append('data', JSON.stringify(payload))

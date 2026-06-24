@@ -10,10 +10,10 @@ export function makePathSafe (path: string) {
 export const UrlSafePathScalar = new GraphQLScalarType({
   name: 'UrlSafePath',
   description: 'This string must only contain URL-safe and lower-case characters.',
-  serialize (value: string): string {
-    return value
+  serialize (value: unknown): string {
+    return value as string
   },
-  parseValue (value: string): string {
+  parseValue (value: unknown): string {
     if (typeof value !== 'string') {
       throw new Error('UrlSafePath must be a string')
     }
