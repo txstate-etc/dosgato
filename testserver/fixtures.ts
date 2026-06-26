@@ -10,7 +10,7 @@ import { VersionedService, type Index, setAssetSearchCodes, setPageSearchCodes }
 
 export async function fixtures () {
   console.info('running fixtures()')
-  const [su01, su02, su03, ed01, ed02, ed03, ed04, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18, ed19, service1, dbOwner, dbManager1, dbManager2, dbEditor1, dbEditor2, dbContributor1, dbContributor2, dbReadonly1, dbReadonly2] = await Promise.all([
+  const [su01, su02, su03, ed01, ed02, ed03, ed04, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18, ed19, service1, dbOwner, dbManager1, dbManager2, dbEditor1, dbEditor2, dbContributor1, dbContributor2, dbReadonly1, dbReadonly2, dbGroupEditor1, dbGroupEditor2, dbGroupEditor3] = await Promise.all([
     db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("su01", "Michael", "Scott", "su01@example.com", null, null, null)'),
     db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("su02", "Elizabeth", "Bennet", "su02@example.com", null, null, null)'),
     db.insert('INSERT INTO users (login, firstname, lastname, email, lastlogin, lastlogout, disabledAt) VALUES ("su03", "Marge", "Simpson", "su03@example.com", "2021-09-01 12:43:00", "2021-09-01 16:28:00", null)'),
@@ -43,21 +43,25 @@ export async function fixtures () {
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_contributor1", "Ferris", "Bueller", "dashboard6@example.com")'),
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_contributor2", "Marty", "McFly", "dashboard7@example.com")'),
     db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_readonly1", "Michael", "Corleone", "dashboard8@example.com")'),
-    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_readonly2", "Jane", "Eyre", "dashboard9@example.com")')
+    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_readonly2", "Jane", "Eyre", "dashboard9@example.com")'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_group_editor1", "Alice", "Wonderland", "dashboard10@example.com")'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_group_editor2", "Bob", "Builder", "dashboard11@example.com")'),
+    db.insert('INSERT INTO users (login, firstname, lastname, email) VALUES ("db_group_editor3", "Charlie", "Brown", "dashboard12@example.com")')
   ])
 
   const basicId = await db.getval('SELECT MIN(id) FROM trainings')
   const binds: any[] = []
   await db.insert(`INSERT INTO users_trainings (userId, trainingId) VALUES ${db.in(binds, [su01, su02, su03, ed01, ed02, ed03, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18, ed19].map(lgn => [lgn, basicId]))}`, binds)
 
-  const [group1, group2, group3, group4, group5, group6, group7] = await Promise.all([
+  const [group1, group2, group3, group4, group5, group6, group7, dashboardEditorGroup] = await Promise.all([
     db.insert('INSERT INTO `groups` (name) VALUES ("group1")'),
     db.insert('INSERT INTO `groups` (name) VALUES ("group2")'),
     db.insert('INSERT INTO `groups` (name) VALUES ("group3")'),
     db.insert('INSERT INTO `groups` (name) VALUES ("group4")'),
     db.insert('INSERT INTO `groups` (name) VALUES ("group5")'),
     db.insert('INSERT INTO `groups` (name) VALUES ("group6")'),
-    db.insert('INSERT INTO `groups` (name) VALUES ("group7")')
+    db.insert('INSERT INTO `groups` (name) VALUES ("group7")'),
+    db.insert('INSERT INTO `groups` (name) VALUES ("dashboardeditorgroup")')
   ])
 
   const [artCollegeOrg, mathDeptOrg, officeOrg] = await Promise.all([
@@ -227,6 +231,9 @@ export async function fixtures () {
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed03, group6]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed04, group7]),
     db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [ed10, group5]),
+    db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [dbGroupEditor1, dashboardEditorGroup]),
+    db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [dbGroupEditor2, dashboardEditorGroup]),
+    db.insert('INSERT INTO users_groups (userId, groupId) VALUES (?,?)', [dbGroupEditor3, dashboardEditorGroup]),
     db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [group1, group2]),
     db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [group1, group3]),
     db.insert('INSERT INTO groups_groups (parentId, childId) VALUES (?,?)', [group2, group4]),
@@ -274,6 +281,7 @@ export async function fixtures () {
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group3, editorRole]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group6, group6Role]),
     db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [group7, group7Role]),
+    db.insert('INSERT INTO groups_roles (groupId, roleId) VALUES (?,?)', [dashboardEditorGroup, dashboardEditor]),
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site1, ed04]),
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site1, ed05]),
     db.insert('INSERT INTO sites_managers (siteId, userId) VALUES (?,?)', [site2, su02]),
