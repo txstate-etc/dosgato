@@ -10,7 +10,7 @@
   "dependencies": {
     "@dosgato/templating": "^1.1.15",
     "@txstate-mws/graphql-server": "^3.0.0",
-    "archiver": "^7.0.1",
+    "archiver": "^8.0.0",
     "cheerio": "^1.2.0",
     "dataloader-factory": "^4.6.2",
     "double-metaphone": "^2.0.1",
@@ -18,7 +18,7 @@
     "lru-cache": "^11.0.0",
     "luxon": "^3.0.3",
     "mime-types": "^3.0.1",
-    "mysql2-async": "^2.0.0",
+    "mysql2-async": "^2.0.4",
     "nanoid": "^5.0.0",
     "probe-image-size": "^7.2.3",
     "stemmer": "^2.0.1",
@@ -26,22 +26,23 @@
     "wasmagic": "^1.0.1"
   },
   "devDependencies": {
-    "@types/archiver": "^6.0.1",
+    "@stylistic/eslint-plugin": "^5.0.0",
+    "@types/archiver": "^8.0.0",
     "@types/luxon": "^3.0.1",
-    "@types/mime-types": "^2.1.1",
-    "@types/node": "^22.0.0",
+    "@types/mime-types": "^3.0.0",
+    "@types/node": "^26.0.0",
     "@types/probe-image-size": "^7.2.0",
-    "eslint-config-standard-with-typescript": "^39.0.0",
+    "eslint-config-love": "^154.0.0",
     "nodemon": "^3.0.1",
-    "tsc-watch": "^6.0.4",
-    "typescript": "^5.0.2"
+    "tsc-watch": "^7.2.0",
+    "typescript": "^6.0.0"
   },
   "scripts": {
     "prepublishOnly": "npm run build",
     "test": "./test.sh",
     "build": "rm -rf dist && tsc",
     "buildrun": "rm -rf dist && cd testserver && tsc",
-    "lint": "eslint --ignore-path .gitignore",
+    "lint": "eslint src testserver",
     "start:dev": "cd testserver; tsc-watch --noClear --onSuccess \"node --enable-source-maps --inspect ../dist/testserver/run.js\"",
     "start": "node --no-warnings --enable-source-maps ./dist/testserver/run.js"
   },

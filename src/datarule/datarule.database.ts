@@ -91,7 +91,7 @@ export async function createDataRule (args: CreateDataRuleInput) {
       binds.push(args.grants.undelete)
     }
   }
-  return await db.insert(`INSERT INTO datarules (${columns.join(',')}) VALUES(${columns.map((c) => '?').join(',')})`, binds)
+  return await db.insert(`INSERT INTO datarules (${columns.join(',')}) VALUES(${columns.map(c => '?').join(',')})`, binds)
 }
 
 export async function updateDataRule (args: UpdateDataRuleInput) {
@@ -152,7 +152,7 @@ export async function updateDataRule (args: UpdateDataRuleInput) {
       binds.push(args.grants.undelete)
     }
   }
-  binds.push(String(args.ruleId))
+  binds.push(args.ruleId)
   return await db.update(`UPDATE datarules
                           SET ${updates.join(', ')}
                           WHERE id = ?`, binds)

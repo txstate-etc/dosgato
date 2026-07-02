@@ -123,7 +123,7 @@ export async function renameDataFolder (folderId: string, name: string) {
 export async function moveDataFolders (folderIds: string[], siteId?: string) {
   await db.transaction(async db => {
     const binds: string[] = []
-    const dataFolders = (await db.getall(`SELECT * FROM datafolders WHERE guid IN (${db.in(binds, folderIds)})`, binds)).map((row) => new DataFolder(row))
+    const dataFolders = (await db.getall(`SELECT * FROM datafolders WHERE guid IN (${db.in(binds, folderIds)})`, binds)).map(row => new DataFolder(row))
     const site = siteId ? new Site(await db.getrow('SELECT * FROM sites WHERE id = ?', [siteId])) : undefined
     const moveBinds: (string | null)[] = []
     moveBinds.push(site ? site.id : null)

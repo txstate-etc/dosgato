@@ -8,15 +8,11 @@ import {
 } from '../internal.js'
 
 const templateRulesByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => {
-    return await getTemplateRules({ ids })
-  }
+  fetch: async (ids: string[]) => await getTemplateRules({ ids })
 })
 
 const templateRulesByRoleLoader = new OneToManyLoader({
-  fetch: async (roleIds: string[], filter?: TemplateRuleFilter) => {
-    return await getTemplateRules({ ...filter, roleIds })
-  },
+  fetch: async (roleIds: string[], filter?: TemplateRuleFilter) => await getTemplateRules({ ...filter, roleIds }),
   extractKey: (r: TemplateRule) => r.roleId,
   keysFromFilter: (filter: TemplateRuleFilter | undefined) => filter?.roleIds ?? []
 })

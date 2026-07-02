@@ -1,14 +1,14 @@
 import db from 'mysql2-async/db'
-import { type Queryable } from 'mysql2-async'
+import type { Queryable } from 'mysql2-async'
 import { batch, sortby } from 'txstate-utils'
 import { init } from './createdb.js'
-import { type DBMigration, DataServiceInternal, PageServiceInternal, ScheduledPublishAction, ScheduledPublishRecurrence, ScheduledPublishStatus, VersionedService, getFullTextForIndexing, getPages, setAssetSearchCodes, setPageSearchCodes, systemContext } from './internal.js'
+import { type DBMigration, DataServiceInternal, ScheduledPublishAction, ScheduledPublishRecurrence, ScheduledPublishStatus, VersionedService, getFullTextForIndexing, setAssetSearchCodes, setPageSearchCodes, systemContext } from './internal.js'
 
 const dgMigrations: DBMigration[] = [
   {
     id: 20220101000000,
     description: 'initialize all tables',
-    run: async (db) => {
+    run: async db => {
       await VersionedService.init(db)
       await init(db)
       await seeddb(db)
@@ -178,7 +178,7 @@ const dgMigrations: DBMigration[] = [
       const batched = batch(assets, 10)
       let counter = 0
       for (const assetBatch of batched) {
-        if (counter % 1000 === 0) console.log(`Processing asset batch ${counter + 1} of ${batched.length}...`)
+        if (counter % 1000 === 0) console.info(`Processing asset batch ${counter + 1} of ${batched.length}...`)
         const searchCodeData: { internalId: number, name: string, metaFields: string[] }[] = []
         for (const asset of assetBatch) {
           try {
@@ -194,7 +194,7 @@ const dgMigrations: DBMigration[] = [
         await setAssetSearchCodes(searchCodeData, db)
         counter++
       }
-      console.log('finished adding search codes for assets')
+      console.info('finished adding search codes for assets')
     }
   },
   {

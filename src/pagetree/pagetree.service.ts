@@ -1,4 +1,4 @@
-import { type PageExtras, type PageData } from '@dosgato/templating'
+import type { PageExtras, PageData } from '@dosgato/templating'
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, ManyJoinedLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import {
@@ -10,9 +10,7 @@ import {
 } from '../internal.js'
 
 const PagetreesByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => {
-    return await getPagetreesById(ids)
-  }
+  fetch: async (ids: string[]) => await getPagetreesById(ids)
 })
 const PagetreesBySiteIdLoader = new OneToManyLoader({
   fetch: async (siteIds: string[], filter?: PagetreeFilter) => {
@@ -30,9 +28,7 @@ const PagetreesByTemplateIdLoader = new ManyJoinedLoader({
 })
 
 const PagetreeStatsLoader = new PrimaryKeyLoader({
-  fetch: async (pagetreeIds: string[]) => {
-    return await getPagetreeStats(pagetreeIds)
-  },
+  fetch: async (pagetreeIds: string[]) => await getPagetreeStats(pagetreeIds),
   extractId: (item: PagetreeStats) => String(item.pagetreeId)
 })
 
@@ -177,9 +173,9 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     }
     for (const r of this.ctx.authInfo.pageRules) {
       if (
-        r.grants.view &&
-        (!r.siteId || r.siteId === pagetree.siteId) &&
-        (!r.pagetreeType || r.pagetreeType === pagetree.type)
+        r.grants.view
+        && (!r.siteId || r.siteId === pagetree.siteId)
+        && (!r.pagetreeType || r.pagetreeType === pagetree.type)
       ) return true
     }
     return false

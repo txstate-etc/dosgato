@@ -8,15 +8,11 @@ import {
 } from '../internal.js'
 
 const siteRulesByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => {
-    return await getSiteRules({ ids })
-  }
+  fetch: async (ids: string[]) => await getSiteRules({ ids })
 })
 
 const siteRulesByRoleLoader = new OneToManyLoader({
-  fetch: async (roleIds: string[], filter?: SiteRuleFilter) => {
-    return await getSiteRules({ ...filter, roleIds })
-  },
+  fetch: async (roleIds: string[], filter?: SiteRuleFilter) => await getSiteRules({ ...filter, roleIds }),
   extractKey: (r: SiteRule) => r.roleId,
   keysFromFilter: (filter: SiteRuleFilter | undefined) => filter?.roleIds ?? []
 })
@@ -78,9 +74,7 @@ export class SiteRuleService extends DosGatoService<SiteRule> {
     const newRule = new SiteRule({ id: '0', roleId: args.roleId, siteId: args.siteId, ...args.grants })
     const response = new SiteRuleResponse({ success: true })
     const rules = await this.findByRoleId(args.roleId)
-    if (rules.some((r: SiteRule) => {
-      return r.siteId === args.siteId
-    })) {
+    if (rules.some((r: SiteRule) => r.siteId === args.siteId)) {
       response.addMessage('The proposed rule has the same site as an existing rule for this role.')
     }
     if (this.tooPowerful(newRule)) response.addMessage('The proposed rule would have more privilege than you currently have, so you cannot create it.')

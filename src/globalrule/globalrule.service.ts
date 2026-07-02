@@ -89,11 +89,11 @@ export class GlobalRuleService extends DosGatoService<GlobalRule> {
 
   tooPowerful (rule: GlobalRule) {
     const grants = this.ctx.authInfo.globalGrants
-    return (rule.grants.createSites && !grants.createSites) ||
-    (rule.grants.manageAccess && !grants.manageAccess) ||
-    (rule.grants.manageGlobalData && !grants.manageGlobalData) ||
-    (rule.grants.manageParentRoles && !grants.manageParentRoles) ||
-    (rule.grants.manageTemplates && !grants.manageTemplates)
+    return (rule.grants.createSites && !grants.createSites)
+      || (rule.grants.manageAccess && !grants.manageAccess)
+      || (rule.grants.manageGlobalData && !grants.manageGlobalData)
+      || (rule.grants.manageParentRoles && !grants.manageParentRoles)
+      || (rule.grants.manageTemplates && !grants.manageTemplates)
   }
 
   async mayWrite (rule: GlobalRule) {

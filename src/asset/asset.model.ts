@@ -91,7 +91,7 @@ export class Asset {
 
   stringMeta: string | object // mysql returns object, mariadb returns string
   parsedMeta: any
-  get meta (): any | undefined {
+  get meta (): any {
     try {
       this.parsedMeta ??= typeof this.stringMeta === 'string' ? JSON.parse(this.stringMeta) : this.stringMeta
     } catch {

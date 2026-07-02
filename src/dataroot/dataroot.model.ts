@@ -46,7 +46,7 @@ export class DataRootFilter {
 export class DataRootPermissions {}
 
 export enum DataRootPermission {
-  CREATE = 'create',
+  CREATE = 'create'
 }
 registerEnumType(DataRootPermission, {
   name: 'DataRootPermission',

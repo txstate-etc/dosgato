@@ -31,7 +31,7 @@ export async function removeUserTags (tagIds: string[], pageInternalIds: number[
 
 export async function replaceUserTags (tagIds: string[], pageInternalIds: number[], includeChildren?: boolean) {
   await db.transaction(async db => {
-    let binds: any[] = []
+    const binds: any[] = []
     let childInternalIds: number[] = []
     if (includeChildren) {
       const refetchedPages = await getPages({ internalIds: pageInternalIds }, db)
@@ -44,7 +44,6 @@ export async function replaceUserTags (tagIds: string[], pageInternalIds: number
       query += ` AND tagId NOT IN (${db.in(binds, tagIds)})`
     }
     await db.delete(query, binds)
-    binds = []
     if (tagIds.length) {
       const values: string[] = []
       for (const tagId of tagIds) {

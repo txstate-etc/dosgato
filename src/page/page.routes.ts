@@ -1,4 +1,4 @@
-import { type PageData } from '@dosgato/templating'
+import type { PageData } from '@dosgato/templating'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { HttpError } from 'fastify-txstate'
 import db from 'mysql2-async/db'
@@ -182,7 +182,7 @@ export async function createPageRoutes (app: FastifyInstance) {
 
     const page = await svcPageInternal.findById(req.params.pageid)
     if (!page) throw new HttpError(404, 'Specified page does not exist.')
-    if (!svcPage.mayUpdate(page)) throw new HttpError(403, `You are not permitted to update page ${String(page.name)}.`)
+    if (!svcPage.mayUpdate(page)) throw new HttpError(403, `You are not permitted to update page ${page.name}.`)
     const { pageRecord, body } = await handleUpload(req)
     if (!body?.migrate) delete pageRecord.data.legacyId
     if (pageRecord.data.legacyId) {
@@ -209,7 +209,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     try {
       await svcPage.validatePageTemplates(migrated, { page })
     } catch (e: any) {
-      if (migrated.legacyId) response.addMessage(e.message)
+      if (migrated.legacyId) response.add(e.message)
       else throw new HttpError(403, e.message)
     }
     if (!response.success && !migrated.legacyId) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
@@ -239,7 +239,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     const user = await getEnabledUser(ctx) // throws if not authenticated
     const parent = await svcPageInternal.findById(req.params.parentPageId)
     if (!parent) throw new HttpError(404, 'Specified page does not exist.')
-    if (!svcPage.mayCreate(parent)) throw new HttpError(403, `Current user is not permitted to import pages beneath ${String(parent.name)}.`)
+    if (!svcPage.mayCreate(parent)) throw new HttpError(403, `Current user is not permitted to import pages beneath ${parent.name}.`)
 
     const above = req.body?.abovePage ? await svcPageInternal.findById(req.body?.abovePage) : undefined
     const pages = await svcPageInternal.getPageChildren(parent, false)
@@ -248,7 +248,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     let firstInternalId: number | undefined
     const parentsByPath: Record<string, Page> = {}
     await db.transaction(async db => {
-      await handleUploads(req, async (pageRecord) => {
+      await handleUploads(req, async pageRecord => {
         delete pageRecord.data.legacyId
         let newPageName = makeSafe(pageRecord.name)
         let actualParent = parent
@@ -302,16 +302,14 @@ export async function createPageRoutes (app: FastifyInstance) {
     const user = await getEnabledUser(ctx) // throws if not authenticated
     const parent = await svcPageInternal.findById(req.params.parentPageId)
     if (!parent) throw new HttpError(404, 'Specified page does not exist.')
-    if (!svcPage.mayCreate(parent)) throw new HttpError(403, `Current user is not permitted to import pages beneath ${String(parent.name)}.`)
+    if (!svcPage.mayCreate(parent)) throw new HttpError(403, `Current user is not permitted to import pages beneath ${parent.name}.`)
 
     const { pageRecord, body } = await handleUpload(req)
     const above = body?.abovePage ? await svcPageInternal.findById(body?.abovePage) : undefined
     if (!body?.migrate) delete pageRecord.data.legacyId
     if (pageRecord.data.legacyId) {
-      const [allowed, existing] = await Promise.all([
-        ctx.svc(GlobalRuleService).mayOverrideStamps(),
-        await svcPageInternal.find({ legacyIds: [pageRecord.data.legacyId] })
-      ])
+      const allowed = ctx.svc(GlobalRuleService).mayOverrideStamps()
+      const existing = await svcPageInternal.find({ legacyIds: [pageRecord.data.legacyId] })
       if (!allowed) throw new HttpError(403, 'You are not permitted to migrate content from another CMS.')
       if (existing.length) throw new HttpError(400, `${pageRecord.name} in ${parent.name}: Another page has legacy id ${pageRecord.data.legacyId}. Use /pages/update/:id instead.`)
     }
@@ -341,7 +339,7 @@ export async function createPageRoutes (app: FastifyInstance) {
     try {
       await svcPage.validatePageTemplates(migrated, { parent })
     } catch (e: any) {
-      if (migrated.legacyId) response.addMessage(e.message)
+      if (migrated.legacyId) response.add(e.message)
       else throw new HttpError(403, e.message)
     }
     if (!response.success && !migrated.legacyId) throw new HttpError(422, `${response.messages[0].arg ?? ''}: ${response.messages[0].message}`)
@@ -389,8 +387,9 @@ export async function createPageRoutes (app: FastifyInstance) {
     void res.header('Content-Type', 'application/x-gzip')
     void res.header('Access-Control-Expose-Headers', 'Content-Disposition')
     void res.header('Content-Disposition', 'attachment;filename=' + page.resolvedPath.split('/').filter(isNotBlank).join('.') + (recursive ? '.jsonl.gz' : '.json.gz'))
-    const { push, done, output, error } = jsonlGzStream()
-    exportRecursive(ctx, push, page, page.resolvedPath, recursive).then(done).catch(error)
+    const stream = jsonlGzStream()
+    const { done, output, error } = stream
+    exportRecursive(ctx, async obj => { await stream.push(obj) }, page, page.resolvedPath, recursive).then(done).catch(error)
     return output
   })
   app.get('/pages/list', async (req, res) => {
@@ -420,7 +419,6 @@ export async function createPageRoutes (app: FastifyInstance) {
       )
     ])
     const scheduledByPageInternalId = groupby(scheduled, 'pageInternalId')
-    console.log('scheduledByPageInternalId', scheduledByPageInternalId)
 
     const permsByPageInternalId: Record<number, RootPage['permissions'] & { viewForEdit: boolean }> = {}
     function hasPerm (rules: PageRule[], perm: keyof PageRule['grants']) {

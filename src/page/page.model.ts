@@ -58,15 +58,15 @@ export class Page {
   name: string
 
   @Field({
-    description: 'Use linkId to construct an internal link. When a page is ' +
-      'copied from one pagetree to another, the linkId remains the same, preventing ' +
-      'other site\'s links from breaking upon promoting a pagetree to live.\n\n' +
-      'When resolving a link, the page containing the link must be considered. If the ' +
-      'containing page and the linkId are in the same site, following the link should ' +
-      'stay within that pagetree (or be a broken link if the linkId does not exist in ' +
-      'the SAME pagetree). Otherwise, following the link should go to the active pagetree.\n\n' +
-      'When copying a page from one site to another, the linkId should be scrambled ' +
-      'instead of retained, so that no linkId exists in more than one site at a time.'
+    description: 'Use linkId to construct an internal link. When a page is '
+      + 'copied from one pagetree to another, the linkId remains the same, preventing '
+      + 'other site\'s links from breaking upon promoting a pagetree to live.\n\n'
+      + 'When resolving a link, the page containing the link must be considered. If the '
+      + 'containing page and the linkId are in the same site, following the link should '
+      + 'stay within that pagetree (or be a broken link if the linkId does not exist in '
+      + 'the SAME pagetree). Otherwise, following the link should go to the active pagetree.\n\n'
+      + 'When copying a page from one site to another, the linkId should be scrambled '
+      + 'instead of retained, so that no linkId exists in more than one site at a time.'
   })
   linkId: string
 
@@ -256,7 +256,6 @@ export class PhraseSearchInput {
   @Field({ nullable: true, description: 'When true, match the query anywhere within words (substring match). When false or undefined, require word boundary matches.' })
   substring?: boolean
 }
-
 
 @ObjectType()
 export class PageResponse extends ValidatedResponse {

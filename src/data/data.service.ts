@@ -1,7 +1,6 @@
-/* eslint-disable no-trailing-spaces */
 import { BaseService, ValidatedResponse, type MutationMessageType, type Context } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
-import { type Queryable } from 'mysql2-async'
+import type { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { isNotNull, intersect, isNull, keyby, isBlank } from 'txstate-utils'
 import {
@@ -224,7 +223,7 @@ export class DataService extends DosGatoService<Data> {
     if (args.folderId) {
       const folder = await this.svc(DataFolderServiceInternal).findById(args.folderId)
       if (!folder) throw new Error('Data cannot be created in a data folder that does not exist.')
-      if (!this.svc(DataFolderService).mayCreate(folder)) throw new Error(`Current user is not permitted to create data in folder ${String(folder.name)}`)
+      if (!this.svc(DataFolderService).mayCreate(folder)) throw new Error(`Current user is not permitted to create data in folder ${folder.name}`)
       if (folder.templateId !== template.id) {
         throw new Error('Data cannot be created in a folder using a different data template.')
       }
@@ -235,7 +234,7 @@ export class DataService extends DosGatoService<Data> {
       site = await this.svc(SiteServiceInternal).findById(args.siteId)
       if (!site) throw new Error('Data cannot be created in a site that does not exist.')
       dataroot = new DataRoot(site, template)
-      if (!this.svc(DataRootService).mayCreate(dataroot)) throw new Error(`Current user is not permitted to create data in site ${String(site.name)}.`)
+      if (!this.svc(DataRootService).mayCreate(dataroot)) throw new Error(`Current user is not permitted to create data in site ${site.name}.`)
       siblings = [
         ...(await this.raw.findByDataRoot(dataroot, { deleteStates: DeleteStateAll })).filter(d => isNull(d.folderInternalId)),
         ...await this.svc(DataFolderServiceInternal).findBySiteId(args.siteId, { templateKeys: [template.key] })
@@ -327,13 +326,13 @@ export class DataService extends DosGatoService<Data> {
     }
 
     if (folder) {
-      if (!this.svc(DataFolderService).mayCreate(folder)) throw new Error(`You are not permitted to move data to folder ${String(folder.name)}.`)
+      if (!this.svc(DataFolderService).mayCreate(folder)) throw new Error(`You are not permitted to move data to folder ${folder.name}.`)
       if (folder.templateId !== template.id) throw new Error('Data can only be moved to a folder using the same template.')
     }
     if (site) {
       const dataroot = new DataRoot(site, template)
       if (!this.svc(DataRootService).mayCreate(dataroot)) {
-        throw new Error(`Current user is not permitted to move data to this site ${String(site.name)}.`)
+        throw new Error(`Current user is not permitted to move data to this site ${site.name}.`)
       }
     }
     // if none of these are provided, they are moving the data to global data

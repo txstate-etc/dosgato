@@ -139,7 +139,7 @@ export async function createPageRule (args: CreatePageRuleInput) {
       binds.push(args.grants.update)
     }
   }
-  return await db.insert(`INSERT INTO pagerules (${columns.join(',')}) VALUES(${columns.map((c) => '?').join(',')})`, binds)
+  return await db.insert(`INSERT INTO pagerules (${columns.join(',')}) VALUES(${columns.map(c => '?').join(',')})`, binds)
 }
 
 export async function updatePageRule (args: UpdatePageRuleInput) {
@@ -199,7 +199,7 @@ export async function updatePageRule (args: UpdatePageRuleInput) {
       binds.push(args.grants.update)
     }
   }
-  binds.push(String(args.ruleId))
+  binds.push(args.ruleId)
   return await db.update(`UPDATE pagerules
                           SET ${updates.join(', ')}
                           WHERE id = ?`, binds)

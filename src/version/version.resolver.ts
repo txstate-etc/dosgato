@@ -25,9 +25,9 @@ export class VersionResolver {
     ])
     if (!page && !asset && !data) throw new Error('Specified dataId could not be found.')
     if (
-      (page && !ctx.svc(PageService).mayUpdate(page)) ||
-      (asset && !ctx.svc(AssetService).mayUpdate(asset)) ||
-      (data && !ctx.svc(DataService).mayUpdate(data))
+      (page && !ctx.svc(PageService).mayUpdate(page))
+      || (asset && !ctx.svc(AssetService).mayUpdate(asset))
+      || (data && !ctx.svc(DataService).mayUpdate(data))
     ) throw new Error('You are not allowed to mark or unmark this version.')
     const vSvc = ctx.svc(VersionedService)
     await vSvc.toggleMarked(intDataId, version)

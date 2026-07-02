@@ -72,7 +72,7 @@ export async function updateTemplateRule (args: UpdateTemplateRuleInput) {
     updates.push('`use` = ?')
     binds.push(args.grants!.use)
   }
-  binds.push(String(args.ruleId))
+  binds.push(args.ruleId)
   return await db.update(`UPDATE templaterules
                           SET ${updates.join(', ')}
                           WHERE id = ?`, binds)

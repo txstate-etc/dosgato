@@ -1,6 +1,6 @@
 import { type PageData, extractLinksFromText, replaceLinksInText, type PageExtras } from '@dosgato/templating'
 import { DateTime } from 'luxon'
-import { type Queryable } from 'mysql2-async'
+import type { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { unique, keyby, isNotNull, Cache, isNotBlank, intersect, stringify } from 'txstate-utils'
@@ -92,7 +92,7 @@ export async function getSitesByTemplate (templateIds: string[], atLeastOneTree?
 
   const wholeSites = await db.getall(`SELECT ${columnsjoined}, sites_templates.templateId as templateId FROM sites
                                  INNER JOIN sites_templates ON sites.id = sites_templates.siteId
-                                 WHERE sites_templates.templateId IN (${db.in(binds, templateIds)})`, binds)
+                                 WHERE sites.deletedAt IS NULL AND sites_templates.templateId IN (${db.in(binds, templateIds)})`, binds)
   if (!atLeastOneTree) {
     return wholeSites.map(s => ({ key: String(s.templateId), value: new Site(s) }))
   } else {
@@ -101,7 +101,7 @@ export async function getSitesByTemplate (templateIds: string[], atLeastOneTree?
     const sitesWithPagetreesWithTemplate = await db.getall(`SELECT ${columnsjoined}, pagetrees_templates.templateId as templateId FROM sites
                                             INNER JOIN pagetrees ON pagetrees.siteId = sites.id
                                             INNER JOIN pagetrees_templates ON pagetrees_templates.pagetreeId = pagetrees.id
-                                            WHERE pagetrees_templates.templateId IN (${db.in(binds2, templateIds)})`, binds2)
+                                            WHERE sites.deletedAt IS NULL AND pagetrees_templates.templateId IN (${db.in(binds2, templateIds)})`, binds2)
     const sites = unique([...wholeSites, ...sitesWithPagetreesWithTemplate], 'id')
     return sites.map(s => ({ key: String(s.templateId), value: new Site(s) }))
   }
@@ -195,10 +195,8 @@ export async function setLaunchURL (site: Site, host: string | undefined, path: 
       if (host && (fetchedSite.url.host !== host || fetchedSite.url.path !== path)) {
         await createSiteComment(site.id, `Public URL ${host ? `updated to https://${host}${path ?? ''}` : 'removed'}`, currentUserInternalId, db)
       }
-    } else {
-      if (isNotNull(host)) {
-        await createSiteComment(site.id, `Public URL updated to https://${host}${path ?? ''}`, currentUserInternalId, db)
-      }
+    } else if (isNotNull(host)) {
+      await createSiteComment(site.id, `Public URL updated to https://${host}${path ?? ''}`, currentUserInternalId, db)
     }
     if (fetchedSite.url?.enabled !== finalEnabled) {
       if (finalEnabled === LaunchState.PRELAUNCH) {

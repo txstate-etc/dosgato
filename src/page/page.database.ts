@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 import db from 'mysql2-async/db'
-import { type Queryable } from 'mysql2-async'
+import type { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, unique, sortby } from 'txstate-utils'
 import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState, searchCodes, splitWords, quadgrams, normalizeForSearch, removeUnreachableComponents, type PaginationResponse, cancelActiveSchedulesForPages, type DGContext } from '../internal.js'
-import { type PageData } from '@dosgato/templating'
+import type { PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 
 export interface CreatePageInput extends UpdatePageInput {
@@ -63,12 +62,12 @@ export function processDeletedFilters (filter: any, tableName: string, orphansJo
   let deleteStates = new Set(filter?.deleteStates ?? DeleteStateDefault)
   if (deleteStates.has(DeleteStateInput.ALL)) deleteStates = new Set(DeleteStateAll)
   if (
-    !deleteStates.has(DeleteStateInput.NOTDELETED) ||
-    !deleteStates.has(DeleteStateInput.MARKEDFORDELETE) ||
-    !deleteStates.has(DeleteStateInput.DELETED) ||
-    !deleteStates.has(DeleteStateInput.ORPHAN_MARKEDFORDELETE) ||
-    !deleteStates.has(DeleteStateInput.ORPHAN_NOTDELETED) ||
-    !deleteStates.has(DeleteStateInput.ORPHAN_DELETED)
+    !deleteStates.has(DeleteStateInput.NOTDELETED)
+    || !deleteStates.has(DeleteStateInput.MARKEDFORDELETE)
+    || !deleteStates.has(DeleteStateInput.DELETED)
+    || !deleteStates.has(DeleteStateInput.ORPHAN_MARKEDFORDELETE)
+    || !deleteStates.has(DeleteStateInput.ORPHAN_NOTDELETED)
+    || !deleteStates.has(DeleteStateInput.ORPHAN_DELETED)
   ) {
     const deleteOrs: any[] = []
     if (deleteStates.has(DeleteStateInput.NOTDELETED) !== deleteStates.has(DeleteStateInput.ORPHAN_NOTDELETED)) {
@@ -78,11 +77,9 @@ export function processDeletedFilters (filter: any, tableName: string, orphansJo
       } else {
         deleteOrs.push(`${tableName}.deleteState = ${DeleteState.NOTDELETED}${excludeOrphansClause}`)
       }
-    } else {
-      if (deleteStates.has(DeleteStateInput.ORPHAN_NOTDELETED)) {
+    } else if (deleteStates.has(DeleteStateInput.ORPHAN_NOTDELETED)) {
         deleteOrs.push(`${tableName}.deleteState = ${DeleteState.NOTDELETED}`)
       }
-    }
     if (deleteStates.has(DeleteStateInput.MARKEDFORDELETE) !== deleteStates.has(DeleteStateInput.ORPHAN_MARKEDFORDELETE)) {
       joins = orphansJoins
       if (deleteStates.has(DeleteStateInput.ORPHAN_MARKEDFORDELETE)) {
@@ -90,11 +87,9 @@ export function processDeletedFilters (filter: any, tableName: string, orphansJo
       } else {
         deleteOrs.push(`${tableName}.deleteState = ${DeleteState.MARKEDFORDELETE}${excludeOrphansClause}`)
       }
-    } else {
-      if (deleteStates.has(DeleteStateInput.ORPHAN_MARKEDFORDELETE)) {
+    } else if (deleteStates.has(DeleteStateInput.ORPHAN_MARKEDFORDELETE)) {
         deleteOrs.push(`${tableName}.deleteState = ${DeleteState.MARKEDFORDELETE}`)
       }
-    }
     if (deleteStates.has(DeleteStateInput.DELETED) !== deleteStates.has(DeleteStateInput.ORPHAN_DELETED)) {
       joins = orphansJoins
       if (deleteStates.has(DeleteStateInput.ORPHAN_DELETED)) {
@@ -102,11 +97,9 @@ export function processDeletedFilters (filter: any, tableName: string, orphansJo
       } else {
         deleteOrs.push(`${tableName}.deleteState = ${DeleteState.DELETED}${excludeOrphansClause}`)
       }
-    } else {
-      if (deleteStates.has(DeleteStateInput.ORPHAN_DELETED)) {
+    } else if (deleteStates.has(DeleteStateInput.ORPHAN_DELETED)) {
         deleteOrs.push(`${tableName}.deleteState = ${DeleteState.DELETED}`)
       }
-    }
     where.push(`(${deleteOrs.join(') OR (')})`)
   }
   return { binds, where, joins }
@@ -439,7 +432,7 @@ async function refetch (db: Queryable, ...pages: (Page | undefined)[]) {
   return pages.map(p => refetched[p?.internalId ?? 0])
 }
 
-async function handleDisplayOrder (db: Queryable, parent: Page, aboveTarget: Page, pagesAdded: number = 1) {
+async function handleDisplayOrder (db: Queryable, parent: Page, aboveTarget: Page, pagesAdded = 1) {
   const pathToParent = `/${[...parent.pathSplit, parent.internalId].join('/')}`
   let displayOrder
   if (aboveTarget) {
@@ -471,9 +464,7 @@ export async function createVersionedPage (versionedService: VersionedService, u
 }
 
 export async function createPage (versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page | undefined, name: string, data: PageData & { legacyId?: string }, extra?: CreatePageExtras) {
-  return await db.transaction(async db => {
-    return await createPageInTransaction(db, versionedService, userId, parent, aboveTarget, name, data, extra)
-  }, { retries: 2 })
+  return await db.transaction(async db => await createPageInTransaction(db, versionedService, userId, parent, aboveTarget, name, data, extra), { retries: 2 })
 }
 
 export async function createPageInTransaction (db: Queryable, versionedService: VersionedService, userId: string, parent: Page, aboveTarget: Page | undefined, name: string, data: PageData & { legacyId?: string }, extra?: CreatePageExtras) {
@@ -569,7 +560,7 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
 async function handleCopy (db: Queryable, versionedService: VersionedService, userId: string, page: Page, parent: Page, parentPath: string, displayOrder: number, includeChildren?: boolean) {
   const ctx = (versionedService as any).ctx as DGContext
   let newPageName = page.name
-  const pagesWithName = new Set(await db.getvals<string>('SELECT name FROM pages WHERE name LIKE ? AND path = ?', [`${String(page.name)}%`, parent.pathAsParent]))
+  const pagesWithName = new Set(await db.getvals<string>('SELECT name FROM pages WHERE name LIKE ? AND path = ?', [`${page.name}%`, parent.pathAsParent]))
   while (pagesWithName.has(newPageName)) newPageName = numerate(newPageName)
   const newPagePath = appendPath(parentPath, newPageName)
 

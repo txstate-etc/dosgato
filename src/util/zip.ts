@@ -1,14 +1,14 @@
-import { Readable } from 'stream'
-import { pipeline } from 'stream/promises'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { Queue } from 'txstate-utils'
-import { createGunzip, createGzip } from 'zlib'
+import { createGunzip, createGzip } from 'node:zlib'
 
 export function jsonlGzStream () {
   const gzip = createGzip()
   return {
     push: async function (obj: any) {
       const keepgoing = gzip.write(Buffer.from(JSON.stringify(obj) + '\n', 'utf8'))
-      if (!keepgoing) await new Promise(resolve => gzip.once('drain', resolve))
+      if (!keepgoing) await new Promise(resolve => { gzip.once('drain', resolve) })
     },
     done: () => {
       gzip.end()
@@ -62,6 +62,6 @@ export function gzipJsonLToJSON (input: Readable) {
     }
     output.push(null)
   })
-  pipeline(input, gunzip).catch(e => { output.destroy(e) })
+  pipeline(input, gunzip).catch((e: unknown) => { output.destroy(e instanceof Error ? e : new Error(String(e))) })
   return output
 }

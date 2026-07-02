@@ -221,7 +221,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   async create (args: CreateAssetFolderInput, validateOnly?: boolean) {
     const parentFolder = await this.raw.findById(args.parentId)
     if (!parentFolder) throw new Error('Parent folder does not exist.')
-    if (!this.haveAssetFolderPerm(parentFolder, 'create')) throw new Error(`You are not permitted to create folders in ${String(parentFolder.name)}.`)
+    if (!this.haveAssetFolderPerm(parentFolder, 'create')) throw new Error(`You are not permitted to create folders in ${parentFolder.name}.`)
 
     const resp = new AssetFolderResponse({ success: true })
     try {
@@ -249,7 +249,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Folder to be renamed does not exist.')
     if (isNull(folder.parentInternalId)) throw new Error('Root asset folders cannot be renamed.')
-    if (!this.haveAssetFolderPerm(folder, 'update')) throw new Error(`You are not permitted to rename folder ${String(folder.name)}.`)
+    if (!this.haveAssetFolderPerm(folder, 'update')) throw new Error(`You are not permitted to rename folder ${folder.name}.`)
 
     const resp = new AssetFolderResponse({ success: true })
     if (isBlank(name)) resp.addMessage('You must enter a folder name.', 'name')
@@ -277,7 +277,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Folder to be deleted does not exist')
     if (isNull(folder.parentInternalId)) throw new Error('Root asset folders cannot be deleted.')
-    if (!this.haveAssetFolderPerm(folder, 'delete')) throw new Error(`Current user is not permitted to delete folder ${String(folder.name)}.`)
+    if (!this.haveAssetFolderPerm(folder, 'delete')) throw new Error(`Current user is not permitted to delete folder ${folder.name}.`)
     try {
       await deleteAssetFolder(folder.internalId, this.ctx.authInfo.user!.internalId)
       this.loaders.clear()
@@ -292,7 +292,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   async finalizeDeletion (folderId: string) {
     const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Folder to be deleted does not exist')
-    if (!this.haveAssetFolderPerm(folder, 'delete')) throw new Error(`Current user is not permitted to delete folder ${String(folder.name)}.`)
+    if (!this.haveAssetFolderPerm(folder, 'delete')) throw new Error(`Current user is not permitted to delete folder ${folder.name}.`)
     await finalizeAssetFolderDeletion(folder.internalId, this.ctx.authInfo.user!.internalId)
     this.loaders.clear()
     const deletedfolder = await this.raw.findById(folderId)
@@ -302,7 +302,7 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
   async undelete (folderId: string) {
     const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Folder to be restored does not exist')
-    if (!this.mayUndelete(folder)) throw new Error(`Current user is not permitted to restore folder ${String(folder.name)}.`)
+    if (!this.mayUndelete(folder)) throw new Error(`Current user is not permitted to restore folder ${folder.name}.`)
     try {
       await undeleteAssetFolder(folder.internalId)
       this.loaders.clear()

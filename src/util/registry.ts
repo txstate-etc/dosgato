@@ -1,10 +1,10 @@
-import { type APITemplateType, type APIAnyTemplate, type APIPageTemplate, type APIComponentTemplate, type APIDataTemplate, type ComponentData, type LinkDefinition, type Migration } from '@dosgato/templating'
+import type { APITemplateType, APIAnyTemplate, APIPageTemplate, APIComponentTemplate, APIDataTemplate, ComponentData, LinkDefinition, Migration } from '@dosgato/templating'
 import type { FastifyRequest } from 'fastify'
 import { DateTime } from 'luxon'
 import { sortby } from 'txstate-utils'
 import { TemplateArea, parseLinks, type DGContextClass, type DGContext } from '../internal.js'
 import { existsSync, readFileSync } from 'node:fs'
-import { type DGStartOpts } from '../index.js'
+import type { DGStartOpts } from '../index.js'
 
 interface HasHydratedAreas {
   getLinks: (data: any) => LinkDefinition[]

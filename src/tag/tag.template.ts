@@ -40,9 +40,6 @@ export const tagTemplate: APIDataTemplate<UserTagGroupData> = {
     return feedback
   },
   onCopy: data => {
-    return {
-      ...data,
-      tags: data.tags.map(t => ({ ...t, id: randomid(15) }))
-    }
+    data.tags = data.tags.map(t => ({ ...t, id: randomid(15) }))
   }
 }

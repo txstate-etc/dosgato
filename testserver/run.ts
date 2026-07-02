@@ -21,9 +21,7 @@ async function main () {
     return { success: true }
   })
 
-  server.app.get('/userEvents', async (req, res) => {
-    return userEvents
-  })
+  server.app.get('/userEvents', async (req, res) => userEvents)
 
   server.app.delete('/userEvents', async (req, res) => {
     userEvents.length = 0
@@ -65,7 +63,7 @@ main().then(async () => {
   const ctx = await userContext('su01')
   const [asset] = await ctx.svc(AssetServiceInternal).find({ names: ['bobcat'] })
   await requestResizes(asset)
-}).catch(e => {
+}).catch((e: unknown) => {
   console.error(e)
   process.exit(1)
 })

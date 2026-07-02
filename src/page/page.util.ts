@@ -1,4 +1,4 @@
-import { type ComponentData } from '@dosgato/templating'
+import type { ComponentData } from '@dosgato/templating'
 import { isNotNull } from 'txstate-utils'
 import { templateRegistry } from '../internal.js'
 
@@ -39,11 +39,11 @@ export function collectReachableComponents (component: ComponentData) {
  * Removes areas from components that do not exist in its current areas configuration in the
  * template registry. Mutating - you probably want to clone your component before running this.
  */
-export function removeUnreachableComponents <T extends ComponentData> (component: T) {
+export function removeUnreachableComponents<T extends ComponentData> (component: T) {
   if (!component.areas) return component
   const areaConfig = templateRegistry.getPageOrComponentTemplate(component.templateKey)?.areas ?? {}
   for (const areaName of Object.keys(component.areas)) {
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- areaName is a dynamic data key and removing unreachable areas in place is intended
     if (!areaConfig[areaName]) delete component.areas[areaName]
     else for (const c of component.areas[areaName]) removeUnreachableComponents(c)
   }

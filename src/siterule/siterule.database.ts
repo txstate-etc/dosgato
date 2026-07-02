@@ -76,7 +76,7 @@ export async function createSiteRule (args: CreateSiteRuleInput) {
       binds.push(args.grants.delete)
     }
   }
-  return await db.insert(`INSERT INTO siterules (${columns.join(',')}) VALUES(${columns.map((c) => '?').join(',')})`, binds)
+  return await db.insert(`INSERT INTO siterules (${columns.join(',')}) VALUES(${columns.map(c => '?').join(',')})`, binds)
 }
 
 export async function updateSiteRule (args: UpdateSiteRuleInput) {
@@ -110,7 +110,7 @@ export async function updateSiteRule (args: UpdateSiteRuleInput) {
       binds.push(args.grants.delete)
     }
   }
-  binds.push(String(args.ruleId))
+  binds.push(args.ruleId)
   return await db.update(`UPDATE siterules
                           SET ${updates.join(', ')}
                           WHERE id = ?`, binds)

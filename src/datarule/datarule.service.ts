@@ -27,7 +27,7 @@ const dataRulesBySiteLoader = new OneToManyLoader({
 
 const dataRulesByTemplateLoader = new OneToManyLoader({
   fetch: async (templateIds: string[]) => await getDataRules({ templateIds }),
-  extractKey: (r: DataRule) => String(r.templateId!)
+  extractKey: (r: DataRule) => r.templateId!
 })
 
 const dataRulesForAllSitesCache = new Cache(async () => await getDataRules({ siteIds: [null], global: false }), { freshseconds: 3 })

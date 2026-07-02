@@ -145,9 +145,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
       if (!site) throw new Error('Cannot create data folder. Site does not exist.')
       const dataroots = await this.svc(DataRootService).findBySite(site, { templateKeys: [template.key] })
       if (!this.haveDataRootPerm(dataroots[0], 'create')) throw new Error(`You are not permitted to create datafolders in ${site.name}.`)
-    } else {
-      if (!(await this.mayCreateGlobal(template.id))) throw new Error('You are not permitted to create global data folders.')
-    }
+    } else if (!(await this.mayCreateGlobal(template.id))) throw new Error('You are not permitted to create global data folders.')
     const response = new DataFolderResponse({ success: true })
     if (!(await folderNameUniqueInDataRoot(args.name as string, template.id, args.siteId))) {
       response.addMessage(`A folder with this name already exists in ${args.siteId ? 'this site' : 'global data'}.`, 'args.name')
@@ -162,7 +160,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
   async rename (folderId: string, name: string, validateOnly?: boolean) {
     const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Cannot rename a data folder that does not exist.')
-    if (!this.haveDataFolderPerm(folder, 'update')) throw new Error(`You are not permitted to rename folder ${String(folder.name)}.`)
+    if (!this.haveDataFolderPerm(folder, 'update')) throw new Error(`You are not permitted to rename folder ${folder.name}.`)
     const response = new DataFolderResponse({ success: true })
     if (name !== folder.name && !(await folderNameUniqueInDataRoot(name, folder.templateId, folder.siteId))) {
       response.addMessage(`A folder with this name already exists in ${folder.siteId ? 'this site' : 'global data'}.`, 'name')
@@ -192,9 +190,7 @@ export class DataFolderService extends DosGatoService<DataFolder> {
       if (!this.haveDataRootPerm(dataroot, 'create')) {
         throw new Error('You are not permitted to move folders to this site.')
       }
-    } else {
-      if (!(await this.mayCreateGlobal(template.id))) throw new Error('You are not permitted to add global data folders')
-    }
+    } else if (!(await this.mayCreateGlobal(template.id))) throw new Error('You are not permitted to add global data folders')
     try {
       await moveDataFolders(dataFolders.map((f: DataFolder) => f.id), siteId)
       this.loaders.clear()

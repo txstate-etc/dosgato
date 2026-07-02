@@ -220,14 +220,11 @@ export async function syncUsers () {
     for (const u of users) {
       const exUser = externalUsersByLogin[u.login]
       if (exUser && (u.firstname !== exUser.firstname || u.lastname !== exUser.lastname || u.email !== exUser.email || (u.disabledAt == null) !== !!exUser.enabled)) {
-        console.log('updating user', u, 'to', exUser)
         await rescue(updateUser(exUser.login, exUser.firstname, exUser.lastname, exUser.email, undefined))
         if (u.disabledAt == null && !exUser.enabled) usersToDisable.push(u.id)
         if (u.disabledAt != null && (now - u.disabledAt.getTime() < twoWeeks) && u.disabledByAutomation && !!exUser.enabled) usersToEnable.push(u.id)
       }
     }
-    console.log('usersToDisable', usersToDisable)
-    console.log('usersToEnable', usersToEnable)
     if (usersToDisable.length) await disableUsers(usersToDisable.map(internalId => ({ internalId })), true)
     if (usersToEnable.length) await enableUsers(usersToEnable.map(internalId => ({ internalId })))
   }

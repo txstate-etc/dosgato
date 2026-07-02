@@ -1,5 +1,5 @@
 import db from 'mysql2-async/db'
-import { type Queryable } from 'mysql2-async'
+import type { Queryable } from 'mysql2-async'
 import { ScheduledPublish, ScheduledPublishAction, type ScheduledPublishFilter, type ScheduledPublishRecurrence, ScheduledPublishStatus, type PaginationResponse } from '../internal.js'
 
 export interface ScheduledPublishRow {

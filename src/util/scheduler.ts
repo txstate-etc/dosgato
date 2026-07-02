@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { type Queryable } from 'mysql2-async'
+import type { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { sleep } from 'txstate-utils'
 
@@ -58,7 +58,7 @@ export enum DayOfWeek {
   SUNDAY = 7
 }
 
-class Scheduler {
+export class Scheduler {
   protected jobs = new Map<string, { job: SchedulerJob } & SchedulerOpts & { minutesBetween: number }>()
   protected started = false
   async schedule (jobname: string, job: SchedulerJob, opts: SchedulerOpts) {
@@ -104,7 +104,8 @@ class Scheduler {
       CREATE TABLE IF NOT EXISTS tasks (
         name VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL,
         lastBegin DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        retries: TINYINT UNSIGNED NOT NULL DEFAULT 0
+        inProgress TINYINT UNSIGNED NOT NULL DEFAULT 0,
+        retries TINYINT UNSIGNED NOT NULL DEFAULT 0,
         PRIMARY KEY (name)
       )
       ENGINE = InnoDB

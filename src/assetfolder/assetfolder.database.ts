@@ -1,4 +1,4 @@
-import { type Queryable } from 'mysql2-async'
+import type { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { isNotBlank, keyby } from 'txstate-utils'

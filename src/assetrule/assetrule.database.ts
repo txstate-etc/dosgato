@@ -118,7 +118,7 @@ export async function createAssetRule (args: CreateAssetRuleInput) {
       binds.push(args.grants.undelete)
     }
   }
-  return await db.insert(`INSERT INTO assetrules (${columns.join(',')}) VALUES(${columns.map((c) => '?').join(',')})`, binds)
+  return await db.insert(`INSERT INTO assetrules (${columns.join(',')}) VALUES(${columns.map(c => '?').join(',')})`, binds)
 }
 
 export async function updateAssetRule (args: UpdateAssetRuleInput) {
@@ -170,7 +170,7 @@ export async function updateAssetRule (args: UpdateAssetRuleInput) {
       binds.push(args.grants.undelete)
     }
   }
-  binds.push(String(args.ruleId))
+  binds.push(args.ruleId)
   return await db.update(`UPDATE assetrules
                           SET ${updates.join(', ')}
                           WHERE id = ?`, binds)

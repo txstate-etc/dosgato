@@ -22,7 +22,6 @@ describe.skip('anonymous access', () => {
     })
   it('should return only published pages', async () => {
     const { pages } = await queryAsAnonymous('{ pages { id, title, live } }')
-    console.log(pages)
     expect(pages.length).to.be.greaterThan(0)
     expect(pages.every(page => page.live)).to.be.true
   })

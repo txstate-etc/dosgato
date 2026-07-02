@@ -9,9 +9,7 @@ import {
 } from '../internal.js'
 
 const pageRulesByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => {
-    return await getPageRules({ ids })
-  }
+  fetch: async (ids: string[]) => await getPageRules({ ids })
 })
 
 const pageRulesByRoleLoader = new OneToManyLoader({

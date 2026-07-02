@@ -1,12 +1,12 @@
 import type { APIAnyTemplate, FulltextGatheringFn, LinkGatheringFn, Migration, ValidationFeedback } from '@dosgato/templating'
 import { GQLServer, type GQLStartOpts, gqlDevLogger, Context } from '@txstate-mws/graphql-server'
-import { type FastifyInstance } from 'fastify'
+import type { FastifyInstance } from 'fastify'
 import { type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
-import { type GraphQLError, type GraphQLScalarType } from 'graphql'
+import type { GraphQLError, GraphQLScalarType } from 'graphql'
 import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
 import { Cache, isBlank, isNotBlank, omit } from 'txstate-utils'
-import { type NonEmptyArray } from 'type-graphql'
+import type { NonEmptyArray } from 'type-graphql'
 import { migrations, resetdb } from './migrations.js'
 import {
   DateTimeScalar, UrlSafeString, UrlSafeStringScalar, AssetPermissionsResolver, AssetResolver,
@@ -42,7 +42,7 @@ async function updateLogin (queryTime: number, operationName: string | undefined
   await loginCache.get(auth.sub ?? auth.client_id, Number(auth.iat))
 }
 
-export interface AssetMeta <DataType = any> {
+export interface AssetMeta<DataType = any> {
   validation?: (data: DataType, extras: { path: string }) => Promise<ValidationFeedback[]>
   migrations?: Migration<any, { path: string }>[]
   getLinks?: LinkGatheringFn<DataType>

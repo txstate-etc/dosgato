@@ -13,37 +13,27 @@ import {
 } from '../internal.js'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => {
-    return await getRoles({ ids })
-  }
+  fetch: async (ids: string[]) => await getRoles({ ids })
 })
 
 const rolesBySiteIdLoader = new OneToManyLoader({
-  fetch: async (siteIds: string[]) => {
-    return await getRoles({ siteIds })
-  },
+  fetch: async (siteIds: string[]) => await getRoles({ siteIds }),
   extractKey: role => role.siteId!,
   idLoader: rolesByIdLoader
 })
 
 const rolesByGroupIdLoader = new ManyJoinedLoader({
-  fetch: async (groupIds: string[]) => {
-    return await getRolesWithGroup(groupIds)
-  },
+  fetch: async (groupIds: string[]) => await getRolesWithGroup(groupIds),
   idLoader: rolesByIdLoader
 })
 
 const rolesByUserIdLoader = new ManyJoinedLoader({
-  fetch: async (userIds: string[]) => {
-    return await getRolesForUsers(userIds)
-  },
+  fetch: async (userIds: string[]) => await getRolesForUsers(userIds),
   idLoader: rolesByIdLoader
 })
 
 const rolesByManagerIdLoader = new ManyJoinedLoader({
-  fetch: async (managerIds: string[]) => {
-    return await getRolesWithManager(managerIds)
-  },
+  fetch: async (managerIds: string[]) => await getRolesWithManager(managerIds),
   idLoader: rolesByIdLoader
 })
 
@@ -71,9 +61,7 @@ export class RoleServiceInternal extends BaseService {
       const parentGroups = await this.svc(GroupServiceInternal).getSuperGroups(groupId)
       // get the roles for those groups
       const result = await Promise.all(
-        parentGroups.map(async pg => {
-          return await this.loaders.get(rolesByGroupIdLoader).load(pg.id)
-        })
+        parentGroups.map(async pg => await this.loaders.get(rolesByGroupIdLoader).load(pg.id))
       )
       const parentGroupRoles = unique(result.flat(), 'id')
       if (typeof direct === 'undefined') {

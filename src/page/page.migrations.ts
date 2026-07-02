@@ -1,4 +1,4 @@
-import { type ComponentData, type PageData, type PageMigration, type ComponentMigration, type PageExtras, type ComponentExtras } from '@dosgato/templating'
+import type { ComponentData, PageData, PageMigration, ComponentMigration, PageExtras, ComponentExtras } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 import { clone } from 'txstate-utils'
 import { templateRegistry } from '../internal.js'
@@ -14,7 +14,7 @@ async function processMigration (templateKey: string, migrate: ComponentMigratio
     for (let i = 0; i < areaList.length; i++) {
       const cData = areaList[i]
       const subpath = [...path, 'areas', areaKey, String(i)]
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
       newAreas[areaKey] ??= []
       newAreas[areaKey].push(processMigration(templateKey, migrate, cData, subpath, { ...extras, path: subpath.join('.') }))
     }

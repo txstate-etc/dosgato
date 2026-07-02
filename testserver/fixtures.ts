@@ -1,6 +1,6 @@
-import { type DataData } from '@dosgato/templating'
+import type { DataData } from '@dosgato/templating'
 import { Context } from '@txstate-mws/graphql-server'
-import { existsSync } from 'fs'
+import { existsSync } from 'node:fs'
 import { DateTime } from 'luxon'
 import { extension } from 'mime-types'
 import db from 'mysql2-async/db'
@@ -149,13 +149,13 @@ export async function fixtures () {
   ])
 
   const [pagetemplate1, pagetemplate2, pagetemplate3, datatemplate1, datatemplate2, articleTemplate, linkTemplate] = await Promise.all([
-    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp1']),
-    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp2']),
-    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp3']),
-    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyd1']),
-    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyd2']),
-    await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['articledatakey']),
-    await db.getval<number>('SELECT ID FROM templates WHERE `key` = ?', ['keyc1'])
+    db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp1']),
+    db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp2']),
+    db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyp3']),
+    db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyd1']),
+    db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['keyd2']),
+    db.getval<number>('SELECT id FROM templates WHERE `key` = ?', ['articledatakey']),
+    db.getval<number>('SELECT ID FROM templates WHERE `key` = ?', ['keyc1'])
   ])
 
   const [site1AssetRoot, site2AssetRoot, site3AssetRoot, site4AssetRoot, site5AssetRoot, site6AssetRoot, site7AssetRoot, site8AssetRoot, deletedsiteAssetRoot] = await Promise.all([

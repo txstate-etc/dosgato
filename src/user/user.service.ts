@@ -9,36 +9,26 @@ import {
 } from '../internal.js'
 
 const usersByInternalIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: number[]) => {
-    return await getUsersByInternalId(ids)
-  },
+  fetch: async (ids: number[]) => await getUsersByInternalId(ids),
   extractId: (item: User) => item.internalId
 })
 
 const usersByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => {
-    return await getUsers({ ids })
-  }
+  fetch: async (ids: string[]) => await getUsers({ ids })
 })
 
 const usersByGroupIdLoader = new ManyJoinedLoader({
-  fetch: async (groupIds: string[], filter?: UserFilter) => {
-    return await getUsersInGroup(groupIds, filter)
-  },
+  fetch: async (groupIds: string[], filter?: UserFilter) => await getUsersInGroup(groupIds, filter),
   idLoader: usersByInternalIdLoader
 })
 
 const usersByRoleIdLoader = new ManyJoinedLoader({
-  fetch: async (roleIds: string[], filter?: UserFilter) => {
-    return await getUsersWithRole(roleIds, filter)
-  },
+  fetch: async (roleIds: string[], filter?: UserFilter) => await getUsersWithRole(roleIds, filter),
   idLoader: usersByInternalIdLoader
 })
 
 const usersBySiteIdLoader = new ManyJoinedLoader({
-  fetch: async (siteIds: string[]) => {
-    return await getUsersBySite(siteIds)
-  },
+  fetch: async (siteIds: string[]) => await getUsersBySite(siteIds),
   idLoader: usersByInternalIdLoader
 })
 
@@ -66,9 +56,7 @@ export class UserServiceInternal extends BaseService {
     if (!direct) {
       const subgroups = await this.svc(GroupService).getSubgroups(groupId)
       const result = await Promise.all(
-        subgroups.map(async sg => {
-          return await this.loaders.get(usersByGroupIdLoader, filter).load(sg.id)
-        })
+        subgroups.map(async sg => await this.loaders.get(usersByGroupIdLoader, filter).load(sg.id))
       )
       const subgroupUsers = unique(result.flat())
       if (typeof direct === 'undefined') {
@@ -89,9 +77,7 @@ export class UserServiceInternal extends BaseService {
       const groupsWithThisRole = await this.svc(GroupService).findByRoleId(roleId, true)
       // then, the users in those groups and their subgroups (which also have this role)
       const result = await Promise.all(
-        groupsWithThisRole.map(async g => {
-          return await this.findByGroupId(g.id, undefined, filter)
-        })
+        groupsWithThisRole.map(async g => await this.findByGroupId(g.id, undefined, filter))
       )
       const usersFromGroups = unique(result.flat())
       if (typeof direct === 'undefined') {
@@ -182,7 +168,7 @@ export class UserService extends DosGatoService<User, User> {
     const response = new UserResponse({ success: true })
     const existing = await this.raw.findById(id)
     if (existing) response.addMessage('Login is already present, update the user instead.', 'userId', MutationMessageType.error)
-    if (isBlank(lastname)) response.addMessage(`${system ? 'Name is required' : 'Last name is required'}`, 'lastname')
+    if (isBlank(lastname)) response.addMessage(system ? 'Name is required' : 'Last name is required', 'lastname')
     if (isBlank(email)) response.addMessage('E-mail address is required.', 'email')
     if (!/^\s*[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}\s*$/i.test(email)) {
       response.addMessage('Please enter a valid email address.', 'email')
@@ -206,7 +192,7 @@ export class UserService extends DosGatoService<User, User> {
       if (isBlank(args.email)) {
         response.addMessage('This field is required', 'args.email')
       }
-      if (!args.email.match(/^\s*[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}\s*$/i)) {
+      if (!(/^\s*[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,4}\s*$/i.test(args.email))) {
         response.addMessage('Please enter a valid email address', 'args.email')
       }
     }

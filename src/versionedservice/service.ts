@@ -1,9 +1,9 @@
-/* eslint-disable no-multi-str */
+/* eslint-disable no-multi-str -- multi-line SQL string literals use backslash line continuations for readability */
 import { BaseService } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import jsonPatch from 'fast-json-patch'
 import { DateTime } from 'luxon'
-import { type Queryable } from 'mysql2-async'
+import type { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { createHash } from 'node:crypto'
 import { batch, clone, intersect } from 'txstate-utils'
@@ -130,9 +130,7 @@ function zerofill (n: number | string) {
 }
 
 function zerofillIndexes (indexes: Index[]) {
-  let index: Index
-  for (let i = 0; i < indexes.length; i++) {
-    index = indexes[i]
+  for (const index of indexes) {
     for (let j = 0; j < index.values.length; j++) {
       index.values[j] = zerofill(index.values[j])
     }

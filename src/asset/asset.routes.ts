@@ -1,14 +1,14 @@
 import multipart from '@fastify/multipart'
-import archiver from 'archiver'
-import { createHash } from 'crypto'
+import { ZipArchive } from 'archiver'
+import { createHash } from 'node:crypto'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { HttpError } from 'fastify-txstate'
 import { DateTime } from 'luxon'
 import { lookup } from 'mime-types'
 import db from 'mysql2-async/db'
 import probe from 'probe-image-size'
-import { type Readable } from 'node:stream'
-import { type IncomingMessage } from 'node:http'
+import type { Readable } from 'node:stream'
+import type { IncomingMessage } from 'node:http'
 import { get as httpGet } from 'node:http'
 import { get as httpsGet } from 'node:https'
 import { groupby, isBlank, isNotBlank, keyby, randomid } from 'txstate-utils'
@@ -73,7 +73,7 @@ export async function placeFile (readStream: Readable, filename: string, mimeGue
   readStream.on('close', () => {
     if (!isDetected) {
       const received = Buffer.concat(bufs)
-      mime = magic.getMime(received)
+      mime = magic.detect(received)
     }
   })
   const metadataPromise = probe(readStream, true)
@@ -130,7 +130,7 @@ export async function handleURLUpload (url: string, modifiedAt?: string, auth?: 
   }
   console.info('downloading', url)
   const get = url.startsWith('https:') ? httpsGet : httpGet
-  const resp = await new Promise<IncomingMessage>((resolve, reject) => get(url, { headers: { Authorization: auth ?? '' } }, resolve).on('error', reject))
+  const resp = await new Promise<IncomingMessage>((resolve, reject) => { get(url, { headers: { Authorization: auth ?? '' } }, resolve).on('error', reject) })
   if ((resp.statusCode ?? 500) >= 400) {
     resp.destroy()
     throw new HttpError(resp.statusCode ?? 500, `Target URL returned status ${resp.statusCode!}`)
@@ -172,9 +172,9 @@ function getFolderPath (folder: AssetFolder, foldersByInternalId: Record<string,
   return (parent ? getFolderPath(parent, foldersByInternalId) : '') + '/' + folder.name
 }
 
-function safeParse <T = any> (json: string) {
+function safeParse (json: string): any {
   try {
-    return JSON.parse(json) as T
+    return JSON.parse(json)
   } catch (e) {
     return undefined
   }
@@ -189,7 +189,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const user = await getEnabledUser(ctx) // throws if not authorized
     const folder = await ctx.svc(AssetFolderServiceInternal).findById(req.params.folderId)
     if (!folder) throw new HttpError(404, 'Specified folder does not exist.')
-    if (!ctx.svc(AssetFolderService).mayCreate(folder)) throw new HttpError(403, `Current user is not permitted to add assets to folder ${String(folder.name)}.`)
+    if (!ctx.svc(AssetFolderService).mayCreate(folder)) throw new HttpError(403, `Current user is not permitted to add assets to folder ${folder.name}.`)
     if (req.body?.createdAt || req.body?.createdBy || req.body?.modifiedAt || req.body?.modifiedBy) {
       if (!req.body.legacyId) throw new HttpError(400, 'Only assets being imported from another system may override created/modified attributes.')
       if (!ctx.svc(GlobalRuleService).mayOverrideStamps()) throw new HttpError(403, 'You are not allowed to set created/modified stamps on new assets.')
@@ -444,7 +444,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     const foldersByInternalId = keyby([folder, ...folders], 'internalId')
     const assets = await ctx.svc(AssetServiceInternal).findByFolders([...folders, folder])
 
-    const archive = archiver('zip')
+    const archive = new ZipArchive()
     void res.header('Content-Type', 'application/zip')
     void res.header('Content-Disposition', 'attachment;filename=' + folderPath.substring(1).replace(/\//g, '.') + '.zip')
     void res.send(archive)

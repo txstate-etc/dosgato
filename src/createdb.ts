@@ -1,5 +1,6 @@
-/* eslint-disable no-multi-str */
-import { type Queryable } from 'mysql2-async'
+/* eslint-disable no-multi-str -- multi-line SQL string literals use backslash line continuations for readability */
+import type { Queryable } from 'mysql2-async'
+import { Scheduler } from './internal.js'
 
 export async function init (db: Queryable) {
   await db.execute("\
@@ -561,18 +562,7 @@ await db.execute('\
     ENGINE = InnoDB \
     DEFAULT CHARACTER SET = utf8mb4 \
     DEFAULT COLLATE = utf8mb4_general_ci;')
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS tasks (
-      name VARCHAR(255) CHARACTER SET 'ascii' COLLATE 'ascii_general_ci' NOT NULL,
-      lastBegin DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      inProgress TINYINT UNSIGNED NOT NULL DEFAULT 0,
-      retries TINYINT UNSIGNED NOT NULL DEFAULT 0,
-      PRIMARY KEY (name)
-    )
-    ENGINE = InnoDB
-    DEFAULT CHARACTER SET = utf8mb4
-    DEFAULT COLLATE = utf8mb4_general_ci
-  `)
+  await Scheduler.createTable(db)
   await db.execute(`
     CREATE TABLE IF NOT EXISTS requestedresizes (
       binaryId INT UNSIGNED NOT NULL,

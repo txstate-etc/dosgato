@@ -1,6 +1,6 @@
-import { type Context } from '@txstate-mws/graphql-server'
+import type { Context } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
-import { type Queryable } from 'mysql2-async'
+import type { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { lookup } from 'mime-types'
@@ -260,9 +260,9 @@ async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
       }
     }
     // if the search query only contains a number, assume they are searching for an asset by ID
-    if (filter.search.match(/^[0-9]*$/)) {
+    if (/^[0-9]*$/.test(filter.search)) {
       const query = 'SELECT id, name FROM assets WHERE dataId = ?'
-      const rows = await db.getall<{ id: string, name: string }>(query, [parseInt(filter.search)])
+      const rows = await db.getall<{ id: string, name: string }>(query, [parseInt(filter.search, 10)])
       if (rows.length) {
         const assetRow = { id: rows[0].id, name: rows[0].name, term: '', cnt: 150 } // giving this a lot of weight because if you search for an asset ID, you'd expect to be the top result
         assetRows ??= []
@@ -270,7 +270,7 @@ async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
       }
     }
     // it's possible they are searching for a file by name with extension
-    if (filter.search.match(/\.[a-zA-Z0-9]{2,6}$/)) {
+    if (/\.[a-zA-Z0-9]{2,6}$/.test(filter.search)) {
       const filename = filter.search.substring(0, filter.search.lastIndexOf('.'))
       const mime = lookup(filter.search.substring(filter.search.lastIndexOf('.')))
       if (mime) {
@@ -285,12 +285,10 @@ async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
     if (assetRows) {
       where.push(`assets.id IN (${db.in(binds, assetRows.map(r => r.id))})`)
       // gives higher weight to results that include the full search phrase rather than the individual split up search words
-      searchweights = assetRows.reduce((acc, curr) => {
-        return {
+      searchweights = assetRows.reduce((acc, curr) => ({
           ...acc,
           [curr.id]: curr.cnt + (normalizeForSearch(curr.name).includes(lcSearch) || normalizeForSearch(curr.term).includes(lcSearch) ? 100 : 0)
-        }
-      }, {})
+        }), {})
     } else {
       filter.noresults = true
     }
@@ -544,10 +542,9 @@ export function getIndexes (data: any) {
 export async function createAsset (versionedService: VersionedService, userId: string, args: CreateAssetInput, opts?: { numerate?: boolean }) {
   let linkId = args.linkId ?? nanoid(10)
   const newInternalId = await db.transaction(async db => {
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const createdBy = args.legacyId ? (args.createdBy || args.modifiedBy || userId) : userId // || is intended - to catch blanks
     const createdAt = args.legacyId ? (args.createdAt ?? args.modifiedAt ?? undefined) : undefined
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+
     const modifiedBy = args.legacyId ? (args.modifiedBy || createdBy || userId) : userId // || is intended - to catch blanks
     const modifiedAt = args.legacyId ? (args.modifiedAt ?? args.createdAt ?? undefined) : undefined
     const data = { legacyId: args.legacyId, shasum: args.checksum, uploadedFilename: args.uploadedFilename ?? args.filename, meta: args.meta }

@@ -9,15 +9,11 @@ import {
 } from '../internal.js'
 
 const groupsByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => {
-    return await getGroups({ ids })
-  }
+  fetch: async (ids: string[]) => await getGroups({ ids })
 })
 
 const groupsByUserIdLoader = new ManyJoinedLoader({
-  fetch: async (userIds: string[]) => {
-    return await getGroupsWithUser(userIds)
-  },
+  fetch: async (userIds: string[]) => await getGroupsWithUser(userIds),
   idLoader: groupsByIdLoader
 })
 
@@ -54,7 +50,7 @@ export class GroupServiceInternal extends BaseService {
     return ret
   }
 
-  async getSubgroups (groupId: string, recursive: boolean = true) {
+  async getSubgroups (groupId: string, recursive = true) {
     const groupMap = await groupHierarchyCache.get()
     const group = groupMap[groupId]
     if (!group) return []
@@ -115,7 +111,7 @@ export class GroupService extends DosGatoService<Group> {
     return this.removeUnauthorized(await this.raw.findByUserId(userId, direct))
   }
 
-  async getSubgroups (groupId: string, recursive: boolean = true) {
+  async getSubgroups (groupId: string, recursive = true) {
     return this.removeUnauthorized(await this.raw.getSubgroups(groupId, recursive))
   }
 
@@ -146,15 +142,13 @@ export class GroupService extends DosGatoService<Group> {
       const response = new GroupResponse({})
       response.addMessage(`Group ${name} already exists.`, 'name')
       return response
+    } else if (validateOnly) {
+      return new GroupResponse({ success: true, messages: [] })
     } else {
-      if (validateOnly) {
-        return new GroupResponse({ success: true, messages: [] })
-      } else {
-        const groupId = await createGroup(name, parentGroup)
-        await groupHierarchyCache.clear()
-        const newGroup = await this.loaders.get(groupsByIdLoader).load(String(groupId))
-        return new GroupResponse({ success: true, group: newGroup })
-      }
+      const groupId = await createGroup(name, parentGroup)
+      await groupHierarchyCache.clear()
+      const newGroup = await this.loaders.get(groupsByIdLoader).load(String(groupId))
+      return new GroupResponse({ success: true, group: newGroup })
     }
   }
 
@@ -242,7 +236,7 @@ export class GroupService extends DosGatoService<Group> {
     if (!this.mayManageUsers(group)) {
       throw new Error('You are not permitted to manage users for this group.')
     }
-    const users = (await mapConcurrent(userIds, async (id) => await this.svc(UserService).findById(id))).filter(isNotNull)
+    const users = (await mapConcurrent(userIds, async id => await this.svc(UserService).findById(id))).filter(isNotNull)
     if (!users.length) throw new Error('Cannot assign user(s) to group')
     await setGroupUsers(group.id, users.map(u => u.internalId))
     return new ValidatedResponse({ success: true })

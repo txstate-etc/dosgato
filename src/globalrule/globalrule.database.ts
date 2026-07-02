@@ -46,7 +46,7 @@ export async function createGlobalRule (args: CreateGlobalRuleInput) {
       binds.push(args.grants.manageTemplates)
     }
   }
-  return await db.insert(`INSERT INTO globalrules (${columns.join(',')}) VALUES(${columns.map((c) => '?').join(',')})`, binds)
+  return await db.insert(`INSERT INTO globalrules (${columns.join(',')}) VALUES(${columns.map(c => '?').join(',')})`, binds)
 }
 
 export async function updateGlobalRule (args: UpdateGlobalRuleInput) {
@@ -74,7 +74,7 @@ export async function updateGlobalRule (args: UpdateGlobalRuleInput) {
       binds.push(args.grants.manageTemplates)
     }
   }
-  binds.push(String(args.ruleId))
+  binds.push(args.ruleId)
   return await db.update(`UPDATE globalrules
                           SET ${updates.join(', ')}
                           WHERE id = ?`, binds)

@@ -137,7 +137,7 @@ export async function syncRegistryWithDB () {
   const templatesInDB = keyby(await db.getall('SELECT * FROM templates'), 'key')
   const registryTemplates = [...templateRegistry.getType('page'), ...templateRegistry.getType('component'), ...templateRegistry.getType('data')]
   const found = new Set<string>()
-  await eachConcurrent(registryTemplates, async (template) => {
+  await eachConcurrent(registryTemplates, async template => {
     if (!templatesInDB[template.templateKey]) {
       console.info(`Adding template ${template.templateKey}`)
       await db.insert('INSERT INTO templates (`key`, `name`, `type`, `universal`, `deleted`) VALUES (?,?,?,?,0)', [template.templateKey, template.name, template.type, template.type === 'component' ? 1 : 0])
@@ -149,7 +149,7 @@ export async function syncRegistryWithDB () {
   // TODO: This will set deleted = true for all templates in the database NOT added to the template registry.
   // Does anything need to happen with the datarules or datafolders associated with deleted templates?
   // Also need to consider the pagetrees_templates and sites_templates tables. What happens if an allowed template is deleted?
-  const notInRegistry = Object.keys(templatesInDB).filter((t) => !found.has(t))
+  const notInRegistry = Object.keys(templatesInDB).filter(t => !found.has(t))
   if (notInRegistry.length > 0) {
     const deleteTemplateBinds: string[] = []
     const numDeleted = await db.update(`UPDATE templates SET deleted = true WHERE \`key\` IN (${db.in(deleteTemplateBinds, notInRegistry)})`, deleteTemplateBinds)

@@ -1,4 +1,4 @@
-import { type WebLink, type ValidationFeedback, type APIComponentTemplate, type APIPageTemplate, type APIDataTemplate } from '@dosgato/templating'
+import type { WebLink, ValidationFeedback, APIComponentTemplate, APIPageTemplate, APIDataTemplate } from '@dosgato/templating'
 import { isBlank } from 'txstate-utils'
 
 export const PageTemplate1: APIPageTemplate = {
@@ -12,9 +12,7 @@ export const PageTemplate1: APIPageTemplate = {
   migrations: [],
   getLinks: (data: any) => [],
   getTags: (data: any) => data.title === 'Test Tags' ? ['tagtest'] : [],
-  getFulltext: (data: any) => {
-    return [data.title]
-  },
+  getFulltext: (data: any) => [data.title],
   validate: async (data: any) => {
     const errors: ValidationFeedback[] = []
     if (isBlank(data.title)) {
@@ -41,9 +39,7 @@ export const PageTemplate2: APIPageTemplate = {
     links.push({ type: 'url', url: 'https://www.apple.com' })
     return links
   },
-  getFulltext: (data: any) => {
-    return [data.title]
-  },
+  getFulltext: (data: any) => [data.title],
   validate: async (data: any) => {
     const errors: ValidationFeedback[] = []
     if (isBlank(data.title)) {
@@ -63,9 +59,7 @@ export const PageTemplate3: APIPageTemplate = {
   },
   migrations: [],
   getLinks: (data: any) => [],
-  getFulltext: (data: any) => {
-    return [data.title]
-  }
+  getFulltext: (data: any) => [data.title]
 }
 
 export const PageTemplate4: APIPageTemplate = {
@@ -77,9 +71,7 @@ export const PageTemplate4: APIPageTemplate = {
   },
   migrations: [],
   getLinks: (data: any) => [],
-  getFulltext: (data: any) => {
-    return [data.title]
-  }
+  getFulltext: (data: any) => [data.title]
 }
 
 export const LinkComponent: APIComponentTemplate = {
@@ -110,9 +102,7 @@ export const PanelComponent: APIComponentTemplate = {
   },
   migrations: [],
   getLinks: (data: any) => [],
-  getFulltext: (data: any) => {
-    return [data.text, data.title]
-  }
+  getFulltext: (data: any) => [data.text, data.title]
 }
 
 export const QuoteComponent: APIComponentTemplate = {
@@ -121,9 +111,7 @@ export const QuoteComponent: APIComponentTemplate = {
   name: 'Quote',
   migrations: [],
   getLinks: (data: any) => [],
-  getFulltext: (data: any) => {
-    return [data.quote, data.author]
-  }
+  getFulltext: (data: any) => [data.quote, data.author]
 }
 
 export const RichTextComponent: APIComponentTemplate = {
@@ -221,9 +209,7 @@ export const ColorData: APIDataTemplate = {
   name: 'Colors',
   migrations: [],
   getLinks: (data: any) => [],
-  getFulltext: (data: any) => {
-    return [data.title]
-  },
+  getFulltext: (data: any) => [data.title],
   validate: async (data: any) => {
     const errors: ValidationFeedback[] = []
     if (isBlank(data.title)) {
@@ -246,9 +232,7 @@ export const BuildingData: APIDataTemplate = {
     links.push({ type: 'url', url: 'https://www.apple.com' })
     return links
   },
-  getFulltext: (data: any) => {
-    return [data.name]
-  },
+  getFulltext: (data: any) => [data.name],
   validate: async (data: any) => {
     const errors: ValidationFeedback[] = []
     if (isBlank(data.name)) {
@@ -268,9 +252,7 @@ export const ArticleData: APIDataTemplate = {
   name: 'Articles',
   migrations: [],
   getLinks: (data: any) => [],
-  getFulltext: (data: any) => {
-    return [data.title, data.author]
-  },
+  getFulltext: (data: any) => [data.title, data.author],
   computeName: data => data.title
 }
 

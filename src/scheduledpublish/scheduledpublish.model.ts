@@ -1,7 +1,7 @@
 import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
-import { type ScheduledPublishRow, type Page } from '../internal.js'
+import type { ScheduledPublishRow, Page } from '../internal.js'
 
 export enum ScheduledPublishAction {
   PUBLISH = 'PUBLISH',

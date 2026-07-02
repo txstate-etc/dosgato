@@ -133,8 +133,6 @@ export class RoleResolver {
         return await ctx.svc(SiteRuleService).delete(ruleId)
       case RuleType.TEMPLATE:
         return await ctx.svc(TemplateRuleService).delete(ruleId)
-      default:
-        throw new Error(`Cannot remove rule. Rule type ${type as string} does not exist.`)
     }
   }
 }

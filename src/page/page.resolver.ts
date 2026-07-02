@@ -16,9 +16,7 @@ import {
 export class PageResolver {
   @Query(returns => [Page])
   async pages (@Ctx() ctx: DGContext, @Arg('filter', { nullable: true }) filter?: PageFilter, @Arg('pagination', { nullable: true }) pagination?: Pagination) {
-    return await ctx.executePaginated<Page[]>('pages', pagination, async (pageInfo) => {
-      return await ctx.svc(PageService).find({ ...filter, deleteStates: filter?.deleteStates ?? [DeleteStateInput.NOTDELETED, DeleteStateInput.MARKEDFORDELETE] }, pageInfo)
-    })
+    return await ctx.executePaginated<Page[]>('pages', pagination, async pageInfo => await ctx.svc(PageService).find({ ...filter, deleteStates: filter?.deleteStates ?? [DeleteStateInput.NOTDELETED, DeleteStateInput.MARKEDFORDELETE] }, pageInfo))
   }
 
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the page is not in the soft-deleted state.' })

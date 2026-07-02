@@ -1,4 +1,4 @@
-import { type PageExtras, type PageData } from '@dosgato/templating'
+import type { PageExtras, PageData } from '@dosgato/templating'
 import { BaseService } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader, ManyJoinedLoader } from 'dataloader-factory'
 import { nanoid } from 'nanoid'
@@ -13,15 +13,11 @@ import {
 } from '../internal.js'
 
 const sitesByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => {
-    return await getSites({ ids, deleted: DeletedFilter.SHOW })
-  }
+  fetch: async (ids: string[]) => await getSites({ ids, deleted: DeletedFilter.SHOW })
 })
 
 const sitesByNameLoader = new PrimaryKeyLoader({
-  fetch: async (names: string[]) => {
-    return await getSites({ names, deleted: DeletedFilter.SHOW })
-  },
+  fetch: async (names: string[]) => await getSites({ names, deleted: DeletedFilter.SHOW }),
   extractId: site => site.name,
   idLoader: sitesByIdLoader
 })
@@ -35,8 +31,6 @@ const siteByOrganizationIdLoader = new OneToManyLoader({
   idLoader: [sitesByIdLoader, sitesByNameLoader]
 })
 
-// TODO: does this loader need a filter parameter too? Without it, deleted
-// sites will be returned too
 const sitesByTemplateIdLoader = new ManyJoinedLoader({
   fetch: async (templateIds: string[], atLeastOneTree?: boolean) => {
     return await getSitesByTemplate(templateIds, atLeastOneTree)
@@ -172,7 +166,7 @@ export class SiteService extends DosGatoService<Site> {
     return response
   }
 
-  async rename (siteId: string, name: string, validateOnly: boolean = false) {
+  async rename (siteId: string, name: string, validateOnly = false) {
     const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site to be renamed does not exist.')
     if (!this.mayRename(site)) throw new Error('You are not authorized to rename this site')

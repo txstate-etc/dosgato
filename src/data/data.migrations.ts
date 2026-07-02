@@ -1,4 +1,4 @@
-import { type DataData } from '@dosgato/templating'
+import type { DataData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
 import { clone, sortby } from 'txstate-utils'
 import { templateRegistry, type DGContext } from '../internal.js'

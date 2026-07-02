@@ -116,8 +116,8 @@ export class ScheduledPublishService extends DosGatoService<ScheduledPublish> {
   async update (scheduledPublishId: string, args: UpdateScheduledPublishInput, validateOnly?: boolean) {
     const schedule = await this.raw.findById(Number(scheduledPublishId))
     if (!schedule || !await this.mayEdit(schedule)) throw new Error('You are not permitted to edit this schedule.')
-    if ((schedule.action === ScheduledPublishAction.UNPUBLISH && args.action !== ScheduledPublishAction.UNPUBLISH) ||
-      (schedule.action !== ScheduledPublishAction.UNPUBLISH && args.action === ScheduledPublishAction.UNPUBLISH)) {
+    if ((schedule.action === ScheduledPublishAction.UNPUBLISH && args.action !== ScheduledPublishAction.UNPUBLISH)
+      || (schedule.action !== ScheduledPublishAction.UNPUBLISH && args.action === ScheduledPublishAction.UNPUBLISH)) {
       throw new Error('An unpublish schedule cannot be changed to a publish schedule, and vice versa.')
     }
     const response = new ScheduledPublishResponse({ success: true })
@@ -167,9 +167,9 @@ export class ScheduledPublishService extends DosGatoService<ScheduledPublish> {
     if (!page) return false
     const ctx = await userContext(schedule.updatedBy)
     if (schedule.action === ScheduledPublishAction.UNPUBLISH) {
-      return !(await ctx.svc(PageService).checkPerm(page, 'unpublish', false))
+      return !(ctx.svc(PageService).checkPerm(page, 'unpublish', false))
     } else {
-      return !(await ctx.svc(PageService).checkPerm(page, 'unpublish', false))
+      return !(ctx.svc(PageService).checkPerm(page, 'unpublish', false))
     }
   }
 }

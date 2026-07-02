@@ -1,12 +1,12 @@
 import db from 'mysql2-async/db'
-import { type Queryable } from 'mysql2-async'
+import type { Queryable } from 'mysql2-async'
 import { SiteComment, type User, type SiteCommentFilter } from '../internal.js'
 import { keyby } from 'txstate-utils'
 
 export async function getSiteComments (filter?: SiteCommentFilter) {
   const binds: string[] = []
   const where: string[] = []
-  let orderby: string = ''
+  let orderby = ''
 
   if (filter?.ids?.length) {
     where.push(`comments.id IN (${db.in(binds, filter.ids)})`)

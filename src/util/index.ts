@@ -1,4 +1,4 @@
-import path from 'path'
+import path from 'node:path'
 import { isNotBlank } from 'txstate-utils'
 
 export * from './authservice.js'
@@ -7,7 +7,7 @@ export * from './dates.js'
 export * from './events.js'
 export * from './indexing.js'
 export * from './login.js'
-export * from './migrations.js'
+export type * from './migrations.js'
 export * from './mutationlogger.js'
 export * from './registry.js'
 export * from './rules.js'
@@ -71,7 +71,7 @@ export function numerateLoop (name: string, usedNames: Set<string>) {
 export function numerateBasedOnExisting (base: string, usedNames: string[]) {
   let maxArchiveNum: number | undefined
   for (const n of usedNames) {
-    const m = n.match(new RegExp(base + '(-(\\d+))?$'))
+    const m = new RegExp(base + '(-(\\d+))?$').exec(n)
     if (m) {
       const num = m[2] ? Number(m[2]) : 1
       if (maxArchiveNum == null || num > maxArchiveNum) maxArchiveNum = num

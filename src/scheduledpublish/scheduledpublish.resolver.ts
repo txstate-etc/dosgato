@@ -12,7 +12,7 @@ import {
 export class ScheduledPublishResolver {
   @Query(returns => [ScheduledPublish], { description: 'Retrieve a list of all publish and unpublish activity, including pending scheduled publish/unpublish actions. Defaults to showing only pending schedules. Sort order is pending first, then by target date descending.' })
   async scheduledPublishes (@Ctx() ctx: DGContext, @Arg('filter', { nullable: true }) filter?: ScheduledPublishFilter, @Arg('pagination', { nullable: true }) pagination?: Pagination) {
-    return await ctx.executePaginated<ScheduledPublish[]>('scheduledPublishes', pagination, async (pageInfo) => {
+    return await ctx.executePaginated<ScheduledPublish[]>('scheduledPublishes', pagination, async pageInfo => {
       return await ctx.svc(ScheduledPublishService).find(filter, pageInfo)
     })
   }

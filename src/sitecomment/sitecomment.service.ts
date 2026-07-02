@@ -6,15 +6,11 @@ import {
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 
 const CommentsByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => {
-    return await getSiteComments({ ids })
-  }
+  fetch: async (ids: string[]) => await getSiteComments({ ids })
 })
 
 const CommentsBySiteIdLoader = new OneToManyLoader({
-  fetch: async (siteIds: string[]) => {
-    return await getSiteComments({ siteIds })
-  },
+  fetch: async (siteIds: string[]) => await getSiteComments({ siteIds }),
   extractKey: (c: SiteComment) => c.siteId,
   idLoader: CommentsByIdLoader
 })

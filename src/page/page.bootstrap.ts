@@ -1,5 +1,5 @@
-import { readdir, readFile } from 'fs/promises'
-import { createReadStream } from 'fs'
+import { readdir, readFile } from 'node:fs/promises'
+import { createReadStream } from 'node:fs'
 import { groupby, rescue, sortby } from 'txstate-utils'
 import { SiteService, type PageExport, PageService, PageServiceInternal, createAsset, placeFile, VersionedService, AssetFolderServiceInternal, requestResizes, userContext } from '../internal.js'
 import { lookup } from 'mime-types'

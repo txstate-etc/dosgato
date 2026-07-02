@@ -1,10 +1,10 @@
-import { createHash } from 'crypto'
-import { createReadStream, createWriteStream } from 'fs'
-import { access, constants, mkdir, rename, unlink, stat } from 'fs/promises'
+import { createHash } from 'node:crypto'
+import { createReadStream, createWriteStream } from 'node:fs'
+import { access, constants, mkdir, rename, unlink, stat } from 'node:fs/promises'
 import { nanoid } from 'nanoid'
-import { dirname } from 'path'
-import { type Readable } from 'stream'
-import { pipeline } from 'stream/promises'
+import { dirname } from 'node:path'
+import type { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { rescue } from 'txstate-utils'
 
 interface FileHandler {
@@ -65,7 +65,7 @@ class FileSystemHandler implements FileHandler {
       // when pipeline() rejects (e.g. client aborts mid-upload, ERR_STREAM_PREMATURE_CLOSE), we go to the catch block without
       // ever awaiting flushedPromise — pipeline destroys `out`, which then rejects flushedPromise with no handler and crashes
       // the process. claim the rejection up front.
-      flushedPromise.catch(() => {})
+      flushedPromise.catch(() => { /* no-op */ })
       await pipeline(stream, out)
       await flushedPromise
       const checksum = hash.digest('base64url')

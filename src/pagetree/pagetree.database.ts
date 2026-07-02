@@ -1,4 +1,4 @@
-import { type PageData } from '@dosgato/templating'
+import type { PageData } from '@dosgato/templating'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
 import { unique, isNotBlank } from 'txstate-utils'
@@ -15,10 +15,10 @@ export function processDeletedFiltersNoFinalize (filter: any, tableName: string,
   let deleteStates = new Set(filter?.deleteStates ?? DeleteStateNoFinalizeDefault)
   if (deleteStates.has(DeleteStateInputNoFinalize.ALL)) deleteStates = new Set(DeleteStateNoFinalizeAll)
   if (
-    !deleteStates.has(DeleteStateInputNoFinalize.NOTDELETED) ||
-    !deleteStates.has(DeleteStateInputNoFinalize.DELETED) ||
-    !deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_NOTDELETED) ||
-    !deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_DELETED)
+    !deleteStates.has(DeleteStateInputNoFinalize.NOTDELETED)
+    || !deleteStates.has(DeleteStateInputNoFinalize.DELETED)
+    || !deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_NOTDELETED)
+    || !deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_DELETED)
   ) {
     const deleteOrs: any[] = []
     if (deleteStates.has(DeleteStateInputNoFinalize.NOTDELETED) !== deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_NOTDELETED)) {
@@ -28,10 +28,8 @@ export function processDeletedFiltersNoFinalize (filter: any, tableName: string,
       } else {
         deleteOrs.push(`${tableName}.deletedAt IS NULL${excludeOrphansClause}`)
       }
-    } else {
-      if (deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_NOTDELETED)) {
-        deleteOrs.push(`${tableName}.deletedAt IS NULL`)
-      }
+    } else if (deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_NOTDELETED)) {
+      deleteOrs.push(`${tableName}.deletedAt IS NULL`)
     }
     if (deleteStates.has(DeleteStateInputNoFinalize.DELETED) !== deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_DELETED)) {
       joins = orphansJoins
@@ -40,10 +38,8 @@ export function processDeletedFiltersNoFinalize (filter: any, tableName: string,
       } else {
         deleteOrs.push(`${tableName}.deletedAt IS NOT NULL${excludeOrphansClause}`)
       }
-    } else {
-      if (deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_DELETED)) {
-        deleteOrs.push(`${tableName}.deletedAt IS NOT NULL`)
-      }
+    } else if (deleteStates.has(DeleteStateInputNoFinalize.ORPHAN_DELETED)) {
+      deleteOrs.push(`${tableName}.deletedAt IS NOT NULL`)
     }
     where.push(`(${deleteOrs.join(') OR (')})`)
   }
@@ -136,7 +132,7 @@ export async function createPagetree (versionedService: VersionedService, user: 
     // Insert the page template in the list of allowed page templates for the pagetree, unless it is already approved for the whole site.
     const templateId = await db.getval<number>('SELECT id FROM templates WHERE `key` = ?', [data.templateKey])
     const siteAuthorization = await db.getval<number>('SELECT COUNT(*) FROM sites_templates WHERE siteId = ? AND templateId = ?', [site.id, templateId!])
-    if (siteAuthorization! === 0) {
+    if ((siteAuthorization!) === 0) {
       await db.insert('INSERT INTO pagetrees_templates (pagetreeId, templateId) VALUES (?,?)', [pagetreeId, templateId!])
     }
     return new Pagetree(await db.getrow('SELECT * FROM pagetrees WHERE id=?', [pagetreeId]))
@@ -173,7 +169,7 @@ export async function promotePagetree (oldPrimaryId: string, newPrimaryId: strin
     await db.update('UPDATE sites SET primaryPagetreeId = ? WHERE id = ?', [newPrimaryPagetree.id, newPrimaryPagetree.siteId])
     await db.update('UPDATE assetfolders SET name = ? WHERE pagetreeId = ? AND path = "/"', [pagetreeName, oldPrimaryId])
     await db.update('UPDATE assetfolders SET name = ? WHERE pagetreeId = ? AND path = "/"', [site.name, newPrimaryId])
-    await db.update(`UPDATE scheduledpublishes sp INNER JOIN pages p ON p.id=sp.pageInternalId SET sp.status = ? WHERE sp.status = ? AND p.pagetreeId = ?`, [ScheduledPublishStatus.CANCELLED, ScheduledPublishStatus.PENDING, oldPrimaryId])
+    await db.update('UPDATE scheduledpublishes sp INNER JOIN pages p ON p.id=sp.pageInternalId SET sp.status = ? WHERE sp.status = ? AND p.pagetreeId = ?', [ScheduledPublishStatus.CANCELLED, ScheduledPublishStatus.PENDING, oldPrimaryId])
 
     await createSiteComment(site.id, `Promoted pagetree ${newPrimaryPagetree.name} to primary.`, user.internalId, db)
     await createSiteComment(site.id, `Created new archive ${pagetreeName}.`, user.internalId, db)
@@ -213,7 +209,7 @@ export async function undeletePagetree (pagetreeId: string, user: User) {
 }
 
 export interface PagetreeStats {
-  pagetreeId: string
+  pagetreeId: number
   pageCount: number
   publishedPageCount: number
   modifiedAt: Date | null

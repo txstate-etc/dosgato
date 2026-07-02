@@ -4,9 +4,7 @@ import { createOrganization, DosGatoService, getOrganizations, type Organization
 import { isNotNull } from 'txstate-utils'
 
 const organizationsByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => {
-    return await getOrganizations({ ids })
-  },
+  fetch: async (ids: string[]) => await getOrganizations({ ids }),
   extractId: org => org.id
 })
 

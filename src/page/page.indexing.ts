@@ -90,8 +90,8 @@ export function getKeywords (text?: string, options?: { stopwords?: boolean }) {
     .flatMap(word => word.includes('-') ? word.split('-').concat(word.replaceAll('-', '')) : [word])
     .flatMap(word => /\d/.test(word) && isNaN(Number(word)) ? word.split(/(?<=\d)(?=[a-z])|(?<=[a-z])(?=\d)/) : [word])
     .filter(word =>
-      word.length > 2 &&
-      (options?.stopwords === false || !stopwords.has(word)))
+      word.length > 2
+      && (options?.stopwords === false || !stopwords.has(word)))
   ))
 }
 

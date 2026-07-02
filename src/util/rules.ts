@@ -26,7 +26,7 @@ export function comparePathsWithMode (ruleA: RuleWithPath, ruleB: RuleWithPath) 
   return comparePathsMap[ruleB.mode][ruleA.mode](ruleA, ruleB)
 }
 
-export function tooPowerfulHelper <R extends Rule> (rule: R, rules: R[], asOrMorePowerful: (ruleA: R, ruleB: R) => boolean) {
+export function tooPowerfulHelper<R extends Rule> (rule: R, rules: R[], asOrMorePowerful: (ruleA: R, ruleB: R) => boolean) {
   const asPowerfulRules = rules.filter(r => asOrMorePowerful(r, rule))
   const grants: Record<string, boolean> = {}
   for (const r of asPowerfulRules) {

@@ -3,7 +3,7 @@ import { BaseService, ValidatedResponse, MutationMessageType, type Context } fro
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { LRUCache } from 'lru-cache'
 import { DateTime } from 'luxon'
-import { type Queryable } from 'mysql2-async'
+import type { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { batch, Cache, equal, filterAsync, get, intersect, isBlank, isNotBlank, isNotNull, keyby, omit, set, someAsync, sortby } from 'txstate-utils'
 import {
@@ -351,7 +351,7 @@ export class PageServiceInternal extends BaseService {
             this.loaders.get(pagesByPathLoader, { pagetreeTypes: [PagetreeType.PRIMARY], siteIds: [l.siteId], launchStates: [LaunchState.LAUNCHED, LaunchState.PRELAUNCH] }).load(lookuppath)
           )
         }
-        const pages = await Promise.all(lookups)
+        const pages = await Promise.all(lookups.filter(isNotNull))
         return sortby(pages.flat().filter(isNotNull), p => p.siteId === l.siteId, true, 'published', true, p => p.linkId === l.linkId, true)[0]
       }))
       const found = pages.filter(isNotNull)
@@ -413,7 +413,7 @@ export class PageServiceInternal extends BaseService {
       const versionedSvc = this.svc(VersionedService)
       const matchedDataIds = new Set<string>()
 
-      await Promise.all(filter.phraseSearch.map(async (entry) => {
+      await Promise.all(filter.phraseSearch.map(async entry => {
         const exactGrams = new Set<string>()
         const prefixGrams = new Set<string>()
         for (const word of getKeywords(entry.query)) {
@@ -555,7 +555,7 @@ export class PageService extends DosGatoService<Page> {
   }
 
   getPath (page: Page) {
-    return this.raw.getPath(page)
+    return page.resolvedPath
   }
 
   async getTags (page: Page, published?: boolean) {
@@ -623,8 +623,7 @@ export class PageService extends DosGatoService<Page> {
   }
 
   mayViewForAudit (page: Page) {
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-    return this.ctx.authInfo.ownedOrManagedSiteIds?.includes(page.siteId) || this.ctx.authInfo.pageSiteIds?.includes(page.siteId)
+    return !!this.ctx.authInfo.ownedOrManagedSiteIds?.includes(page.siteId) || !!this.ctx.authInfo.pageSiteIds?.includes(page.siteId)
   }
 
   mayViewLatest (page: Page) {
@@ -642,11 +641,9 @@ export class PageService extends DosGatoService<Page> {
 
   async isLive (page: Page) {
     if (page.pagetreeType !== PagetreeType.PRIMARY) return false
-    const [published, site] = await Promise.all([
-      this.isPublished(page),
-      this.svc(SiteServiceInternal).findById(String(page.siteInternalId))
-    ])
-    return published && site?.url != null && site.url.enabled === LaunchState.LAUNCHED
+    const published = page.published
+    const site = await this.svc(SiteServiceInternal).findById(String(page.siteInternalId))
+    return published && site?.url?.enabled === LaunchState.LAUNCHED
   }
 
   isOrphanedOrDeleted (page: Page, acceptPendingDelete?: boolean) {
@@ -683,7 +680,7 @@ export class PageService extends DosGatoService<Page> {
     if (page.pagetreeType === PagetreeType.ARCHIVE) return false
     if (page.parentInternalId && !parentBeingPublished) {
       const parent = await this.raw.findByInternalId(page.parentInternalId)
-      return (!!parent!.published)
+      return (!!parent?.published)
     }
     return true
   }
@@ -801,8 +798,7 @@ export class PageService extends DosGatoService<Page> {
       const availableComponents = templateByKey[data.templateKey]._areasByName[area]?._availableComponentSet ?? new Set()
       const areaList = data.areas?.[area] ?? []
       if (!Array.isArray(areaList)) throw new Error('Encountered a non-array in area. That is not valid data.')
-      for (let i = 0; i < areaList.length; i++) {
-        const component = areaList[i]
+      for (const component of areaList) {
         if (!component) throw new Error('Encountered an undefined component.')
         if (!availableComponents.has(component.templateKey)) throw new Error('At least one component is in an incompatible area.')
         this.checkAvailableTemplates(component, templateByKey)
@@ -853,7 +849,7 @@ export class PageService extends DosGatoService<Page> {
   async updatePage (dataId: string, dataVersion: number, data: PageData, comment?: string, validateOnly?: boolean) {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${page.name}`)
     const extras = this.raw.pageExtras(page)
     const migrated = await migratePage(data, extras)
     await this.validatePageTemplates(data, { page })
@@ -879,7 +875,7 @@ export class PageService extends DosGatoService<Page> {
   async restorePage (dataId: string, restoreVersion: number, validateOnly?: boolean) {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot restore an older version of a page that does not exist.')
-    if (!(this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!(this.mayUpdate(page))) throw new Error(`Current user is not permitted to update page ${page.name}`)
     const [dataToRestore, meta] = await Promise.all([
       this.svc(VersionedService).get(page.intDataId, { version: restoreVersion }),
       this.svc(VersionedService).getMeta(page.intDataId)
@@ -916,7 +912,7 @@ export class PageService extends DosGatoService<Page> {
     delete data.areas
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${page.name}`)
     await this.checkLatestVersion(dataId, dataVersion)
     const pageData = await this.raw.getData(page, dataVersion)
     const extras = this.raw.pageExtras(page)
@@ -952,7 +948,7 @@ export class PageService extends DosGatoService<Page> {
     delete data.areas
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${page.name}`)
     await this.checkLatestVersion(dataId, dataVersion)
     const pageData = await this.raw.getData(page, dataVersion)
     const extras = this.raw.pageExtras(page)
@@ -965,7 +961,7 @@ export class PageService extends DosGatoService<Page> {
     const updated = set(migrated, path, { ...data, areas: existing.areas })
     const fullymigrated = await migratePage(updated, extras)
     const migratedComponent = get<ComponentData>(fullymigrated, path)
-    if (!migratedComponent || migratedComponent.templateKey !== data.templateKey) throw new Error('There was a problem interpreting this save. You may need to refresh the page and try again.')
+    if (migratedComponent?.templateKey !== data.templateKey) throw new Error('There was a problem interpreting this save. You may need to refresh the page and try again.')
     const validator = templateRegistry.getComponentTemplate(migratedComponent.templateKey)?.validate
     const messages = (await validator?.(migratedComponent, { ...extras, page: fullymigrated, path, currentData: migratedComponent })) ?? []
     for (const message of messages) {
@@ -986,7 +982,7 @@ export class PageService extends DosGatoService<Page> {
     if (!data.templateKey) throw new Error('Component must have a templateKey.')
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${page.name}`)
     await this.checkLatestVersion(dataId, dataVersion)
     const pageData = await this.raw.getData(page, dataVersion)
 
@@ -1073,7 +1069,7 @@ export class PageService extends DosGatoService<Page> {
   async moveComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime<true>, fromPath: string, toPath: string, comment?: string) {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${page.name}`)
     await this.checkLatestVersion(dataId, dataVersion)
     const pageData = await this.raw.getData(page, dataVersion)
 
@@ -1091,7 +1087,7 @@ export class PageService extends DosGatoService<Page> {
 
     const toParts = toPath.split('.')
     let toParentPath = toPath
-    let toIdx: number = Number(toParts[toParts.length - 1])
+    let toIdx = Number(toParts[toParts.length - 1])
     if (!isNaN(toIdx)) { // they gave us a component path, we will insert content there
       toParentPath = toParts.slice(0, -1).join('.')
       toIdx = Number(toParts[toParts.length - 1])
@@ -1138,7 +1134,7 @@ export class PageService extends DosGatoService<Page> {
     const fullymigrated = await migratePage(migrated, extras)
     const migratedToParentComponent = get(fullymigrated, finalToParentComponentPath)
     const migratedComponent = get(fullymigrated, finalComponentPath)
-    if (!migratedComponent || migratedComponent.templateKey !== fromObj.templateKey || !migratedToParentComponent || migratedToParentComponent.templateKey !== toParentComponent.templateKey) throw new Error('There was a problem interpreting this action. You may need to refresh the page and try again.')
+    if (migratedComponent?.templateKey !== fromObj.templateKey || !migratedToParentComponent || migratedToParentComponent.templateKey !== toParentComponent.templateKey) throw new Error('There was a problem interpreting this action. You may need to refresh the page and try again.')
     const toParentTemplate = templateRegistry.getPageOrComponentTemplate(migratedToParentComponent.templateKey)
     const areaName = toParentParts[toParentParts.length - 1]
     if (!toParentTemplate?.areas?.[areaName]?.includes(migratedComponent.templateKey)) throw new Error('The content you are trying to move is not compatible with the area you are trying to move it into.')
@@ -1157,7 +1153,7 @@ export class PageService extends DosGatoService<Page> {
   async deleteComponent (dataId: string, dataVersion: number, editedSchemaVersion: DateTime<true>, path: string, comment?: string) {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
-    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${String(page.name)}`)
+    if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${page.name}`)
     await this.checkLatestVersion(dataId, dataVersion)
     const pageData = await this.raw.getData(page, dataVersion)
 
@@ -1283,7 +1279,7 @@ export class PageService extends DosGatoService<Page> {
     const rootPages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
     let children: Page[] = []
     if (includeChildren) {
-      children = (await Promise.all(rootPages.map(async (page) => await this.getPageChildren(page, true)))).flat().filter(c => c.deleteState === DeleteState.NOTDELETED)
+      children = (await Promise.all(rootPages.map(async page => await this.getPageChildren(page, true)))).flat().filter(c => c.deleteState === DeleteState.NOTDELETED)
     }
     const mayPublishes = await Promise.all([
       ...rootPages.map(async page => await this.mayPublish(page, false)),
@@ -1320,12 +1316,12 @@ export class PageService extends DosGatoService<Page> {
 
   async unpublishPages (dataIds: string[], parentSchedule?: ScheduledPublish) {
     const pages = (await Promise.all(dataIds.map(async id => await this.raw.findById(id)))).filter(isNotNull)
-    const children = (await Promise.all(pages.flatMap(async (page) => await this.getPageChildren(page, true)))).flat()
+    const children = (await Promise.all(pages.flatMap(async page => await this.getPageChildren(page, true)))).flat()
     const childrenById = keyby(children, 'id')
     const actualParents = pages.filter(p => !childrenById[p.id])
     const mayUnpublishPromises: Promise<boolean>[] = []
-    mayUnpublishPromises.push(...actualParents.map(async page => !!await this.mayUnpublish(page, false)))
-    mayUnpublishPromises.push(...children.map(async page => !!await this.mayUnpublish(page, true)))
+    mayUnpublishPromises.push(...actualParents.map(async page => await this.mayUnpublish(page, false)))
+    mayUnpublishPromises.push(...children.map(async page => await this.mayUnpublish(page, true)))
     if (await someAsync(mayUnpublishPromises, async promise => !await promise)) {
       throw new Error('Current user is not permitted to unpublish one or more pages.')
     }

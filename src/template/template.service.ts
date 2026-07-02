@@ -9,37 +9,27 @@ import {
 } from '../internal.js'
 
 const templatesByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => {
-    return await getTemplates({ ids })
-  }
+  fetch: async (ids: string[]) => await getTemplates({ ids })
 })
 const templatesByKeyLoader = new PrimaryKeyLoader({
-  fetch: async (keys: string[]) => {
-    return await getTemplates({ keys })
-  },
+  fetch: async (keys: string[]) => await getTemplates({ keys }),
   extractId: tmpl => tmpl.key,
   idLoader: templatesByIdLoader
 })
 templatesByIdLoader.addIdLoader(templatesByKeyLoader)
 
 const templatesBySiteIdLoader = new ManyJoinedLoader({
-  fetch: async (siteIds: string[], filter?: TemplateFilter) => {
-    return await getTemplatesBySite(siteIds, filter)
-  },
+  fetch: async (siteIds: string[], filter?: TemplateFilter) => await getTemplatesBySite(siteIds, filter),
   idLoader: [templatesByIdLoader, templatesByKeyLoader]
 })
 
 const templatesByPagetreeIdLoader = new ManyJoinedLoader({
-  fetch: async (pagetreeIds: string[], filter?: TemplateFilter) => {
-    return await getTemplatesByPagetree(pagetreeIds, filter)
-  },
+  fetch: async (pagetreeIds: string[], filter?: TemplateFilter) => await getTemplatesByPagetree(pagetreeIds, filter),
   idLoader: [templatesByIdLoader, templatesByKeyLoader]
 })
 
 const mayUseTemplateInPagetreeLoader = new PrimaryKeyLoader({
-  fetch: async (pairs: { pagetreeId: string, templateKey: string }[]) => {
-    return await getTemplatePagetreePairs(pairs)
-  },
+  fetch: async (pairs: { pagetreeId: string, templateKey: string }[]) => await getTemplatePagetreePairs(pairs),
   extractId: row => ({ pagetreeId: String(row.pagetreeId), templateKey: row.templateKey })
 })
 
@@ -49,7 +39,7 @@ async function getAvailableComponents (templateKey: string, svc: TemplateService
   const areas = (await svc.loaders.get(templatesByKeyLoader).load(templateKey))?.areas ?? []
   if (!areas.length) return []
   const directKeys = unique((areas?.map(a => a.availableComponents) ?? []).flat()).filter(k => k !== templateKey)
-  const indirectKeys = (await Promise.all(directKeys.map(async (k) => await getAvailableComponents(k, svc, seen)))).flat()
+  const indirectKeys = (await Promise.all(directKeys.map(async k => await getAvailableComponents(k, svc, seen)))).flat()
   return unique([...directKeys, ...indirectKeys])
 }
 
@@ -60,12 +50,10 @@ async function getAvailableComponentsInTemplate (templateKey: string, svc: Templ
 
 const pageTemplateAvailableComponents = new Cache(async (_key: string, svc: TemplateServiceInternal) => {
   const pageTemplateKeys = (await getTemplates({ types: [TemplateType.PAGE] })).filter(t => !t.deleted).map(t => t.key)
-  const availableComponentsByPageTemplateKey = await Promise.all(pageTemplateKeys.map(async (key) => {
-    return {
-      key,
-      availableComponents: (await getAvailableComponentsInTemplate(key, svc)).map(t => t.key)
-    }
-  }))
+  const availableComponentsByPageTemplateKey = await Promise.all(pageTemplateKeys.map(async key => ({
+    key,
+    availableComponents: (await getAvailableComponentsInTemplate(key, svc)).map(t => t.key)
+  })))
   return keyby(availableComponentsByPageTemplateKey, 'key')
 })
 
@@ -145,9 +133,7 @@ export class TemplateService extends DosGatoService<Template> {
   async authorizeForPagetrees (templateKey: string, pagetreeIds: string[]) {
     const template = await this.raw.findByKey(templateKey)
     if (!template) throw new Error('Template to be authorized does not exist')
-    const pagetrees = (await mapConcurrent(pagetreeIds, async (id) => {
-      return await this.svc(PagetreeServiceInternal).findById(id)
-    })).filter(isNotNull)
+    const pagetrees = (await mapConcurrent(pagetreeIds, async id => await this.svc(PagetreeServiceInternal).findById(id))).filter(isNotNull)
     const response: ValidatedResponse = new ValidatedResponse({ success: true })
     if (!this.mayAssign(template)) throw new Error('Current user is not permitted to authorize this template for this pagetree.')
     if (unique(pagetrees.map(p => p.siteId)).length > 1) {
