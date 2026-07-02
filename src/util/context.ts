@@ -3,10 +3,10 @@ import type { FastifyRequest } from 'fastify'
 import {
  AssetRule, DataRule, type GlobalRule, PageRule, RoleServiceInternal, RulePathMode, SiteRule, getPageRules, getAssetRules,
   getDataRules, getSiteRules, getGlobalRules, getTemplateRules, type GlobalRuleGrants, type TemplateRule, type Role, getUsers,
-  GroupServiceInternal, PaginationResponse, type Group, type User, type Pagination, SiteServiceInternal,
+  GroupServiceInternal, type Group, type User, SiteServiceInternal,
   systemContext
 } from '../internal.js'
-import { Cache, isNotNull, keyby, sleep, unique } from 'txstate-utils'
+import { Cache, isNotNull, keyby, unique } from 'txstate-utils'
 
 async function fetchPageRules (netid: string, roleIds: string[]) {
   if (netid === 'anonymous') return [new PageRule({ path: '/', mode: RulePathMode.SELFANDSUB })]
@@ -117,8 +117,6 @@ export interface DGContext extends Context {
   systemCtx: DGContext
 
   prefetch: () => Promise<void>
-  executePaginated: <T> (queryType: string, paged: Pagination | undefined, work: (pageInfo: PaginationResponse) => Promise<T> | T) => Promise<T | undefined>
-  getPaginationInfo: (queryType: string) => Promise<PaginationResponse | undefined>
 }
 
 export type DGContextClass = typeof Context & (new (req: FastifyRequest) => DGContext)
@@ -137,42 +135,6 @@ export function dgContextMixin (Ctx: typeof Context): DGContextClass {
       const systemCtxPromise = this.login === 'system' ? undefined : systemContext()
       this.authInfo = await authCache.get(this.login, this)
       this.systemCtx = systemCtxPromise ? await systemCtxPromise : this
-    }
-
-    protected paginationPromises: Record<string, Promise<PaginationResponse>> = {}
-    protected allPaginationPromises: Record<string, Promise<PaginationResponse>> = {}
-
-    async executePaginated <T> (queryType: string, paged: Pagination | undefined, work: (pageInfo: PaginationResponse) => Promise<T> | T) {
-      const paginationRequested = paged?.page != null
-      if (paginationRequested && this.paginationPromises[queryType] != null) throw new Error('Cannot execute more than one paginated request per top-level Query resolver.')
-      const pageInfo = new PaginationResponse({ page: paged?.page ?? 1, perPage: paged?.perPage ?? 1000000 })
-      let ret: T | undefined
-      const executePromise = new Promise<PaginationResponse>((resolve, reject) => {
-        try {
-          const result = work(pageInfo)
-          if (result instanceof Promise) {
-            result.then(r => {
-              ret = r
-              resolve(pageInfo)
-            }).catch(reject)
-          } else {
-            ret = result
-            resolve(pageInfo)
-          }
-        } catch (e) {
-          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- propagating the original thrown value unchanged; wrapping would lose its type and stack
-          reject(e)
-        }
-      })
-      if (paginationRequested) this.paginationPromises[queryType] = executePromise
-      else this.allPaginationPromises[queryType] = executePromise
-      await executePromise
-      return ret
-    }
-
-    async getPaginationInfo (queryType: string): Promise<PaginationResponse | undefined> {
-      await sleep(1)
-      return (await (this.paginationPromises[queryType] ?? this.allPaginationPromises[queryType]))
     }
   } as unknown as DGContextClass
 }

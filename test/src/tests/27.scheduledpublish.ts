@@ -113,6 +113,34 @@ describe('scheduled publishes', () => {
       expect(sp.action).to.not.equal('UNPUBLISH')
     }
   })
+  it('should retrieve scheduled publishes paginated', async () => {
+    // create several pending schedules so there are enough entries to page through
+    for (let i = 0; i < 3; i++) {
+      const { page } = await createPage(`schedpub-page${i}`, testSite6PageRootId, 'keyp2')
+      await query(`
+        mutation CreateScheduledPublish ($args: CreateScheduledPublishInput!) {
+          createScheduledPublish (args: $args) { success scheduledPublish { id } }
+        }`, { args: { pageId: page.id, action: 'PUBLISH', targetDate: futureDate(10) } })
+    }
+
+    const perPage = 2
+    const { scheduledPublishes: all } = await query('{ scheduledPublishes { id } }')
+    expect(all.length).to.be.greaterThan(perPage)
+
+    const resp1 = await query(`{ scheduledPublishes(pagination: { page: 1, perPage: ${perPage} }) { id } pageInfo { scheduledPublishes { page perPage finalPage } } }`)
+    expect(resp1.scheduledPublishes).to.have.lengthOf(perPage)
+    expect(resp1.pageInfo.scheduledPublishes.page).to.equal(1)
+    expect(resp1.pageInfo.scheduledPublishes.perPage).to.equal(perPage)
+    expect(resp1.pageInfo.scheduledPublishes.finalPage).to.equal(Math.ceil(all.length / perPage))
+
+    // the second page should not repeat any entry from the first
+    const resp2 = await query(`{ scheduledPublishes(pagination: { page: 2, perPage: ${perPage} }) { id } }`)
+    expect(resp2.scheduledPublishes).to.have.lengthOf(perPage)
+    const firstIds = resp1.scheduledPublishes.map((sp: any) => sp.id)
+    for (const sp of resp2.scheduledPublishes) {
+      expect(firstIds).to.not.include(sp.id)
+    }
+  })
   it('should create a scheduled publish with recurrence', async () => {
     const { page } = await createPage('schedpub-recur', testSite6PageRootId, 'keyp2')
     const { createScheduledPublish: { success, scheduledPublish } } = await query(`

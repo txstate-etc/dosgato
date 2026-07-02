@@ -1,6 +1,7 @@
 import db from 'mysql2-async/db'
 import type { Queryable } from 'mysql2-async'
-import { ScheduledPublish, ScheduledPublishAction, type ScheduledPublishFilter, type ScheduledPublishRecurrence, ScheduledPublishStatus, type PaginationResponse } from '../internal.js'
+import type { PaginationResponse } from '@txstate-mws/graphql-server'
+import { ScheduledPublish, ScheduledPublishAction, type ScheduledPublishFilter, type ScheduledPublishRecurrence, ScheduledPublishStatus } from '../internal.js'
 
 export interface ScheduledPublishRow {
   id: number

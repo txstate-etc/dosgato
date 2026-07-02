@@ -1,5 +1,5 @@
 import type { APIAnyTemplate, FulltextGatheringFn, LinkGatheringFn, Migration, ValidationFeedback } from '@dosgato/templating'
-import { GQLServer, type GQLStartOpts, gqlDevLogger, Context } from '@txstate-mws/graphql-server'
+import { GQLServer, type GQLStartOpts, gqlDevLogger, Context, PageInformationResolver } from '@txstate-mws/graphql-server'
 import type { FastifyInstance } from 'fastify'
 import { type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
 import type { GraphQLError, GraphQLScalarType } from 'graphql'
@@ -27,7 +27,7 @@ import {
   duplicateSite, createUser, systemContext, UserService, type Role, type DGContext,
   type DGRestrictOperations, dgContextMixin, createUserRoutes, syncUsers, type EventInfo, makeSafe,
   tagTemplate, UserTagResolver, TemplateService, TemplateServiceInternal, PagetreeServiceInternal,
-  RoleServiceInternal, PageInformationResolver,
+  RoleServiceInternal, DGPageInformationResolver,
   ScheduledPublishResolver, ScheduledPublishPermissionsResolver, executeScheduledPublishes,
   PageServiceInternal,
   DeleteState,
@@ -235,6 +235,7 @@ export class DGServer {
       GroupPermissionsResolver,
       OrganizationResolver,
       PageInformationResolver,
+      DGPageInformationResolver,
       PageResolver,
       PagePermissionsResolver,
       PageRuleResolver,

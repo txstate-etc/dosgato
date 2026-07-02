@@ -1,7 +1,6 @@
 export * from './scalars/index.js'
 export * from './versionedservice/types.js'
 
-export * from './pagination/pagination.model.js'
 export * from './page/page.model.js'
 export * from './role/role.model.js'
 export * from './access/access.model.js'

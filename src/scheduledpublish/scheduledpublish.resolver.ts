@@ -1,18 +1,18 @@
-import { Context } from '@txstate-mws/graphql-server'
+import { Context, Pagination } from '@txstate-mws/graphql-server'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Mutation, ID } from 'type-graphql'
 import {
   ScheduledPublish, ScheduledPublishFilter, ScheduledPublishResponse,
   ScheduledPublishPermissions, ScheduledPublishService,
   CreateScheduledPublishInput, UpdateScheduledPublishInput,
   Page, PageServiceInternal, User, UserService,
-  Pagination, type DGContext
+  type DGContext
 } from '../internal.js'
 
 @Resolver(of => ScheduledPublish)
 export class ScheduledPublishResolver {
   @Query(returns => [ScheduledPublish], { description: 'Retrieve a list of all publish and unpublish activity, including pending scheduled publish/unpublish actions. Defaults to showing only pending schedules. Sort order is pending first, then by target date descending.' })
-  async scheduledPublishes (@Ctx() ctx: DGContext, @Arg('filter', { nullable: true }) filter?: ScheduledPublishFilter, @Arg('pagination', { nullable: true }) pagination?: Pagination) {
-    return await ctx.executePaginated<ScheduledPublish[]>('scheduledPublishes', pagination, async pageInfo => {
+  async scheduledPublishes (@Ctx() ctx: DGContext, @Arg('filter', { nullable: true }) filter?: ScheduledPublishFilter, @Arg('pagination', type => Pagination, { nullable: true }) pagination?: Pagination) {
+    return await ctx.executePaginated<ScheduledPublish[]>('scheduledPublishes', { pagination }, async pageInfo => {
       return await ctx.svc(ScheduledPublishService).find(filter, pageInfo)
     })
   }

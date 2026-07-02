@@ -1,5 +1,5 @@
 import type { LinkDefinition, ComponentData, PageData, PageExtras, AssetLink, AssetFolderLink } from '@dosgato/templating'
-import { BaseService, ValidatedResponse, MutationMessageType, type Context } from '@txstate-mws/graphql-server'
+import { BaseService, ValidatedResponse, MutationMessageType, PaginationResponse, type Context } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { LRUCache } from 'lru-cache'
 import { DateTime } from 'luxon'
@@ -14,7 +14,7 @@ import {
   type CreatePageExtras, parsePath, normalizePath, validateRecurse, type Template, type PageRuleGrants,
   DeleteStateAll, PageRuleService, SiteRuleService, systemContext, collectComponents, makePathSafe, LaunchState,
   type DGRestrictOperations, fireEvent, setPageSearchCodes, AssetServiceInternal, getPageLinks,
-  PaginationResponse, type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
+  type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
   removeUnreachableComponents, getPageTagsByTagIds, TagServiceInternal, type AssetFilter, AssetService,
   type AssetFolderFilter, getPageTexts, ScheduledPublishServiceInternal, ScheduledPublishAction, ScheduledPublishStatus,
   type ScheduledPublish, logImmediatePublish, logBackdatedDescendants, type DGContext, getKeywords, setPageIndexed

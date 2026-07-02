@@ -1,5 +1,5 @@
 import { ComponentData, PageData } from '@dosgato/templating'
-import { Context, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { Context, Pagination, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { DateTime } from 'luxon'
 import { get, isNull } from 'txstate-utils'
 import { Resolver, Query, Arg, Ctx, FieldResolver, Root, Int, Mutation, ID } from 'type-graphql'
@@ -9,14 +9,14 @@ import {
   TemplateService, UrlSafeString, DeleteStateInput, PagetreeServiceInternal, PageRuleServiceInternal,
   SchemaVersionScalar, SiteServiceInternal, VersionFilter, UserTag, TagService, getPageLinks, Asset,
   AssetFilter, AssetFolderFilter, DGContext,
-  Pagination, ScheduledPublish, ScheduledPublishFilter, ScheduledPublishService
+  ScheduledPublish, ScheduledPublishFilter, ScheduledPublishService
 } from '../internal.js'
 
 @Resolver(of => Page)
 export class PageResolver {
   @Query(returns => [Page])
-  async pages (@Ctx() ctx: DGContext, @Arg('filter', { nullable: true }) filter?: PageFilter, @Arg('pagination', { nullable: true }) pagination?: Pagination) {
-    return await ctx.executePaginated<Page[]>('pages', pagination, async pageInfo => await ctx.svc(PageService).find({ ...filter, deleteStates: filter?.deleteStates ?? [DeleteStateInput.NOTDELETED, DeleteStateInput.MARKEDFORDELETE] }, pageInfo))
+  async pages (@Ctx() ctx: DGContext, @Arg('filter', { nullable: true }) filter?: PageFilter, @Arg('pagination', type => Pagination, { nullable: true }) pagination?: Pagination) {
+    return await ctx.executePaginated<Page[]>('pages', { pagination }, async pageInfo => await ctx.svc(PageService).find({ ...filter, deleteStates: filter?.deleteStates ?? [DeleteStateInput.NOTDELETED, DeleteStateInput.MARKEDFORDELETE] }, pageInfo))
   }
 
   @FieldResolver(returns => User, { nullable: true, description: 'Null when the page is not in the soft-deleted state.' })

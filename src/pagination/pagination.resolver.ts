@@ -1,20 +1,18 @@
-import { Context } from '@txstate-mws/graphql-server'
-import { Resolver, Query, Ctx, FieldResolver } from 'type-graphql'
-import { PageInformation, PaginationResponse, type DGContext } from '../internal.js'
+import { PageInformation, PaginationResponse } from '@txstate-mws/graphql-server'
+import { Resolver, Ctx, FieldResolver } from 'type-graphql'
+import type { DGContext } from '../internal.js'
 
+// The generic `pageInfo` Query itself is provided by the library's `PageInformationResolver`
+// (registered in index.ts). Here we contribute one field resolver per paginated top-level
+// query so clients can read its pagination metadata back via `pageInfo { <queryType> }`.
 @Resolver(of => PageInformation)
-export class PageInformationResolver {
-  @Query(returns => PageInformation)
-  pageInfo (@Ctx() ctx: Context) {
-    return new PageInformation()
-  }
-
-  @FieldResolver(returns => PaginationResponse)
+export class DGPageInformationResolver {
+  @FieldResolver(returns => PaginationResponse, { nullable: true })
   async pages (@Ctx() ctx: DGContext) {
     return await ctx.getPaginationInfo('pages')
   }
 
-  @FieldResolver(returns => PaginationResponse)
+  @FieldResolver(returns => PaginationResponse, { nullable: true })
   async scheduledPublishes (@Ctx() ctx: DGContext) {
     return await ctx.getPaginationInfo('scheduledPublishes')
   }

@@ -1,10 +1,10 @@
-import { BaseService, MutationMessageType } from '@txstate-mws/graphql-server'
+import { BaseService, MutationMessageType, type PaginationResponse } from '@txstate-mws/graphql-server'
 import { OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { DateTime } from 'luxon'
 import {
   DosGatoService, type ScheduledPublishFilter, type ScheduledPublish, ScheduledPublishStatus,
   ScheduledPublishAction, ScheduledPublishRecurrence, ScheduledPublishResponse, type CreateScheduledPublishInput,
-  type UpdateScheduledPublishInput, PageServiceInternal, PageService, type PaginationResponse,
+  type UpdateScheduledPublishInput, PageServiceInternal, PageService,
   getScheduledPublishes, countScheduledPublishes, createScheduledPublish, updateScheduledPublish,
   updateScheduledPublishStatus, userContext
 } from '../internal.js'
