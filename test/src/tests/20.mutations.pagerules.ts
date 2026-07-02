@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs, createRole } from '../common.js'
-import { hashify } from 'txstate-utils'
+import { keyby } from 'txstate-utils'
 
 chai.use(chaiAsPromised)
 
@@ -18,12 +17,12 @@ describe('page rule mutations', () => {
       }
     }`)
     sites = resp.sites
-    sitehash = hashify(sites, 'name')
+    sitehash = keyby(sites, 'name')
   })
   it('should create a page rule', async () => {
     const { role } = await createRole({ name: 'pagerulestestA' })
-    const { createPageRule: { success, pageRule } } =
-    await query(`mutation CreatePageRule ($args: CreatePageRuleInput!)
+    const { createPageRule: { success, pageRule } }
+    = await query(`mutation CreatePageRule ($args: CreatePageRuleInput!)
     {
       createPageRule (args: $args) {
         success

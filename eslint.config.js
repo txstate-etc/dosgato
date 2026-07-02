@@ -87,11 +87,23 @@ export default [
       'require-unicode-regexp': 'off'
     }
   },
+  // the test suite is its own package with its own tsconfig and node_modules,
+  // so type-aware rules must use its project instead of tsconfig.eslint.json
+  {
+    files: ['test/**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: './test/tsconfig.json'
+      }
+    }
+  },
   // RELAXED RULES FOR TEST FILES
   {
-    files: ['testserver/**/*.ts'],
+    files: ['testserver/**/*.ts', 'test/**/*.ts'],
     rules: {
       'no-console': 'off',
+      '@typescript-eslint/no-empty-function': 'off', // empty async callbacks are intentional no-op stubs in tests
       '@typescript-eslint/no-floating-promises': 'off',
       '@typescript-eslint/no-unsafe-argument': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',

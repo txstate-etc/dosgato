@@ -42,7 +42,7 @@
     "test": "./test.sh",
     "build": "rm -rf dist && tsc",
     "buildrun": "rm -rf dist && cd testserver && tsc",
-    "lint": "eslint src testserver",
+    "lint": "eslint src testserver test/src",
     "start:dev": "cd testserver; tsc-watch --noClear --onSuccess \"node --enable-source-maps --inspect ../dist/testserver/run.js\"",
     "start": "node --no-warnings --enable-source-maps ./dist/testserver/run.js"
   },

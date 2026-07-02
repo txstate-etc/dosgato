@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import { expect } from 'chai'
 import { query } from '../common.js'
 import db from 'mysql2-async/db'

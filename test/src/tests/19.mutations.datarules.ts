@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs, createRole } from '../common.js'
-import { hashify } from 'txstate-utils'
+import { keyby } from 'txstate-utils'
 
 chai.use(chaiAsPromised)
 
@@ -18,12 +17,12 @@ describe('data rule mutations', () => {
       }
     }`)
     sites = resp.sites
-    sitehash = hashify(sites, 'name')
+    sitehash = keyby(sites, 'name')
   })
   it('should create a data rule', async () => {
     const { role } = await createRole({ name: 'datarulestestA' })
-    const { createDataRule: { success, dataRule } } =
-    await query(`mutation CreateDataRule ($args: CreateDataRuleInput!)
+    const { createDataRule: { success, dataRule } }
+    = await query(`mutation CreateDataRule ($args: CreateDataRuleInput!)
     {
       createDataRule (args: $args) {
         success

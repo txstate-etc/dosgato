@@ -1,8 +1,8 @@
 import { expect } from 'chai'
 import { queryAs } from '../common.js'
 
-async function queryAsAnonymous <T = any> (query: string, variables?: any) {
-  return queryAs<T>('anonymous', query, variables)
+async function queryAsAnonymous<T = any> (query: string, variables?: any) {
+  return await queryAs<T>('anonymous', query, variables)
 }
 
 // in progress and skipped for now

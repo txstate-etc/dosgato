@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common.js'
@@ -283,7 +282,7 @@ describe('scheduled publishes', () => {
       }`, { args: { pageId: page.id, action: 'PUBLISH', targetDate: futureDate(10) } })
 
     // cancel it, then check actionNotPermitted
-    await query(`mutation CancelScheduledPublish ($id: ID!) { cancelScheduledPublish (scheduledPublishId: $id) { success } }`, { id: created.id })
+    await query('mutation CancelScheduledPublish ($id: ID!) { cancelScheduledPublish (scheduledPublishId: $id) { success } }', { id: created.id })
 
     const { scheduledPublishes } = await query(`{ scheduledPublishes(filter: { ids: ["${created.id}"], statuses: [CANCELLED] }) { id status actionNotPermitted } }`)
     expect(scheduledPublishes).to.have.lengthOf(1)

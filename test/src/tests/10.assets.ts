@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import { expect } from 'chai'
 import { keyby } from 'txstate-utils'
 import { query } from '../common.js'
@@ -67,7 +66,7 @@ describe('assets', () => {
   before(async () => {
     const aList = await query<{ assets: Asset[] }>('{ assets { id mime name filename path checksum box { width height } resizes { width height mime } folder { id } site { id, name } } }')
     // Rename bobcat.jpg asset to bobCAT.jpg
-    const asset = aList.assets.filter(a => a.site.name === 'site1').filter(a => a.filename === 'bobcat.jpg')[0]
+    const asset = aList.assets.filter(a => a.site.name === 'site1').find(a => a.filename === 'bobcat.jpg')!
     const resp = await query('mutation renameAsset ($id: ID!, $name: FilenameSafeString!) { renameAsset (assetId: $id, name: $name) { asset { id name } } }', {
       id: asset.id,
       name: 'BobCAT'
@@ -125,12 +124,12 @@ describe('assets', () => {
     expect(resp2.assets.length).to.equal(0)
   })
   it('should retrieve asset by link', async () => {
-    const asset = allAssets.filter(a => a.site.name === 'site1').filter(a => a.filename === 'blankpdf.pdf')[0]
+    const asset = allAssets.filter(a => a.site.name === 'site1').find(a => a.filename === 'blankpdf.pdf')!
     const { assets } = await query<{ assets: Asset[] }>('query getAssetByLink ($links: [AssetLinkInput!]!) { assets(filter: { links: $links }) { id name extension filename size checksum site { id name }}}', { links: [{ linkId: asset.id, path: '/site1/blankpdf', siteId: asset.site.id, checksum: '' }] })
     expect(assets[0].checksum).to.equal('PKBUoghpogATqmK14ry1wqKsP-e-S8GVqHKuCxH7k1k')
   })
   it('should retrieve asset by link (with broken id - should default to path)', async () => {
-    const asset = allAssets.filter(a => a.site.name === 'site1').filter(a => a.filename === 'blankpdf.pdf')[0]
+    const asset = allAssets.filter(a => a.site.name === 'site1').find(a => a.filename === 'blankpdf.pdf')!
     const { assets } = await query<{ assets: Asset[] }>('query getAssetByLink ($links: [AssetLinkInput!]!) { assets(filter: { links: $links }) { id name extension filename size checksum site { id name }}}', { links: [{ linkId: asset.id + 'a', path: '/site1/blankpdf', siteId: asset.site.id, checksum: '' }] })
     expect(assets[0].checksum).to.equal('PKBUoghpogATqmK14ry1wqKsP-e-S8GVqHKuCxH7k1k')
   })

@@ -1,22 +1,22 @@
 import axios from 'axios'
 import jwt from 'jsonwebtoken'
 import FormData from 'form-data'
-import fs from 'fs'
-import AgentKeepAlive from 'agentkeepalive'
+import fs from 'node:fs'
+import { HttpAgent } from 'agentkeepalive'
 import { expect } from 'chai'
 
 const client = axios.create({
   baseURL: 'http://dosgato-api',
-  httpAgent: new AgentKeepAlive(),
+  httpAgent: new HttpAgent(),
   timeout: 10000
 })
 
-export async function query <T = any> (query: string, variables?: any) {
+export async function query<T = any> (query: string, variables?: any) {
   return await queryAs<T>('su01', query, variables)
 }
 
 const tokenCache: Record<string, string> = {}
-export async function queryAs <T = any> (login: string, query: string, variables?: any) {
+export async function queryAs<T = any> (login: string, query: string, variables?: any) {
   tokenCache[login] ??= jwt.sign({ iss: 'jwt-secret', sub: login }, process.env.JWT_SECRET ?? '')
   try {
     const resp = await client.post('graphql', {

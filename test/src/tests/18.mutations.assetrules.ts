@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 import chai, { expect } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs, createRole } from '../common.js'
@@ -24,8 +23,8 @@ describe('asset rule mutations', () => {
     const { role } = await createRole({ name: 'assetrulestestA' })
     // const { sites } = await query('{ sites { id name } }')
     // const site4 = sites.find((s: any) => s.name === 'site4')
-    const { createAssetRule: { success, assetRule } } =
-    await query(`mutation CreateAssetRule ($args: CreateAssetRuleInput!)
+    const { createAssetRule: { success, assetRule } }
+    = await query(`mutation CreateAssetRule ($args: CreateAssetRuleInput!)
     {
       createAssetRule (args: $args) {
         success
