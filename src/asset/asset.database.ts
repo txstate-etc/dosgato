@@ -657,7 +657,7 @@ export async function moveAssets (targetFolder: AssetFolder, assets: Asset[], fo
     // and will not expect it all to get de-structured.
     const filteredAssetRows = assetrows.map(a => ({ ...a, pathsplit: new Set(a.path.split('/').filter(isNotBlank).map(Number)) })).filter(asset => !folderrows.some(f => f.id === asset.folderId || asset.pathsplit.has(f.id)))
 
-    if (filteredFolderRows.some(f => targetrow.id === f.id || targetrow.path.startsWith(makeParentPath(f) + '/'))) throw new Error('Cannot move a folder into its own sub-folder.')
+    if (filteredFolderRows.some(f => targetrow.id === f.id || targetrow.path === makeParentPath(f) || targetrow.path.startsWith(makeParentPath(f) + '/'))) throw new Error('Cannot move a folder into its own sub-folder.')
 
     const siblingFolders = await db.getall('SELECT * FROM assetfolders WHERE path=?', [targetrow.path + '/' + String(targetrow.id)])
     const siblingAssets = await db.getall('SELECT * FROM assets WHERE folderId=?', [targetrow.id])
@@ -742,7 +742,7 @@ export async function copyAssets (targetFolder: AssetFolder, assets: Asset[], fo
     // and will not expect it all to get de-structured.
     const filteredAssetRows = assetrows.filter(asset => !folderrows.some(f => f.id === asset.folderId))
 
-    if (filteredFolderRows.some(f => targetrow.id === f.id || targetrow.path.startsWith(makeParentPath(f) + '/'))) throw new Error('Cannot copy a folder into its own sub-folder.')
+    if (filteredFolderRows.some(f => targetrow.id === f.id || targetrow.path === makeParentPath(f) || targetrow.path.startsWith(makeParentPath(f) + '/'))) throw new Error('Cannot copy a folder into its own sub-folder.')
 
     // copy assets
     for (const a of filteredAssetRows) {

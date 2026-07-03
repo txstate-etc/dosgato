@@ -68,15 +68,6 @@ describe('pagetrees', () => {
     expect(pagetree.roles).to.have.deep.members([{ name: 'site5-siterulestest1' }, { name: 'site5-siterulestest2' }, { name: 'superuser' }])
     expect(pagetree.roles).to.not.have.deep.members([{ name: 'site5-siterulestest3' }])
   })
-  // The siterule grants were updated to combine the old managePagetrees and promotePagetree grants into manageState, which covers all the
-  // pagetree permissions. This test might not make sense anymore.
-  it.skip('should retrieve roles with a specific permission on a pagetree', async () => {
-    const { sites } = await query('{ sites { name pagetrees { name roles(withPermission:[PROMOTE]) { name } } } }')
-    const site5 = sites.find((s: any) => s.name === 'site5')
-    const pagetree = site5.pagetrees[0]
-    expect(pagetree.roles).to.have.deep.members([{ name: 'site5-siterulestest2' }, { name: 'superuser' }])
-    expect(pagetree.roles).to.not.have.deep.members([{ name: 'site5-siterulestest1' }])
-  })
   it('should get the number of non-deleted pages in a pagetree', async () => {
     const { sites } = await query('{ sites { name pagetrees { name pageCount pages { id name } } } }')
     const site1 = sites.find((s: any) => s.name === 'site1')

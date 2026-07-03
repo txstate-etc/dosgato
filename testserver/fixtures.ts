@@ -498,7 +498,18 @@ export async function fixtures () {
       values: ['eople', 'peopl']
     }
   ]
-  const site1pagetree1People = await createPage('people', peopleLinkId, pagetree1, site1pagetree1About, 2, { templateKey: 'keyp1', savedAtVersion: getSavedAtVersion(), title: 'People', areas: { links: [], main: [] } }, indexes)
+  const site1pagetree1People = await createPage('people', peopleLinkId, pagetree1, site1pagetree1About, 2, {
+    templateKey: 'keyp1',
+    savedAtVersion: getSavedAtVersion(),
+    title: 'People',
+    areas: {
+      links: [
+        { templateKey: 'keyc1', text: 'Faculty', link: { type: 'page', siteId: String(site1), linkId: facultyLinkId, path: '/site1/about/people/faculty' }, areas: {} },
+        { templateKey: 'keyc1', text: 'Staff', link: { type: 'page', siteId: String(site1), linkId: staffLinkId, path: '/site1/about/people/staff' }, areas: {} }
+      ],
+      main: []
+    }
+  }, indexes)
 
   // faculty page
   indexes = [

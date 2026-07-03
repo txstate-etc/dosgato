@@ -270,6 +270,23 @@ describe('pages mutations', () => {
       expect(page.children.map((p: any) => p.name)).to.include.members(['copytestpage15', 'copytestpage16', 'copytestpage17', 'copytestpage18'])
     }
   })
+  it('should not copy a page and its children into its own subtree', async () => {
+    const { page: topPage } = await createPage('copytestpage20', testSite6PageRootId, 'keyp1')
+    const { page: middlePage } = await createPage('copytestpage21', topPage.id, 'keyp1')
+    const { page: deepestPage } = await createPage('copytestpage22', middlePage.id, 'keyp1')
+    const copyMutation = 'mutation copyPages ($pageIds: [ID!]!, $parentId: ID!, $includeChildren: Boolean) { copyPages (pageIds: $pageIds, targetId: $parentId, includeChildren: $includeChildren) { success page { id name } } }'
+    await expect(query(copyMutation, { pageIds: [topPage.id], parentId: middlePage.id, includeChildren: true })).to.be.rejected
+    await expect(query(copyMutation, { pageIds: [topPage.id], parentId: deepestPage.id, includeChildren: true })).to.be.rejected
+    await expect(query(copyMutation, { pageIds: [topPage.id], parentId: topPage.id, includeChildren: true })).to.be.rejected
+  })
+  it('should copy a single page into its own subtree when children are not included', async () => {
+    const { page: topPage } = await createPage('copytestpage23', testSite6PageRootId, 'keyp1')
+    const { page: childPage } = await createPage('copytestpage24', topPage.id, 'keyp1')
+    const { copyPages: { success } } = await query('mutation copyPages ($pageIds: [ID!]!, $parentId: ID!) { copyPages (pageIds: $pageIds, targetId: $parentId) { success page { id name } } }', { pageIds: [topPage.id], parentId: childPage.id })
+    expect(success).to.be.true
+    const { pages } = await query(`{ pages(filter: { ids: ["${childPage.id}"]}) { children { id name } } }`)
+    expect(pages[0].children.map((p: any) => p.name)).to.include('copytestpage23')
+  })
   it('should append a number to the end of a page name if its copy destination already has a page with that name', async () => {
     const { page: copytarget } = await createPage('copytestpage19', testSite6PageRootId, 'keyp1')
     const { page: pagetocopy } = await createPage('pagename', testSite6PageRootId, 'keyp1')

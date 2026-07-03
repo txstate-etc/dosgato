@@ -1,4 +1,4 @@
-import type { LinkDefinition, ComponentData, PageData, PageExtras, AssetLink, AssetFolderLink } from '@dosgato/templating'
+import type { LinkDefinition, ComponentData, PageData, PageExtras, AssetLink, AssetFolderLink, PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType, PaginationResponse, type Context } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { LRUCache } from 'lru-cache'
@@ -11,7 +11,7 @@ import {
   createPage, getPages, movePages, deletePages, renamePage, TemplateService, type TemplateFilter,
   getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage, PagetreeServiceInternal,
   collectTemplates, TemplateServiceInternal, SiteServiceInternal, PagetreeType, DeleteState, publishPageDeletions,
-  type CreatePageExtras, parsePath, normalizePath, validateRecurse, type Template, type PageRuleGrants,
+  type CreatePageExtras, parsePath, normalizePath, validateRecurse, type Template, type PageRuleGrants, type PageLinkInput,
   DeleteStateAll, PageRuleService, SiteRuleService, systemContext, collectComponents, makePathSafe, LaunchState,
   type DGRestrictOperations, fireEvent, setPageSearchCodes, AssetServiceInternal, getPageLinks,
   type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
@@ -309,6 +309,67 @@ export class PageServiceInternal extends BaseService {
               if (referencedAssetFolders.some(f => folderIds.has(f.id))) verifiedPageIds.add(page.dataId)
             }
             await referencedAssetsPromise
+          }))
+          if (!verifiedPageIds.size) filter.noresults = true
+          filter.ids = intersect({ skipEmpty: true }, filter.ids, Array.from(verifiedPageIds))
+        }
+      }
+    }
+    if (filter.pageReferenced) {
+      const target = await this.findById(filter.pageReferenced)
+      if (!target) filter.noresults = true
+      else {
+        const targetPath = target.resolvedPath
+        const versionedSvc = this.svc(VersionedService)
+        const publishedPagesToCheck = new Set<string>()
+        const latestPagesToCheck = new Set<string>()
+
+        const indexes: SearchRule[] = [
+          { indexName: 'link_page_linkId', equal: target.linkId },
+          { indexName: 'link_page_path', equal: targetPath }
+        ]
+        const publishedPageIdsPromise = Promise.all(indexes.map(async index => await versionedSvc.find([index], 'page', 'published')))
+        if (!filter.published) {
+          const latestPageIds = (await Promise.all(indexes.map(async index => await versionedSvc.find([index], 'page', 'latest')))).flat()
+          for (const pageId of latestPageIds) latestPagesToCheck.add(pageId)
+        }
+        for (const pageId of (await publishedPageIdsPromise).flat()) publishedPagesToCheck.add(pageId)
+
+        const pageIds = Array.from(new Set([...publishedPagesToCheck, ...latestPagesToCheck]))
+        if (!pageIds.length) filter.noresults = true
+        else {
+          let filteredPageIds: string[]
+          if (target.pagetreeType !== PagetreeType.PRIMARY || target.launchState === LaunchState.DECOMMISSIONED) {
+            const binds: string[] = [target.pagetreeId]
+            filteredPageIds = (await db.getvals<number>(`SELECT pages.dataId FROM pages WHERE pages.pagetreeId=? AND pages.dataId IN (${db.in(binds, pageIds)})`, binds)).map(String)
+          } else {
+            const binds: string[] = [target.siteId, target.pagetreeId]
+            const query = `SELECT pages.dataId FROM pages WHERE (pages.siteId != ? OR pages.pagetreeId=?) AND pages.dataId IN (${db.in(binds, pageIds)})`
+            filteredPageIds = (await db.getvals<number>(query, binds)).map(String)
+          }
+
+          const pages = await this.findByIds(filteredPageIds)
+          const verifiedPageIds = new Set<string>()
+          await Promise.all(pages.map(async page => {
+            const links: LinkDefinition[] = []
+            const publishedDataPromise = publishedPagesToCheck.has(page.dataId) ? this.getData(page, undefined, true) : undefined
+            const latestDataPromise = latestPagesToCheck.has(page.dataId) ? this.getData(page, undefined, false) : undefined
+            if (publishedDataPromise) links.push(...getPageLinks(await publishedDataPromise))
+            if (latestDataPromise) links.push(...getPageLinks(await latestDataPromise))
+            const pageLinks = links.filter(l => l.type === 'page' && (l.linkId === target.linkId || l.path === targetPath)) as PageLink[]
+            if (pageLinks.length) {
+              const referencedPages = await this.find({
+                links: pageLinks.map(l => ({
+                  linkId: l.linkId,
+                  path: l.path,
+                  siteId: l.siteId,
+                  context: {
+                    pagetreeId: page.pagetreeId
+                  }
+                } satisfies PageLinkInput))
+              })
+              if (referencedPages.some(p => p.id === target.id)) verifiedPageIds.add(page.dataId)
+            }
           }))
           if (!verifiedPageIds.size) filter.noresults = true
           filter.ids = intersect({ skipEmpty: true }, filter.ids, Array.from(verifiedPageIds))

@@ -247,11 +247,33 @@ describe('data', () => {
     const site2entries = data.filter((d: any) => d.site?.name === 'site2')
     expect(site2entries.map((e: any) => e.data.color)).to.include.members(['red', 'blue', 'green'])
   })
-  it.skip('should return the JSON data for the published version of a data entry', async () => {
-
+  let versionTestDataId: string
+  it('should return the JSON data for the published version of a data entry', async () => {
+    // create a dedicated data entry and give it multiple versions so we don't disturb
+    // the version history of any fixture data that other tests rely on
+    const { sites } = await query('{ sites { id name } }')
+    const site2 = sites.find((s: any) => s.name === 'site2')
+    const { createDataEntry } = await query(
+      'mutation CreateDataEntry ($args: CreateDataInput!) { createDataEntry (args: $args) { success data { id } } }',
+      { args: { siteId: site2.id, data: { templateKey: 'keyd1', savedAtVersion: '20220710120000', title: 'Version Test Data', color: 'periwinkle', align: 'center' } } })
+    expect(createDataEntry.success).to.be.true
+    versionTestDataId = createDataEntry.data.id
+    // publish version 1, then save two more versions so the latest differs from the published version
+    await query('mutation PublishDataEntries ($dataIds: [ID!]!) { publishDataEntries (dataIds: $dataIds) { success } }', { dataIds: [versionTestDataId] })
+    const updateDataQuery = 'mutation UpdateDataEntry ($dataId: ID!, $args: UpdateDataInput!) { updateDataEntry (dataId: $dataId, args: $args) { success } }'
+    const { updateDataEntry: update1 } = await query(updateDataQuery, { dataId: versionTestDataId, args: { dataVersion: 1, data: { templateKey: 'keyd1', savedAtVersion: '20220710120000', title: 'Version Test Data', color: 'cerulean', align: 'center' } } })
+    expect(update1.success).to.be.true
+    const { updateDataEntry: update2 } = await query(updateDataQuery, { dataId: versionTestDataId, args: { dataVersion: 2, data: { templateKey: 'keyd1', savedAtVersion: '20220710120000', title: 'Version Test Data', color: 'chartreuse', align: 'center' } } })
+    expect(update2.success).to.be.true
+    const { data } = await query(`{ data(filter: { ids: ["${versionTestDataId}"] }) { id publishedData: data(published: true) latestData: data } }`)
+    expect(data[0].publishedData.color).to.equal('periwinkle')
+    expect(data[0].latestData.color).to.equal('chartreuse')
   })
-  it.skip('should return the JSON data for a particular version of a data entry', async () => {
-
+  it('should return the JSON data for a particular version of a data entry', async () => {
+    const { data } = await query(`{ data(filter: { ids: ["${versionTestDataId}"] }) { id v1: data(version: 1) v2: data(version: 2) latest: data } }`)
+    expect(data[0].v1.color).to.equal('periwinkle')
+    expect(data[0].v2.color).to.equal('cerulean')
+    expect(data[0].latest.color).to.equal('chartreuse')
   })
   it('should return a data entry\'s template', async () => {
     const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) {id data template { name } site { name } } }')

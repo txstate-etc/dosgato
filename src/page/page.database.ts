@@ -616,6 +616,12 @@ export async function copyPages (versionedService: VersionedService, userId: str
       throw new Error('Page targeted for ordering above no longer belongs to the same parent it did when the mutation started.')
     }
 
+    // copying a single page into its own subtree is fine, but copying a page along with its
+    // children would recursively discover the copies as they are inserted and never terminate
+    if (includeChildren && pages.some(page => page.id === parent.id || page.pathAsParent === parent.path || parent.path.startsWith(page.pathAsParent + '/'))) {
+      throw new Error('Cannot copy a page and its children into its own subtree.')
+    }
+
     pages = sortby(pages, 'displayOrder')
 
     const displayOrder = await handleDisplayOrder(db, parent, aboveTarget, pages.length)

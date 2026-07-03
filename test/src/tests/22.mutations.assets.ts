@@ -106,17 +106,17 @@ describe('asset mutations', () => {
   it('should not allow the root asset folder to be moved', async () => {
     const { createSite: { site } } = await query('mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name rootAssetFolder { id } } } }', { name: 'assetTestSiteB', data: { templateKey: 'keyp1', savedAtVersion: '20220801120000', title: 'Test Title' } })
     const { assetFolder: targetFolder } = await createAssetFolder('childfolder9', site.rootAssetFolder.id)
-    await expect(query('mutation MoveAssetFolder ($folderId: ID!, $targetId: ID!) { moveAssetFolder (folderId: $folderId, targetId: $targetId) { success assetFolder { id name folder { id name } } } }', { folderId: siteAAssetRootId, targetId: targetFolder.id })).to.be.rejected
+    await expect(query('mutation MoveAssetFolder ($folderId: ID!, $targetId: ID!) { moveAssetsAndFolders (folderIds: [$folderId], targetFolderId: $targetId) { success assetFolder { id name folder { id name } } } }', { folderId: siteAAssetRootId, targetId: targetFolder.id })).to.be.rejected
   })
   it('should not move an asset folder below itself', async () => {
     const { assetFolder: movingFolder } = await createAssetFolder('childfolder10', siteAAssetRootId)
     const { assetFolder: targetFolder } = await createAssetFolder('childfolder11', movingFolder.id)
-    await expect(query('mutation MoveAssetFolder ($folderId: ID!, $targetId: ID!) { moveAssetFolder (folderId: $folderId, targetId: $targetId) { success assetFolder { id name folder { id name } } } }', { folderId: movingFolder.id, targetId: targetFolder.id })).to.be.rejected
+    await expect(query('mutation MoveAssetFolder ($folderId: ID!, $targetId: ID!) { moveAssetsAndFolders (folderIds: [$folderId], targetFolderId: $targetId) { success assetFolder { id name folder { id name } } } }', { folderId: movingFolder.id, targetId: targetFolder.id })).to.be.rejected
   })
   it('should not allow an unauthorized user to move an asset folder', async () => {
     const { assetFolder: targetFolder } = await createAssetFolder('childfolder12', siteAAssetRootId)
     const { assetFolder: folder } = await createAssetFolder('grandchildfolder2', siteAAssetRootId)
-    await expect(queryAs('ed07', 'mutation MoveAssetFolder ($folderId: ID!, $targetId: ID!) { moveAssetFolder (folderId: $folderId, targetId: $targetId) { success assetFolder { id name folder { id name } } } }', { folderId: folder.id, targetId: targetFolder.id })).to.be.rejected
+    await expect(queryAs('ed07', 'mutation MoveAssetFolder ($folderId: ID!, $targetId: ID!) { moveAssetsAndFolders (folderIds: [$folderId], targetFolderId: $targetId) { success assetFolder { id name folder { id name } } } }', { folderId: folder.id, targetId: targetFolder.id })).to.be.rejected
   })
 
   it('should create an asset', async () => {
@@ -128,8 +128,107 @@ describe('asset mutations', () => {
     expect(upload.mime).to.equal('image/jpeg')
     expect(upload.size).to.equal(75533)
   })
-  it.skip('should move an asset', async () => {})
-  it.skip('should copy an asset', async () => {})
+  it('should move an asset', async () => {
+    const { assetFolder: sourceFolder } = await createAssetFolder('assetmovesource', siteAAssetRootId)
+    const { assetFolder: targetFolder } = await createAssetFolder('assetmovetarget', siteAAssetRootId)
+    const { ids } = await postMultipart(`/assets/${sourceFolder.id}`, {}, '/usr/app/files/blank.jpg', 'su01')
+    const { moveAssetsAndFolders: { success, assetFolder } } = await query('mutation MoveAssets ($assetIds: [ID!], $targetFolderId: ID!) { moveAssetsAndFolders (assetIds: $assetIds, targetFolderId: $targetFolderId) { success assetFolder { id name } } }', { assetIds: ids, targetFolderId: targetFolder.id })
+    expect(success).to.be.true
+    expect(assetFolder.id).to.equal(targetFolder.id)
+    const { assets } = await query('query getAssets ($ids: [ID!]!) { assets (filter: { ids: $ids }) { id filename folder { id } } }', { ids })
+    expect(assets[0].folder.id).to.equal(targetFolder.id)
+  })
+  it('should copy an asset', async () => {
+    const { assetFolder: sourceFolder } = await createAssetFolder('assetcopysource', siteAAssetRootId)
+    const { assetFolder: targetFolder } = await createAssetFolder('assetcopytarget', siteAAssetRootId)
+    const { ids } = await postMultipart(`/assets/${sourceFolder.id}`, {}, '/usr/app/files/blank.jpg', 'su01')
+    const { copyAssetsAndFolders: { success, assetFolder } } = await query('mutation CopyAssets ($assetIds: [ID!], $targetFolderId: ID!) { copyAssetsAndFolders (assetIds: $assetIds, targetFolderId: $targetFolderId) { success assetFolder { id name } } }', { assetIds: ids, targetFolderId: targetFolder.id })
+    expect(success).to.be.true
+    expect(assetFolder.id).to.equal(targetFolder.id)
+    const { assets: originals } = await query('query getAssets ($ids: [ID!]!) { assets (filter: { ids: $ids }) { id folder { id } } }', { ids })
+    expect(originals[0].folder.id).to.equal(sourceFolder.id)
+    const { assets: copies } = await query('query getAssets ($folderIds: [ID!]!) { assets (filter: { folderIds: $folderIds }) { id filename mime size checksum } }', { folderIds: [targetFolder.id] })
+    expect(copies).to.have.lengthOf(1)
+    expect(copies[0].id).to.not.equal(ids[0])
+    expect(copies[0].filename).to.equal('blank.jpg')
+    expect(copies[0].mime).to.equal('image/jpeg')
+    expect(copies[0].size).to.equal(75533)
+  })
+  it('should copy an asset folder recursively', async () => {
+    const { assetFolder: sourceFolder } = await createAssetFolder('foldercopysource', siteAAssetRootId)
+    const { assetFolder: subFolder } = await createAssetFolder('foldercopysub', sourceFolder.id)
+    const { assetFolder: targetFolder } = await createAssetFolder('foldercopytarget', siteAAssetRootId)
+    const { ids } = await postMultipart(`/assets/${sourceFolder.id}`, {}, '/usr/app/files/blank.jpg', 'su01')
+    const { copyAssetsAndFolders: { success } } = await query('mutation CopyAssetFolder ($folderIds: [ID!], $targetFolderId: ID!) { copyAssetsAndFolders (folderIds: $folderIds, targetFolderId: $targetFolderId) { success assetFolder { id name } } }', { folderIds: [sourceFolder.id], targetFolderId: targetFolder.id })
+    expect(success).to.be.true
+    const { assetfolders } = await query(`{ assetfolders (filter: { ids: [${targetFolder.id}] }) { folders { id name assets { id filename } folders { id name } } } }`)
+    const copiedFolder = assetfolders[0].folders[0]
+    expect(copiedFolder.name).to.equal('foldercopysource')
+    expect(copiedFolder.id).to.not.equal(sourceFolder.id)
+    expect(copiedFolder.assets).to.have.lengthOf(1)
+    expect(copiedFolder.assets[0].filename).to.equal('blank.jpg')
+    expect(copiedFolder.assets[0].id).to.not.equal(ids[0])
+    expect(copiedFolder.folders).to.have.lengthOf(1)
+    expect(copiedFolder.folders[0].name).to.equal('foldercopysub')
+    expect(copiedFolder.folders[0].id).to.not.equal(subFolder.id)
+  })
+  it('should move assets and folders together', async () => {
+    const { assetFolder: sourceFolder } = await createAssetFolder('mixedmovesource', siteAAssetRootId)
+    const { assetFolder: movingFolder } = await createAssetFolder('mixedmovefolder', sourceFolder.id)
+    const { assetFolder: targetFolder } = await createAssetFolder('mixedmovetarget', siteAAssetRootId)
+    const { ids } = await postMultipart(`/assets/${sourceFolder.id}`, {}, '/usr/app/files/blank.jpg', 'su01')
+    const { moveAssetsAndFolders: { success } } = await query('mutation MoveAssetsAndFolders ($assetIds: [ID!], $folderIds: [ID!], $targetFolderId: ID!) { moveAssetsAndFolders (assetIds: $assetIds, folderIds: $folderIds, targetFolderId: $targetFolderId) { success assetFolder { id name } } }', { assetIds: ids, folderIds: [movingFolder.id], targetFolderId: targetFolder.id })
+    expect(success).to.be.true
+    const { assetfolders } = await query(`{ assetfolders (filter: { ids: [${targetFolder.id}] }) { assets { id } folders { id } } }`)
+    expect(assetfolders[0].assets.map(a => a.id)).to.have.members(ids)
+    expect(assetfolders[0].folders.map(f => f.id)).to.have.members([movingFolder.id])
+    const { assetfolders: sourceCheck } = await query(`{ assetfolders (filter: { ids: [${sourceFolder.id}] }) { assets { id } folders { id } } }`)
+    expect(sourceCheck[0].assets).to.have.lengthOf(0)
+    expect(sourceCheck[0].folders).to.have.lengthOf(0)
+  })
+  it('should copy assets and folders together', async () => {
+    const { assetFolder: sourceFolder } = await createAssetFolder('mixedcopysource', siteAAssetRootId)
+    const { assetFolder: copiedFolder } = await createAssetFolder('mixedcopyfolder', sourceFolder.id)
+    const { assetFolder: targetFolder } = await createAssetFolder('mixedcopytarget', siteAAssetRootId)
+    const { ids } = await postMultipart(`/assets/${sourceFolder.id}`, {}, '/usr/app/files/blank.jpg', 'su01')
+    const { copyAssetsAndFolders: { success } } = await query('mutation CopyAssetsAndFolders ($assetIds: [ID!], $folderIds: [ID!], $targetFolderId: ID!) { copyAssetsAndFolders (assetIds: $assetIds, folderIds: $folderIds, targetFolderId: $targetFolderId) { success assetFolder { id name } } }', { assetIds: ids, folderIds: [copiedFolder.id], targetFolderId: targetFolder.id })
+    expect(success).to.be.true
+    const { assetfolders } = await query(`{ assetfolders (filter: { ids: [${targetFolder.id}] }) { assets { id filename } folders { id name } } }`)
+    expect(assetfolders[0].assets).to.have.lengthOf(1)
+    expect(assetfolders[0].assets[0].filename).to.equal('blank.jpg')
+    expect(assetfolders[0].assets[0].id).to.not.equal(ids[0])
+    expect(assetfolders[0].folders).to.have.lengthOf(1)
+    expect(assetfolders[0].folders[0].name).to.equal('mixedcopyfolder')
+    expect(assetfolders[0].folders[0].id).to.not.equal(copiedFolder.id)
+    const { assetfolders: sourceCheck } = await query(`{ assetfolders (filter: { ids: [${sourceFolder.id}] }) { assets { id } folders { id } } }`)
+    expect(sourceCheck[0].assets.map(a => a.id)).to.have.members(ids)
+    expect(sourceCheck[0].folders.map(f => f.id)).to.have.members([copiedFolder.id])
+  })
+  it('should not move an asset separately when its folder is also being moved', async () => {
+    const { assetFolder: movingFolder } = await createAssetFolder('dedupmovefolder', siteAAssetRootId)
+    const { assetFolder: targetFolder } = await createAssetFolder('dedupmovetarget', siteAAssetRootId)
+    const { ids } = await postMultipart(`/assets/${movingFolder.id}`, {}, '/usr/app/files/blank.jpg', 'su01')
+    const { moveAssetsAndFolders: { success } } = await query('mutation MoveAssetsAndFolders ($assetIds: [ID!], $folderIds: [ID!], $targetFolderId: ID!) { moveAssetsAndFolders (assetIds: $assetIds, folderIds: $folderIds, targetFolderId: $targetFolderId) { success } }', { assetIds: ids, folderIds: [movingFolder.id], targetFolderId: targetFolder.id })
+    expect(success).to.be.true
+    const { assetfolders } = await query(`{ assetfolders (filter: { ids: [${targetFolder.id}] }) { assets { id } folders { id assets { id } } } }`)
+    expect(assetfolders[0].assets).to.have.lengthOf(0)
+    expect(assetfolders[0].folders).to.have.lengthOf(1)
+    expect(assetfolders[0].folders[0].id).to.equal(movingFolder.id)
+    expect(assetfolders[0].folders[0].assets.map(a => a.id)).to.have.members(ids)
+  })
+  it('should not copy an asset separately when its folder is also being copied', async () => {
+    const { assetFolder: copiedFolder } = await createAssetFolder('dedupcopyfolder', siteAAssetRootId)
+    const { assetFolder: targetFolder } = await createAssetFolder('dedupcopytarget', siteAAssetRootId)
+    const { ids } = await postMultipart(`/assets/${copiedFolder.id}`, {}, '/usr/app/files/blank.jpg', 'su01')
+    const { copyAssetsAndFolders: { success } } = await query('mutation CopyAssetsAndFolders ($assetIds: [ID!], $folderIds: [ID!], $targetFolderId: ID!) { copyAssetsAndFolders (assetIds: $assetIds, folderIds: $folderIds, targetFolderId: $targetFolderId) { success } }', { assetIds: ids, folderIds: [copiedFolder.id], targetFolderId: targetFolder.id })
+    expect(success).to.be.true
+    const { assetfolders } = await query(`{ assetfolders (filter: { ids: [${targetFolder.id}] }) { assets { id } folders { id assets { id } } } }`)
+    expect(assetfolders[0].assets).to.have.lengthOf(0)
+    expect(assetfolders[0].folders).to.have.lengthOf(1)
+    expect(assetfolders[0].folders[0].id).to.not.equal(copiedFolder.id)
+    expect(assetfolders[0].folders[0].assets).to.have.lengthOf(1)
+    expect(assetfolders[0].folders[0].assets[0].id).to.not.equal(ids[0])
+  })
   it('should delete assets', async () => {
     const { createSite: { site: siteC } } = await query('mutation CreateSite ($name: UrlSafeString!, $data: JsonData!) { createSite (name: $name, data: $data) { success site { id name rootAssetFolder { id } } } }', { name: 'assetTestSiteC', data: { templateKey: 'keyp1', savedAtVersion: '20231208120000', title: 'Site C Test Title' } })
     const siteCAssetRootId = siteC.rootAssetFolder.id

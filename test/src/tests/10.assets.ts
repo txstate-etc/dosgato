@@ -103,7 +103,11 @@ describe('assets', () => {
     expect(assets.length).to.be.greaterThan(0)
     for (const a of assets) expect(a.folder.id).to.equal(folderId)
   })
-  it.skip('should retrieve assets by name', async () => {})
+  it('should retrieve assets by name', async () => {
+    const { assets } = await query<{ assets: Asset[] }>('query getAssetByName ($name: FilenameSafeString!) { assets (filter: { names: [$name] }) { id name } }', { name: 'bobcat' })
+    expect(assets.length).to.be.greaterThan(0)
+    for (const a of assets) expect(a.name.toLocaleLowerCase()).to.equal('bobcat')
+  })
   it('should retrieve assets by path', async () => {
     const { assets } = await query<{ assets: Asset[] }>('query getAssetByPath ($path: FilenameSafePath!) { assets(filter: { paths: [$path] }) { id name extension }}', { path: '/site1/bobcat' })
     expect(assets[0].name).to.equal('BobCAT')
@@ -133,7 +137,16 @@ describe('assets', () => {
     const { assets } = await query<{ assets: Asset[] }>('query getAssetByLink ($links: [AssetLinkInput!]!) { assets(filter: { links: $links }) { id name extension filename size checksum site { id name }}}', { links: [{ linkId: asset.id + 'a', path: '/site1/blankpdf', siteId: asset.site.id, checksum: '' }] })
     expect(assets[0].checksum).to.equal('PKBUoghpogATqmK14ry1wqKsP-e-S8GVqHKuCxH7k1k')
   })
-  it.skip('should retrieve assets by ancestor path (beneath filter)', async () => {})
+  it('should retrieve assets by ancestor path (beneath filter)', async () => {
+    // only asset beneath /site1/images is anotherbobcat.jpg, which is deleted, so it
+    // should only appear when the deleteStates filter is widened
+    const resp = await query<{ assets: Asset[] }>('{ assets(filter: { beneath: ["/site1/images"] }) { id name path filename } }')
+    expect(resp.assets.length).to.equal(0)
+    const resp2 = await query<{ assets: Asset[] }>('{ assets(filter: { beneath: ["/site1/images"], deleteStates: [ALL] }) { id name path filename } }')
+    expect(resp2.assets.length).to.be.greaterThan(0)
+    for (const a of resp2.assets) expect(a.path.startsWith('/site1/images/')).to.be.true
+    expect(resp2.assets.map(a => a.filename)).to.contain('anotherbobcat.jpg')
+  })
   it('should retrieve assets by parent path', async () => {
     const site1Filenames = allAssets.filter(a => a.site.name === 'site1').map(a => a.filename)
     const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsByPath ($path: UrlSafePath!) { assets(filter: { parentPaths: [$path] }) { id name extension filename }}', { path: '/site1' })
@@ -158,12 +171,22 @@ describe('assets', () => {
     const site1Filenames = assets.filter(a => a.site.name === 'site1').map(a => a.filename)
     expect(site1Filenames).to.contain('blankpdf.pdf')
   })
-  it.skip('should retrieve only deleted assets', async () => {
-    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIDeletedAssets ($deleteStates: [DeleteStateInput!]!) { assets(filter: { deleteStates: $deleteStates }) { id name extension filename size checksum site { id name }}}', { deleteStates: ['DELETED'] })
+  it('should retrieve only deleted assets', async () => {
+    const { assets } = await query<{ assets: (Asset & { deleteState: string })[] }>('query getDGAPIDeletedAssets ($deleteStates: [DeleteStateInput!]!) { assets(filter: { deleteStates: $deleteStates }) { id name extension filename size checksum deleteState site { id name }}}', { deleteStates: ['DELETED'] })
+    for (const a of assets) expect(a.deleteState).to.equal('DELETED')
     const filenames = assets.map(a => a.filename)
     expect(filenames).to.contain('anotherbobcat.jpg')
+    expect(filenames).to.not.contain('BobCAT.jpg')
   })
-  it.skip('should retrieve assets that are not fully deleted', async () => {})
+  it('should retrieve assets that are not fully deleted by default', async () => {
+    const { assets } = await query<{ assets: (Asset & { deleteState: string })[] }>('{ assets { id name filename deleteState site { id name } } }')
+    expect(assets.length).to.be.greaterThan(0)
+    for (const a of assets) expect(a.deleteState).to.not.equal('DELETED')
+    const filenames = assets.map(a => a.filename)
+    expect(filenames).to.contain('BobCAT.jpg')
+    // anotherbobcat.jpg is fully deleted in the fixtures
+    expect(filenames).to.not.contain('anotherbobcat.jpg')
+  })
   it('should retrieve pages that contain links to the asset', async () => {
     const { assets } = await query('{ assets (filter: { paths: ["/site1/bobcat"] }) { id name } }')
     const bobcatAsset = assets[0]

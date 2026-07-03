@@ -11,7 +11,17 @@ describe('pages', () => {
     expect(pageIds).to.have.members([ids[0], ids[1], ids[2]])
     expect(pageIds).to.not.have.members([ids[3], ids[4], ids[5]])
   })
-  it.skip('should get pages filtered by links', async () => {})
+  it('should get pages filtered by links', async () => {
+    const { pages } = await query('{ pages(filter: { paths: ["/site1/about", "/site3/sitemap"], pagetreeTypes: [PRIMARY] }) { id name path linkId site { id } } }')
+    const aboutPage = pages.find((p: any) => p.path === '/site1/about')
+    const sitemapPage = pages.find((p: any) => p.path === '/site3/sitemap')
+    const resp = await query(`{ pages(filter: { links: [
+      { linkId: "${aboutPage.linkId}", siteId: "${aboutPage.site.id}", path: "${aboutPage.path}" },
+      { linkId: "${sitemapPage.linkId}", siteId: "${sitemapPage.site.id}", path: "${sitemapPage.path}" }
+    ] }) { id name } }`)
+    expect(resp.pages).to.have.lengthOf(2)
+    expect(resp.pages.map((p: any) => p.id)).to.have.members([aboutPage.id, sitemapPage.id])
+  })
   it('should get pages paginated', async () => {
     const resp1 = await query('{ pages(pagination: { page: 1, perPage: 2 }) { id name } pageInfo { pages { finalPage } } }')
     expect(resp1.pages).to.have.lengthOf(2)
@@ -30,7 +40,16 @@ describe('pages', () => {
       expect(page.pagetree.type).to.equal('SANDBOX')
     }
   })
-  it.skip('should get pages, filtered by assetKeysReferenced', async () => {})
+  it('should get pages, filtered by assetReferenced', async () => {
+    const { assets } = await query('{ assets(filter: { paths: ["/site1/bobcat"] }) { id name } }')
+    const bobcat = assets[0]
+    const { pages } = await query(`{ pages(filter: { assetReferenced: "${bobcat.id}" }) { id name } }`)
+    expect(pages.map((p: any) => p.name)).to.include('pagewithasset')
+    const { pages: directPages } = await query(`{ pages(filter: { assetReferenced: "${bobcat.id}", assetReferencedDirect: true }) { id name } }`)
+    expect(directPages.map((p: any) => p.name)).to.include('pagewithasset')
+    const { pages: indirectPages } = await query(`{ pages(filter: { assetReferenced: "${bobcat.id}", assetReferencedDirect: false }) { id name } }`)
+    expect(indirectPages.map((p: any) => p.name)).to.not.include('pagewithasset')
+  })
   it('should get deleted and orphaned pages', async () => {
     const resp = await query('{ pages(filter: {deleteStates: [DELETED, ORPHAN_NOTDELETED, ORPHAN_MARKEDFORDELETE, ORPHAN_DELETED]}) { id name } }')
     const pageNames = resp.pages.map((p: any) => p.name)
@@ -58,15 +77,49 @@ describe('pages', () => {
     expect(filteredLinkIds).to.have.members([linkIds[0], linkIds[1], linkIds[2], linkIds[3]])
     expect(filteredLinkIds).to.not.have.members([linkIds[4], linkIds[5]])
   })
-  it.skip('should get pages, filtered by pageReferenced', async () => {
-    // this is skipped because pageReferenced is not yet implemented
+  it('should get pages, filtered by pageReferenced', async () => {
     const { pages } = await query('{ pages(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE], paths: ["/site1/about/people/staff"] }) { id name } }')
     const staffPage = pages[0]
     const resp = await query('query getPagesReferencingPage ($pageId: ID!) { pages(filter: { pageReferenced: $pageId }) { id name } }', { pageId: staffPage.id })
     const resultPageNames = resp.pages.map((p: any) => p.name)
     expect(resultPageNames).to.have.members(['people'])
   })
-  it.skip('should get pages, filtered by "live" property', async () => {})
+  it('should get pages, filtered by "live" property', async () => {
+    // publish the root page of site1, which is launched, so that at least one page is live
+    const { pages: rootPages } = await query('{ pages(filter: { paths: ["/site1"], pagetreeTypes: [PRIMARY] }) { id name live } }')
+    const site1Root = rootPages[0]
+    // not published yet, so the live field should be false even on a launched site
+    expect(site1Root.live).to.be.false
+    await query('mutation PublishPages ($pageIds: [ID!]!) { publishPages (pageIds: $pageIds) { success } }', { pageIds: [site1Root.id] })
+    const { pages: livePages } = await query('{ pages(filter: { live: true }) { id live published pagetree { type } site { launchState } } }')
+    const livePageIds = livePages.map((p: any) => p.id)
+    expect(livePageIds).to.include(site1Root.id)
+    for (const page of livePages) {
+      expect(page.live).to.be.true
+      expect(page.published).to.be.true
+      expect(page.pagetree.type).to.equal('PRIMARY')
+      expect(page.site.launchState).to.equal('LAUNCHED')
+    }
+    // published pages on sites that are not launched should not be live
+    const { pages: publishedPages } = await query('{ pages(filter: { published: true }) { id live site { launchState } } }')
+    const publishedNotLaunched = publishedPages.filter((p: any) => p.site.launchState !== 'LAUNCHED')
+    expect(livePageIds).to.not.include.members(publishedNotLaunched.map((p: any) => p.id))
+    for (const page of publishedNotLaunched) {
+      expect(page.live).to.be.false
+    }
+    // the root page of a live site may not be unpublished, so take site1 off the air
+    // before restoring the fixture state, and make sure its pages are no longer live
+    const { sites } = await query('{ sites { id name } }')
+    const site1 = sites.find((s: any) => s.name === 'site1')
+    await query('mutation SetLaunchURL ($id: ID!, $host: String!, $path: String!, $enabled: LaunchState!) { setLaunchURL (siteId: $id, host: $host, path: $path, enabled: $enabled) { success } }', { id: site1.id, host: 'www.college.edu', path: '/site1/', enabled: 'PRELAUNCH' })
+    const { pages: prelaunchPages } = await query('{ pages(filter: { live: true }) { id } }')
+    expect(prelaunchPages.map((p: any) => p.id)).to.not.include(site1Root.id)
+    // restore the page to its unpublished state and relaunch the site
+    await query('mutation UnpublishPages ($pageIds: [ID!]!) { unpublishPages (pageIds: $pageIds) { success } }', { pageIds: [site1Root.id] })
+    await query('mutation SetLaunchURL ($id: ID!, $host: String!, $path: String!, $enabled: LaunchState!) { setLaunchURL (siteId: $id, host: $host, path: $path, enabled: $enabled) { success } }', { id: site1.id, host: 'www.college.edu', path: '/site1/', enabled: 'LAUNCHED' })
+    const { pages: afterPages } = await query('{ pages(filter: { live: true }) { id } }')
+    expect(afterPages.map((p: any) => p.id)).to.not.include(site1Root.id)
+  })
   it('should get pages, filtered by pagetreeId', async () => {
     const resp = await query('{ sites { name pagetrees { id name } } }')
     const site1 = resp.sites.find((s: any) => s.name === 'site1')
@@ -78,7 +131,6 @@ describe('pages', () => {
       expect([pagetree1.id, pagetree3.id]).to.include(page.pagetree.id)
     }
   })
-  it.skip('should get pages, filtered by referencedByPageIds', async () => {})
   it('should get pages, filtered by site ID', async () => {
     const { sites } = await query('{ sites { id name } }')
     const site1 = sites.find((s: any) => s.name === 'site1')
@@ -158,7 +210,16 @@ describe('pages', () => {
     const { pages } = await query('{ pages(filter: { paths: ["site3/sitemap"] }) { id name } }')
     expect(pages.length).to.be.greaterThan(0)
   })
-  it.skip('should get pages using specific templates', async () => {})
+  it('should get pages using specific templates', async () => {
+    // filter by a page template
+    const { pages } = await query('{ pages(filter: { templateKeys: ["keyp3"] }) { id name template { key } } }')
+    expect(pages.length).to.be.greaterThan(0)
+    for (const page of pages) expect(page.template.key).to.equal('keyp3')
+    // filter by a component template: matching pages use it in an area, so their own template differs
+    const { pages: componentPages } = await query('{ pages(filter: { templateKeys: ["keyc3"] }) { id name template { key } } }')
+    expect(componentPages.length).to.be.greaterThan(0)
+    for (const page of componentPages) expect(page.template.key).to.not.equal('keyc3')
+  })
   it('should get pages, filtered by launched URL', async () => {
     let { pages } = await query('{ pages(filter: { launchedUrls: ["https://www.example.com/site3/about"] }) { id name } }')
     expect(pages.length).to.be.greaterThan(0)
@@ -221,9 +282,43 @@ describe('pages', () => {
     expect(facultyPage.data).to.have.property('title')
     expect(facultyPage.data.title).to.equal('Faculty')
   })
-  it.skip('should return the published version of data for a page', async () => {})
-  it.skip('should return the data for a page, specifying schema version', async () => {})
-  it.skip('should return the specified version of data for a page', async () => {})
+  let versionTestPageId: string
+  it('should return the published version of data for a page', async () => {
+    // create a dedicated page and give it multiple versions so we don't disturb the
+    // version history of any fixture pages that other tests rely on
+    // site2's root page is published in the fixtures, which allows us to publish a child page
+    const { sites } = await query('{ sites { id name rootPage { id } } }')
+    const site2 = sites.find((s: any) => s.name === 'site2')
+    const { createPage } = await query(
+      'mutation CreatePage ($name: UrlSafeString!, $data: JsonData!, $targetId: ID!) { createPage (name: $name, data: $data, targetId: $targetId) { success page { id } } }',
+      { name: 'versiontestpage', targetId: site2.rootPage.id, data: { templateKey: 'keyp1', savedAtVersion: '20220710120000', title: 'Version Test v1' } })
+    expect(createPage.success).to.be.true
+    versionTestPageId = createPage.page.id
+    // publish version 1, then save two more versions so the latest differs from the published version
+    await query('mutation PublishPages ($pageIds: [ID!]!) { publishPages (pageIds: $pageIds) { success } }', { pageIds: [versionTestPageId] })
+    const updatePageQuery = 'mutation UpdatePage ($pageId: ID!, $data: JsonData!, $dataVersion: Int!) { updatePage (pageId: $pageId, data: $data, dataVersion: $dataVersion) { success } }'
+    const { updatePage: update1 } = await query(updatePageQuery, { pageId: versionTestPageId, dataVersion: 1, data: { templateKey: 'keyp1', savedAtVersion: '20220710120000', title: 'Version Test v2' } })
+    expect(update1.success).to.be.true
+    const { updatePage: update2 } = await query(updatePageQuery, { pageId: versionTestPageId, dataVersion: 2, data: { templateKey: 'keyp1', savedAtVersion: '20220710120000', title: 'Version Test v3' } })
+    expect(update2.success).to.be.true
+    const { pages } = await query(`{ pages(filter: { ids: ["${versionTestPageId}"] }) { id publishedData: data(published: true) latestData: data } }`)
+    expect(pages[0].publishedData.title).to.equal('Version Test v1')
+    expect(pages[0].latestData.title).to.equal('Version Test v3')
+  })
+  it('should return the data for a page, specifying schema version', async () => {
+    const { pages } = await query(
+      `query getPageDataAtSchemaVersion ($schemaversion: DateTime!) { pages(filter: { ids: ["${versionTestPageId}"] }) { id data(schemaversion: $schemaversion) } }`,
+      { schemaversion: '2022-08-01T12:00:00Z' })
+    // the data should be migrated to the requested schema version and stamped accordingly
+    expect(pages[0].data.savedAtVersion).to.equal('20220801120000')
+    expect(pages[0].data.title).to.equal('Version Test v3')
+  })
+  it('should return the specified version of data for a page', async () => {
+    const { pages } = await query(`{ pages(filter: { ids: ["${versionTestPageId}"] }) { id v1: data(version: 1) v2: data(version: 2) latest: data } }`)
+    expect(pages[0].v1.title).to.equal('Version Test v1')
+    expect(pages[0].v2.title).to.equal('Version Test v2')
+    expect(pages[0].latest.title).to.equal('Version Test v3')
+  })
   it('should return the deleted field for a page', async () => {
     const { sites } = await query('{ sites { id name } }')
     const site1 = sites.find((s: any) => s.name === 'site1')
@@ -257,7 +352,6 @@ describe('pages', () => {
     const staffPage = resp.pages.find((p: any) => p.name === 'staff')
     expect(staffPage.linkId).to.have.length.greaterThan(0)
   })
-  it.skip('should return whether or not a page is live', async () => {})
   it('should return the last modified datetime for a page', async () => {
     const { pages } = await query('{ pages(filter: {deleteStates: [NOTDELETED, MARKEDFORDELETE]}) { id name modifiedAt } }')
     const facultyPage = pages.find((p: any) => p.name === 'faculty')

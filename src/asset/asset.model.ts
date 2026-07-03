@@ -167,6 +167,8 @@ export class AssetFilter {
   launchStates?: LaunchState[]
 
   folderInternalIds?: number[]
+
+  @Field(type => [FilenameSafeString], { nullable: true, description: 'Return assets with the given names, not including extension.' })
   names?: string[]
 
   @Field(type => [FilenameSafePath], { nullable: true, description: 'Return assets with the given paths.' })
