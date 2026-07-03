@@ -1,8 +1,8 @@
-import chai, { expect } from 'chai'
+import { expect, use } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common.js'
 
-chai.use(chaiAsPromised)
+use(chaiAsPromised)
 
 async function createUser (id: string, firstname: string | undefined, lastname: string, email: string, trainings: string[], system: boolean) {
   const { createUser: { success, user, messages } } = await query(`

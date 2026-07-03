@@ -1,11 +1,11 @@
-import chai, { expect } from 'chai'
+import { expect, use } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common.js'
 import db from 'mysql2-async/db'
 import { DateTime } from 'luxon'
 import { groupby } from 'txstate-utils'
 
-chai.use(chaiAsPromised)
+use(chaiAsPromised)
 
 async function createSite (name: string) {
   const resp = await query(`

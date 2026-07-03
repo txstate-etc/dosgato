@@ -1,9 +1,9 @@
-import chai, { expect } from 'chai'
+import { expect, use } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common.js'
 import { DateTime } from 'luxon'
 
-chai.use(chaiAsPromised)
+use(chaiAsPromised)
 
 async function createGroup (name: string, parentId?: string, username?: string) {
   const { createGroup: { success, group, messages } } = await queryAs((username ?? 'su01'), 'mutation CreateGroup ($name: String!, $parentId: ID) { createGroup (name: $name, parentId: $parentId) { success messages { message } group { id name } } }', { name, parentId })

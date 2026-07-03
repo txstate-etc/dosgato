@@ -1,8 +1,8 @@
-import chai, { expect } from 'chai'
+import { expect, use } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs, createRole } from '../common.js'
 
-chai.use(chaiAsPromised)
+use(chaiAsPromised)
 
 describe('roles mutations', () => {
   it('should create a new role', async () => {

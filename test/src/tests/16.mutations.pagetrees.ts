@@ -1,9 +1,9 @@
-import chai, { expect } from 'chai'
+import { expect, use } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common.js'
 import { DateTime } from 'luxon'
 
-chai.use(chaiAsPromised)
+use(chaiAsPromised)
 
 async function createPagetree (siteId: string, templateKey: string, username?: string, validateOnly?: boolean) {
   const data = { savedAtVersion: '20220801120000', templateKey, title: 'Test Title' }

@@ -1,8 +1,8 @@
-import chai, { expect } from 'chai'
+import { expect, use } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common.js'
 
-chai.use(chaiAsPromised)
+use(chaiAsPromised)
 
 async function createSite (name: string, templateKey: string, username?: string) {
   const data = { savedAtVersion: '20220901120000', templateKey, title: 'Test Title' }

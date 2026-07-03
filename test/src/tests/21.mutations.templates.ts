@@ -1,9 +1,9 @@
-import chai, { expect } from 'chai'
+import { expect, use } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common.js'
 import db from 'mysql2-async/db'
 
-chai.use(chaiAsPromised)
+use(chaiAsPromised)
 
 async function createPagetree (siteId: string, templateKey: string, validateOnly?: boolean) {
   const data = { savedAtVersion: '20220801120000', templateKey, title: 'Test Title' }

@@ -1,9 +1,9 @@
-import chai, { expect } from 'chai'
+import { expect, use } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs, createRole } from '../common.js'
 import { keyby } from 'txstate-utils'
 
-chai.use(chaiAsPromised)
+use(chaiAsPromised)
 
 describe('page rule mutations', () => {
   let sitehash: any

@@ -1,10 +1,10 @@
-import chai, { expect } from 'chai'
+import { expect, use } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs, postMultipart } from '../common.js'
 import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
 
-chai.use(chaiAsPromised)
+use(chaiAsPromised)
 
 async function createAssetFolder (name: string, parentId: string, username?: string) {
   const { createAssetFolder: { success, messages, assetFolder } } = await queryAs((username ?? 'su01'), 'mutation CreateAssetFolder ($args: CreateAssetFolderInput!) { createAssetFolder (args: $args) { success messages { message } assetFolder { id name folder { id name } } } }', { args: { name, parentId } })

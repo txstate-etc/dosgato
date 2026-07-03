@@ -1,10 +1,10 @@
-import chai, { expect } from 'chai'
+import { expect, use } from 'chai'
 import chaiAsPromised from 'chai-as-promised'
 import { query, queryAs } from '../common.js'
 import db from 'mysql2-async/db'
 import { DateTime } from 'luxon'
 
-chai.use(chaiAsPromised)
+use(chaiAsPromised)
 
 async function createPage (name: string, parentId: string, templateKey: string, username?: string) {
   const data = { savedAtVersion: '20220710120000', templateKey, title: 'Test Title' }
