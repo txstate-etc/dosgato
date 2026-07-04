@@ -1,7 +1,7 @@
 import type { APIAnyTemplate, FulltextGatheringFn, LinkGatheringFn, Migration, ValidationFeedback } from '@dosgato/templating'
 import { GQLServer, type GQLStartOpts, gqlDevLogger, Context, PageInformationResolver } from '@txstate-mws/graphql-server'
-import type { FastifyInstance } from 'fastify'
-import { type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
+import type { FastifyInstance, FastifyRequest } from 'fastify'
+import { type AnalyticsClient, analyticsPlugin, type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
 import type { GraphQLError, GraphQLScalarType } from 'graphql'
 import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
@@ -111,6 +111,24 @@ export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
    * Your function will be inside a try/catch so as not to interrupt regular operation.
    */
   onEvent?: (info: EventInfo) => void | Promise<void>
+  /**
+   * The server registers fastify-txstate's analytics plugin so that the admin UI can report
+   * user interaction events to POST /analytics. NODE_ENV must be set or startup will fail.
+   *
+   * By default, events go to elasticsearch when ELASTICSEARCH_URL is set, are printed to the
+   * console in development, and are sent to the server log otherwise. Use these options to
+   * customize that behavior.
+   */
+  analytics?: {
+    /** Identifies the reporting application in stored events. Default 'dosgato-admin'. */
+    appName?: string
+    /** Override where events are stored, e.g. to send them to a different analytics database. */
+    analyticsClient?: AnalyticsClient
+    /** Reject event submissions with a 401 when this returns false. By default, unauthenticated
+     * requests are rejected; provide your own function, e.g. `() => true`, if you intend to
+     * accept events from unauthenticated users like visitors to your public web pages. */
+    authorize?: (req: FastifyRequest) => boolean
+  }
 }
 
 export class DGServer {
@@ -142,6 +160,11 @@ export class DGServer {
     await createPageRoutes(this.app)
     await createCommentRoutes(this.app)
     await createUserRoutes(this.app)
+    await this.app.register(analyticsPlugin, {
+      appName: opts.analytics?.appName ?? 'dosgato-admin',
+      analyticsClient: opts.analytics?.analyticsClient,
+      authorize: opts.analytics?.authorize ?? (req => req.auth != null)
+    })
     this.app.get<{ Querystring: { q: string } }>('/usersearch', async (req, res) => {
       if ((!opts.userLookup && !opts.userSearch) || isBlank(req.query.q)) return []
       return (opts.userSearch

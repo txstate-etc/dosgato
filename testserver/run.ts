@@ -1,25 +1,20 @@
-import type { UserEvent } from '@dosgato/templating'
-import { jwtAuthenticate } from 'fastify-txstate'
-import { AssetServiceInternal, DGServer, getEnabledUser, requestResizes, templateRegistry, userContext } from '../src/index.js'
+import { AnalyticsClient, jwtAuthenticate, type StoredInteractionEvent } from 'fastify-txstate'
+import { AssetServiceInternal, DGServer, requestResizes, userContext } from '../src/index.js'
 import { fixtures } from './fixtures.js'
 import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData, RichTextComponent, HorizontalRule, TextImageComponent, ColumnLayout, DocumentsComponent, SongData, TeamComponent, TeamMemberComponent } from './fixturetemplates.js'
 
-interface StoredUserEvent extends UserEvent {
-  userId: string
-  timestamp: string
-}
+const userEvents: StoredInteractionEvent[] = []
 
-const userEvents: StoredUserEvent[] = []
+/** Collects analytics events in memory so automated tests can read them back
+ * via GET /userEvents instead of shipping them to elasticsearch. */
+class MemoryAnalyticsClient extends AnalyticsClient {
+  async push (events: StoredInteractionEvent[]) {
+    userEvents.push(...events)
+  }
+}
 
 async function main () {
   const server = new DGServer({ authenticate: jwtAuthenticate({ authenticateAll: true }) })
-
-  server.app.post<{ Body: UserEvent }>('/userEvents', async (req, res) => {
-    const ctx = await templateRegistry.getCtx(req)
-    const user = await getEnabledUser(ctx)
-    userEvents.push({ ...req.body, userId: user.id, timestamp: new Date().toISOString() })
-    return { success: true }
-  })
 
   server.app.get('/userEvents', async (req, res) => userEvents)
 
@@ -30,6 +25,7 @@ async function main () {
 
   await server.start({
     fixtures,
+    analytics: { analyticsClient: new MemoryAnalyticsClient() },
     userSearch: async (search: string) => {
       return [{ login: 'ab12', firstname: 'April', lastname: 'Bar', email: 'ab12@example.com', enabled: true }]
     },
