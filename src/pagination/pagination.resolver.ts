@@ -1,4 +1,4 @@
-import { PageInformation, PaginationResponse } from '@txstate-mws/graphql-server'
+import { PageInformation, PaginationResponseWithTotals } from '@txstate-mws/graphql-server'
 import { Resolver, Ctx, FieldResolver } from 'type-graphql'
 import type { DGContext } from '../internal.js'
 
@@ -7,13 +7,13 @@ import type { DGContext } from '../internal.js'
 // query so clients can read its pagination metadata back via `pageInfo { <queryType> }`.
 @Resolver(of => PageInformation)
 export class DGPageInformationResolver {
-  @FieldResolver(returns => PaginationResponse, { nullable: true })
+  @FieldResolver(returns => PaginationResponseWithTotals, { nullable: true })
   async pages (@Ctx() ctx: DGContext) {
-    return await ctx.getPaginationInfo('pages')
+    return await ctx.getPaginationInfo<PaginationResponseWithTotals>('pages')
   }
 
-  @FieldResolver(returns => PaginationResponse, { nullable: true })
+  @FieldResolver(returns => PaginationResponseWithTotals, { nullable: true })
   async scheduledPublishes (@Ctx() ctx: DGContext) {
-    return await ctx.getPaginationInfo('scheduledPublishes')
+    return await ctx.getPaginationInfo<PaginationResponseWithTotals>('scheduledPublishes')
   }
 }

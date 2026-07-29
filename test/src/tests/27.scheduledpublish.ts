@@ -126,11 +126,12 @@ describe('scheduled publishes', () => {
     const { scheduledPublishes: all } = await query('{ scheduledPublishes { id } }')
     expect(all.length).to.be.greaterThan(perPage)
 
-    const resp1 = await query(`{ scheduledPublishes(pagination: { page: 1, perPage: ${perPage} }) { id } pageInfo { scheduledPublishes { page perPage finalPage } } }`)
+    const resp1 = await query(`{ scheduledPublishes(pagination: { page: 1, perPage: ${perPage} }) { id } pageInfo { scheduledPublishes { page perPage finalPage totalItems } } }`)
     expect(resp1.scheduledPublishes).to.have.lengthOf(perPage)
     expect(resp1.pageInfo.scheduledPublishes.page).to.equal(1)
     expect(resp1.pageInfo.scheduledPublishes.perPage).to.equal(perPage)
     expect(resp1.pageInfo.scheduledPublishes.finalPage).to.equal(Math.ceil(all.length / perPage))
+    expect(resp1.pageInfo.scheduledPublishes.totalItems).to.equal(all.length)
 
     // the second page should not repeat any entry from the first
     const resp2 = await query(`{ scheduledPublishes(pagination: { page: 2, perPage: ${perPage} }) { id } }`)

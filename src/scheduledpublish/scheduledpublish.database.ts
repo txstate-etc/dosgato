@@ -83,7 +83,7 @@ export async function getScheduledPublishes (filter?: ScheduledPublishFilter, td
       ${[...joins.values()].join('\n')}
       WHERE (${where.join(') AND (')})
     `, binds)
-    pageInfo.finalPage = Math.ceil(totalCount! / pageInfo.perPage)
+    pageInfo.totalItems = totalCount!
   }
   const query = `SELECT sp.*, pages.dataId AS pageDataId FROM scheduledpublishes sp
     INNER JOIN pages ON pages.id = sp.pageInternalId

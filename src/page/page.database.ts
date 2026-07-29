@@ -397,7 +397,7 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db, pageInf
       ${joins.size ? Array.from(joins.values()).join('\n') : ''}
       ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
     `, binds)
-    pageInfo.finalPage = Math.ceil(totalCount! / pageInfo.perPage)
+    pageInfo.totalItems = totalCount!
   }
 
   const pagerows = await tdb.getall(`

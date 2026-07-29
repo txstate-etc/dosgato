@@ -23,9 +23,10 @@ describe('pages', () => {
     expect(resp.pages.map((p: any) => p.id)).to.have.members([aboutPage.id, sitemapPage.id])
   })
   it('should get pages paginated', async () => {
-    const resp1 = await query('{ pages(pagination: { page: 1, perPage: 2 }) { id name } pageInfo { pages { finalPage } } }')
+    const resp1 = await query('{ pages(pagination: { page: 1, perPage: 2 }) { id name } pageInfo { pages { finalPage totalItems } } }')
     expect(resp1.pages).to.have.lengthOf(2)
     expect(resp1.pageInfo.pages.finalPage).to.be.greaterThan(1)
+    expect(resp1.pageInfo.pages.totalItems).to.be.greaterThan(2)
   })
   it('should filter and paginate at the same time', async () => {
     const resp = await query('{ pages(filter: { beneath: "/site3" }, pagination: { page: 1, perPage: 2 }) { id name path } }')

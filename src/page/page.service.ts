@@ -553,7 +553,7 @@ export class PageService extends DosGatoService<Page> {
     if (pageInfo && filter?.viewForEdit) {
       // we have to do pagination here because viewForEdit cannot be done at the DB layer
       // getPages will have ignored pageInfo after seeing viewForEdit was set
-      pageInfo.finalPage = Math.ceil(authorized.length / pageInfo.perPage) || 1
+      pageInfo.totalItems = authorized.length
       authorized = authorized.slice((pageInfo.page - 1) * pageInfo.perPage, pageInfo.page * pageInfo.perPage)
     }
     return authorized
