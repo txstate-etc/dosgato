@@ -4,7 +4,7 @@ import { DateTime } from 'luxon'
 import {
   DosGatoService, type ScheduledPublishFilter, type ScheduledPublish, ScheduledPublishStatus,
   ScheduledPublishAction, ScheduledPublishRecurrence, ScheduledPublishResponse, type CreateScheduledPublishInput,
-  type UpdateScheduledPublishInput, PageServiceInternal, PageService,
+  type UpdateScheduledPublishInput, PageServiceInternal, PageService, DeleteState,
   getScheduledPublishes, countScheduledPublishes, createScheduledPublish, updateScheduledPublish,
   updateScheduledPublishStatus, userContext
 } from '../internal.js'
@@ -94,6 +94,15 @@ export class ScheduledPublishService extends DosGatoService<ScheduledPublish> {
     } else {
       if (!await pageSvc.maySchedulePublish(page)) throw new Error('You are not permitted to schedule a publish for this page, or an active publish schedule already exists.')
       if (parent && !parent.published) response.addMessage('This page\'s parent is not published. If the parent page is still not published at the targeted time, this scheduled publish will fail.', 'targetDate', MutationMessageType.warning)
+    }
+    if (args.action === ScheduledPublishAction.PUBLISH_WITH_SUBPAGES || args.action === ScheduledPublishAction.UNPUBLISH) {
+      const descendants = await this.svc(PageServiceInternal).getPageChildren(page, true)
+      const subpageCount = descendants.filter(c => c.deleteState === DeleteState.NOTDELETED).length
+      const verb = args.action === ScheduledPublishAction.UNPUBLISH ? 'unpublish' : 'publish'
+      if (subpageCount > 0) {
+        const field = args.action === ScheduledPublishAction.PUBLISH_WITH_SUBPAGES ? 'args.includeSubpages' : 'args.unpublishDate'
+        response.addMessage(`This will ${verb} this page and ${subpageCount} sub-page${subpageCount === 1 ? '' : 's'} (${subpageCount + 1} pages total).`, field, MutationMessageType.warning)
+      }
     }
     validate(response, args)
     if (response.hasErrors() || validateOnly) return response
