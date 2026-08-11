@@ -305,6 +305,10 @@ export class RoleService extends DosGatoService<Role> {
   }
 
   async mayAssign (role: Role) {
+    // site owners and managers may assign any role belonging to a site they own or manage
+    // this has to come before the tooPowerful check below, since owners and managers derive their
+    // authority from the site record rather than from rules, so they have no rules to compare against
+    if (role.siteId && this.ctx.authInfo.ownedOrManagedSiteIds?.includes(role.siteId)) return true
     const [globalRules, siteRules, assetRules, dataRules, pageRules, templateRules] = (await Promise.all([
       this.svc(GlobalRuleServiceInternal).findByRoleId(role.id),
       this.svc(SiteRuleServiceInternal).findByRoleId(role.id),
@@ -322,17 +326,10 @@ export class RoleService extends DosGatoService<Role> {
       ...templateRules.map(rule => this.svc(TemplateRuleService).tooPowerful(rule))
     ]
     if (tooPowerful.some(b => b)) return false
-    // TODO: The logic we discussed when we were defining the manageAccess and manageParentRoles permissions
-    // was to check if the role was associated with a site (has a site ID)
-    // If it does not have a site ID, they can assign the role if they have the manageParentRoles permission
-    // It it does have a site ID, we let them assign the role if they have the manage Access permission OR they
-    // are a site manager. Until manageParentRoles is fully implemented, they can assign the role if they
-    // have the manageAccess permission.
     return this.haveGlobalPerm('manageAccess')
   }
 
   mayCreateRules (role: Role) {
-    // TODO: Check manageParentRoles permission if they are trying to create rules for a top-level role
     return this.haveGlobalPerm('manageAccess')
   }
 }

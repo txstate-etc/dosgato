@@ -4,6 +4,11 @@ import { query, queryAs, createRole } from '../common.js'
 
 use(chaiAsPromised)
 
+async function getSiteId (name: string) {
+  const { sites } = await query('{ sites { id name } }')
+  return sites.find((s: any) => s.name === name).id
+}
+
 describe('roles mutations', () => {
   it('should create a new role', async () => {
     const { success, role } = await createRole({ name: 'roleA' })
@@ -98,7 +103,54 @@ describe('roles mutations', () => {
     const { removeRoleFromUser: { success } } = await query('mutation RemoveRoleFromUser ($roleId: ID!, $userId: ID!) { removeRoleFromUser (roleId: $roleId, userId: $userId) { success } }', { roleId: roleH.id, userId: 'su01' })
     expect(success).to.be.false
   })
-  it.skip('should allow a site manager to assign the site\'s role to a user', async () => {
-    // TODO: this test is skipped until we have createSite also creating the site's base role
+  it('should allow a site owner to assign a role belonging to their site', async () => {
+    const site1 = await getSiteId('site1')
+    const { role } = await createRole({ name: 'ownerassigntest', siteId: site1, access: 'CONTRIBUTOR' })
+    // ed02 owns site1 and has no manageAccess
+    const { assignRoleToUsers: { success } } = await queryAs('ed02', 'mutation AssignRoleToUsers ($roleId: ID!, $userIds: [ID!]!) { assignRoleToUsers (roleId: $roleId, userIds: $userIds) { success } }', { roleId: role.id, userIds: ['ed09'] })
+    expect(success).to.be.true
+    const { roles } = await query(`{ roles (filter: { ids: [${role.id}] }) { id users { id } } }`)
+    expect(roles[0].users.map((u: any) => u.id)).to.include('ed09')
+  })
+  it('should allow a site manager to assign a role belonging to their site', async () => {
+    const site3 = await getSiteId('site3')
+    const { role } = await createRole({ name: 'managerassigntest', siteId: site3, access: 'CONTRIBUTOR' })
+    // ed01 manages site3 and has no manageAccess
+    const { assignRoleToUsers: { success } } = await queryAs('ed01', 'mutation AssignRoleToUsers ($roleId: ID!, $userIds: [ID!]!) { assignRoleToUsers (roleId: $roleId, userIds: $userIds) { success } }', { roleId: role.id, userIds: ['ed09'] })
+    expect(success).to.be.true
+  })
+  it('should allow a site owner to remove a role belonging to their site from a user', async () => {
+    const site1 = await getSiteId('site1')
+    const { role } = await createRole({ name: 'ownerremovetest', siteId: site1, access: 'CONTRIBUTOR' })
+    await queryAs('ed02', 'mutation AssignRoleToUsers ($roleId: ID!, $userIds: [ID!]!) { assignRoleToUsers (roleId: $roleId, userIds: $userIds) { success } }', { roleId: role.id, userIds: ['ed09'] })
+    const { removeRoleFromUser: { success } } = await queryAs('ed02', 'mutation RemoveRoleFromUser ($roleId: ID!, $userId: ID!) { removeRoleFromUser (roleId: $roleId, userId: $userId) { success } }', { roleId: role.id, userId: 'ed09' })
+    expect(success).to.be.true
+  })
+  it('should not allow someone who neither owns nor manages a site to assign that site\'s role', async () => {
+    const site1 = await getSiteId('site1')
+    const { role } = await createRole({ name: 'nonownerassigntest', siteId: site1, access: 'CONTRIBUTOR' })
+    await expect(queryAs('ed07', 'mutation AssignRoleToUsers ($roleId: ID!, $userIds: [ID!]!) { assignRoleToUsers (roleId: $roleId, userIds: $userIds) { success } }', { roleId: role.id, userIds: ['ed09'] })).to.be.rejected
+  })
+  it('should not allow a site owner to assign a role belonging to a different site', async () => {
+    const site3 = await getSiteId('site3')
+    const { role } = await createRole({ name: 'othersiteassigntest', siteId: site3, access: 'CONTRIBUTOR' })
+    // ed02 owns site1, not site3
+    await expect(queryAs('ed02', 'mutation AssignRoleToUsers ($roleId: ID!, $userIds: [ID!]!) { assignRoleToUsers (roleId: $roleId, userIds: $userIds) { success } }', { roleId: role.id, userIds: ['ed09'] })).to.be.rejected
+  })
+  it('should not allow a site owner to assign a role that does not belong to any site', async () => {
+    const { role } = await createRole({ name: 'nositeassigntest' })
+    await expect(queryAs('ed02', 'mutation AssignRoleToUsers ($roleId: ID!, $userIds: [ID!]!) { assignRoleToUsers (roleId: $roleId, userIds: $userIds) { success } }', { roleId: role.id, userIds: ['ed09'] })).to.be.rejected
+  })
+  it('should report the assign permission correctly for site owners', async () => {
+    const [site1, site3] = await Promise.all([getSiteId('site1'), getSiteId('site3')])
+    const [{ role: ownRole }, { role: otherRole }] = await Promise.all([
+      createRole({ name: 'assignpermmine', siteId: site1, access: 'CONTRIBUTOR' }),
+      createRole({ name: 'assignpermtheirs', siteId: site3, access: 'CONTRIBUTOR' })
+    ])
+    // ed02 should be able to assign roles for site1 but not for site3
+    const { roles } = await queryAs('ed02', `{ roles (filter: { ids: [${ownRole.id}, ${otherRole.id}] }) { id permissions { assign } } }`)
+    expect(roles).to.have.lengthOf(2)
+    expect(roles.find((r: any) => r.id === ownRole.id).permissions.assign).to.be.true
+    expect(roles.find((r: any) => r.id === otherRole.id).permissions.assign).to.be.false
   })
 })
