@@ -2,7 +2,7 @@ import multipart from '@fastify/multipart'
 import { ZipArchive } from 'archiver'
 import { createHash } from 'node:crypto'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import { HttpError } from 'fastify-txstate'
+import { HttpError, registeredOptionalRoutes } from 'fastify-txstate'
 import { DateTime } from 'luxon'
 import { lookup } from 'mime-types'
 import db from 'mysql2-async/db'
@@ -182,6 +182,14 @@ function safeParse (json: string): any {
 
 export async function createAssetRoutes (app: FastifyInstance) {
   await app.register(multipart, { limits: { fileSize: 2 * 1024 * 1024 * 1024 } })
+
+  // asset downloads are served to anonymous visitors
+  registeredOptionalRoutes.add('/assets/:assetid/resize/:resizeid/:filename')
+  registeredOptionalRoutes.add('/assets/:assetid/w/:width/*')
+  registeredOptionalRoutes.add('/assets/legacy/:id')
+  registeredOptionalRoutes.add('/assets/legacy/:id/*')
+  registeredOptionalRoutes.add('/assets/:id/*')
+
   app.post<{ Params: { folderId: string }, Body?: { url: string, uploadedFilename?: string, markAsDeleted?: boolean, legacyId?: string, auth?: string, modifiedBy?: string, modifiedAt?: string, createdBy?: string, createdAt?: string, linkId?: string, meta?: any } }>(
     '/assets/:folderId', async (req, res) => {
     const startTime = new Date()
