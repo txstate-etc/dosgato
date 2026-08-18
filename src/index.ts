@@ -127,7 +127,7 @@ export interface DGStartOpts extends Omit<GQLStartOpts, 'resolvers'> {
     /** Reject event submissions with a 401 when this returns false. By default, unauthenticated
      * requests are rejected; provide your own function, e.g. `() => true`, if you intend to
      * accept events from unauthenticated users like visitors to your public web pages. */
-    authorize?: (req: FastifyRequest) => boolean
+    authorize?: boolean | ((req: FastifyRequest) => boolean)
   }
 }
 
@@ -163,7 +163,7 @@ export class DGServer {
     await this.app.register(analyticsPlugin, {
       appName: opts.analytics?.appName ?? 'dosgato-admin',
       analyticsClient: opts.analytics?.analyticsClient,
-      authorize: opts.analytics?.authorize ?? (req => req.auth != null)
+      authorize: opts.analytics?.authorize === false ? undefined : (opts.analytics?.authorize ?? true)
     })
     this.app.get<{ Querystring: { q: string } }>('/usersearch', async (req, res) => {
       if ((!opts.userLookup && !opts.userSearch) || isBlank(req.query.q)) return []
