@@ -4,8 +4,8 @@ import { isNull } from 'txstate-utils'
 import {
   AssetRule, AssetRuleService, AssetRuleFilter, DataRule, DataRuleService, GlobalRule, GlobalRuleService,
   PageRule, PageRuleService, SiteRule, SiteRuleFilter, SiteRuleService, Group, GroupFilter,
-  GroupService, User, UserFilter, UserService, Role, RoleFilter, RoleInput, RolePermissions, RoleResponse,
-  RoleService, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType, Site,
+  GroupService, User, UserFilter, UserService, Role, RoleAccessLevel, RoleFilter, RoleInput, RolePermissions, RoleResponse,
+  RoleService, SiteTeamMemberResponse, TemplateRule, TemplateRuleFilter, TemplateRuleService, RuleType, Site,
   UrlSafeString, GlobalRuleServiceInternal, SiteRuleServiceInternal, AssetRuleServiceInternal,
   DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, SiteServiceInternal,
   DataRuleFilter, PageRuleFilter
@@ -96,6 +96,18 @@ export class RoleResolver {
   @Mutation(returns => ValidatedResponse)
   async addRolesToUser (@Ctx() ctx: Context, @Arg('roleIds', type => [ID]) roleIds: string[], @Arg('userId', type => ID) userId: string) {
     return await ctx.svc(RoleService).addRolesToUser(roleIds, userId)
+  }
+
+  @Mutation(returns => SiteTeamMemberResponse, { description: 'Add a user to a site team by assigning them the site role(s) matching the requested access level. Available to admins and to the site\'s owners and managers.' })
+  async addSiteTeamMember (
+    @Ctx() ctx: Context,
+    @Arg('siteId', type => ID) siteId: string,
+    @Arg('userId', type => ID) userId: string,
+    @Arg('access', type => RoleAccessLevel) access: RoleAccessLevel,
+    @Arg('roleIds', type => [ID], { nullable: true, description: 'Required when access is contributor. Ignored for the other access levels, which have at most one role per site.' }) roleIds?: string[],
+    @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean
+  ) {
+    return await ctx.svc(RoleService).addSiteTeamMember(siteId, userId, access, roleIds, validateOnly)
   }
 
   @Mutation(returns => ValidatedResponse)

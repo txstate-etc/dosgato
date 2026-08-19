@@ -2,6 +2,7 @@ import { Field, ID, InputType, ObjectType, registerEnumType } from 'type-graphql
 import { ValidatedResponse, type ValidatedResponseArgs } from '@txstate-mws/graphql-server'
 import { optionalString } from 'txstate-utils'
 import { UrlSafeString } from '../internal.js'
+import { User } from '../user/user.model.js'
 
 export enum RuleType {
   GLOBAL = 'global',
@@ -120,6 +121,17 @@ export class RoleResponse extends ValidatedResponse {
   constructor (config: ValidatedResponseArgs & { role?: Role }) {
     super(config)
     this.role = config.role
+  }
+}
+
+@ObjectType()
+export class SiteTeamMemberResponse extends ValidatedResponse {
+  @Field(type => User, { nullable: true, description: 'The user that was looked up, if the login matched a user. Populated during validateOnly so the UI can show the administrator who it found.' })
+  user?: User
+
+  constructor (config?: ValidatedResponseArgs & { user?: User }) {
+    super(config ?? {})
+    this.user = config?.user
   }
 }
 

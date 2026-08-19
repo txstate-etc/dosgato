@@ -1,4 +1,4 @@
-import { BaseService, ValidatedResponse } from '@txstate-mws/graphql-server'
+import { BaseService, MutationMessageType, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
 import { intersect, isBlank, isNotNull, unique } from 'txstate-utils'
 import {
@@ -9,7 +9,7 @@ import {
   DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, GlobalRuleService, AssetRuleService,
   DataRuleService, PageRuleService, SiteRuleService, TemplateRuleService, roleNameIsUnique, assignRoleToUsers,
   type RoleInput,
-  accessLevelUniqueForSite
+  accessLevelUniqueForSite, RoleAccessLevel, SiteServiceInternal, SiteTeamMemberResponse, UserServiceInternal
 } from '../internal.js'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
@@ -216,6 +216,70 @@ export class RoleService extends DosGatoService<Role> {
     }
   }
 
+  /**
+   * Add a user to a site's team by giving them the site role(s) that carry the requested
+   * access level. Site owners and managers may do this for their own sites without the
+   * global manageAccess permission, so all the validation a manager needs (does this login
+   * exist, do they have training, does this site have a role at that access level) happens
+   * here and comes back as messages instead of requiring them to look users up directly.
+   */
+  async addSiteTeamMember (siteId: string, userId: string, access: RoleAccessLevel, roleIds?: string[], validateOnly?: boolean) {
+    const site = await this.svc(SiteServiceInternal).findById(siteId)
+    if (!site) throw new Error('Site does not exist.')
+    if (!this.mayManageTeam(site)) throw new Error('You are not permitted to add team members to this site.')
+    const response = new SiteTeamMemberResponse({ success: true })
+
+    // figure out which of the site's roles we have been asked to assign
+    const rolesForAccess = (await this.raw.findBySiteId(siteId)).filter(r => r.access === access)
+    let targetRoles: Role[] = []
+    if (!rolesForAccess.length) {
+      response.addMessage(`This site does not have a ${access} role.`, 'access')
+    } else if (access === RoleAccessLevel.CONTRIBUTOR) {
+      if (!roleIds?.length) {
+        response.addMessage('At least one role must be selected.', 'roleIds')
+      } else {
+        targetRoles = rolesForAccess.filter(r => roleIds.includes(r.id))
+        if (targetRoles.length !== unique(roleIds).length) {
+          response.addMessage('One or more of the selected roles do not belong to this site.', 'roleIds')
+        }
+      }
+    } else {
+      targetRoles = rolesForAccess
+    }
+
+    // we already know the current user manages this site, so we may look the requested user
+    // up with the internal service and tell the manager what we found
+    const user = await this.svc(UserServiceInternal).findById(userId)
+    response.user = user
+    if (!user || user.disabled) {
+      response.addMessage('User not found.', 'userId')
+    } else {
+      const trainings = await this.svc(UserServiceInternal).getTrainings(user.internalId)
+      if (!trainings.length && access !== RoleAccessLevel.READONLY) {
+        response.addMessage('Selected user has not completed required editor training, and can only be added to a site team with Read-Only access.', 'userId')
+      } else if (targetRoles.length) {
+        const existingRoles = await this.raw.findByUserId(user.id)
+        const dupes = targetRoles.filter(r => existingRoles.some(e => e.id === r.id))
+        if (dupes.length) {
+          response.addMessage(`${user.name} already has the ${dupes.map(r => r.name).join(', ')} role${dupes.length === 1 ? '' : 's'}.`, 'userId', MutationMessageType.warning)
+        } else {
+          response.addMessage('User found', 'userId', MutationMessageType.success)
+        }
+      }
+    }
+
+    if (validateOnly || response.hasErrors()) return response
+    if (!user) return response // unreachable, but keeps the compiler happy
+
+    const mayAssign = await Promise.all(targetRoles.map(async r => await this.mayAssign(r)))
+    if (mayAssign.some(allowed => !allowed)) {
+      return SiteTeamMemberResponse.error('You are not permitted to assign one or more of the selected roles.', 'roleIds')
+    }
+    await addRolesToUser(targetRoles.map(r => r.id), user.internalId)
+    this.loaders.clear()
+    return response
+  }
+
   async assignRoleToUsers (roleId: string, userIds: string[]) {
     const role = await this.findById(roleId)
     if (!role) throw new Error('Specified role does not exist.')
@@ -301,6 +365,12 @@ export class RoleService extends DosGatoService<Role> {
 
   mayDelete (role: Role) {
     // TODO: Check manageParentRoles permission if they are trying to delete a top-level role?
+    return this.haveGlobalPerm('manageAccess')
+  }
+
+  mayManageTeam (site: { id: string }) {
+    // owners and managers derive this authority from the site record rather than from rules
+    if (this.ctx.authInfo.ownedOrManagedSiteIds?.includes(site.id)) return true
     return this.haveGlobalPerm('manageAccess')
   }
 
