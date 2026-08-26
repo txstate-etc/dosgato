@@ -110,6 +110,28 @@ export class RoleResolver {
     return await ctx.svc(RoleService).addSiteTeamMember(siteId, userId, access, roleIds, validateOnly)
   }
 
+  @Mutation(returns => SiteTeamMemberResponse, { description: 'Edit a user\'s membership in a site team by updating their site role(s) and access level. Available to admins and to the site\'s owners and managers.' })
+  async editSiteTeamMember (
+    @Ctx() ctx: Context,
+    @Arg('siteId', type => ID) siteId: string,
+    @Arg('userId', type => ID) userId: string,
+    @Arg('access', type => RoleAccessLevel) access: RoleAccessLevel,
+    @Arg('roleIds', type => [ID], { nullable: true, description: 'Required when access is contributor. Ignored for the other access levels, which have at most one role per site.' }) roleIds?: string[],
+    @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean
+  ) {
+    return await ctx.svc(RoleService).editSiteTeamMember(siteId, userId, access, roleIds, validateOnly)
+  }
+
+  @Mutation(returns => ValidatedResponse, { description: 'Remove a user from a site team by revoking the site roles they hold directly and, if applicable, their manager status. Available to admins and to the site\'s owners and managers. Site ownership must still be changed by an administrator.' })
+  async removeSiteTeamMember (
+    @Ctx() ctx: Context,
+    @Arg('siteId', type => ID) siteId: string,
+    @Arg('userId', type => ID) userId: string,
+    @Arg('validateOnly', { nullable: true, description: 'Set to true to validate the input without saving it.' }) validateOnly?: boolean
+  ) {
+    return await ctx.svc(RoleService).removeSiteTeamMember(siteId, userId, validateOnly)
+  }
+
   @Mutation(returns => ValidatedResponse)
   async assignRoleToUsers (@Ctx() ctx: Context, @Arg('roleId', type => ID) roleId: string, @Arg('userIds', type => [ID]) userIds: string[]) {
     return await ctx.svc(RoleService).assignRoleToUsers(roleId, userIds)

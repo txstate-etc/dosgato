@@ -97,6 +97,14 @@ const authCache = new Cache(async (login: string, ctx: DGContext) => {
   return { roles, pageRules, assetRules, siteRules, dataRules, globalGrants, templateRules, groupsById, user, pageSiteIds, ownedOrManagedSiteIds } as AuthInfo
 }, { freshseconds: 30 })
 
+/**
+ * Throw away a user's cached roles, rules, and owned/managed sites so their next request
+ * rebuilds them from the database instead of waiting out the 30 second freshness window.
+ */
+export async function invalidateAuthInfo (login: string) {
+  await authCache.invalidate(login)
+}
+
 interface AuthInfo {
   roles: Role[]
   pageRules: PageRule[]

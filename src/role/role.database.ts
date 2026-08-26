@@ -1,3 +1,4 @@
+import type { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { type RoleInput, Role, type RoleFilter } from '../internal.js'
 
@@ -113,10 +114,10 @@ export async function deleteRole (id: string) {
   })
 }
 
-export async function addRolesToUser (roleIds: string[], userId: number) {
+export async function addRolesToUser (roleIds: string[], userId: number, tdb: Queryable = db) {
   const binds: string[] = []
   if (roleIds.length) {
-    return await db.insert(`INSERT INTO users_roles (userId, roleId) VALUES ${db.in(binds, roleIds.map(id => [userId, id]))} ON DUPLICATE KEY UPDATE userId=userId`, binds)
+    return await tdb.insert(`INSERT INTO users_roles (userId, roleId) VALUES ${db.in(binds, roleIds.map(id => [userId, id]))} ON DUPLICATE KEY UPDATE userId=userId`, binds)
   }
 }
 
@@ -130,8 +131,8 @@ export async function assignRoleToUsers (roleId: string, userIds: number[]) {
   }
 }
 
-export async function removeRoleFromUser (roleId: string, userId: number) {
-  return await db.delete('DELETE FROM users_roles WHERE roleId = ? AND userId = ?', [roleId, userId])
+export async function removeRoleFromUser (roleId: string, userId: number, tdb: Queryable = db) {
+  return await tdb.delete('DELETE FROM users_roles WHERE roleId = ? AND userId = ?', [roleId, userId])
 }
 
 export async function addRoleToGroups (groupIds: string[], roleId: string) {
@@ -146,6 +147,25 @@ export async function addRoleToGroups (groupIds: string[], roleId: string) {
 
 export async function removeRoleFromGroup (groupId: string, roleId: string) {
   return await db.delete('DELETE FROM groups_roles WHERE groupId = ? AND roleId = ?', [groupId, roleId])
+}
+
+export async function updateSiteTeamMemberAccess (siteId: string, userId: number, roleIds: string[]) {
+  // callers must have resolved at least one role by now; an empty list here would silently strip
+  // the user's roles for this site while reporting success
+  if (!roleIds.length) throw new Error('No roles were provided to update site team member access.')
+  await db.transaction(async tdb => {
+    // get the user's current roles for this site, so we can remove any that are no longer assigned.
+    const currentRoleIds = (await tdb.getvals<number>(`SELECT r.id FROM roles r
+      INNER JOIN users_roles ur ON ur.roleId=r.id
+      WHERE r.siteId=? AND ur.userId=?`, [siteId, userId])).map(String)
+    const toRemove = currentRoleIds.filter(id => !roleIds.includes(id))
+    const toAdd = roleIds.filter(id => !currentRoleIds.includes(id))
+    if (toRemove.length) {
+      const binds: (string | number)[] = [userId]
+      await tdb.delete(`DELETE FROM users_roles WHERE userId = ? AND roleId IN (${db.in(binds, toRemove)})`, binds)
+    }
+    await addRolesToUser(toAdd, userId, tdb)
+  })
 }
 
 export async function addRoleSite (roleId: string, siteId: string) {

@@ -272,6 +272,24 @@ export async function updateSiteManagement (site: Site, args: UpdateSiteManageme
   }, { retries: 5 })
 }
 
+export async function removeSiteManager (site: Site, userInternalId: number, currentUserInternalId: number, tdb?: Queryable) {
+  if (tdb) {
+    await removeSiteManagerInsideTransaction(site, userInternalId, currentUserInternalId, tdb)
+  } else {
+    await db.transaction(async db => {
+      await removeSiteManagerInsideTransaction(site, userInternalId, currentUserInternalId, db)
+    }, { retries: 5 })
+  }
+}
+
+async function removeSiteManagerInsideTransaction (site: Site, userInternalId: number, currentUserInternalId: number, db: Queryable) {
+  const deleted = await db.delete('DELETE FROM sites_managers WHERE siteId = ? AND userId = ?', [site.id, userInternalId])
+  if (deleted) {
+    const login = await db.getval<string>('SELECT login FROM users WHERE id = ?', [userInternalId])
+    await createSiteComment(site.id, `Removed manager ${login!}.`, currentUserInternalId, db)
+  }
+}
+
 export async function deleteSite (site: Site, currentUserInternalId: number) {
   await db.transaction(async db => {
     await renameSiteInsideTransaction(site, site.name + DateTime.local().toFormat('yyyyMMddHHmmss'), currentUserInternalId, db)

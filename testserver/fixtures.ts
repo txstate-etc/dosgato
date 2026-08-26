@@ -51,7 +51,7 @@ export async function fixtures () {
 
   const basicId = await db.getval('SELECT MIN(id) FROM trainings')
   const binds: any[] = []
-  await db.insert(`INSERT INTO users_trainings (userId, trainingId) VALUES ${db.in(binds, [su01, su02, su03, ed01, ed02, ed03, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18, ed19].map(lgn => [lgn, basicId]))}`, binds)
+  await db.insert(`INSERT INTO users_trainings (userId, trainingId) VALUES ${db.in(binds, [su01, su02, su03, ed01, ed02, ed03, ed05, ed06, ed07, ed08, ed09, ed10, ed11, ed12, ed13, ed14, ed15, ed16, ed17, ed18, ed19, dbEditor1, dbEditor2, dbContributor1, dbContributor2].map(lgn => [lgn, basicId]))}`, binds)
 
   const [group1, group2, group3, group4, group5, group6, group7, dashboardEditorGroup] = await Promise.all([
     db.insert('INSERT INTO `groups` (name) VALUES ("group1")'),

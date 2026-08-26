@@ -1,5 +1,6 @@
 import { BaseService, MutationMessageType, ValidatedResponse } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import db from 'mysql2-async/db'
 import { intersect, isBlank, isNotNull, unique } from 'txstate-utils'
 import {
   DosGatoService, GroupService, UserService, type Role, type RoleFilter, RoleResponse,
@@ -8,9 +9,11 @@ import {
   GroupServiceInternal, GlobalRuleServiceInternal, SiteRuleServiceInternal, AssetRuleServiceInternal,
   DataRuleServiceInternal, PageRuleServiceInternal, TemplateRuleServiceInternal, GlobalRuleService, AssetRuleService,
   DataRuleService, PageRuleService, SiteRuleService, TemplateRuleService, roleNameIsUnique, assignRoleToUsers,
-  type RoleInput,
-  accessLevelUniqueForSite, RoleAccessLevel, SiteServiceInternal, SiteTeamMemberResponse, UserServiceInternal
+  type RoleInput, accessLevelUniqueForSite, RoleAccessLevel, SiteServiceInternal, SiteTeamMemberResponse, UserServiceInternal,
+  removeSiteManager, invalidateAuthInfo, updateSiteTeamMemberAccess, type Site, type User
 } from '../internal.js'
+
+const trainingRequiredMessage = 'The selected user can only be granted Read-only access at this time. If the user recently completed training, please allow 24 hours for the user\'s training status to update.'
 
 const rolesByIdLoader = new PrimaryKeyLoader({
   fetch: async (ids: string[]) => await getRoles({ ids })
@@ -217,6 +220,53 @@ export class RoleService extends DosGatoService<Role> {
   }
 
   /**
+   * Figure out which of a site's roles carry the requested access level. Editors and read-only
+   * users get every role at that level (there should be only one of each), while contributors pick the specific roles they need,
+   * so those have to be named and have to belong to this site at that access level.
+   */
+  protected async resolveTargetRoles (siteId: string, access: RoleAccessLevel, roleIds: string[] | undefined, response: SiteTeamMemberResponse) {
+    const rolesForAccess = (await this.raw.findBySiteId(siteId)).filter(r => r.access === access)
+    if (!rolesForAccess.length) {
+      response.addMessage(`There are no ${access} roles available for this site. Without roles assigned, this team member will not have any access to the site. Contact support to create a role with ${access} access.`, 'access')
+      return []
+    }
+    if (access !== RoleAccessLevel.CONTRIBUTOR) return rolesForAccess
+    if (!roleIds?.length) {
+      response.addMessage('At least one role must be selected.', 'roleIds')
+      return []
+    }
+    const requested = unique(roleIds)
+    const targetRoles = rolesForAccess.filter(r => requested.includes(r.id))
+    if (targetRoles.length !== requested.length) {
+      response.addMessage(`One or more of the selected roles are not ${access} roles for this site.`, 'roleIds')
+    }
+    return targetRoles
+  }
+
+  /**
+   * Gather everything the edit and remove mutations need to know about a user's standing on a
+   * site: the roles they hold on it directly, the ones they only have through a group, and
+   * whether they manage or own it. A user with none of the above is not on the team at all,
+   * which both mutations treat as an error, so that message is added here and reported back as
+   * `isTeamMember: false`.
+   */
+  protected async loadTeamStanding (site: Site, user: User, response: ValidatedResponse) {
+    const [trainings, directRoles, indirectRoles, managedSites] = await Promise.all([
+      this.svc(UserServiceInternal).getTrainings(user.internalId),
+      this.raw.findByUserId(user.id, true),
+      this.raw.findByUserId(user.id, false),
+      this.svc(SiteServiceInternal).findByManagerInternalId(user.internalId)
+    ])
+    const currentSiteRoles = directRoles.filter(r => r.siteId === site.id)
+    const groupSiteRoles = indirectRoles.filter(r => r.siteId === site.id)
+    const isManager = managedSites.some(s => s.id === site.id)
+    const isOwner = site.ownerId === user.internalId
+    const isTeamMember = !!currentSiteRoles.length || isManager || isOwner
+    if (!isTeamMember) response.addMessage(`${user.name} is not a team member of ${site.name}.`, 'userId')
+    return { trainings, currentSiteRoles, groupSiteRoles, isManager, isOwner, isTeamMember }
+  }
+
+  /**
    * Add a user to a site's team by giving them the site role(s) that carry the requested
    * access level. Site owners and managers may do this for their own sites without the
    * global manageAccess permission, so all the validation a manager needs (does this login
@@ -230,36 +280,31 @@ export class RoleService extends DosGatoService<Role> {
     const response = new SiteTeamMemberResponse({ success: true })
 
     // figure out which of the site's roles we have been asked to assign
-    const rolesForAccess = (await this.raw.findBySiteId(siteId)).filter(r => r.access === access)
-    let targetRoles: Role[] = []
-    if (!rolesForAccess.length) {
-      response.addMessage(`This site does not have a ${access} role.`, 'access')
-    } else if (access === RoleAccessLevel.CONTRIBUTOR) {
-      if (!roleIds?.length) {
-        response.addMessage('At least one role must be selected.', 'roleIds')
-      } else {
-        targetRoles = rolesForAccess.filter(r => roleIds.includes(r.id))
-        if (targetRoles.length !== unique(roleIds).length) {
-          response.addMessage('One or more of the selected roles do not belong to this site.', 'roleIds')
-        }
-      }
-    } else {
-      targetRoles = rolesForAccess
-    }
+    const targetRoles = await this.resolveTargetRoles(siteId, access, roleIds, response)
 
     // we already know the current user manages this site, so we may look the requested user
     // up with the internal service and tell the manager what we found
     const user = await this.svc(UserServiceInternal).findById(userId)
     response.user = user
     if (!user || user.disabled) {
-      response.addMessage('User not found.', 'userId')
+      response.addMessage('User not found. Allow 24 hours for new users to populate in the system.', 'userId')
     } else {
-      const trainings = await this.svc(UserServiceInternal).getTrainings(user.internalId)
+      // directRoles governs the conflict check below, since a manager cannot remove a role the
+      // user only holds through a group; allRoles is for the dupes warning, where a group-granted
+      // role is still worth mentioning. the shared direct lookup is cached by the dataloader.
+      const [trainings, directRoles, allRoles] = await Promise.all([
+        this.svc(UserServiceInternal).getTrainings(user.internalId),
+        this.raw.findByUserId(user.id, true),
+        this.raw.findByUserId(user.id)
+      ])
+      // a user gets one access level per site, so a role at any other level has to go first
+      const conflicting = directRoles.filter(r => r.siteId === siteId && r.access && r.access !== access)
       if (!trainings.length && access !== RoleAccessLevel.READONLY) {
-        response.addMessage('Selected user has not completed required editor training, and can only be added to a site team with Read-Only access.', 'userId')
+        response.addMessage(trainingRequiredMessage, 'userId')
+      } else if (conflicting.length) {
+        response.addMessage(`${user.name} already has ${unique(conflicting.map(r => r.access!)).join(' and ')} access to this site. Use Edit User to change their access level.`, 'access')
       } else if (targetRoles.length) {
-        const existingRoles = await this.raw.findByUserId(user.id)
-        const dupes = targetRoles.filter(r => existingRoles.some(e => e.id === r.id))
+        const dupes = targetRoles.filter(r => allRoles.some(e => e.id === r.id))
         if (dupes.length) {
           response.addMessage(`${user.name} already has the ${dupes.map(r => r.name).join(', ')} role${dupes.length === 1 ? '' : 's'}.`, 'userId', MutationMessageType.warning)
         } else {
@@ -268,15 +313,116 @@ export class RoleService extends DosGatoService<Role> {
       }
     }
 
+    // this has to happen before the validateOnly return, or a dry run would report success on
+    // an access level the current user is not allowed to hand out
+    const mayAssign = await Promise.all(targetRoles.map(async r => await this.mayAssign(r)))
+    if (mayAssign.some(allowed => !allowed)) {
+      response.addMessage('You are not permitted to assign one or more of the selected roles.', 'roleIds')
+    }
+
     if (validateOnly || response.hasErrors()) return response
     if (!user) return response // unreachable, but keeps the compiler happy
 
-    const mayAssign = await Promise.all(targetRoles.map(async r => await this.mayAssign(r)))
-    if (mayAssign.some(allowed => !allowed)) {
-      return SiteTeamMemberResponse.error('You are not permitted to assign one or more of the selected roles.', 'roleIds')
-    }
     await addRolesToUser(targetRoles.map(r => r.id), user.internalId)
     this.loaders.clear()
+    return response
+  }
+
+  async editSiteTeamMember (siteId: string, userId: string, access: RoleAccessLevel, roleIds?: string[], validateOnly?: boolean) {
+    const site = await this.svc(SiteServiceInternal).findById(siteId)
+    if (!site) throw new Error('Site does not exist.')
+    if (!this.mayManageTeam(site)) throw new Error('You are not permitted to edit team member access for this site.')
+    const response = new SiteTeamMemberResponse({ success: true })
+
+    const targetRoles = await this.resolveTargetRoles(siteId, access, roleIds, response)
+    const mayAssign = await Promise.all(targetRoles.map(async r => await this.mayAssign(r)))
+    if (mayAssign.some(canAssign => !canAssign)) {
+      response.addMessage('You do not have permission to assign this access level to this user.', 'roleIds')
+    }
+
+    const user = await this.svc(UserServiceInternal).findById(userId)
+    response.user = user
+    if (!user || user.disabled) {
+      response.addMessage('User not found. Allow 24 hours for new users to populate in the system.', 'userId')
+      return response
+    }
+
+    // this mutation edits an existing team member's access; adding someone new is
+    // addSiteTeamMember's job, so a user with no standing on this site is an error
+    const { trainings, currentSiteRoles, isTeamMember } = await this.loadTeamStanding(site, user, response)
+    if (!isTeamMember) return response
+
+    if (!trainings.length && access !== RoleAccessLevel.READONLY) {
+      response.addMessage(trainingRequiredMessage, 'userId')
+    }
+
+    // taking a role away needs the same authority as handing it out
+    const targetRoleIds = new Set(targetRoles.map(r => r.id))
+    const rolesToRevoke = currentSiteRoles.filter(r => !targetRoleIds.has(r.id))
+    const mayRevoke = await Promise.all(rolesToRevoke.map(async r => await this.mayAssign(r)))
+    if (mayRevoke.some(allowed => !allowed)) {
+      response.addMessage(`You are not permitted to remove one or more of ${user.name}'s current roles.`, 'roleIds')
+    }
+
+    if (validateOnly || response.hasErrors()) return response
+
+    await updateSiteTeamMemberAccess(siteId, user.internalId, targetRoles.map(r => r.id))
+    this.loaders.clear()
+    await invalidateAuthInfo(user.id)
+    return response
+  }
+
+  /**
+   * Remove a user from a site's team: revoke the site roles they hold directly and, if they are
+   * one of the site's managers, revoke that too. Site owners and managers may do this for their
+   * own sites without the global manageAccess permission.
+   *
+   * Only an administrator can change site ownership.
+   */
+  async removeSiteTeamMember (siteId: string, userId: string, validateOnly?: boolean) {
+    const site = await this.svc(SiteServiceInternal).findById(siteId)
+    if (!site) throw new Error('Site does not exist.')
+    if (!this.mayManageTeam(site)) throw new Error('You are not permitted to remove team members from this site.')
+    const response = new ValidatedResponse({ success: true })
+
+    // we already know the current user manages this site, so we may look the requested user
+    // up with the internal service
+    const user = await this.svc(UserServiceInternal).findById(userId)
+    if (!user) {
+      response.addMessage('User not found.', 'userId')
+      return response
+    }
+
+    // everything below is about the target user's standing on this site, NOT the current user's
+    const { currentSiteRoles, groupSiteRoles, isManager, isOwner, isTeamMember } = await this.loadTeamStanding(site, user, response)
+    if (!isTeamMember) return response
+
+    // roles that arrive through a group live in groups_roles and cannot be removed for one user
+    if (groupSiteRoles.length) {
+      response.addMessage(`${user.name} also has the ${groupSiteRoles.map(r => r.name).join(', ')} role${groupSiteRoles.length === 1 ? '' : 's'} through a group. Group membership must be changed separately.`, undefined, MutationMessageType.warning)
+    }
+    if (isOwner) {
+      response.addMessage(`${user.name} remains the owner of ${site.name}. An administrator must change site ownership.`, 'userId', MutationMessageType.warning)
+    }
+    const mayAssign = await Promise.all(currentSiteRoles.map(async r => await this.mayAssign(r)))
+    if (mayAssign.some(allowed => !allowed)) {
+      response.addMessage(`You are not permitted to remove one or more of ${user.name}'s roles.`, 'userId')
+    }
+
+    if (validateOnly || response.hasErrors()) return response
+
+    await db.transaction(async tdb => {
+      for (const r of currentSiteRoles) await removeRoleFromUser(r.id, user.internalId, tdb)
+      if (isManager) await removeSiteManager(site, user.internalId, this.ctx.authInfo.user!.internalId, tdb)
+    }, { retries: 5 })
+    this.loaders.clear()
+    await invalidateAuthInfo(user.id)
+    // invalidating does nothing for the request we are already in the middle of, so if they removed
+    // themselves, take the site out of the authInfo this request is holding as well. an owner keeps
+    // the site either way - losing manager status does not cost them their ownership authority.
+    if (user.internalId === this.ctx.authInfo.user?.internalId && !isOwner) {
+      this.ctx.authInfo.ownedOrManagedSiteIds = this.ctx.authInfo.ownedOrManagedSiteIds?.filter(id => id !== siteId)
+    }
     return response
   }
 
