@@ -83,16 +83,19 @@ export class Scheduler {
         if (config.duringHour && currentHour !== config.duringHour) return
         if (config.duringDayOfWeek && currentDOW !== config.duringDayOfWeek) return
         if (config.duringDayOfMonth && currentDOM !== config.duringDayOfMonth) return
+        let claimed = 0
         try {
-          const claimed = await db.update('UPDATE tasks SET lastBegin=NOW(), inProgress=1 WHERE name=:name AND lastBegin < NOW() - INTERVAL :minutes MINUTE AND (inProgress=0 OR lastBegin < NOW() - INTERVAL (:minutes * 2) MINUTE)', { name: jobname, minutes: config.minutesBetween })
+          claimed = await db.update('UPDATE tasks SET lastBegin=NOW(), inProgress=1 WHERE name=:name AND lastBegin < NOW() - INTERVAL :minutes MINUTE AND (inProgress=0 OR lastBegin < NOW() - INTERVAL (:minutes * 2) MINUTE)', { name: jobname, minutes: config.minutesBetween })
           if (claimed) await this.jobs.get(jobname)!.job()
         } catch (e: any) {
           console.error(e)
         } finally {
-          try {
-            await db.update('UPDATE tasks SET inProgress=0 WHERE name=?', [jobname])
-          } catch (e: any) {
-            console.error(e)
+          if (claimed) {
+            try {
+              await db.update('UPDATE tasks SET inProgress=0 WHERE name=?', [jobname])
+            } catch (e: any) {
+              console.error(e)
+            }
           }
         }
       }))
