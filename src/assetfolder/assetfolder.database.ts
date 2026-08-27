@@ -209,22 +209,22 @@ export async function renameAssetFolder (folderId: string, name: string) {
 
 export async function deleteAssetFolder (id: number, userInternalId: number) {
   await db.transaction(async db => {
-    const folderIds = await db.getvals<number>('SELECT id FROM assetfolders WHERE id = ? OR path like ? OR path like ?', [id, `%/${id}/%`, `%/${id}`])
+    const folderIds = await db.getvals<number>(`SELECT id FROM assetfolders WHERE id = ? OR ((path like ? OR path like ?) AND deleteState != ${DeleteState.DELETED})`, [id, `%/${id}/%`, `%/${id}`])
     const binds: number[] = [userInternalId, DeleteState.MARKEDFORDELETE]
     await db.update(`UPDATE assetfolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE id IN (${db.in(binds, folderIds)})`, binds)
-    await db.update(`UPDATE assets SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE folderId IN (${db.in(binds, folderIds)})`, binds)
+    await db.update(`UPDATE assets SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE deleteState != ${DeleteState.DELETED} AND folderId IN (${db.in([], folderIds)})`, binds)
   })
 }
 
 export async function finalizeAssetFolderDeletion (id: number, userInternalId: number) {
   const deleteTime = DateTime.now().toFormat('yLLddHHmmss')
   await db.transaction(async db => {
-    const folderIds = await db.getvals<number>('SELECT id FROM assetfolders WHERE id = ? OR path like ? OR path like ?', [id, `%/${id}/%`, `%/${id}`])
+    const folderIds = await db.getvals<number>(`SELECT id FROM assetfolders WHERE id = ? OR ((path like ? OR path like ?) AND deleteState != ${DeleteState.DELETED})`, [id, `%/${id}/%`, `%/${id}`])
     const binds: number[] = [userInternalId, DeleteState.DELETED]
     async function update () {
       await db.update(`UPDATE assetfolders SET linkId=LEFT(MD5(RAND()), 10), deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE id IN (${db.in(binds, folderIds)})`, binds)
       await db.update(`UPDATE assetfolders SET name = CONCAT(name, '-${deleteTime}') WHERE id = ?`, [id])
-      await db.update(`UPDATE assets SET linkId=LEFT(MD5(RAND()), 10), deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE folderId IN (${db.in([], folderIds)})`, binds)
+      await db.update(`UPDATE assets SET linkId=LEFT(MD5(RAND()), 10), deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE deleteState != ${DeleteState.DELETED} AND folderId IN (${db.in([], folderIds)})`, binds)
     }
     try {
       await update()
@@ -237,9 +237,9 @@ export async function finalizeAssetFolderDeletion (id: number, userInternalId: n
 }
 export async function undeleteAssetFolder (id: number) {
   await db.transaction(async db => {
-    const folderIds = await db.getvals<number>('SELECT id FROM assetfolders WHERE id = ? OR path like ? OR path like ?', [id, `%/${id}/%`, `%/${id}`])
+    const folderIds = await db.getvals<number>(`SELECT id FROM assetfolders WHERE id = ? OR ((path like ? OR path like ?) AND deleteState = ${DeleteState.MARKEDFORDELETE})`, [id, `%/${id}/%`, `%/${id}`])
     const binds: number[] = [DeleteState.NOTDELETED]
     await db.update(`UPDATE assetfolders SET deletedBy = null, deletedAt = null, deleteState = ? WHERE id IN (${db.in(binds, folderIds)})`, binds)
-    await db.update(`UPDATE assets SET deletedBy = null, deletedAt = null, deleteState = ? WHERE folderId IN (${db.in([], folderIds)})`, binds)
+    await db.update(`UPDATE assets SET deletedBy = null, deletedAt = null, deleteState = ? WHERE deleteState = ${DeleteState.MARKEDFORDELETE} AND folderId IN (${db.in([], folderIds)})`, binds)
   })
 }

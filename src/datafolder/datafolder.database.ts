@@ -138,7 +138,7 @@ export async function moveDataFolders (folderIds: string[], siteId?: string) {
 
 export async function deleteDataFolder (versionedService: VersionedService, folderIds: string[], userInternalId: number) {
   return await db.transaction(async db => {
-    const dataEntryIds = await db.getvals<number>(`SELECT dataId from data INNER JOIN datafolders ON data.folderId = datafolders.id WHERE datafolders.guid IN (${db.in([], folderIds)})`, folderIds)
+    const dataEntryIds = await db.getvals<number>(`SELECT dataId from data INNER JOIN datafolders ON data.folderId = datafolders.id WHERE data.deleteState != ${DeleteState.DELETED} AND datafolders.guid IN (${db.in([], folderIds)})`, folderIds)
     if (dataEntryIds.length) {
       await versionedService.removeTags(dataEntryIds, ['published'], db)
       await db.update(`UPDATE data SET deletedBy = ?, deletedAt = NOW(), deleteState = ? WHERE dataId IN (${db.in([], dataEntryIds)})`, [userInternalId, DeleteState.MARKEDFORDELETE, ...dataEntryIds])
@@ -154,7 +154,7 @@ export async function finalizeDataFolderDeletion (guids: string[], userInternalI
     const folderInternalIds = await db.getvals<number>(`SELECT id FROM datafolders WHERE guid IN (${db.in([], guids)})`, guids)
     const binds: number[] = [userInternalId, DeleteState.DELETED]
     await db.update(`UPDATE datafolders SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, folderInternalIds)})`, binds)
-    await db.update(`UPDATE data SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE folderId IN (${db.in([], folderInternalIds)})`, binds)
+    await db.update(`UPDATE data SET deletedBy = ?, deletedAt = NOW(), deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE deleteState != ${DeleteState.DELETED} AND folderId IN (${db.in([], folderInternalIds)})`, binds)
   })
 }
 
@@ -164,13 +164,13 @@ export async function undeleteDataFolders (versionedService: VersionedService, u
     const templateKey = await db.getval<string>('SELECT templates.key FROM datafolders INNER JOIN templates ON datafolders.templateId = templates.id WHERE datafolders.id = ?', [folderInternalIds[0]])
     const binds: number[] = [DeleteState.NOTDELETED]
     await db.update(`UPDATE datafolders SET deletedBy = null, deletedAt = null, deleteState = ? WHERE id IN (${db.in(binds, folderInternalIds)})`, binds)
-    await db.update(`UPDATE data SET deletedBy = null, deletedAt = null, deleteState = ? WHERE folderId IN (${db.in([], folderInternalIds)})`, binds)
+    await db.update(`UPDATE data SET deletedBy = null, deletedAt = null, deleteState = ? WHERE deleteState = ${DeleteState.MARKEDFORDELETE} AND folderId IN (${db.in([], folderInternalIds)})`, binds)
     if (templateKey) {
       // get the template from the registry
       const tmpl = templateRegistry.getDataTemplate(templateKey)
       // if nopublish is set, get the entries and reapply the published tag
       if (tmpl?.nopublish) {
-        const dataEntryIds = await db.getvals<number>(`SELECT dataId FROM data WHERE folderId IN (${db.in([], folderInternalIds)})`, folderInternalIds)
+        const dataEntryIds = await db.getvals<number>(`SELECT dataId FROM data WHERE deleteState = ${DeleteState.NOTDELETED} AND folderId IN (${db.in([], folderInternalIds)})`, folderInternalIds)
         for (const dataId of dataEntryIds) {
           await versionedService.tag(dataId, 'published', undefined, userId, undefined, db)
         }
