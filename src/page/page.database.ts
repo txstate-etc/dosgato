@@ -640,7 +640,7 @@ export async function deletePages (versionedService: VersionedService, pages: Pa
     const binds: (string | number)[] = [userInternalId, DeleteState.MARKEDFORDELETE]
     const refetchedPages = await refetch(db, ...pages)
     const pageInternalIds = refetchedPages.map(p => p.internalId)
-    const children = await getPages({ deleteStates: DeleteStateAll, internalIdPathsRecursive: refetchedPages.map(page => `${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`) }, db)
+    const children = await getPages({ deleteStates: DeleteStateDefault, internalIdPathsRecursive: refetchedPages.map(page => `${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`) }, db)
     const childInternalIds = children.map(c => c.internalId)
     const pageIds = [...refetchedPages.map(p => p.intDataId), ...children.map(p => p.intDataId)]
     await versionedService.removeTags(pageIds, ['published'], db)
@@ -654,7 +654,7 @@ export async function publishPageDeletions (pages: Page[], userInternalId: numbe
     const binds: (string | number)[] = [userInternalId, DeleteState.DELETED]
     const refetchedPages = await refetch(db, ...pages)
     const pageInternalIds = refetchedPages.map(p => p.internalId)
-    const children = await getPages({ deleteStates: DeleteStateAll, internalIdPathsRecursive: refetchedPages.map(page => `${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`) }, db)
+    const children = await getPages({ deleteStates: DeleteStateDefault, internalIdPathsRecursive: refetchedPages.map(page => `${page.path}${page.path === '/' ? '' : '/'}${page.internalId}`) }, db)
     const childInternalIds = children.map(c => c.internalId)
     async function update () {
       await db.update(`UPDATE pages SET linkId=LEFT(MD5(RAND()), 10), deletedAt = NOW(), deletedBy = ?, deleteState = ?, name = CONCAT(name, '-${deleteTime}') WHERE id IN (${db.in(binds, unique([...pageInternalIds, ...childInternalIds]))})`, binds)
