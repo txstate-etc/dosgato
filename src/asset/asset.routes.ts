@@ -250,7 +250,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }
-    logMutation(new Date().getTime() - startTime.getTime(), 'createAsset', 'mutation uploadCreateAsset (RESTful)', user.id, { folderId: folder.id }, { success: true, ids }, [], ctx).catch(console.error)
+    logMutation(new Date().getTime() - startTime.getTime(), 'createAsset', 'mutation uploadCreateAsset (RESTful)', ctx.auth, { folderId: folder.id }, { success: true, ids }, [], ctx).catch(console.error)
     return { success: true, ids }
   })
   app.post<{ Params: { assetid: string }, Body?: { url: string, auth?: string, modifiedBy?: string, modifiedAt?: string } }>(
@@ -298,7 +298,7 @@ export async function createAssetRoutes (app: FastifyInstance) {
     } else {
       throw new HttpError(400, 'Asset upload must be multipart or specify a URL to download from.')
     }
-    logMutation(new Date().getTime() - startTime.getTime(), 'replaceAsset', 'mutation uploadReplaceAsset (RESTful)', user.id, { assetid: asset.id }, { success: true }, [], ctx).catch(console.error)
+    logMutation(new Date().getTime() - startTime.getTime(), 'replaceAsset', 'mutation uploadReplaceAsset (RESTful)', ctx.auth, { assetid: asset.id }, { success: true }, [], ctx).catch(console.error)
     return { success: true }
   })
   app.get<{ Params: { assetid: string, resizeid: string, filename: string }, Querystring: { admin?: 1 } }>(

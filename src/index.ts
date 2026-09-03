@@ -1,7 +1,7 @@
 import type { APIAnyTemplate, FulltextGatheringFn, LinkGatheringFn, Migration, ValidationFeedback } from '@dosgato/templating'
 import { GQLServer, type GQLStartOpts, gqlDevLogger, Context, PageInformationResolver } from '@txstate-mws/graphql-server'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
-import { type AnalyticsClient, analyticsPlugin, type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
+import { type AnalyticsClient, analyticsPlugin, type FastifyTxStateAuthInfo, type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
 import type { GraphQLError, GraphQLScalarType } from 'graphql'
 import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
@@ -38,8 +38,11 @@ const loginCache = new Cache(async (userId: string, tokenIssuedAt: number) => {
   await updateLastLogin(userId, tokenIssuedAt)
 })
 
-async function updateLogin (queryTime: number, operationName: string | undefined, query: string, auth: any, variables: any, data: any, errors: GraphQLError[] | undefined, ctx: Context) {
-  await loginCache.get(auth.sub ?? auth.client_id, Number(auth.iat))
+async function updateLogin (queryTime: number, operationName: string | undefined, query: string, auth: FastifyTxStateAuthInfo | undefined, variables: any, data: any, errors: GraphQLError[] | undefined, ctx: Context) {
+  const login = auth?.username ?? auth?.clientId
+  const issuedAt = auth?.sessionCreatedAt ? auth.sessionCreatedAt.getTime() / 1000 : undefined
+  if (!login || issuedAt == null || isNaN(issuedAt)) return
+  await loginCache.get(login, issuedAt)
 }
 
 export interface AssetMeta<DataType = any> {
@@ -295,7 +298,7 @@ export class DGServer {
     ]
     scalarsMap.push(...(opts.scalarsMap ?? []))
 
-    const after = async (...args: [queryTime: number, operationName: string | undefined, query: string, auth: any, variables: any, data: any, errors: GraphQLError[] | undefined, ctx: Context]) => {
+    const after = async (...args: [queryTime: number, operationName: string | undefined, query: string, auth: FastifyTxStateAuthInfo | undefined, variables: any, data: any, errors: GraphQLError[] | undefined, ctx: Context]) => {
       await Promise.all([
         opts.after?.(...args),
         logMutation(...args),
