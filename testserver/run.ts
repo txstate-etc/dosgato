@@ -1,5 +1,6 @@
 import { AnalyticsClient, jwtAuthenticate, type StoredInteractionEvent } from 'fastify-txstate'
 import { AssetServiceInternal, DGServer, requestResizes, userContext } from '../src/index.js'
+import db from 'mysql2-async/db'
 import { fixtures } from './fixtures.js'
 import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData, RichTextComponent, HorizontalRule, TextImageComponent, ColumnLayout, DocumentsComponent, SongData, TeamComponent, TeamMemberComponent } from './fixturetemplates.js'
 
@@ -21,6 +22,17 @@ async function main () {
   server.app.delete('/userEvents', async (req, res) => {
     userEvents.length = 0
     return { success: true }
+  })
+
+  /** Exposes the mutationlog table so automated tests can verify that the `after`
+   * hook is recording successful mutations against the correct user. */
+  server.app.get('/mutationlog', async (req, res) => {
+    return await db.getall<{ createdAt: Date, login: string, mutation: string | null, query: string, variables: any }>(`
+      SELECT m.createdAt, u.login, m.mutation, m.query, m.variables
+      FROM mutationlog m
+      INNER JOIN users u ON u.id = m.userId
+      ORDER BY m.createdAt DESC
+    `)
   })
 
   await server.start({

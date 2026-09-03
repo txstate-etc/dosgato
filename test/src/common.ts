@@ -35,6 +35,12 @@ export async function queryAs<T = any> (login: string, query: string, variables?
   }
 }
 
+export async function getJson<T = any> (endpoint: string, login = 'su01') {
+  tokenCache[login] ??= jwt.sign({ iss: 'jwt-secret', sub: login }, process.env.JWT_SECRET ?? '')
+  const resp = await client.get(endpoint, { headers: { authorization: `Bearer ${tokenCache[login]}` } })
+  return resp.data as T
+}
+
 export async function createRole (input: { name: string, description?: string, siteId?: string, access?: string }, username?: string) {
   const { createRole: { success, role, messages } } = await queryAs((username ?? 'su01'), 'mutation CreateRole ($input: RoleInput!) { createRole (input: $input) { success messages { message } role { id name description site { id } access } } }', { input })
   return { success, role, messages }
