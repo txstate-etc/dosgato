@@ -10,6 +10,7 @@ The API no longer reads `/.builddate` to decide its current schema version. It i
 - **No more freezing the build date on maintenance branches.** An emergency build from an older branch automatically stores data at that branch's newest migration date, so migrations written since then still run when they ship. Previously a stale frozen date could sit behind existing migrations, and every save would run those migrations' `down` functions against production data.
 - If no template defines a migration, the current version falls back to server startup time, where it cannot affect anything.
 - **Startup fails if any migration is dated in the future.** Such a migration would make the current schema version jump ahead of real time, and would be skipped for anything saved between now and its date.
+- **Expedited releases that include a migration need care with its date.** It must be later than the newest migration in production and earlier than every unreleased migration on the main branch, or one side or the other is skipped for data saved in between. See "Dating migrations" in the README. Expedited releases without a migration need nothing.
 - Stored `savedAtVersion` tags will now be migration dates rather than build dates. Existing data tagged later than the newest migration is re-tagged on its next save with no data change.
 
 ### Forward migrations now run oldest first

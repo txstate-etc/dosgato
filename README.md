@@ -23,6 +23,14 @@ Deletion of a non-required field might not crash, so we could theoretically avoi
 
 In general we should avoid non-reversible migrations as much as possible, to avoid making older clients incompatible.
 
+#### Dating migrations
+Migrations are ordered by their `createdAt` date, and the API's current schema version is the `createdAt` of the newest migration it has registered. Data saved through the API is tagged with that date, and a tag means "every migration dated at or before this has been applied". So a migration will never run on data whose tag is later than the migration's date. Two rules follow:
+
+* A migration's date must be in the past. The API refuses to start otherwise.
+* When an expedited release ships a migration that is not yet on the main branch, its date must fall strictly between the newest migration already in production and the earliest unreleased migration on the main branch. Dated later than an unreleased migration, that migration would be skipped forever for anything saved under the expedited release. Dated at or before the newest released migration, the expedited migration itself would be skipped for anything saved under the previous release. Keep the date unchanged when merging back to the main branch.
+
+The same constraint applies to a third-party component whose migration is dated earlier than data already saved in the project: alter its date on import to be later than the newest migration in production.
+
 ### Minimum Schema Version
 The earliest schema version after which all migrations are reversible. Each API request will contain the API/Schema version that the client expects, so that it always receives data structured in a way that it can handle. If the requested API version is less than the minimum schema version, the request will be rejected. That client will be required to upgrade (or refresh the page, in the case of an in-browser client).
 

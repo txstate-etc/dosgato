@@ -1,6 +1,6 @@
 {
   "name": "@dosgato/api",
-  "version": "2.0.4",
+  "version": "2.0.6",
   "description": "A CMS designed for large institutions with thousands of editors and hundreds of subsites.",
   "type": "module",
   "exports": {
@@ -19,7 +19,7 @@
     "luxon": "^3.0.3",
     "mime-types": "^3.0.1",
     "mysql2-async": "^2.0.4",
-    "nanoid": "^5.0.0",
+    "nanoid": "^6.0.0",
     "probe-image-size": "^7.2.3",
     "stemmer": "^2.0.1",
     "txstate-utils": "^1.9.3",
