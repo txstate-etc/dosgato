@@ -492,3 +492,49 @@ describe('pages', () => {
     expect(withoutSubstring.map((p: any) => p.title)).to.not.include('Programs')
   })
 })
+
+describe('page schema versions', () => {
+  // the fixture horizontalrule component has migrations dated 2023-01-01 (adds weight) and
+  // 2023-06-01 (adds color). 2023-06-01 is the newest migration in the fixtures, so it is the
+  // API's current schema version.
+  const current = '20230601000000'
+  let pageId: string
+  let pageData: any
+  before(async () => {
+    const { sites } = await query('{ sites { id name rootPage { id } } }')
+    const site2 = sites.find((s: any) => s.name === 'site2')
+    const { createPage } = await query(
+      'mutation CreatePage ($name: UrlSafeString!, $data: JsonData!, $targetId: ID!) { createPage (name: $name, data: $data, targetId: $targetId) { success page { id data version { version } } } }',
+      { name: 'schemaversiontestpage', targetId: site2.rootPage.id, data: { templateKey: 'keyp1', savedAtVersion: '20220710120000', title: 'Schema Version Test' } })
+    expect(createPage.success).to.be.true
+    pageId = createPage.page.id
+    const { createPageComponent } = await query(`
+      mutation createPageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $path: String!, $data: JsonData!) {
+        createPageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, path: $path, data: $data) { success page { data } }
+      }`, { pageId, dataVersion: createPage.page.version.version, schemaversion: '20220710120000', path: 'areas.main', data: { templateKey: 'horizontalrule' } })
+    // the component is added as if by a UI at the 2022 schema version, so the API has to run
+    // both migrations to bring it to the current version
+    expect(createPageComponent.success).to.be.true
+    pageData = createPageComponent.page.data
+  })
+  it('should store data at the newest migration date rather than a build date', async () => {
+    expect(pageData.savedAtVersion).to.equal(current)
+  })
+  it('should run every migration up to and including the current schema version on save, oldest first', async () => {
+    expect(pageData.areas.main[0].weight).to.equal('thin')
+    // 'gray' only if the 2023-01-01 migration ran before the 2023-06-01 one
+    expect(pageData.areas.main[0].color).to.equal('gray')
+  })
+  it('should treat a schema version equal to a migration date as including that migration when migrating backward', async () => {
+    const { pages } = await query(`query ($schemaversion: DateTime!) { pages(filter: { ids: ["${pageId}"] }) { data(schemaversion: $schemaversion) } }`, { schemaversion: '2023-01-01T00:00:00Z' })
+    expect(pages[0].data.savedAtVersion).to.equal('20230101000000')
+    expect(pages[0].data.areas.main[0].weight).to.equal('thin')
+    expect(pages[0].data.areas.main[0]).to.not.have.property('color')
+  })
+  it('should run the down of every migration newer than the requested schema version', async () => {
+    const { pages } = await query(`query ($schemaversion: DateTime!) { pages(filter: { ids: ["${pageId}"] }) { data(schemaversion: $schemaversion) } }`, { schemaversion: '2022-12-31T23:59:59Z' })
+    expect(pages[0].data.savedAtVersion).to.equal('20221231235959')
+    expect(pages[0].data.areas.main[0]).to.not.have.property('weight')
+    expect(pages[0].data.areas.main[0]).to.not.have.property('color')
+  })
+})

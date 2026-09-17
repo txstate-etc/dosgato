@@ -5,5 +5,4 @@ RUN npm install
 COPY tsconfig.json ./
 COPY src src
 COPY testserver testserver
-RUN node -e 'console.log(new Date().getTime())' > /.builddate
 CMD [ "npm", "run", "start:dev" ]

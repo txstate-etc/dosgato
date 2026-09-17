@@ -37,6 +37,12 @@ async function processMigration (templateKey: string, migrate: ComponentMigratio
  * migration date and bringing the update into the project. It may be necessary to manipulate
  * the third party component's migrations to alter the desired date to the date of the update.
  * Otherwise the third party component's migration would be skipped because it's too old.
+ *
+ * A schema version equal to a migration's createdAt means "after that migration". So the set of
+ * migrations applied at version V is every migration with createdAt <= V, and moving from version
+ * A to version B runs exactly the migrations between them: (A, B] going forward, (B, A] going
+ * backward. This matters because the API's current schema version is the createdAt of its newest
+ * migration, so stored data is routinely tagged exactly at a migration date.
  */
 export async function migratePage (page: PageData, extras: PageExtras, toSchemaVersion = templateRegistry.currentSchemaVersion) {
   let data = clone(page)
@@ -45,7 +51,7 @@ export async function migratePage (page: PageData, extras: PageExtras, toSchemaV
   const backward = fromSchemaVersionMillis > toSchemaVersionMillis
 
   const migrations = backward
-    ? templateRegistry.migrationsBackward.filter(m => m.createdAt.getTime() < fromSchemaVersionMillis && m.createdAt.getTime() >= toSchemaVersionMillis)
+    ? templateRegistry.migrationsBackward.filter(m => m.createdAt.getTime() <= fromSchemaVersionMillis && m.createdAt.getTime() > toSchemaVersionMillis)
     : templateRegistry.migrationsForward.filter(m => m.createdAt.getTime() > fromSchemaVersionMillis && m.createdAt.getTime() <= toSchemaVersionMillis)
 
   for (const migration of migrations) {

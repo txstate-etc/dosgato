@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.0.6
+
+### Current schema version is derived from migrations
+
+The API no longer reads `/.builddate` to decide its current schema version. It is now the `createdAt` of the newest migration registered across all page, component and data templates, computed when the server starts. Things to know:
+
+- **Remove the `/.builddate` step from your API Dockerfile.** The file is ignored. Render and admin still set their own schema version at build time; only the API changes.
+- **No more freezing the build date on maintenance branches.** An emergency build from an older branch automatically stores data at that branch's newest migration date, so migrations written since then still run when they ship. Previously a stale frozen date could sit behind existing migrations, and every save would run those migrations' `down` functions against production data.
+- If no template defines a migration, the current version falls back to server startup time, where it cannot affect anything.
+- **Startup fails if any migration is dated in the future.** Such a migration would make the current schema version jump ahead of real time, and would be skipped for anything saved between now and its date.
+- Stored `savedAtVersion` tags will now be migration dates rather than build dates. Existing data tagged later than the newest migration is re-tagged on its next save with no data change.
+
+### Forward migrations now run oldest first
+
+The registry's forward and backward migration lists were the same array, sorted descending, because the sort helper sorts in place. Forward migrations were therefore applied newest first. Migrations on the same template that depend on each other's output ran in the wrong order.
+
+### Migration range boundaries
+
+A schema version equal to a migration's `createdAt` now consistently means "after that migration" in both directions: moving from version A to B runs the migrations in (A, B] forward or (B, A] backward. Previously the backward range included the target and excluded the start, and the forward data range excluded the target. These were latent inconsistencies that became reachable once stored data is routinely tagged exactly at a migration date.
+
 ## 2.0.1
 
 ### Analytics endpoint replaces hand-rolled user event routes

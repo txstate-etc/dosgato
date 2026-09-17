@@ -432,4 +432,16 @@ describe('dataroot', () => {
     const { datafolders } = await query('{ datafolders (filter: { global: true }) { template { key } dataroot { template { key } } } }')
     for (const f of datafolders) expect(f.template.key).to.equal(f.dataroot.template.key)
   })
+  it('should run a data migration dated exactly at the current schema version', async () => {
+    // the keyd1 fixture template has a migration dated 2023-06-01, which is also the newest
+    // migration across all fixture templates and therefore the current schema version
+    const { sites } = await query('{ sites { id name } }')
+    const site2 = sites.find((s: any) => s.name === 'site2')
+    const { createDataEntry } = await query(
+      'mutation CreateDataEntry ($args: CreateDataInput!) { createDataEntry (args: $args) { success data { id data } } }',
+      { args: { siteId: site2.id, data: { templateKey: 'keyd1', savedAtVersion: '20220710120000', title: 'Schema Version Test Data', color: 'teal', align: 'center', migrateMe: true } } })
+    expect(createDataEntry.success).to.be.true
+    expect(createDataEntry.data.data.savedAtVersion).to.equal('20230601000000')
+    expect(createDataEntry.data.data.migrated).to.be.true
+  })
 })

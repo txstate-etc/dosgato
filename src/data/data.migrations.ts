@@ -23,8 +23,8 @@ export async function migrateData (ctx: DGContext, data: DataData, dataRootId: s
   const tmpl = templateRegistry.getDataTemplate(migrated.templateKey)
   const migrations = (tmpl.migrations ?? [])
     .filter(m => backward
-      ? m.createdAt.getTime() < fromSchemaVersionMillis && m.createdAt.getTime() > toSchemaVersionMillis
-      : m.createdAt.getTime() > fromSchemaVersionMillis && m.createdAt.getTime() < toSchemaVersionMillis
+      ? m.createdAt.getTime() <= fromSchemaVersionMillis && m.createdAt.getTime() > toSchemaVersionMillis
+      : m.createdAt.getTime() > fromSchemaVersionMillis && m.createdAt.getTime() <= toSchemaVersionMillis
     )
   const sortedMigrations = sortby(migrations, 'createdAt', backward)
 

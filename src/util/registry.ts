@@ -3,7 +3,6 @@ import type { FastifyRequest } from 'fastify'
 import { DateTime } from 'luxon'
 import { sortby } from 'txstate-utils'
 import { TemplateArea, parseLinks, type DGContextClass, type DGContext } from '../internal.js'
-import { existsSync, readFileSync } from 'node:fs'
 import type { DGStartOpts } from '../index.js'
 
 interface HasHydratedAreas {
@@ -24,7 +23,13 @@ class TemplateRegistry {
   protected migrations: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
   public migrationsForward: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
   public migrationsBackward: (Migration<any, any> & { templateKey: string, isPage: boolean })[] = []
-  public currentSchemaVersion = existsSync('/.builddate') ? DateTime.fromMillis(Number(readFileSync('/.builddate', 'ascii').trim() || (() => { throw new Error('Invalid build date') })())) : DateTime.local()
+  /**
+   * The schema version this API stores data at. Derived from the newest migration registered
+   * across all page, component and data templates, so it advances exactly when a migration is
+   * added and can never fall behind a migration that exists in the build. Falls back to startup
+   * time when no template defines a migration, in which case the value cannot matter.
+   */
+  public currentSchemaVersion = DateTime.local()
   public serverConfig!: Omit<DGStartOpts, 'templates'> & { customContext: DGContextClass }
 
   register (template: APIAnyTemplate) {
@@ -43,8 +48,18 @@ class TemplateRegistry {
   }
 
   sortMigrations () {
-    this.migrationsForward = sortby(this.migrations, 'createdAt', false)
-    this.migrationsBackward = sortby(this.migrations, 'createdAt', true)
+    // sortby sorts in place and returns its input, so each list needs its own copy or they
+    // would be the same array and the forward list would end up in descending order
+    this.migrationsForward = sortby([...this.migrations], 'createdAt')
+    this.migrationsBackward = sortby([...this.migrations], 'createdAt', true)
+    const now = Date.now()
+    const future = this.migrationsForward.filter(m => m.createdAt.getTime() > now)
+    if (future.length) {
+      throw new Error('Refusing to start: migrations are dated in the future and would be skipped for data saved between now and then. '
+        + future.map(m => `${m.templateKey} @ ${m.createdAt.toISOString()}`).join(', '))
+    }
+    const newest = this.migrationsForward[this.migrationsForward.length - 1]
+    if (newest) this.currentSchemaVersion = DateTime.fromJSDate(newest.createdAt) as DateTime<true>
   }
 
   /**

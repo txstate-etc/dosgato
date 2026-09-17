@@ -1,5 +1,5 @@
 import type { WebLink, ValidationFeedback, APIComponentTemplate, APIPageTemplate, APIDataTemplate } from '@dosgato/templating'
-import { isBlank } from 'txstate-utils'
+import { isBlank, omit } from 'txstate-utils'
 
 export const PageTemplate1: APIPageTemplate = {
   type: 'page',
@@ -157,10 +157,23 @@ export const DocumentsComponent: APIComponentTemplate = {
   }
 }
 
+// two migrations with distinct effects so tests can tell exactly which ones ran for a
+// requested schema version. The second depends on the first having run, so the tests
+// also prove forward migrations run oldest first. The newest migration date across all
+// fixture templates (2023-06-01) is also the API's current schema version.
 export const HorizontalRule: APIComponentTemplate = {
   type: 'component',
   templateKey: 'horizontalrule',
-  name: 'Horizontal Rule'
+  name: 'Horizontal Rule',
+  migrations: [{
+    createdAt: new Date('2023-01-01T00:00:00Z'),
+    up: (data: any) => ({ ...data, weight: data.weight ?? 'thin' }),
+    down: (data: any) => omit(data, 'weight')
+  }, {
+    createdAt: new Date('2023-06-01T00:00:00Z'),
+    up: (data: any) => ({ ...data, color: data.color ?? (data.weight ? 'gray' : 'ran-before-weight') }),
+    down: (data: any) => omit(data, 'color')
+  }]
 }
 
 export const ColumnLayout: APIComponentTemplate = {
@@ -207,7 +220,13 @@ export const ColorData: APIDataTemplate = {
   type: 'data',
   templateKey: 'keyd1',
   name: 'Colors',
-  migrations: [],
+  // only touches entries that opt in, so fixture data used by other tests is unaffected.
+  // dated exactly at the current schema version to prove that boundary is inclusive.
+  migrations: [{
+    createdAt: new Date('2023-06-01T00:00:00Z'),
+    up: (data: any) => data.migrateMe ? { ...data, migrated: true } : data,
+    down: (data: any) => omit(data, 'migrated')
+  }],
   getLinks: (data: any) => [],
   getFulltext: (data: any) => [data.title],
   validate: async (data: any) => {
