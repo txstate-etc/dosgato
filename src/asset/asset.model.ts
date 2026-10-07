@@ -5,7 +5,7 @@ import { isNotBlank, isNotNull } from 'txstate-utils'
 import { Field, ID, InputType, Int, ObjectType, registerEnumType } from 'type-graphql'
 import { DeleteState, DeleteStateInput, FilenameSafePath, FilenameSafeString, JsonData, LargeInt, LaunchState, LinkInputContext, PagetreeType, UrlSafePath } from '../internal.js'
 
-const mimeToExtOverrides: Record<string, string> = {
+export const mimeToExtOverrides: Record<string, string> = {
   'image/jpg': 'jpg',
   'image/jpeg': 'jpg',
   'image/gif': 'gif',
@@ -182,6 +182,12 @@ export class AssetFilter {
 
   @Field(type => LargeInt, { nullable: true, description: 'Return assets with filesize greater than the given size, in bytes. Use a negative number for less than.' })
   bytes?: number
+
+  @Field(type => [String], { nullable: true, description: 'Return assets with any of the given mime types, e.g. "application/pdf". A wildcard subtype like "image/*" matches every mime type of that type. Combined with `extensions`, an asset matching either filter is returned.' })
+  mimes?: string[]
+
+  @Field(type => [String], { nullable: true, description: 'Return assets whose mime type is associated with any of the given extensions, e.g. "pdf" or "jpeg". Since extensions are derived from the detected mime type, searching for "jpeg" will also return assets whose preferred extension is "jpg". Combined with `mimes`, an asset matching either filter is returned.' })
+  extensions?: string[]
 
   @Field({ nullable: true, description: 'true -> return assets referenced by any page, false -> return assets not referenced by any page, null -> return all assets' })
   referenced?: boolean

@@ -171,6 +171,35 @@ describe('assets', () => {
     const site1Filenames = assets.filter(a => a.site.name === 'site1').map(a => a.filename)
     expect(site1Filenames).to.contain('blankpdf.pdf')
   })
+  it('should retrieve assets by mime type', async () => {
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsByMime ($mimes: [String!]!) { assets(filter: { mimes: $mimes }) { id mime filename } }', { mimes: ['application/pdf'] })
+    expect(assets.length).to.be.greaterThan(0)
+    for (const a of assets) expect(a.mime).to.equal('application/pdf')
+  })
+  it('should retrieve assets by wildcard mime type', async () => {
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsByMime ($mimes: [String!]!) { assets(filter: { mimes: $mimes }) { id mime filename } }', { mimes: ['image/*'] })
+    expect(assets.length).to.be.greaterThan(0)
+    for (const a of assets) expect(a.mime).to.match(/^image\//)
+  })
+  it('should retrieve assets by extension', async () => {
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsByExtension ($extensions: [String!]!) { assets(filter: { extensions: $extensions }) { id extension filename } }', { extensions: ['jpeg'] })
+    expect(assets.length).to.be.greaterThan(0)
+    for (const a of assets) expect(a.extension).to.equal('jpg')
+  })
+  it('should retrieve assets matching either mime type or extension', async () => {
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsByMimeOrExtension ($mimes: [String!]!, $extensions: [String!]!) { assets(filter: { mimes: $mimes, extensions: $extensions }) { id mime filename } }', { mimes: ['application/pdf'], extensions: ['jpg'] })
+    const mimes = new Set(assets.map(a => a.mime))
+    expect(mimes).to.have.all.keys('application/pdf', 'image/jpeg')
+  })
+  it('should retrieve no assets for an unknown extension', async () => {
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsByExtension ($extensions: [String!]!) { assets(filter: { extensions: $extensions }) { id } }', { extensions: ['notarealextension'] })
+    expect(assets.length).to.equal(0)
+  })
+  it('should search for assets filtered by mime type', async () => {
+    const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsSearchByMime ($search: String!, $mimes: [String!]!) { assets(filter: { search: $search, mimes: $mimes }) { id mime filename } }', { search: 'bobcat', mimes: ['image/jpeg'] })
+    expect(assets.length).to.be.greaterThan(0)
+    for (const a of assets) expect(a.mime).to.equal('image/jpeg')
+  })
   it('should retrieve only deleted assets', async () => {
     const { assets } = await query<{ assets: (Asset & { deleteState: string })[] }>('query getDGAPIDeletedAssets ($deleteStates: [DeleteStateInput!]!) { assets(filter: { deleteStates: $deleteStates }) { id name extension filename size checksum deleteState site { id name }}}', { deleteStates: ['DELETED'] })
     for (const a of assets) expect(a.deleteState).to.equal('DELETED')

@@ -3,14 +3,14 @@ import { DateTime } from 'luxon'
 import type { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
 import { nanoid } from 'nanoid'
-import { lookup } from 'mime-types'
+import { extensions as mimeExtensions, lookup } from 'mime-types'
 import { intersect, isBlank, isNotBlank, isNotNull, keyby, pick, sortby, stringify } from 'txstate-utils'
 import {
   Asset, type AssetFilter, AssetResize, type VersionedService, AssetFolder, fileHandler, DownloadRecord,
   type DownloadsFilter, DownloadsResolution, type AssetFolderRow, DeleteState, processDeletedFilters,
   normalizePath, AssetServiceInternal, numerate, NameConflictError, templateRegistry, processLink,
   singleValueIndexesToIndexes, parseLinks, shiftPath, normalizeForSearch, splitWords, searchCodes,
-  ensureSearchCodes, ngrams, extractFromHtml
+  ensureSearchCodes, ngrams, extractFromHtml, mimeToExtOverrides
 } from '../internal.js'
 import { extractLinksFromText } from '@dosgato/templating'
 
@@ -175,12 +175,40 @@ async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
     where.push(`assets.name IN (${db.in(binds, filter.names)})`)
   }
   if (filter.checksums?.length) {
-    where.push(`binaries.shasum IN (${db.in(binds, filter.checksums)})`)
+    where.push(`assets.shasum IN (${db.in(binds, filter.checksums)})`)
   }
   if (filter.bytes != null) {
+    joins.set('binaries', 'INNER JOIN binaries ON assets.shasum = binaries.shasum')
     if (filter.bytes < 0) where.push('binaries.bytes < ?')
     else where.push('binaries.bytes > ?')
     binds.push(Math.abs(filter.bytes))
+  }
+  if (filter.mimes?.length || filter.extensions?.length) {
+    joins.set('binaries', 'INNER JOIN binaries ON assets.shasum = binaries.shasum')
+    // mimes and extensions are both ways to ask for file types, so a match on either is a match
+    const mimes = new Set<string>()
+    const wildcards: string[] = []
+    for (const m of filter.mimes ?? []) {
+      const lcMime = m.trim().toLocaleLowerCase()
+      if (lcMime.endsWith('/*')) wildcards.push(lcMime.slice(0, -1) + '%')
+      else mimes.add(lcMime)
+    }
+    // extensions are not stored, they are derived from the mime type, so convert to mime types
+    const exts = new Set((filter.extensions ?? []).map(e => e.trim().toLocaleLowerCase().replace(/^\./, '')))
+    if (exts.size) {
+      for (const [mime, mexts] of Object.entries(mimeExtensions)) {
+        if (mexts.some(e => exts.has(e))) mimes.add(mime)
+      }
+      for (const [mime, ext] of Object.entries(mimeToExtOverrides)) {
+        if (exts.has(ext)) mimes.add(mime)
+      }
+    }
+    const ors = [`binaries.mime IN (${db.in(binds, ['-1', ...mimes])})`]
+    for (const w of wildcards) {
+      ors.push('binaries.mime LIKE ?')
+      binds.push(w)
+    }
+    where.push(ors.join(' OR '))
   }
   if (filter.search?.length) {
     const lcSearch = normalizeForSearch(filter.search)
@@ -299,6 +327,7 @@ async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
 export async function getAssets (filter?: AssetFilter, tdb: Queryable = db) {
   const { binds, where, joins, searchweights } = await processFilters(filter, tdb)
   if (filter?.noresults) return []
+  joins.set('binaries', 'INNER JOIN binaries ON assets.shasum = binaries.shasum')
   const assetrows = await tdb.getall(`
     SELECT assets.id, assets.dataId, assets.name, assets.linkId, assets.folderId, assets.deletedAt, assets.deletedBy, assets.deleteState,
     binaries.bytes AS filesize, binaries.mime, binaries.shasum, binaries.meta,
@@ -306,7 +335,6 @@ export async function getAssets (filter?: AssetFilter, tdb: Queryable = db) {
     pagetrees.type as pagetreeType, assetfolders.siteId, assetfolders.pagetreeId, assetfolders.path,
     sites.launchEnabled, sites.name as siteName
     FROM assets
-    INNER JOIN binaries on assets.shasum = binaries.shasum
     INNER JOIN assetfolders ON assets.folderId = assetfolders.id
     INNER JOIN pagetrees ON assetfolders.pagetreeId = pagetrees.id
     INNER JOIN sites ON assetfolders.siteId = sites.id
