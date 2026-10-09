@@ -171,6 +171,23 @@ describe('assets', () => {
     const site1Filenames = assets.filter(a => a.site.name === 'site1').map(a => a.filename)
     expect(site1Filenames).to.contain('blankpdf.pdf')
   })
+  it('should filter assets by modifiedBefore and modifiedAfter', async () => {
+    const { assets } = await query('{ assets { id modifiedAt } }')
+    const times = assets.map((x: any) => new Date(x.modifiedAt).getTime()).sort((a: number, b: number) => a - b)
+    const threshold = new Date(times[Math.floor(times.length / 2)]).toISOString()
+    const expectedBefore = assets.filter((x: any) => new Date(x.modifiedAt).toISOString() < threshold).map((x: any) => x.id)
+    const expectedAfter = assets.filter((x: any) => new Date(x.modifiedAt).toISOString() > threshold).map((x: any) => x.id)
+    const { assets: before } = await query('query getAssetsModifiedBefore ($date: DateTime!) { assets(filter: { modifiedBefore: $date }) { id } }', { date: threshold })
+    expect(before.map((x: any) => x.id)).to.have.members(expectedBefore)
+    const { assets: after } = await query('query getAssetsModifiedAfter ($date: DateTime!) { assets(filter: { modifiedAfter: $date }) { id } }', { date: threshold })
+    expect(after.map((x: any) => x.id)).to.have.members(expectedAfter)
+    const { assets: future } = await query('query getAssetsModifiedAfter ($date: DateTime!) { assets(filter: { modifiedAfter: $date }) { id } }', { date: new Date(times[times.length - 1] + 1000).toISOString() })
+    expect(future).to.have.lengthOf(0)
+  })
+  it('should search for assets filtered by modifiedBefore', async () => {
+    const { assets } = await query('query searchAssetsModifiedBefore ($date: DateTime!) { assets(filter: { search: "bobcat", modifiedBefore: $date }) { id } }', { date: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString() })
+    expect(assets.length).to.be.greaterThan(0)
+  })
   it('should retrieve assets by mime type', async () => {
     const { assets } = await query<{ assets: Asset[] }>('query getDGAPIAssetsByMime ($mimes: [String!]!) { assets(filter: { mimes: $mimes }) { id mime filename } }', { mimes: ['application/pdf'] })
     expect(assets.length).to.be.greaterThan(0)

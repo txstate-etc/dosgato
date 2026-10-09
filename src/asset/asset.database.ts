@@ -183,6 +183,17 @@ async function processFilters (filter?: AssetFilter, tdb: Queryable = db) {
     else where.push('binaries.bytes > ?')
     binds.push(Math.abs(filter.bytes))
   }
+  if (filter.modifiedBefore || filter.modifiedAfter) {
+    joins.set('storage', 'INNER JOIN storage ON storage.id = assets.dataId')
+    if (filter.modifiedBefore) {
+      where.push('storage.modified < ?')
+      binds.push(filter.modifiedBefore.toJSDate())
+    }
+    if (filter.modifiedAfter) {
+      where.push('storage.modified > ?')
+      binds.push(filter.modifiedAfter.toJSDate())
+    }
+  }
   if (filter.mimes?.length || filter.extensions?.length) {
     joins.set('binaries', 'INNER JOIN binaries ON assets.shasum = binaries.shasum')
     // mimes and extensions are both ways to ask for file types, so a match on either is a match

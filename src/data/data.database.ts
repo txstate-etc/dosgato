@@ -72,6 +72,15 @@ async function processFilters (filter?: DataFilter) {
     where.push('tags.tag IS NOT NULL')
   }
 
+  if (filter.modifiedBefore) {
+    where.push('storage.modified < ?')
+    binds.push(filter.modifiedBefore.toJSDate())
+  }
+  if (filter.modifiedAfter) {
+    where.push('storage.modified > ?')
+    binds.push(filter.modifiedAfter.toJSDate())
+  }
+
   if (filter.folderIds?.length) {
     where.push(`datafolders.guid IN (${db.in(binds, filter.folderIds)})`)
   }

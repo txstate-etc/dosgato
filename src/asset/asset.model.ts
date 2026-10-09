@@ -202,6 +202,12 @@ export class AssetFilter {
 
   noresults?: boolean
 
+  @Field({ nullable: true, description: 'Return assets whose latest version was modified before this date.' })
+  modifiedBefore?: DateTime
+
+  @Field({ nullable: true, description: 'Return assets whose latest version was modified after this date.' })
+  modifiedAfter?: DateTime
+
   @Field({ nullable: true, description: 'Return assets that match the query, in order of best match. Limited to 100 results.' })
   search?: string
 }

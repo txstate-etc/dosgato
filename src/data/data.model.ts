@@ -103,6 +103,12 @@ export class DataFilter {
 
   @Field(type => Boolean, { nullable: true, description: 'Only return data entries that have been published.' })
   published?: boolean
+
+  @Field({ nullable: true, description: 'Return data entries whose latest version was modified before this date.' })
+  modifiedBefore?: DateTime
+
+  @Field({ nullable: true, description: 'Return data entries whose latest version was modified after this date.' })
+  modifiedAfter?: DateTime
 }
 
 @InputType()

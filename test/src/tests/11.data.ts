@@ -186,6 +186,19 @@ describe('data', () => {
       expect(entry.site).to.not.be.null
     }
   })
+  it('should filter data entries by modifiedBefore and modifiedAfter', async () => {
+    const { data } = await query('{ data(filter: { deleteStates: [NOTDELETED, MARKEDFORDELETE] }) { id modifiedAt } }')
+    const times = data.map((x: any) => new Date(x.modifiedAt).getTime()).sort((a: number, b: number) => a - b)
+    const threshold = new Date(times[Math.floor(times.length / 2)]).toISOString()
+    const expectedBefore = data.filter((x: any) => new Date(x.modifiedAt).toISOString() < threshold).map((x: any) => x.id)
+    const expectedAfter = data.filter((x: any) => new Date(x.modifiedAt).toISOString() > threshold).map((x: any) => x.id)
+    const { data: before } = await query('query getDataModifiedBefore ($date: DateTime!) { data(filter: { modifiedBefore: $date }) { id } }', { date: threshold })
+    expect(before.map((x: any) => x.id)).to.have.members(expectedBefore)
+    const { data: after } = await query('query getDataModifiedAfter ($date: DateTime!) { data(filter: { modifiedAfter: $date }) { id } }', { date: threshold })
+    expect(after.map((x: any) => x.id)).to.have.members(expectedAfter)
+    const { data: future } = await query('query getDataModifiedAfter ($date: DateTime!) { data(filter: { modifiedAfter: $date }) { id } }', { date: new Date(times[times.length - 1] + 1000).toISOString() })
+    expect(future).to.have.lengthOf(0)
+  })
   it('should filter data entries by folder ID', async () => {
     const entries = await query('{ data(filter: { deleteStates: [ALL] }) {id folder { id name } } }')
     const site2data = entries.data.find((d: any) => d.folder?.name === 'site2datafolder')
