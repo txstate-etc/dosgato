@@ -1,52 +1,58 @@
-import { type LinkDefinition, extractLinksFromText, type PageData } from '@dosgato/templating'
+import { type ComponentData, type LinkDefinition, extractLinksFromText, type PageData } from '@dosgato/templating'
 import { isNotBlank, isNotNull } from 'txstate-utils'
-import { processLink, templateRegistry, type Index, type SingleValueIndex, collectReachableComponents, extractFromHtml } from '../internal.js'
+import { processLink, templateRegistry, type Index, type SingleValueIndex, collectReachableComponents, extractFromHtml, urlForFulltext } from '../internal.js'
 
 export function getPageIndexes (page: PageData): Index[] {
   const storage: Record<string, Set<string>> = {}
   const components = collectReachableComponents(page)
-  addIndexes(storage, components.flatMap(c => (templateRegistry.get(c.templateKey)?.getLinks(c)?.filter(isNotNull) ?? []).flatMap(processLink) ?? []))
+  const { links, texts } = gatherLinksAndTexts(components)
+  addIndexes(storage, links.flatMap(processLink))
 
   const tags = components.flatMap(c => templateRegistry.get(c.templateKey)?.getTags?.(c)?.filter(isNotBlank) ?? [])
   if (tags.length) storage.dg_tag = new Set(tags)
 
   if (isNotBlank(page.legacyId)) storage.legacyId = new Set([page.legacyId])
   storage.template = new Set(components.map(c => c.templateKey).filter(isNotBlank))
-  storage.fulltext = new Set()
-  for (const component of components) {
-    const texts = (templateRegistry.get(component.templateKey)?.getFulltext?.(component) ?? []).filter(isNotBlank)
-    addIndexes(storage, texts.flatMap(extractLinksFromText).flatMap(processLink))
-    storage.fulltext = storage.fulltext.union(getFulltextNgrams(texts))
-
-    const htmls = (templateRegistry.get(component.templateKey)?.getHtml?.(component) ?? []).filter(isNotBlank)
-    for (const html of htmls) {
-      const { links: htmlLinks, texts: htmlTexts } = extractFromHtml(html)
-      addIndexes(storage, htmlLinks.flatMap(processLink))
-      storage.fulltext = storage.fulltext.union(getFulltextNgrams(htmlTexts))
-    }
-  }
+  storage.fulltext = getFulltextNgrams([...texts, ...getUrlTexts(links)])
   return Object.keys(storage).map(k => ({ name: k, values: Array.from(storage[k]) }))
 }
 
+/**
+ * Returns all the text a phraseSearch should be able to match, including the URLs of external
+ * and email links so that searches like '@example.com' will work.
+ */
 export function getPageTexts (page: PageData): string[] {
-  const components = collectReachableComponents(page)
-  const texts = components.flatMap(c => templateRegistry.get(c.templateKey)?.getFulltext?.(c) ?? []).filter(isNotBlank)
-  const htmlTexts = components.flatMap(c => (templateRegistry.get(c.templateKey)?.getHtml?.(c) ?? []).filter(isNotBlank).flatMap(html => extractFromHtml(html).texts))
-  return [...texts, ...htmlTexts]
+  const { links, texts } = gatherLinksAndTexts(collectReachableComponents(page))
+  return [...texts, ...getUrlTexts(links)]
 }
 
 export function getPageLinks (page: PageData): LinkDefinition[] {
-  const components = collectReachableComponents(page)
-  const links = components.flatMap(c => templateRegistry.get(c.templateKey)?.getLinks(c)?.filter(isNotNull) ?? [])
+  return gatherLinksAndTexts(collectReachableComponents(page)).links
+}
 
+function gatherLinksAndTexts (components: ComponentData[]) {
+  const links: LinkDefinition[] = []
+  const texts: string[] = []
   for (const component of components) {
-    const texts = (templateRegistry.get(component.templateKey)?.getFulltext?.(component) ?? []).filter(isNotBlank)
-    links.push(...texts.flatMap(extractLinksFromText))
+    const tmpl = templateRegistry.get(component.templateKey)
+    links.push(...(tmpl?.getLinks(component)?.filter(isNotNull) ?? []))
 
-    const htmls = (templateRegistry.get(component.templateKey)?.getHtml?.(component) ?? []).filter(isNotBlank)
-    links.push(...htmls.flatMap(html => extractFromHtml(html).links))
+    const fulltexts = (tmpl?.getFulltext?.(component) ?? []).filter(isNotBlank)
+    texts.push(...fulltexts)
+    links.push(...fulltexts.flatMap(extractLinksFromText))
+
+    const htmls = (tmpl?.getHtml?.(component) ?? []).filter(isNotBlank)
+    for (const html of htmls) {
+      const { links: htmlLinks, texts: htmlTexts } = extractFromHtml(html)
+      links.push(...htmlLinks)
+      texts.push(...htmlTexts)
+    }
   }
-  return links
+  return { links, texts }
+}
+
+function getUrlTexts (links: LinkDefinition[]) {
+  return links.filter(l => l.type === 'url').map(l => urlForFulltext(l.url)).filter(isNotBlank)
 }
 
 export function singleValueIndexesToIndexes (svIndexes: SingleValueIndex[]) {

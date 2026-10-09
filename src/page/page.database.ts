@@ -752,6 +752,33 @@ export async function setPageSearchCodes (page: { internalId: number, name: stri
   }
 }
 
+/**
+ * Find candidate pages whose name might match a phraseSearch query. Uses the quadgrams in
+ * pages_searchcodes when the query has words long enough to produce them, otherwise falls back
+ * to a LIKE. Caller is responsible for verifying the name actually matches.
+ */
+export async function getPageNameCandidates (query: string, dataIds?: string[]) {
+  const grams = unique(splitWords(normalizeForSearch(query)).flatMap(quadgrams))
+  const binds: any[] = []
+  const where: string[] = []
+  if (dataIds?.length) where.push(`pages.dataId IN (${db.in(binds, dataIds)})`)
+  if (grams.length) {
+    where.push(`sc.searchcode IN (${db.in(binds, grams)})`)
+    return await db.getall<{ dataId: string, name: string }>(`
+      SELECT pages.dataId, pages.name
+      FROM pages
+      INNER JOIN pages_searchcodes psc ON pages.id=psc.pageId
+      INNER JOIN searchcodes sc ON sc.id=psc.codeId
+      WHERE (${where.join(') AND (')})
+      GROUP BY pages.id
+      HAVING COUNT(*) = ${grams.length}
+    `, binds)
+  }
+  where.push('pages.name LIKE ?')
+  binds.push(`%${query.trim().replace(/[\\%_]/g, '\\$&')}%`)
+  return await db.getall<{ dataId: string, name: string }>(`SELECT dataId, name FROM pages WHERE (${where.join(') AND (')})`, binds)
+}
+
 export async function cleanSearchCodes () {
   await db.delete('DELETE sc FROM searchcodes sc LEFT JOIN pages_searchcodes psc ON psc.codeId=sc.id WHERE psc.codeId IS NULL')
 }

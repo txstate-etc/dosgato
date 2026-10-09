@@ -280,6 +280,12 @@ const dgMigrations: DBMigration[] = [
     run: async db => {
       await db.execute('ALTER TABLE scheduledpublishes ADD COLUMN descendant TINYINT(1) NOT NULL DEFAULT 0')
     }
+  }, {
+    id: 20261009100000,
+    description: 'reindex pages so that external and email link URLs are included in fulltext',
+    run: async db => {
+      await db.insert('INSERT INTO settings (`name`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)', ['pageReindexTarget', new Date().toISOString()])
+    }
   }
 ]
 

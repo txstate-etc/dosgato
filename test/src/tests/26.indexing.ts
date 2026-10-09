@@ -426,4 +426,70 @@ describe('indexing', () => {
       expect(values).to.include('lower')
     })
   })
+
+  describe('phraseSearch on links and names', () => {
+    it('should find mailto links in HTML', async () => {
+      const { page } = await createPage('idx-ps-html-mailto', rootPageId, 'keyp1', {
+        title: 'HTML Mailto Test',
+        areas: {
+          main: [
+            { templateKey: 'richtext', title: 'RT Mailto', text: '<p><a href="mailto:bob@zorbex-mail.org">Email Bob</a></p>' }
+          ]
+        }
+      })
+      const { pages } = await query('{ pages(filter: { phraseSearch: [{ query: "@zorbex-mail.org" }] }) { id } }')
+      expect(pages.map((p: any) => p.id)).to.include(page.id)
+    })
+
+    it('should find external links in HTML', async () => {
+      const { page } = await createPage('idx-ps-html-url', rootPageId, 'keyp1', {
+        title: 'HTML URL Test',
+        areas: {
+          main: [
+            { templateKey: 'richtext', title: 'RT URL', text: '<p><a href="https://www.brontosaurus-example.org/bones">our site</a></p>' }
+          ]
+        }
+      })
+      const { pages } = await query('{ pages(filter: { phraseSearch: [{ query: "brontosaurus-example.org" }] }) { id } }')
+      expect(pages.map((p: any) => p.id)).to.include(page.id)
+    })
+
+    it('should find mailto and external links from template getLinks', async () => {
+      const { page } = await createPage('idx-ps-getlinks', rootPageId, 'keyp1', {
+        title: 'GetLinks URL Test',
+        areas: {
+          links: [
+            { templateKey: 'keyc1', text: 'Email', link: JSON.stringify({ type: 'url', url: 'mailto:someone@quixotic-domain.net' }) },
+            { templateKey: 'keyc1', text: 'Flags', link: JSON.stringify({ type: 'url', url: 'https://www.vexillology-example.org/flags?trackingid=Zq8xWv3KpLm#heraldry' }) }
+          ]
+        }
+      })
+      const { pages: emailPages } = await query('{ pages(filter: { phraseSearch: [{ query: "@quixotic-domain.net" }] }) { id } }')
+      expect(emailPages.map((p: any) => p.id)).to.include(page.id)
+      const { pages: urlPages } = await query('{ pages(filter: { phraseSearch: [{ query: "vexillology-example.org/flags" }] }) { id } }')
+      expect(urlPages.map((p: any) => p.id)).to.include(page.id)
+      const values = await getIndexValues(page.id, page.version.version, 'fulltext')
+      expect(values).to.include('vexil')
+      expect(values).to.not.include('track')
+      expect(values).to.not.include('heral')
+      const { pages: queryPages } = await query('{ pages(filter: { phraseSearch: [{ query: "trackingid" }] }) { id } }')
+      expect(queryPages.map((p: any) => p.id)).to.not.include(page.id)
+    })
+
+    it('should find pages by name', async () => {
+      const { page } = await createPage('zygomorphic-blossoms', rootPageId, 'keyp3', { title: 'Unrelated Title' })
+      const { pages } = await query('{ pages(filter: { phraseSearch: [{ query: "zygomorphic" }] }) { id } }')
+      expect(pages.map((p: any) => p.id)).to.include(page.id)
+      const { pages: partial } = await query('{ pages(filter: { phraseSearch: [{ query: "zygomorph" }] }) { id } }')
+      expect(partial.map((p: any) => p.id)).to.not.include(page.id)
+      const { pages: substring } = await query('{ pages(filter: { phraseSearch: [{ query: "zygomorph", substring: true }] }) { id } }')
+      expect(substring.map((p: any) => p.id)).to.include(page.id)
+    })
+
+    it('should find pages by a short name segment', async () => {
+      const { page } = await createPage('qzx-yonder', rootPageId, 'keyp3', { title: 'Another Unrelated Title' })
+      const { pages } = await query('{ pages(filter: { phraseSearch: [{ query: "qzx" }] }) { id } }')
+      expect(pages.map((p: any) => p.id)).to.include(page.id)
+    })
+  })
 })

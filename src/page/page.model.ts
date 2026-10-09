@@ -253,7 +253,7 @@ export class PageFilter {
   @Field({ nullable: true, description: 'Return pages that match the query, in order of best match. Limited to 100 results.' })
   search?: string
 
-  @Field(type => [PhraseSearchInput], { nullable: true, description: 'Return pages whose content contains one of the given phrases. Each entry is OR\'ed: a page matching any entry is returned. The `published` field on each entry controls whether to search published data, latest data, or both.' })
+  @Field(type => [PhraseSearchInput], { nullable: true, description: 'Return pages whose content or name contains one of the given phrases. Content includes the URLs of external and email links. Each entry is OR\'ed: a page matching any entry is returned. The `published` field on each entry controls whether to search published data, latest data, or both. Page names are not versioned so they are matched regardless of `published`.' })
   phraseSearch?: PhraseSearchInput[]
 }
 

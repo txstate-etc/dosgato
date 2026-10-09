@@ -106,6 +106,14 @@ export function ngrams (word: string, n: number) {
   return ret
 }
 
+/**
+ * Strip the query string and hash before indexing a URL as fulltext. They are often full of
+ * opaque ids and tracking parameters that would add a lot of unique n-grams to the index.
+ */
+export function urlForFulltext (url: string) {
+  return url.trim().replace(/[?#].*$/, '')
+}
+
 export function extractFromHtml (html: string): { links: LinkDefinition[], texts: string[] } {
   const $ = load(html)
   const links: LinkDefinition[] = []
@@ -120,6 +128,9 @@ export function extractFromHtml (html: string): { links: LinkDefinition[], texts
     } else {
       const hostname = getHostname(value)
       if (hostname) links.push({ type: 'url', url: value })
+      // mailto links have no hostname so they aren't links for our purposes, but the address
+      // should still be searchable
+      else if (/^mailto:/i.test(value.trim())) texts.push(urlForFulltext(value))
     }
   })
 
