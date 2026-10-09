@@ -121,6 +121,22 @@ describe('pages', () => {
     const { pages: afterPages } = await query('{ pages(filter: { live: true }) { id } }')
     expect(afterPages.map((p: any) => p.id)).to.not.include(site1Root.id)
   })
+  it('should get pages, filtered by modifiedBefore and modifiedAfter', async () => {
+    const { pages } = await query('{ pages { id modifiedAt } }')
+    const times = pages.map((p: any) => new Date(p.modifiedAt).getTime()).sort((a: number, b: number) => a - b)
+    const threshold = new Date(times[Math.floor(times.length / 2)]).toISOString()
+    const expectedBefore = pages.filter((p: any) => new Date(p.modifiedAt).toISOString() < threshold).map((p: any) => p.id)
+    const expectedAfter = pages.filter((p: any) => new Date(p.modifiedAt).toISOString() > threshold).map((p: any) => p.id)
+    const { pages: beforePages } = await query('query getPagesModifiedBefore ($date: DateTime!) { pages(filter: { modifiedBefore: $date }) { id } }', { date: threshold })
+    expect(beforePages.map((p: any) => p.id)).to.have.members(expectedBefore)
+    const { pages: afterPages } = await query('query getPagesModifiedAfter ($date: DateTime!) { pages(filter: { modifiedAfter: $date }) { id } }', { date: threshold })
+    expect(afterPages.map((p: any) => p.id)).to.have.members(expectedAfter)
+    const { pages: futurePages } = await query('query getPagesModifiedAfter ($date: DateTime!) { pages(filter: { modifiedAfter: $date }) { id } }', { date: new Date(times[times.length - 1] + 1000).toISOString() })
+    expect(futurePages).to.have.lengthOf(0)
+    // modified filters must be usable alongside filters that run their own subqueries, like search
+    const { pages: searchPages } = await query('query searchPagesModifiedBefore ($date: DateTime!) { pages(filter: { search: "about", modifiedBefore: $date }) { id } }', { date: new Date(times[times.length - 1] + 1000).toISOString() })
+    expect(searchPages.length).to.be.greaterThan(0)
+  })
   it('should get pages, filtered by pagetreeId', async () => {
     const resp = await query('{ sites { name pagetrees { id name } } }')
     const site1 = resp.sites.find((s: any) => s.name === 'site1')

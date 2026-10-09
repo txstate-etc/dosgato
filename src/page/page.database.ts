@@ -2,7 +2,7 @@ import db from 'mysql2-async/db'
 import type { Queryable } from 'mysql2-async'
 import { nanoid } from 'nanoid'
 import { isNotBlank, isNotNull, keyby, unique, sortby } from 'txstate-utils'
-import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState, searchCodes, splitWords, quadgrams, normalizeForSearch, removeUnreachableComponents, cancelActiveSchedulesForPages, type DGContext } from '../internal.js'
+import { Page, type PageFilter, type VersionedService, normalizePath, getPageIndexes, DeleteState, numerate, DeleteStateAll, DeleteStateInput, DeleteStateDefault, migratePage, collectComponents, templateRegistry, appendPath, shiftPath, PagetreeType, LaunchState, searchCodes, splitWords, quadgrams, normalizeForSearch, removeUnreachableComponents, cancelActiveSchedulesForPages, logImmediatePublish, ScheduledPublishAction, ScheduledPublishStatus, type DGContext } from '../internal.js'
 import type { PaginationResponse } from '@txstate-mws/graphql-server'
 import type { PageData } from '@dosgato/templating'
 import { DateTime } from 'luxon'
@@ -196,6 +196,35 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
     binds.push(filter.lastIndexedBefore.toJSDate(), filter.lastIndexedBefore.toJSDate())
   }
 
+  // publishActivityBefore / publishActivityAfter
+  if (filter.publishActivityBefore || filter.publishActivityAfter) {
+    const activityWhere = ['sp.status = ?']
+    const activityBinds: any[] = [ScheduledPublishStatus.COMPLETED]
+    if (filter.publishActivityAfter) {
+      activityWhere.push('sp.targetDate > ?')
+      activityBinds.push(filter.publishActivityAfter.toJSDate())
+    }
+    if (filter.publishActivityBefore) {
+      activityWhere.push('sp.targetDate < ?')
+      activityBinds.push(filter.publishActivityBefore.toJSDate())
+    }
+    where.push(`pages.id IN (SELECT sp.pageInternalId FROM scheduledpublishes sp WHERE ${activityWhere.join(' AND ')})`)
+    binds.push(...activityBinds)
+  }
+
+  // modifiedBefore / modifiedAfter
+  if (filter.modifiedBefore || filter.modifiedAfter) {
+    joins.set('storage', 'INNER JOIN storage ON storage.id = pages.dataId')
+    if (filter.modifiedBefore) {
+      where.push('storage.modified < ?')
+      binds.push(filter.modifiedBefore.toJSDate())
+    }
+    if (filter.modifiedAfter) {
+      where.push('storage.modified > ?')
+      binds.push(filter.modifiedAfter.toJSDate())
+    }
+  }
+
   await Promise.all([
     (async () => {
       // named paths e.g. /site1/about
@@ -383,6 +412,7 @@ async function processFilters (filter?: PageFilter, tdb: Queryable = db) {
 export async function getPages (filter: PageFilter, tdb: Queryable = db, pageInfo?: PaginationResponse) {
   const { binds, where, joins, searchweights } = await processFilters(filter, tdb)
   if (filter.noresults) return []
+  joins.set('storage', 'INNER JOIN storage ON storage.id = pages.dataId')
   let limit = ''
   if (pageInfo && !filter.viewForEdit) {
     const offset = (pageInfo.page - 1) * pageInfo.perPage
@@ -392,7 +422,6 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db, pageInf
       FROM pages
       INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id
       INNER JOIN sites ON pages.siteId = sites.id
-      INNER JOIN storage ON storage.id = pages.dataId
       LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
       ${joins.size ? Array.from(joins.values()).join('\n') : ''}
       ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
@@ -406,7 +435,6 @@ export async function getPages (filter: PageFilter, tdb: Queryable = db, pageInf
     FROM pages
     INNER JOIN pagetrees ON pages.pagetreeId = pagetrees.id
     INNER JOIN sites ON pages.siteId = sites.id
-    INNER JOIN storage ON storage.id = pages.dataId
     LEFT JOIN tags ON tags.id = pages.dataId AND tags.tag = 'published'
     ${joins.size ? Array.from(joins.values()).join('\n') : ''}
     ${where.length ? `WHERE (${where.join(') AND (')})` : ''}
@@ -635,7 +663,7 @@ export async function copyPages (versionedService: VersionedService, userId: str
   })
 }
 
-export async function deletePages (versionedService: VersionedService, pages: Page[], userInternalId: number) {
+export async function deletePages (versionedService: VersionedService, pages: Page[], userInternalId: number, userId: string) {
   await db.transaction(async db => {
     const binds: (string | number)[] = [userInternalId, DeleteState.MARKEDFORDELETE]
     const refetchedPages = await refetch(db, ...pages)
@@ -644,6 +672,9 @@ export async function deletePages (versionedService: VersionedService, pages: Pa
     const childInternalIds = children.map(c => c.internalId)
     const pageIds = [...refetchedPages.map(p => p.intDataId), ...children.map(p => p.intDataId)]
     await versionedService.removeTags(pageIds, ['published'], db)
+    // deleting a page unpublishes it, so it belongs in the publish history
+    const rootIdSet = new Set(pageInternalIds)
+    await logImmediatePublish(refetchedPages.filter(p => p.published).map(p => p.internalId), children.filter(c => c.published && !rootIdSet.has(c.internalId)).map(c => c.internalId), ScheduledPublishAction.UNPUBLISH, userId, db)
     await db.update(`UPDATE pages SET deletedAt = NOW(), deletedBy = ?, deleteState = ? WHERE id IN (${db.in(binds, unique([...pageInternalIds, ...childInternalIds]))})`, binds)
   })
 }

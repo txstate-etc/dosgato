@@ -238,6 +238,18 @@ export class PageFilter {
   @Field(type => [[ID]], { nullable: true, description: 'Return pages that match multiple sets of tags. Each inner array represents a set of tags of which at least one of them should apply to the page, and the outer array indicates that all of those sets must match.' })
   userTags?: string[][]
 
+  @Field({ nullable: true, description: 'Return pages whose latest version was modified before this date.' })
+  modifiedBefore?: DateTime
+
+  @Field({ nullable: true, description: 'Return pages whose latest version was modified after this date.' })
+  modifiedAfter?: DateTime
+
+  @Field({ nullable: true, description: 'Return pages that were published, republished, or unpublished before this date. When combined with `publishActivityAfter`, both bounds apply to the same publish or unpublish, so a page only matches if it had publish activity inside the window. Publish history is only available from March 2026 forward.' })
+  publishActivityBefore?: DateTime
+
+  @Field({ nullable: true, description: 'Return pages that were published, republished, or unpublished after this date. Deleting a page counts as unpublishing it. See `publishActivityBefore` for how the two combine.' })
+  publishActivityAfter?: DateTime
+
   @Field({ nullable: true, description: 'Return pages that match the query, in order of best match. Limited to 100 results.' })
   search?: string
 

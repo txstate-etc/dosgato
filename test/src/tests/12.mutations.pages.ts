@@ -489,6 +489,48 @@ describe('pages mutations', () => {
     const { pages } = await query(`{ pages(filter: {ids: ["${site.rootPage.id}"] }) { id name published} }`)
     expect(pages[0].published).to.be.false
   })
+  it('should filter pages by publish activity', async () => {
+    const { page: testpageA } = await createPage('testpage12b', testSite6PageRootId, 'keyp3')
+    const { page: testpageB } = await createPage('testpage12c', testSite6PageRootId, 'keyp3')
+    const { page: testpageC } = await createPage('testpage12d', testSite6PageRootId, 'keyp3')
+    await query('mutation PublishPages ($pageIds: [ID!]!) {publishPages (pageIds: $pageIds) { success } }', { pageIds: [testpageA.id, testpageB.id] })
+    // backdate the publish history so we can test windows without waiting
+    const backdate = async (pageId: string, date: string) => await db.update('UPDATE scheduledpublishes sp INNER JOIN pages p ON p.id = sp.pageInternalId SET sp.targetDate = ? WHERE p.dataId = ?', [date, pageId])
+    await backdate(testpageA.id, '2001-01-15 12:00:00')
+    await backdate(testpageB.id, '2001-03-15 12:00:00')
+    const ids = [testpageA.id, testpageB.id, testpageC.id]
+    const activityQuery = 'query getPagesByPublishActivity ($ids: [ID!]!, $after: DateTime, $before: DateTime) { pages(filter: { ids: $ids, publishActivityAfter: $after, publishActivityBefore: $before }) { id } }'
+    const activity = async (after?: string, before?: string) => (await query(activityQuery, { ids, after, before })).pages.map((p: any) => p.id)
+    expect(await activity('2001-01-10T00:00:00Z', '2001-01-20T00:00:00Z')).to.have.members([testpageA.id])
+    expect(await activity('2001-03-01T00:00:00Z')).to.have.members([testpageB.id])
+    expect(await activity(undefined, '2001-02-01T00:00:00Z')).to.have.members([testpageA.id])
+    expect(await activity('2001-01-01T00:00:00Z')).to.have.members([testpageA.id, testpageB.id])
+    // republishing counts as publish activity
+    const yesterday = new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
+    expect(await activity(yesterday)).to.have.lengthOf(0)
+    await query('mutation PublishPages ($pageIds: [ID!]!) {publishPages (pageIds: $pageIds) { success } }', { pageIds: [testpageA.id] })
+    expect(await activity(yesterday)).to.have.members([testpageA.id])
+    // unpublishing counts as publish activity
+    await query('mutation UnpublishPages ($pageIds: [ID!]!) { unpublishPages (pageIds: $pageIds) { success } }', { pageIds: [testpageB.id] })
+    expect(await activity(yesterday)).to.have.members([testpageA.id, testpageB.id])
+  })
+  it('should record deleting a published page as publish activity', async () => {
+    const { page: testpageA } = await createPage('testpage12e', testSite6PageRootId, 'keyp3')
+    const { page: testpageB } = await createPage('testpage12f', testpageA.id, 'keyp3')
+    const { page: testpageC } = await createPage('testpage12g', testSite6PageRootId, 'keyp3')
+    await query('mutation PublishPages ($pageIds: [ID!]!, $includeChildren: Boolean) {publishPages (pageIds: $pageIds, includeChildren: $includeChildren) { success } }', { pageIds: [testpageA.id], includeChildren: true })
+    await db.update('UPDATE scheduledpublishes sp INNER JOIN pages p ON p.id = sp.pageInternalId SET sp.targetDate = ? WHERE p.dataId IN (?, ?)', ['2001-01-15 12:00:00', testpageA.id, testpageB.id])
+    await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success } }', { pageIds: [testpageA.id, testpageC.id] })
+    const yesterday = new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
+    const { pages } = await query('query getPagesByPublishActivity ($ids: [ID!]!, $after: DateTime) { pages(filter: { ids: $ids, publishActivityAfter: $after }) { id } }', { ids: [testpageA.id, testpageB.id, testpageC.id], after: yesterday })
+    // testpageC was never published, so deleting it is not publish activity
+    expect(pages.map((p: any) => p.id)).to.have.members([testpageA.id, testpageB.id])
+    const rows = await db.getall<{ dataId: string, action: string, descendant: number }>('SELECT CAST(p.dataId AS CHAR) AS dataId, sp.action, sp.descendant FROM scheduledpublishes sp INNER JOIN pages p ON p.id = sp.pageInternalId WHERE p.dataId IN (?, ?) AND sp.targetDate > ?', [testpageA.id, testpageB.id, '2002-01-01'])
+    expect(rows).to.have.deep.members([
+      { dataId: testpageA.id, action: 'UNPUBLISH', descendant: 0 },
+      { dataId: testpageB.id, action: 'UNPUBLISH', descendant: 1 }
+    ])
+  })
   it('should not allow an unauthorized user to unpublish a page', async () => {
     const { page: testpage } = await createPage('testpage12a', testSite6PageRootId, 'keyp3')
     await query('mutation PublishPages ($pageIds: [ID!]!) {publishPages (pageIds: $pageIds) { success } }', { pageIds: [testpage.id] })

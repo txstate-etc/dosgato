@@ -1300,7 +1300,7 @@ export class PageService extends DosGatoService<Page> {
       throw new Error('Current user is not permitted to delete one or more pages')
     }
     try {
-      await deletePages(this.svc(VersionedService), pages, this.ctx.authInfo.user!.internalId)
+      await deletePages(this.svc(VersionedService), pages, this.ctx.authInfo.user!.internalId, this.login)
       this.loaders.clear()
       const updated = await this.raw.findByIds(dataIds)
       return new PagesResponse({ success: true, pages: updated })
