@@ -263,7 +263,7 @@ A finding is **open** when `activeAt` is null or ≤ now, AND there is no DISMIS
 
 #### D12f. Worklist support for edit-triggered scanning
 
-The 24h debounce is scanner policy, expressible as "modified since my last scan AND modified more than 24h ago". PageFilter has no `modifiedBefore` today (only `lastIndexedBefore`); add `modifiedBefore` (and the data/asset equivalents) alongside the scan filters.
+The 24h debounce is scanner policy, expressible as "modified since my last scan AND modified more than 24h ago". PageFilter now has `modifiedBefore`/`modifiedAfter` (on `storage.modified`) and `publishActivityBefore`/`publishActivityAfter` (on `scheduledpublishes` history) from master. DataFilter and AssetFilter still need `modifiedBefore`/`modifiedAfter` for data and asset scanners that debounce.
 
 ---
 
@@ -509,7 +509,7 @@ input ScanFilter {
   hasOpenFindings: Boolean     # D12e: current scan has open findings (AND'ed, for reports)
   openFindingMinLevel: Int     # D12e: only count open findings with level >= this
 }
-# D12f: PageFilter/DataFilter/AssetFilter also gain modifiedBefore: DateTime
+# D12f: PageFilter already has modifiedBefore/modifiedAfter; DataFilter/AssetFilter gain them
 # pages(filter: { scans: { ... }, live: true })
 # assets(filter: { scans: { ... } })
 # data(filter: { scans: { ... } })

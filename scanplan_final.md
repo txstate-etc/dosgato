@@ -261,8 +261,8 @@ input ScanFilter {
 # pages(filter: { scans: [{ ... }], live: true, modifiedBefore: ... })
 # assets(filter: { scans: [{ ... }] })
 # data(filter: { scans: [{ ... }] })
-# PageFilter, AssetFilter, and DataFilter also gain modifiedBefore: DateTime,
-# for scanners that debounce edits.
+# PageFilter already has modifiedBefore/modifiedAfter; AssetFilter and
+# DataFilter gain the same pair, for scanners that debounce edits.
 
 extend type Mutation {
   # Requires the scans grant AND scanner === ctx.auth.clientId.
