@@ -19,8 +19,8 @@ Nothing in the API is staleness-specific, though. The same machinery serves expl
 
 ## Principles
 
-- **The scanner owns policy; the CMS owns facts.** The CMS stores what the scanner tells it (its next-visit date, when a finding should activate) but never computes a schedule, priority, date, or "needs scanning" judgment. It will compare a stored date to the clock, but that's as far as it goes.
-- **Scanners keep no scheduling state.** Everything a scanner needs to decide what to scan next — last scan time, target modification/publish times, its own scheduled follow-ups, its previous findings — is queryable from the CMS, so the simplest scanner can be a cron job with credentials. Scanners may well keep their own state for other purposes, most obviously the detailed reports behind their `detailUrl` pages.
+- **The scanner owns policy; the CMS owns facts.** The CMS stores what the scanner tells it (when a finding should activate) but never computes a schedule, priority, date, or "needs scanning" judgment. It will compare a stored date to the clock, but that's as far as it goes.
+- **Scanners keep no scheduling state.** Everything a scanner needs to decide what to scan next — last scan time, target modification/publish times, its previous findings — is queryable from the CMS, so the simplest scanner can be a cron job with credentials. Scanners may well keep their own state for other purposes, most obviously the detailed reports behind their `detailUrl` pages.
 - **Scan targets are pages, assets, and data entries**, in **primary and sandbox** pagetrees. Pre-launch checking of sandboxes is a core use case; it is up to the scanner to realize it's scanning a sandbox and behave accordingly (fetch the preview render with its service credentials, filter by `pagetreeTypes` rather than `live`). Archives are not scannable.
 - **Severity vocabularies belong to scanners.** Each scanner reports its own labels (axe: critical/serious/moderate/minor; linkcheck: broken/redirect) plus a normalized level for cross-scanner sorting. The CMS doesn't validate vocabulary; consistency across a scanner's submissions is the scanner's responsibility.
 - **Findings follow content, not position.** Page data has no stable component ids, and a positional path like `areas.main.1` shifts whenever someone inserts a component above it. So a finding's identity is a hash of the component's content, and paths are just a way to say where that content sits in one particular version.
@@ -55,7 +55,6 @@ CREATE TABLE pagescans (
   scannerId SMALLINT UNSIGNED NOT NULL,
   pageId INT UNSIGNED NOT NULL,                -- FK pages.id (internal id)
   scannedAt DATETIME NOT NULL,                 -- when the scanner fetched the content
-  nextScanAt DATETIME,                         -- scanner-set due date for its next visit
   scannedVersion MEDIUMINT UNSIGNED NOT NULL,  -- provenance: recreate scanned state from versioned storage
   scannedSchemaVersion DATETIME NOT NULL,      -- schemaversion the content was migrated to when fetched
   status TINYINT UNSIGNED NOT NULL,            -- SUCCESS / ERROR / PARTIAL
@@ -71,7 +70,6 @@ CREATE TABLE pagescans (
   INDEX scanner_page (scannerId, pageId, scannedAt),  -- history + latest lookup
   INDEX page_current (pageId, current),               -- dataloader: current scans for a page
   INDEX scanner_time (scannerId, current, scannedAt), -- scannedBefore filter
-  INDEX scanner_due (scannerId, current, nextScanAt), -- dueBefore filter
   FOREIGN KEY (scannerId) REFERENCES scanners (id),
   FOREIGN KEY (pageId) REFERENCES pages (id)
 );
@@ -109,8 +107,9 @@ CREATE TABLE pagescan_findings (
   activeAt DATETIME,                           -- null = a problem immediately
   firstSeenAt DATETIME NOT NULL,               -- carried forward when the identity matches
                                                --   the previous scan's finding
-  allowVerify TINYINT UNSIGNED NOT NULL DEFAULT 1,  -- which editor responses the scanner allows
-  allowDismiss TINYINT UNSIGNED NOT NULL DEFAULT 1, --   on this finding
+  allowDismiss TINYINT UNSIGNED NOT NULL DEFAULT 1, -- editors may DISMISS this finding
+  verifyDays SMALLINT UNSIGNED,                -- editors may VERIFY it, by default for this many
+                                               --   days; NULL = VERIFIED not allowed
   manageUrl VARCHAR(1024),                     -- link into the scanner's own UI for this finding
   PRIMARY KEY (id),
   INDEX scan_active (pagescanId, activeAt),    -- open-findings filter
@@ -125,7 +124,7 @@ CREATE TABLE pagefinding_responses (
   contentHash CHAR(43) CHARACTER SET 'ascii' COLLATE 'ascii_bin' NOT NULL,
   category VARCHAR(64) CHARACTER SET 'ascii' NOT NULL DEFAULT '',
   response TINYINT UNSIGNED NOT NULL,          -- VERIFIED / DISMISSED
-  until DATETIME,                              -- VERIFIED only: suppressed until this time
+  until DATETIME,                              -- VERIFIED only (required): suppressed until this time
   respondedBy MEDIUMINT UNSIGNED NOT NULL,     -- users.id, like createdBy/deletedBy elsewhere
   respondedAt DATETIME NOT NULL,
   lastMatchedAt DATETIME NOT NULL,             -- last time a recorded finding had this identity;
@@ -192,7 +191,6 @@ type SeverityCount {
 type Scan {
   scanner: Scanner!
   scannedAt: DateTime!   # when the scanner fetched the content
-  nextScanAt: DateTime   # scanner's own stated return date, if it set one
   scannedVersion: Int!   # version of the target that was scanned (provenance)
   scannedSchemaVersion: SchemaVersion  # schemaversion it was migrated to (null for assets)
   status: ScanStatus!
@@ -219,7 +217,11 @@ type ScanFinding {
   activeAt: DateTime     # null = a problem immediately
   firstSeenAt: DateTime!
   open: Boolean!         # active, not dismissed, not verified past now
-  allowedResponses: [FindingResponseType!]!  # set by the scanner; [] = manage it in the scanner
+  allowedResponses: [FindingResponseType!]!  # derived from allowDismiss/verifyDays; [] = manage
+                         #   it in the scanner
+  verifyDays: Int        # default length of the next VERIFIED response: the length of the last
+                         #   VERIFIED response for this identity if there is one, otherwise the
+                         #   scanner's value; null when VERIFIED isn't allowed
   manageUrl: String      # link into the scanner's own UI for this finding's subject
   response: FindingResponse
 }
@@ -300,7 +302,6 @@ input ScanFilter {
   scannedBefore: DateTime      # current scan older than X (time backstop)
   modifiedSinceScan: Boolean   # target modifiedAt > scannedAt
   publishedSinceScan: Boolean  # target publishedAt > scannedAt
-  dueBefore: DateTime          # scanner-set nextScanAt <= X
 
   # finding conditions (AND'ed) — for reports and alerts
   hasOpenFindings: Boolean     # true: current scan has open findings; false: it has none
@@ -337,6 +338,7 @@ extend type Mutation {
   # Editor responses: update permission on each finding's target, and the finding
   # must allow the response type. Stored by finding identity, so they apply to
   # future matching findings too.
+  # until: VERIFIED only, defaults to now + the finding's verifyDays.
   respondToFindings(findingIds: [ID!]!, response: FindingResponseType!, until: DateTime): ValidatedResponse!
   clearFindingResponses(findingIds: [ID!]!): ValidatedResponse!
 }
@@ -352,8 +354,9 @@ input ScanFindingInput {
   message: String!
   activeAt: DateTime     # when this becomes a problem; omit for immediately. Recorded as sent:
                          #   whether to reuse a previous finding's date is the scanner's call
-  allowedResponses: [FindingResponseType!]  # which responses editors may give in the CMS;
-                         #   omit for all, [] when the scanner manages it in its own UI
+  allowDismiss: Boolean  # editors may DISMISS this finding; defaults to true
+  verifyDays: Int        # editors may mark it VERIFIED, by default for this many days;
+                         #   omit (or 0) to offer no VERIFIED response
   manageUrl: String      # optional link into the scanner's UI, shown in place of respond buttons
 }
 
@@ -375,8 +378,6 @@ input ScanResultInput {
   scannedUrl: String
   scannedAt: DateTime    # when the content was fetched; defaults to the claim time
                          #   for this (scanner, target), or now if unclaimed
-  nextScanAt: DateTime   # scanner schedules its own follow-up (e.g. an LLM staleness
-                         #   scanner books a rescan for the day after a due date it noticed)
   scannedVersion: Int!   # version the scanner fetched
   scannedSchemaVersion: SchemaVersion  # schemaversion the fetched content was migrated to;
                                        #   required for pages/data, rejected for assets
@@ -465,10 +466,20 @@ The CMS does carry `firstSeenAt` forward when a recorded finding's identity matc
 
 An editor can respond to a finding in two ways:
 
-- **VERIFIED until a date** — "still good, check again on X". The UI defaults X to now + (`activeAt` − `firstSeenAt`), reusing the scanner's original shelf life, and the editor can change it. The finding is suppressed until X, then it's open again.
-- **DISMISSED** — a false positive, suppressed for good.
+- **VERIFIED until a date** — "still good, check again on X". The finding is suppressed until X, then it's open again.
+- **DISMISSED** — not a problem, suppressed for good. Either it's a false positive, or a human has confirmed something the scanner couldn't.
 
 There's no "fixed" response. Editing the component changes its hash, and the finding closes on the next scan.
+
+A verification with no end date would just be a dismissal, so VERIFIED always has one. The scanner offers VERIFIED by sending `verifyDays` on a finding, and the UI defaults X to now + `verifyDays`; the editor can change it. The right length depends on the kind of problem, so it's the scanner's call and it's per finding:
+
+- The staleness scanner sends the LLM's estimate of how long the content stays good after a review, which can differ from finding to finding.
+- A mandatory-review scanner sends 365.
+- axe omits it for results that need a human to look. Once someone has confirmed the contrast over a background image is fine, there's no reason to ask again until the component changes, so DISMISSED is the right response, and editing the component resets it anyway.
+
+The scanner's number is only a first guess, though. If the LLM gave a 30-day shelf life to a tuition table that changes once a year, the editor will push the date out to a year when they verify it, and they shouldn't have to do that again every time. So once a finding has been verified, the default for the next verification is the length the editor chose last time (`until` − `respondedAt` on the expired response), and the scanner's `verifyDays` only applies the first time. We can't write the editor's choice into the finding's `verifyDays`, because the next scan replaces it with the scanner's value. The response row already outlives scans and already holds both dates, so it needs no new column. `ScanFinding.verifyDays` returns the effective default, so the UI and `respondToFindings` share one rule.
+
+Editing the component drops the response along with the editor's preference, since it's new content. A staleness scanner that wants to keep the preference can read the old finding's `response` when it sends a changed component to the LLM, and use it to inform the new estimate.
 
 ### Note about findings the CMS shouldn't let you respond to
 
@@ -478,7 +489,7 @@ We could teach the CMS to dismiss by URL everywhere, but then the CMS would have
 
 That only works if editors don't take the easy way out, so the scanner controls which responses the CMS offers on each finding:
 
-- `allowedResponses` on each finding says which buttons the editor gets. The link checker sends `[]`. The staleness scanner sends `[VERIFIED]`, because dismissing a staleness warning would just hide content that does go stale. axe sends both for results that need a human to look.
+- `allowDismiss` and `verifyDays` on each finding say which buttons the editor gets. The link checker sends `allowDismiss: false` and no `verifyDays`, so editors get neither. The staleness scanner sends a `verifyDays` and leaves dismissal on, for content the LLM wrongly thought would go stale. axe leaves dismissal on and omits `verifyDays` for results that need a human to look.
 - `manageUrl` links to the scanner's UI for this finding ("Manage this link in Link Checker"), and the editor sees it in place of the buttons. Without it, a finding with no responses would be a dead end, and a dead end is exactly what sends people looking for a workaround.
 - Only responses the current finding allows count when deciding whether it's open, and `respondToFindings` refuses a response type the finding doesn't allow. That way a scanner that stops allowing dismissals isn't stuck with its findings hidden forever by old ones.
 
@@ -543,12 +554,6 @@ The only thing the flip changes is the default for sites without a row, which in
 - Expired claims need no cleanup — they're simply claimable by the next caller.
 - Claims are scoped per scanner: different scanners never block each other. Never displayed; not part of scan history.
 
-### Scheduling facts, not policy
-
-`nextScanAt` lets a scan result schedule the scanner's own follow-up — e.g. an LLM staleness scanner that notices "applications due March 1" on a page and books a rescan for March 2. The CMS stores and displays the date and exposes it via the `dueBefore` filter; it never computes one. The UI presents it as the scanner's stated intent, not a CMS promise. Richer scanner state than one date belongs in the scanner.
-
-`nextScanAt` and a finding's `activeAt` are different tools. `activeAt` makes a finding turn into an alert on its own date without anyone rescanning. `nextScanAt` asks the scanner to come back and look again.
-
 ### Provenance
 
 `scannedVersion` and `scannedSchemaVersion` together pin the exact content the scanner saw: stored version N migrated to schemaversion S, which the existing `getData(target, N, published, S)` path reproduces. Version alone isn't enough, because a software update adds migrations, and the same stored version can then migrate to differently shaped data, with different paths. Asset version data includes the shasum, so the exact binary is recoverable too; assets have no schemaversion.
@@ -565,7 +570,6 @@ Scan history is kept per (scanner, target), with a `current` flag marking the la
 
 Both settings are per scanner, set with `createScanner`/`updateScanner` or in a release migration. A nightly link checker might keep fewer detail scans; an LLM scanner whose findings help us tune its prompts might keep more.
 
-- The same job deletes editor responses whose `lastMatchedAt` is more than a year old, meaning no recorded finding has had that identity for a year.
 - The same job deletes editor responses whose `lastMatchedAt` is more than a year old, meaning no recorded finding has had that identity for a year.
 - Enforced by a scheduled cleanup job (existing scheduler: `src/util/scheduler.ts`), per scanner and in batches. Finding pruning ranks each target's scans with `ROW_NUMBER() OVER (PARTITION BY scannerId, pageId ORDER BY scannedAt DESC)` using the `scanner_page` index, and skips scans already marked `findingsPruned`. Summary deletion uses the `scanner_time` index (`current = 0 AND scannedAt < cutoff`).
 
