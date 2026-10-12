@@ -6,14 +6,14 @@ The API's responsibilities:
 
 1. **Expose the facts scanners need to build their own worklists** — with indexed queries. Scheduling and prioritization policy belongs entirely to the scanner; the CMS computes no staleness judgment of its own.
 2. **Store results** — scanner, time, status, summary counts, and located findings, with history.
-3. **Show findings to editors** — badges on pages, an issues list in the admin dashboard, and highlighted components in the page editor, where an editor can mark a finding as still good or dismiss it.
+3. **Show findings to editors** — badges on pages, a list of pages with findings on the editor dashboard, and highlighted components in the page editor, where an editor can mark a finding as still good or dismiss it.
 4. **Keep findings stable across rescans** — so an editor's response, and a finding's activation date, survive edits to unrelated parts of the page.
 5. **Coordinate concurrent scanner instances** — an atomic claim mechanism so instances of the same scanner don't duplicate work.
 6. **Let admins control where scanners run** — exempt a site from one scanner or all of them, and keep expensive scanners off sites that haven't asked for them.
 
 ## The motivating case
 
-Broken links and WCAG warnings are the easy cases. The one that shaped most of this design is a **staleness scanner**. After a page is edited (with a 24-hour debounce), it asks an LLM to find content likely to go stale quickly, like step-by-step instructions for third-party software that will eventually get a UI update. The LLM suggests an expiration date for each piece it finds. Once a date passes, the page gets an alert icon and shows up in the dashboard's issues list. In the editor, each flagged component is highlighted until someone marks it as still good or edits it.
+Broken links and WCAG warnings are the easy cases. The one that shaped most of this design is a **staleness scanner**. After a page is edited (with a 24-hour debounce), it asks an LLM to find content likely to go stale quickly, like step-by-step instructions for third-party software that will eventually get a UI update. The LLM suggests an expiration date for each piece it finds. Once a date passes, the page gets an alert icon and shows up in the dashboard's list of pages with findings. In the editor, each flagged component is highlighted until someone marks it as still good or edits it.
 
 Nothing in the API is staleness-specific, though. The same machinery serves explicit-date extraction ("Register by March 1"), annual figures like tuition, mandatory yearly reviews, axe results that need a human to verify them, link checks against sites that block bots, and LLM checks on alt text quality or style guide compliance. We'll come back to the staleness scanner as the running example.
 
@@ -31,7 +31,7 @@ Separate tables per target type (no polymorphic multi-FK tables — mostly-NULL 
 
 - `datascans` has no `scannedUrl` (data has no fetchable render).
 - `assetscans` has no `scannedSchemaVersion` (binaries aren't migrated).
-- There are no asset findings or responses yet. Binary content has no components to point at.
+- Asset findings always describe the whole asset: `assetscan_findings` has the same shape with `path` always NULL, and `assetfinding_responses` is identical with assetId. See "Finding identity" for what the hash covers.
 
 ```sql
 CREATE TABLE scanners (
@@ -39,9 +39,9 @@ CREATE TABLE scanners (
   name VARCHAR(255) CHARACTER SET 'ascii' NOT NULL,  -- machine key = the scanner's JWT client_id
   displayName VARCHAR(255) NOT NULL,
   hidden TINYINT UNSIGNED NOT NULL DEFAULT 0,        -- retire from UI without losing history
-  scansPages TINYINT UNSIGNED NOT NULL DEFAULT 1,    -- which target types this scanner handles,
-  scansAssets TINYINT UNSIGNED NOT NULL DEFAULT 0,   --   so the UI knows where to offer it
-  scansData TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  scansPages TINYINT UNSIGNED NOT NULL DEFAULT 0,    -- which target types this scanner handles,
+  scansAssets TINYINT UNSIGNED NOT NULL DEFAULT 0,   --   declared by the scanner itself, so the UI
+  scansData TINYINT UNSIGNED NOT NULL DEFAULT 0,     --   knows where to show its results
   keepFindingsScans SMALLINT UNSIGNED NOT NULL DEFAULT 5,   -- retention: how many recent scans per
                                                             --   target keep their findings (min 1)
   keepSummaryMonths SMALLINT UNSIGNED NOT NULL DEFAULT 24,  -- retention: how long scan summaries last
@@ -87,7 +87,7 @@ CREATE TABLE pagescan_severities (
 
 -- Located findings, kept for each target's most recent scans (history is
 -- useful for debugging a scanner; see retention). Only the current scan's
--- findings are live. datascan_findings is identical.
+-- findings are live. datascan_findings and assetscan_findings are identical.
 CREATE TABLE pagescan_findings (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   pagescanId INT UNSIGNED NOT NULL,
@@ -117,7 +117,8 @@ CREATE TABLE pagescan_findings (
 );
 
 -- Editor responses, keyed by finding identity rather than by finding row, so
--- they outlive any one scan. datafinding_responses is identical with dataId.
+-- they outlive any one scan. datafinding_responses and assetfinding_responses are
+-- identical with dataId/assetId.
 CREATE TABLE pagefinding_responses (
   scannerId SMALLINT UNSIGNED NOT NULL,
   pageId INT UNSIGNED NOT NULL,
@@ -277,7 +278,7 @@ type SiteScanner {
 
 extend type Site {
   scanExempt: Boolean!         # exempt from all scanning
-  scanners: [SiteScanner!]!    # every non-hidden scanner that applies to sites
+  scanners: [SiteScanner!]!    # every non-hidden scanner
 }
 # SitePermissions also gains manageScanning (true for manageScanners holders).
 
@@ -333,9 +334,13 @@ extend type Mutation {
   # actually granted; the rest are validly claimed by a sibling instance.
   claimScans(scanner: String!, targets: [ScanTargetInput!]!, expectedDuration: Int!): ClaimScansResponse!
 
+  # The scanner declares which target types it handles — same auth as recordScans.
+  # Idempotent; scanners call it at startup.
+  setScannerTargets(scanner: String!, scansPages: Boolean!, scansAssets: Boolean!, scansData: Boolean!): ValidatedResponse!
+
   # Admin mutations: manageScanners grant, no clientId match.
-  createScanner(name: String!, displayName: String!, scansPages: Boolean!, scansAssets: Boolean!, scansData: Boolean!, keepFindingsScans: Int, keepSummaryMonths: Int, optIn: Boolean): ValidatedResponse!
-  updateScanner(scanner: String!, displayName: String, scansPages: Boolean, scansAssets: Boolean, scansData: Boolean, hidden: Boolean, keepFindingsScans: Int, keepSummaryMonths: Int): ValidatedResponse!
+  createScanner(name: String!, displayName: String!, keepFindingsScans: Int, keepSummaryMonths: Int, optIn: Boolean): ValidatedResponse!
+  updateScanner(scanner: String!, displayName: String, hidden: Boolean, keepFindingsScans: Int, keepSummaryMonths: Int): ValidatedResponse!
   # Its own mutation because it inverts every site's sitescanners row so no site's
   # effective status changes; see "Site controls".
   setScannerOptIn(scanner: String!, optIn: Boolean!): ValidatedResponse!
@@ -392,7 +397,7 @@ input ScanResultInput {
   scannedVersion: Int!   # version the scanner fetched
   scannedSchemaVersion: SchemaVersion  # schemaversion the fetched content was migrated to;
                                        #   required for pages/data, rejected for assets
-  findings: [ScanFindingInput!]  # pages/data only; capped at 500 per result
+  findings: [ScanFindingInput!]  # capped at 500 per result; asset findings must omit path
 }
 
 type ScanClaim {
@@ -412,6 +417,7 @@ type ClaimScansResponse {   # extends ValidatedResponse; refused targets get per
 
 ### Scanner flow
 
+0. At startup, `setScannerTargets(scanner, ...)` to declare which target types it handles.
 1. Query candidates: `pages(filter: { scans: [{ scannerNames: ["me"], ...facts }], live: true })` (or assets/data). The staleness scanner asks for pages modified since its last scan but at least 24 hours ago, using `modifiedSinceScan` together with `modifiedBefore`.
 2. `claimScans(scanner, targets, expectedDuration)` — scan the granted subset; siblings hold the rest.
 3. For each target, fetch the content plus, in the same GraphQL request, the component outline for that version and the scanner's current findings with `currentPath` for that version (see "Carrying findings across scans").
@@ -420,6 +426,7 @@ type ClaimScansResponse {   # extends ValidatedResponse; refused targets get per
 
 ### Recording
 
+- **Target types must be declared.** `recordScans` and `claimScans` reject targets of a type the scanner hasn't declared with `setScannerTargets`, with a message saying so. Declaring up front, rather than inferring from what a scanner has posted, means a new scanner's coverage reports are right before its first run, and the flags can't drift from what the scanner actually does.
 - **Every attempt gets a row.** A clean target records with no findings (that's the "recently scanned" signal); a fetch failure or timeout records with `status: ERROR` so failures neither retry forever nor masquerade as clean.
 - **`summary`** is the scanner's optional one-liner — the kinds of problems found ("3 broken links, 2 redirect chains"), or anything useful about how the scan went (especially with `status: ERROR`, e.g. "render timed out after 30s"). Plain text, max 255 chars, truncated not rejected.
 - **`scannedAt` is content fetch time.** The `modifiedSinceScan` comparison depends on this, so it must not drift toward posting time. Scanners may supply it (validated against server clock); when omitted, the server uses the target's **claim time** — the natural fetch-time approximation, since fetching happens right after claiming while results may be posted in a batch much later. If there's no live claim, it falls back to now.
@@ -439,7 +446,7 @@ Scanners shouldn't have to build paths at all, though. `components(version, sche
 
 **LLM scanners:** label the components `c1…cN`, send each one's own fields to the model under its label, and constrain the model's output to that set of labels with a JSON-schema `enum`. The model never writes a dot-path, so it can't miscount an index or invent a component, and you never need a correction round. Map the labels back to paths afterward.
 
-**DOM-based scanners** (axe) see rendered HTML, so they need the render to tag each component's root element with a `data-path`, and then map a failing node to its nearest tagged ancestor. That's render-server work and is listed under Deferred.
+**DOM-based scanners** (axe) see rendered HTML, so mapping a failing node back to a component is up to them. Many components have an `id` property that their templates render into the HTML, so the scanner can walk up from the failing node to the nearest element with an `id`, find the component in the page data with that `id`, and report its path. A node with no identifiable ancestor gets attached to a larger component around it, or to the page itself. An LLM can help with the harder cases. The scanner should render with `/.preview/{version}/path.html` for the same version it fetched page data for, so the HTML and the paths describe the same content.
 
 ### Finding identity
 
@@ -457,6 +464,8 @@ This hash is effectively a per-component "modified since" signal, and we get it 
 - Editing the component changes its hash, so it becomes a different finding. That's intended: it's one of the two ways an editor resolves a finding.
 - Leaving `areas` out of the hash means editing a child component doesn't disturb findings on its parent.
 - Identical components on the same page (a repeated "contact us" block) share an identity. When we need to tell them apart for display, the nearest path breaks the tie.
+
+**Assets** have no components, so every asset finding is about the whole asset and `contentHash` is simply the binary's `shasum` at `scannedVersion`, which is already in the right format. Replacing the file resets its findings and responses, the same way editing a component does. Editing metadata like alt text or the title doesn't, which is right for findings about the file itself (an untagged PDF is still untagged after a rename). A finding about the metadata still closes once the scanner stops reporting it; the only thing that lingers is an editor's response, until the file changes.
 
 ### Locating a finding in newer content
 
@@ -526,7 +535,7 @@ A finding is **open** when all of these hold:
 
 (Counting only responses the finding allows; see the note about findings you can't respond to.)
 
-That's computed at query time. All badges, the admin issues list, editor highlights, and the `hasOpenFindings`/`openFindingMinLevel` filters run on open findings from current scans. The filter is a join through the current scan to its findings, left-joined to responses, using the `(pagescanId, activeAt)` index.
+That's computed at query time. All badges, the dashboard list of pages with findings, editor highlights, and the `hasOpenFindings`/`openFindingMinLevel` filters run on open findings from current scans. The filter is a join through the current scan to its findings, left-joined to responses, using the `(pagescanId, activeAt)` index.
 
 `issueCount` and `severities` on the scan are the scanner's summary **at scan time**, and they are for trend analysis only. **Never filter, badge, or alert on them** — they can't reflect editor responses or findings that activate later, so a page an editor has fully reviewed would still look broken, and a staleness finding would never appear at all. The consequence for scanner authors: if you want your results to alert, report findings. A scanner with nothing specific to point at reports page-level findings with no path. A summary-only scanner still feeds trends and the worklist facts (`neverScanned`, `scannedBefore`, ...); it just never alerts.
 
@@ -537,7 +546,7 @@ Some sites shouldn't be scanned, or shouldn't be scanned by a particular scanner
 - **Exempt a site from all scanning** (`sites.scanExempt`).
 - **Exempt a site from one scanner**, or **enable an opt-in scanner** for it (`sitescanners`).
 
-Controls are per site only, covering the site's pages, assets, and site-scoped data. There's nothing at the pagetree level (scanners can already skip sandboxes with `pagetreeTypes`, and the list of sandboxes keeps changing) or the page level (a DISMISSED response covers that).
+Controls are per site only, covering the site's pages, assets, and site-scoped data. There's nothing at the pagetree level (scanners can already skip sandboxes with `pagetreeTypes`, and the list of sandboxes keeps changing) or the page level. For a single page, a DISMISSED response often covers it. When a whole page should be skipped, a page template can add a property for it (e.g. `skipStalenessReview`), and the scanner reads it from the page data it already fetches and skips the page. The CMS doesn't enforce that, and editors with update permission can set it, so it only suits scanners where editors should have that choice; compliance scanners like axe shouldn't offer one.
 
 Most scanners are opt-out: they run everywhere unless a site is exempted. That's the right default for compliance scanners like axe, which nobody should have to remember to turn on. A scanner marked `optIn`, like the LLM staleness scanner, runs only on sites that have enabled it, because the default should be not spending money.
 
@@ -551,14 +560,14 @@ Overrides go in one table with an `enabled` flag rather than separate exemption 
 - `claimScans` doesn't grant those targets, with a per-target message saying why.
 - `recordScans` rejects results for them with a per-result warning, which covers a scan that was already running when someone set the exemption.
 
-**Existing results are hidden, not deleted.** A site's findings for a scanner that's no longer enabled drop out of badges, the issues list, the open-findings filters, and editor highlights, but the rows stay. Removing the exemption brings them back, and retention ages them out otherwise. `scanHistory` still shows them, since exempting a site doesn't make its past scans untrue. A target that isn't scanned shows **no badge at all**, not a clean one, so an exemption never looks like a pass.
+**Existing results are hidden, not deleted.** A site's findings for a scanner that's no longer enabled drop out of badges, the dashboard list, the open-findings filters, and editor highlights, but the rows stay. Removing the exemption brings them back, and retention ages them out otherwise. `scanHistory` still shows them, since exempting a site doesn't make its past scans untrue. The page tree shows a badge only on targets with open findings; clean, unscanned, and exempt targets all show nothing, to keep the tree uncluttered. The badge's tooltip gives counts per severity level, and everything else about a finding lives on the edit page.
 
-**In the admin UI**, the site detail page (`dosgato-admin` `src/routes/sites/[id]`) gets a "Scanning" `DetailPanel` next to "Authorized Templates", built the same way. It has a site-wide "Exempt from all scanning" toggle, then each non-hidden scanner that applies to sites (any of `scansPages`/`scansAssets`/`scansData`) with its status on this site (Active, Exempt, or Not enabled) and an Exempt, Enable, or Reset to default action. With the site-wide exemption on, the per-scanner rows show as exempt and their controls are disabled. Site managers can see the panel, but only `manageScanners` holders can change it (actions gated by `site.permissions.manageScanning`): accessibility scanning is a compliance tool, and a site shouldn't be able to waive it for itself.
+**In the admin UI**, the site detail page (`dosgato-admin` `src/routes/sites/[id]`) gets a "Scanning" `DetailPanel` next to "Authorized Templates", built the same way. It has a site-wide "Exempt from all scanning" toggle, then each non-hidden scanner with its status on this site (Active, Exempt, or Not enabled) and an Exempt, Enable, or Reset to default action. With the site-wide exemption on, the per-scanner rows show as exempt and their controls are disabled. Site managers can see the panel, but only `manageScanners` holders can change it (actions gated by `site.permissions.manageScanning`): accessibility scanning is a compliance tool, and a site shouldn't be able to waive it for itself.
 
 The new global **Scanners** admin page gives the registry mutations a home:
 
-- Lists scanners with client id, display name, target types, opt-in flag, hidden flag, and the count of exempt sites (or, for opt-in scanners, enabled sites).
-- Adds a scanner: client id, display name, target types, opt-in, retention settings.
+- Lists scanners with client id, display name, target types (as declared by the scanner, read-only), opt-in flag, hidden flag, and the count of exempt sites (or, for opt-in scanners, enabled sites).
+- Adds a scanner: client id, display name, opt-in, retention settings.
 - Edits those plus the hidden flag. Opt-in is its own control, since it calls `setScannerOptIn`; its confirmation explains that existing sites keep their status.
 - Deletes a scanner, with a confirmation naming how many scans will go.
 - Shows and edits each scanner's exempt (or enabled) sites.
@@ -589,7 +598,7 @@ The only thing the flip changes is the default for sites without a row, which in
 
 `scannedVersion` and `scannedSchemaVersion` together pin the exact content the scanner saw: stored version N migrated to schemaversion S, which the existing `getData(target, N, published, S)` path reproduces. Version alone isn't enough, because a software update adds migrations, and the same stored version can then migrate to differently shaped data, with different paths. Asset version data includes the shasum, so the exact binary is recoverable too; assets have no schemaversion.
 
-Both are **required** in `recordScans`, with no server-side default. A guessed version ("current at recording time") is silently wrong if the target changed mid-scan, and a guessed schemaversion is wrong for any scanner that fetched through the render server, which has its own build-time schemaversion. Scanners that fetch from the API know both from their query; scanners that fetch a render need the render server to expose them (deferred below). Versioned storage's retention policy deletes old untagged versions, so reconstruction is best-effort: **if the scanned version has been pruned, the recreate code falls back to the oldest version still retained.** Scanned versions are not pinned/tagged — version retention stays intact. The UI should indicate when it's showing the fallback rather than the exact scanned version, and that a finding's path may not line up with it.
+Both are **required** in `recordScans`, with no server-side default. A guessed version ("current at recording time") is silently wrong if the target changed mid-scan, and a guessed schemaversion is wrong for any scanner that fetched through the render server, which has its own build-time schemaversion. Scanners that fetch from the API know both from their query. DOM-based scanners request a specific version from the preview render and report the schemaversion of the page data they used to map nodes to paths; the render server's own build-time schemaversion doesn't matter, since paths come from that page data. Versioned storage's retention policy deletes old untagged versions, so reconstruction is best-effort: **if the scanned version has been pruned, the recreate code falls back to the oldest version still retained.** Scanned versions are not pinned/tagged — version retention stays intact. The UI should indicate when it's showing the fallback rather than the exact scanned version, and that a finding's path may not line up with it.
 
 ### History & retention
 
@@ -608,18 +617,18 @@ Both settings are per scanner, set with `createScanner`/`updateScanner` or in a 
 
 Scanners are registered on purpose. A scanner's name is its JWT `client_id`, and there are two ways to add one:
 
-- **By an admin** holding the new `manageScanners` global grant, on the Scanners admin page (`createScanner`). The admin enters the client id, a display name, and which target types it scans.
+- **By an admin** holding the new `manageScanners` global grant, on the Scanners admin page (`createScanner`). The admin enters the client id and a display name; the scanner declares its own target types when it starts up.
 - **By a software release.** A project that ships a scanner alongside a release (say, dosgato-txstate) registers it with a migration through the existing `moreMigrations` hook, so every environment picks it up on upgrade with no human step:
 
   ```ts
   { id: 20261101120000, description: 'register the staleness scanner', run: async db => {
-    await db.insert('INSERT INTO scanners (name, displayName, scansPages, scansAssets, scansData, optIn) VALUES (?, ?, 1, 0, 1, 1)', ['dg-staleness', 'Content Staleness'])
+    await db.insert('INSERT INTO scanners (name, displayName, optIn) VALUES (?, ?, 1)', ['dg-staleness', 'Content Staleness'])
   } }
   ```
 
 Why not let a scanner register itself on its first `recordScans`? Its client id is authenticated, so it can't impersonate another scanner. But being authenticated isn't the same as being approved, and since findings put alert icons in front of editors, we want a person (or a release) to have decided a scanner belongs here. Otherwise any service with client credentials could start posting alerts.
 
-`updateScanner` changes the display name, target types, retention settings, and `hidden` flag (the opt-in flag has its own mutation, see "Site controls"); hiding keeps a retired scanner's history out of the UI. `deleteScanner` removes the scanner along with all its scans, findings, responses, claims, and per-site settings, so the admin page should confirm with a count first. To cut a misbehaving scanner off immediately without losing its history, disable its user account. The server's `send403` hook already rejects every request whose user is missing or disabled, so its token stops working for both reading and recording.
+`updateScanner` changes the display name, retention settings, and `hidden` flag (the opt-in flag has its own mutation, see "Site controls"); hiding keeps a retired scanner's history out of the UI. `deleteScanner` removes the scanner along with all its scans, findings, responses, claims, and per-site settings, so the admin page should confirm with a count first. To cut a misbehaving scanner off immediately without losing its history, disable its user account. The server's `send403` hook already rejects every request whose user is missing or disabled, so its token stops working for both reading and recording.
 
 ### Authorization
 
@@ -645,11 +654,9 @@ Pagetree promotion only changes the pagetree's `type` — page rows are untouche
 
 ## Deferred
 
-- **Render-server support for DOM-based scanners.** A render mode (preview with a flag, using the scanner's service token) that adds `data-path` to each component's root element, exposes the version and schemaversion it rendered (e.g. a meta tag), and ideally accepts a requested version so the scanner can pin the version from its candidate query instead of racing an edit. The axe use case depends on this; verify it's feasible before committing.
 - Site/folder-level rollup queries for dashboards (a GROUP BY over open findings on current scans).
 - Trend display UI — the data is there (`scanHistory`); chart design is a front-end question.
 - Findings that span targets, like two pages giving different deadlines for the same thing. A finding belongs to exactly one target in this design.
-- Findings on assets. Binary content has no components, but unlocated asset findings could reuse the same table shape.
 - Asset metadata edits (alt text, title) trip `modifiedSinceScan` just like binary replacement; if a scanner ever cares only about binary changes, a `scannedShasum` column on assetscans could be added as another filterable fact.
 - `modifiedAt` lives on `storage.modified` and `publishedAt` on the version `tags` table — verify the scan-relative filter JOINs perform acceptably or add indexes there.
 - Editor-facing "request rescan now" button — would need a signal to scanners; a `rescanRequestedAt` column would be an easy hook if wanted.
