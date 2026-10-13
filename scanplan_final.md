@@ -6,14 +6,14 @@ The API's responsibilities:
 
 1. **Expose the facts scanners need to build their own worklists** — with indexed queries. Scheduling and prioritization policy belongs entirely to the scanner; the CMS computes no staleness judgment of its own.
 2. **Store results** — scanner, time, status, summary counts, and located findings, with history.
-3. **Show findings to editors** — badges on pages, a list of pages with findings on the editor dashboard, and highlighted components in the page editor, where an editor can mark a finding as still good or dismiss it.
+3. **Show findings to editors** — badges on pages and on each site's dashboard card, a list of pages with findings on each site's dashboard page, and a warning icon on flagged components' edit bars in the page editor, where an editor can mark a finding as still good or dismiss it.
 4. **Keep findings stable across rescans** — so an editor's response, and a finding's activation date, survive edits to unrelated parts of the page.
 5. **Coordinate concurrent scanner instances** — an atomic claim mechanism so instances of the same scanner don't duplicate work.
 6. **Let admins control where scanners run** — exempt a site from one scanner or all of them, and keep expensive scanners off sites that haven't asked for them.
 
 ## The motivating case
 
-Broken links and WCAG warnings are the easy cases. The one that shaped most of this design is a **staleness scanner**. After a page is edited (with a 24-hour debounce), it asks an LLM to find content likely to go stale quickly, like step-by-step instructions for third-party software that will eventually get a UI update. The LLM suggests an expiration date for each piece it finds. Once a date passes, the page gets an alert icon and shows up in the dashboard's list of pages with findings. In the editor, each flagged component is highlighted until someone marks it as still good or edits it.
+Broken links and WCAG warnings are the easy cases. The one that shaped most of this design is a **staleness scanner**. After a page is edited (with a 24-hour debounce), it asks an LLM to find content likely to go stale quickly, like step-by-step instructions for third-party software that will eventually get a UI update. The LLM suggests an expiration date for each piece it finds. Once a date passes, the page gets an alert icon and shows up in its site's list of pages with findings on the dashboard. In the editor, each flagged component gets a warning icon on its edit bar until someone marks it as still good or edits it.
 
 Nothing in the API is staleness-specific, though. The same machinery serves explicit-date extraction ("Register by March 1"), annual figures like tuition, mandatory yearly reviews, axe results that need a human to verify them, link checks against sites that block bots, and LLM checks on alt text quality or style guide compliance. We'll come back to the staleness scanner as the running example.
 
@@ -484,7 +484,7 @@ The rule in the CMS is simple: **only the current scan's findings are live, and 
 In step 3 of the scanner flow, the scanner fetches its current findings with `currentPath(version: N, schemaversion: S)` for the version it's about to scan. A previous finding with a non-null `currentPath` sits on a component that hasn't changed. A new finding matches a previous one when its path equals the previous finding's `currentPath` and the categories match. So the staleness scanner:
 
 - **Echoes back findings on unchanged components** with their original `activeAt`, without sending those components to the LLM at all. That stops the date from creeping, and it's cheaper too: after the first scan, the model only sees what actually changed.
-- **Sends changed or new components to the LLM**, optionally with the old finding and the old and new text, so the model can judge whether the edit was substantive (new date) or cosmetic (keep the old one). A typo fix shouldn't reset a staleness date, but that judgment is policy, so it lives in the scanner.
+- **Sends changed or new components to the LLM** for a fresh judgment and a fresh date. Even a small edit counts: whoever made it had the component in front of them, so if they left the time-sensitive part alone, that's evidence it's still good.
 
 A deterministic scanner like axe can ignore all of this and report what it sees. If a template fix in a software update makes an axe violation go away without any data change, the finding simply isn't reported and it closes. That case is why the CMS doesn't keep unreported findings alive on its own.
 
@@ -535,7 +535,7 @@ A finding is **open** when all of these hold:
 
 (Counting only responses the finding allows; see the note about findings you can't respond to.)
 
-That's computed at query time. All badges, the dashboard list of pages with findings, editor highlights, and the `hasOpenFindings`/`openFindingMinLevel` filters run on open findings from current scans. The filter is a join through the current scan to its findings, left-joined to responses, using the `(pagescanId, activeAt)` index.
+That's computed at query time. All badges, the site dashboard's list of pages with findings, editor highlights, and the `hasOpenFindings`/`openFindingMinLevel` filters run on open findings from current scans. The filter is a join through the current scan to its findings, left-joined to responses, using the `(pagescanId, activeAt)` index.
 
 `issueCount` and `severities` on the scan are the scanner's summary **at scan time**, and they are for trend analysis only. **Never filter, badge, or alert on them** — they can't reflect editor responses or findings that activate later, so a page an editor has fully reviewed would still look broken, and a staleness finding would never appear at all. The consequence for scanner authors: if you want your results to alert, report findings. A scanner with nothing specific to point at reports page-level findings with no path. A summary-only scanner still feeds trends and the worklist facts (`neverScanned`, `scannedBefore`, ...); it just never alerts.
 
@@ -560,7 +560,7 @@ Overrides go in one table with an `enabled` flag rather than separate exemption 
 - `claimScans` doesn't grant those targets, with a per-target message saying why.
 - `recordScans` rejects results for them with a per-result warning, which covers a scan that was already running when someone set the exemption.
 
-**Existing results are hidden, not deleted.** A site's findings for a scanner that's no longer enabled drop out of badges, the dashboard list, the open-findings filters, and editor highlights, but the rows stay. Removing the exemption brings them back, and retention ages them out otherwise. `scanHistory` still shows them, since exempting a site doesn't make its past scans untrue. The page tree shows a badge only on targets with open findings; clean, unscanned, and exempt targets all show nothing, to keep the tree uncluttered. The badge's tooltip gives counts per severity level, and everything else about a finding lives on the edit page.
+**Existing results are hidden, not deleted.** A site's findings for a scanner that's no longer enabled drop out of badges, the site dashboard's list, the open-findings filters, and editor highlights, but the rows stay. Removing the exemption brings them back, and retention ages them out otherwise. `scanHistory` still shows them, since exempting a site doesn't make its past scans untrue. The page tree shows a badge only on targets with open findings; clean, unscanned, and exempt targets all show nothing, to keep the tree uncluttered. The badge's tooltip gives counts per severity level, and everything else about a finding lives on the edit page.
 
 **In the admin UI**, the site detail page (`dosgato-admin` `src/routes/sites/[id]`) gets a "Scanning" `DetailPanel` next to "Authorized Templates", built the same way. It has a site-wide "Exempt from all scanning" toggle, then each non-hidden scanner with its status on this site (Active, Exempt, or Not enabled) and an Exempt, Enable, or Reset to default action. With the site-wide exemption on, the per-scanner rows show as exempt and their controls are disabled. Site managers can see the panel, but only `manageScanners` holders can change it (actions gated by `site.permissions.manageScanning`): accessibility scanning is a compliance tool, and a site shouldn't be able to waive it for itself.
 
@@ -654,7 +654,7 @@ Pagetree promotion only changes the pagetree's `type` — page rows are untouche
 
 ## Deferred
 
-- Site/folder-level rollup queries for dashboards (a GROUP BY over open findings on current scans).
+- Folder-level rollups. The per-site badge on the dashboard needs an open-findings count per site (a GROUP BY over open findings on current scans), but nothing finer for now.
 - Trend display UI — the data is there (`scanHistory`); chart design is a front-end question.
 - Findings that span targets, like two pages giving different deadlines for the same thing. A finding belongs to exactly one target in this design.
 - Asset metadata edits (alt text, title) trip `modifiedSinceScan` just like binary replacement; if a scanner ever cares only about binary changes, a `scannedShasum` column on assetscans could be added as another filterable fact.

@@ -19,6 +19,8 @@
   --panel-head: #cfe8ea;
   --asset-head: #ead9c6;
   --d1: #bc8cbf;
+  --tag: #006699;
+  --dash-head: #f5f1ee;
   --d2: #7fb0b8;
   --sev5: #b3261e; --sev5-bg: #fde7e5;
   --sev4: #b4560f; --sev4-bg: #fdecdc;
@@ -34,7 +36,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #12161c; --surface: #1b2129; --ink: #e5e9ef; --muted: #9aa5b4; --line: #2f3844; --soft: #232a34;
-    --accent: #5cc3cc; --accent-soft: #173a3e; --panel-head: #1f4a4f; --asset-head: #4a3b2b; --d1: #8e5f92; --d2: #4f8790;
+    --accent: #5cc3cc; --accent-soft: #173a3e; --panel-head: #1f4a4f; --asset-head: #4a3b2b; --d1: #8e5f92; --d2: #4f8790; --tag: #5fb3d9; --dash-head: #2c2a28;
     --sev5: #ff8a80; --sev5-bg: #4a1f1c; --sev4: #ffb06b; --sev4-bg: #4a2d14; --sev3: #e9c75a; --sev3-bg: #3f3511;
     --sev2: #a9bdd3; --sev2-bg: #283545; --ok: #7fd3a0; --ok-bg: #1a3a27; --highlight: #e3a13f;
     color-scheme: dark;
@@ -42,14 +44,14 @@
 }
 :root[data-theme="dark"] {
   --bg: #12161c; --surface: #1b2129; --ink: #e5e9ef; --muted: #9aa5b4; --line: #2f3844; --soft: #232a34;
-  --accent: #5cc3cc; --accent-soft: #173a3e; --panel-head: #1f4a4f; --asset-head: #4a3b2b; --d1: #8e5f92; --d2: #4f8790;
+  --accent: #5cc3cc; --accent-soft: #173a3e; --panel-head: #1f4a4f; --asset-head: #4a3b2b; --d1: #8e5f92; --d2: #4f8790; --tag: #5fb3d9; --dash-head: #2c2a28;
   --sev5: #ff8a80; --sev5-bg: #4a1f1c; --sev4: #ffb06b; --sev4-bg: #4a2d14; --sev3: #e9c75a; --sev3-bg: #3f3511;
   --sev2: #a9bdd3; --sev2-bg: #283545; --ok: #7fd3a0; --ok-bg: #1a3a27; --highlight: #e3a13f;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--font-body); }
-.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; }
 header.top h1 { font: 800 clamp(1.7rem, 4vw, 2.4rem)/1.15 var(--font-display); margin: 0 0 6px; text-wrap: balance; letter-spacing: -0.01em; }
 header.top p { margin: 0; color: var(--muted); max-width: 65ch; }
 nav.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 24px 0 28px; border-bottom: 1px solid var(--line); }
@@ -103,6 +105,10 @@ section.tab h3 { font: 700 1.1rem/1.3 var(--font-display); margin: 32px 0 8px; }
 .finding-mini .who { font-size: 0.75rem; color: var(--muted); }
 
 .tipcell { position: relative; }
+.cellrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tagind { width: 13px; height: 14px; flex: none; }
+.trail { display: inline-flex; align-items: center; gap: 6px; }
+.tree .tipcell .tip { left: auto; right: 0; }
 .tip { position: absolute; top: calc(100% - 2px); left: 6px; z-index: 2; display: grid; gap: 3px; min-width: 150px; padding: 8px 10px; border-radius: 4px; background: var(--ink); color: var(--bg); font: 0.78rem/1.4 var(--font-ui); box-shadow: 0 6px 16px rgb(0 0 0 / 0.2); }
 .tip span { display: flex; align-items: center; gap: 6px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: inline-block; }
@@ -133,7 +139,9 @@ ol.pc-p { padding-left: 20px; }
 .side.actions h4 { margin-bottom: 6px; }
 .act { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 3px; font-size: 0.85rem; }
 .act svg { width: 15px; height: 15px; }
-.act.new { background: var(--sev5-bg); color: var(--sev5); font-weight: 600; }
+.act.new svg { color: var(--muted); }
+.editor .side.actions .act:not(.new) { opacity: 0.4; }
+.act .count { margin-left: auto; color: var(--muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
 .closex { margin-left: auto; color: var(--muted); font-weight: 400; }
 .actsep { border-top: 1px solid var(--line); margin: 6px 0; }
 .scanners-tree tr.hiddenrow td { color: var(--muted); }
@@ -202,6 +210,21 @@ ol.pc-p { padding-left: 20px; }
 .asset-stack { display: grid; gap: 16px; min-width: 0; }
 .asset-preview .pb { place-items: center; padding-block: 16px; }
 .filethumb.big { max-width: 260px; width: 100%; }
+.scards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; padding: 16px; }
+.scard { border: 1px solid var(--muted); border-radius: 4px; box-shadow: 4px 4px 0 0 var(--line); background: var(--surface); display: grid; }
+.scard-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; padding: 10px 12px; border-radius: 4px 4px 0 0; background: var(--soft); }
+.scard-head.launched { background: var(--ok-bg); }
+.scard-head.prelaunch { background: var(--sev3-bg); }
+.scard-left { display: grid; gap: 2px; }
+.scard-left .muted { font-size: 0.75rem; }
+.scard-icon { width: 22px; height: 22px; }
+.scard-right { display: grid; justify-items: end; gap: 6px; }
+.scard-state { font: 600 0.7rem var(--font-ui); letter-spacing: 0.06em; color: var(--muted); }
+.scard-body { padding: 10px 12px 14px; margin: 0; font-size: 0.8rem; }
+.dash-detail { padding: 16px; display: grid; gap: 12px; background: var(--soft); }
+.dash-title h4 { margin: 0; font: 700 1.3rem var(--font-display); }
+.dash-title .muted { font-size: 0.8rem; }
+.dpanel.dash .ph { background: var(--dash-head); }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
@@ -226,8 +249,10 @@ ol.pc-p { padding-left: 20px; }
 .kind span { font-size: 0.88rem; color: var(--muted); }
 .kind.feature { grid-column: 1 / -1; border-color: var(--accent); background: var(--accent-soft); }
 .kind.feature span { color: var(--ink); }
-.timeline { min-width: 720px; }
+.timeline { min-width: 1000px; }
 .timeline text { font-family: var(--font-ui); }
+.oos-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; align-items: start; }
+.oos-cols h3 { margin-top: 8px; }
 .oos { display: grid; gap: 10px; max-width: 75ch; padding: 0; list-style: none; margin: 12px 0; }
 .oos li { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; }
 .oos b { display: block; }
@@ -249,6 +274,7 @@ ol.pc-p { padding-left: 20px; }
   <symbol id="i-archive" viewBox="0 0 256 256"><path fill="currentColor" d="M224 48H32a16 16 0 0 0-16 16v24a16 16 0 0 0 16 16v88a16 16 0 0 0 16 16h160a16 16 0 0 0 16-16v-88a16 16 0 0 0 16-16V64a16 16 0 0 0-16-16Zm-16 144H48v-88h160Zm16-104H32V64h192v24ZM96 136a8 8 0 0 1 8-8h48a8 8 0 0 1 0 16h-48a8 8 0 0 1-8-8Z"/></symbol>
   <symbol id="i-sandbox" viewBox="0 0 25.672 23.732"><path fill="currentColor" d="M156.638,19.465c-.18,1.17.865,2.157,1.567,2.821.792.748,1.736,1.636,2.821,1.411a2.041,2.041,0,0,0,1.057-.633l10.542-10.542L174.2,14.1l1.708,1.706a2.2,2.2,0,0,0,2.717.231l3.15-3.15a1.757,1.757,0,0,0,0-2.483l-7.408-7.459A12.106,12.106,0,0,0,163.429.385a1.25,1.25,0,0,0-.6,2.073l5.042,5.307L156.949,18.684a1.948,1.948,0,0,0-.311.781m3.814,1.969L158.9,19.88a.467.467,0,0,1,0-.661l7.137-7.137,2.271,2.272-7.08,7.08a.548.548,0,0,1-.775,0M172,10.655,169.55,13.11l-2.272-2.27,2.454-2.454a.879.879,0,0,0,0-1.243h0l-5.2-5.2a8.785,8.785,0,0,1,8.59,2.241l4.856,4.888-3.159,3.156-1.575-1.575a.878.878,0,0,0-1.242,0h0m5.381,4.136-1.318-1.318,3.147-3.155,1.318,1.318Z" transform="translate(-156.617 0)"/></symbol>
   <symbol id="i-scan" viewBox="0 0 256 256"><path fill="currentColor" d="M229.66 218.34l-50.07-50.06a88.11 88.11 0 1 0-11.31 11.31l50.06 50.07a8 8 0 0 0 11.32-11.32ZM40 112a72 72 0 1 1 72 72a72.08 72.08 0 0 1-72-72Z"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 14 15"><path d="M0 2C0 1.1875 0.65625 0.5 1.5 0.53125H6.15625C6.6875 0.53125 7.1875 0.71875 7.5625 1.09375L13.0625 6.59375C13.8438 7.375 13.8438 8.65625 13.0625 9.4375L8.90625 13.5938C8.125 14.375 6.84375 14.375 6.0625 13.5938L0.5625 8.09375C0.1875 7.71875 0 7.21875 0 6.6875V2ZM3.5 3C2.9375 3 2.5 3.46875 2.5 4C2.5 4.5625 2.9375 5 3.5 5C4.03125 5 4.5 4.5625 4.5 4C4.5 3.46875 4.03125 3 3.5 3Z" fill="var(--tag)"/></symbol>
   <symbol id="i-chev" viewBox="0 0 16 16"><path fill="currentColor" d="M5 6l3 3 3-3 1 1-4 4-4-4 1-1Z"/></symbol>
   <symbol id="i-out" viewBox="0 0 16 16"><path fill="currentColor" d="M9 2h5v5h-1.5V4.56L7.53 9.53 6.47 8.47l4.97-4.97H9V2ZM3 4h4v1.5H4.5v6h6V9H12v4H3V4Z"/></symbol>
 </svg>
@@ -263,7 +289,7 @@ ol.pc-p { padding-left: 20px; }
     <button role="tab" id="t-overview" aria-controls="overview" aria-selected="true">Kinds of scans</button>
     <button role="tab" id="t-tree" aria-controls="tree" aria-selected="false">Page tree</button>
     <button role="tab" id="t-editor" aria-controls="editor" aria-selected="false">Editing</button>
-    <button role="tab" id="t-reports" aria-controls="reports" aria-selected="false">Reports</button>
+    <button role="tab" id="t-dashboard" aria-controls="dashboard" aria-selected="false">Dashboard</button>
     <button role="tab" id="t-scanners" aria-controls="scanners" aria-selected="false">Managing scanners</button>
     <button role="tab" id="t-site" aria-controls="site" aria-selected="false">Site settings</button>
     <button role="tab" id="t-oos" aria-controls="oos" aria-selected="false">Out of scope</button>
@@ -276,73 +302,114 @@ ol.pc-p { padding-left: 20px; }
       <p>Scanners can check pages, data entries, and assets. They run on live sites and on sandboxes, so a site can be checked before it launches, and when a sandbox is promoted its results and editor responses carry over. Archives are never scanned.</p>
     </div>
     <div class="kinds">
-      <div class="kind feature"><b>Staleness</b><span>An AI model reads a page after it's edited and flags content likely to go out of date soon, like step-by-step instructions for third-party software, each with a suggested expiration date. Nobody sees anything until that date arrives.</span></div>
+      <div class="kind feature"><b>Staleness</b><span>An AI model reads a page after it's edited and flags content likely to go out of date, each with a suggested expiration date: step-by-step instructions for third-party software, explicit dates ("Register by March 1"), figures that change every year like tuition and fees. Nobody sees anything until that date arrives. The scanner can also add a whole-page "due for its yearly review" finding to every page, regardless of what the AI says.</span></div>
       <div class="kind"><b>Accessibility</b><span>WCAG checks on rendered pages. A problem that can't be traced to its exact section is attached to a larger section around it.</span></div>
       <div class="kind"><b>Broken links</b><span>Links that 404, redirect, or time out.</span></div>
       <div class="kind"><b>Content quality</b><span>AI checks for meaningless alt text, plain language, brand style, inclusive language.</span></div>
       <div class="kind"><b>Sensitive data</b><span>Student IDs or SSNs that shouldn't be on a public page.</span></div>
-      <div class="kind"><b>Explicit dates</b><span>"Register by March 1" becomes a problem on March 2.</span></div>
-      <div class="kind"><b>Yearly figures</b><span>Tuition, fees, catalog-year requirements.</span></div>
-      <div class="kind"><b>Mandatory reviews</b><span>Every page must be looked at once a year.</span></div>
     </div>
 
     <h3>How a staleness finding plays out</h3>
     <div class="prose"><p>A naive scanner would re-read the page after every edit and push the expiration date out forever. Because we track each flagged section by its content rather than its position, edits elsewhere on the page don't touch the date. Only editing the flagged section itself starts over.</p></div>
     <div class="sketch">
-      <svg class="timeline" viewBox="0 0 1000 230" role="img" aria-label="Timeline: page edited in March, scanner flags instructions with an expiry in September, unrelated edits in April and June don't move the date, alert appears in September, editor verifies until next March">
-        <line x1="40" y1="110" x2="960" y2="110" stroke="var(--line)" stroke-width="3"/>
-        <rect x="560" y="98" width="140" height="24" fill="var(--sev3-bg)"/>
-        <rect x="700" y="98" width="260" height="24" fill="var(--ok-bg)"/>
+      <svg class="timeline" viewBox="0 0 1200 230" role="img" aria-label="Timeline: page edited in March, scanner flags instructions with an expiry in September, unrelated edits in April and June don't move the date, alert appears in September, editor verifies until next March">
+        <line x1="40" y1="110" x2="1170" y2="110" stroke="var(--line)" stroke-width="3"/>
+        <rect x="690" y="98" width="160" height="24" fill="var(--sev3-bg)"/>
+        <rect x="850" y="98" width="320" height="24" fill="var(--ok-bg)"/>
         <g font-size="13" fill="var(--ink)">
-          <circle cx="70" cy="110" r="8" fill="var(--accent)"/>
-          <text x="70" y="78" text-anchor="middle" font-weight="600">Mar 3</text>
-          <text x="70" y="150" text-anchor="middle">Editor adds Duo</text>
-          <text x="70" y="166" text-anchor="middle">instructions</text>
+          <circle cx="90" cy="110" r="8" fill="var(--accent)"/>
+          <text x="90" y="78" text-anchor="middle" font-weight="600">Mar 3</text>
+          <text x="90" y="150" text-anchor="middle">Editor adds Duo</text>
+          <text x="90" y="166" text-anchor="middle">instructions</text>
 
-          <circle cx="160" cy="110" r="8" fill="var(--accent)"/>
-          <text x="160" y="78" text-anchor="middle" font-weight="600">Mar 4</text>
-          <text x="160" y="150" text-anchor="middle">Scanner flags them:</text>
-          <text x="160" y="166" text-anchor="middle">"stale after Sep 1"</text>
+          <circle cx="260" cy="110" r="8" fill="var(--accent)"/>
+          <text x="260" y="78" text-anchor="middle" font-weight="600">Mar 4</text>
+          <text x="260" y="150" text-anchor="middle">Scanner flags them:</text>
+          <text x="260" y="166" text-anchor="middle">"stale after Sep 1"</text>
 
-          <circle cx="300" cy="110" r="6" fill="var(--surface)" stroke="var(--muted)" stroke-width="2"/>
-          <text x="300" y="78" text-anchor="middle" fill="var(--muted)">Apr 12</text>
           <circle cx="420" cy="110" r="6" fill="var(--surface)" stroke="var(--muted)" stroke-width="2"/>
-          <text x="420" y="78" text-anchor="middle" fill="var(--muted)">Jun 20</text>
-          <text x="360" y="150" text-anchor="middle" fill="var(--muted)">Edits elsewhere on the page.</text>
-          <text x="360" y="166" text-anchor="middle" fill="var(--muted)">Rescanned, date stays Sep 1.</text>
+          <text x="420" y="78" text-anchor="middle" fill="var(--muted)">Apr 12</text>
+          <circle cx="540" cy="110" r="6" fill="var(--surface)" stroke="var(--muted)" stroke-width="2"/>
+          <text x="540" y="78" text-anchor="middle" fill="var(--muted)">Jun 20</text>
+          <text x="480" y="150" text-anchor="middle" fill="var(--muted)">Edits elsewhere on the page.</text>
+          <text x="480" y="166" text-anchor="middle" fill="var(--muted)">Rescanned, date stays Sep 1.</text>
 
-          <circle cx="560" cy="110" r="9" fill="var(--sev3)"/>
-          <text x="560" y="78" text-anchor="middle" font-weight="600">Sep 1</text>
-          <text x="560" y="150" text-anchor="middle">Alert badge appears,</text>
-          <text x="560" y="166" text-anchor="middle">section gets an icon</text>
+          <circle cx="690" cy="110" r="9" fill="var(--sev3)"/>
+          <text x="690" y="78" text-anchor="middle" font-weight="600">Sep 1</text>
+          <text x="690" y="150" text-anchor="middle">Alert badge appears,</text>
+          <text x="690" y="166" text-anchor="middle">section gets an icon</text>
 
-          <circle cx="700" cy="110" r="8" fill="var(--ok)"/>
-          <text x="700" y="78" text-anchor="middle" font-weight="600">Sep 9</text>
-          <text x="700" y="150" text-anchor="middle">Editor: verified,</text>
-          <text x="700" y="166" text-anchor="middle">check again in 6 months</text>
+          <circle cx="850" cy="110" r="8" fill="var(--ok)"/>
+          <text x="850" y="78" text-anchor="middle" font-weight="600">Sep 9</text>
+          <text x="850" y="150" text-anchor="middle">Editor: verified,</text>
+          <text x="850" y="166" text-anchor="middle">check again in 6 months</text>
 
-          <circle cx="930" cy="110" r="8" fill="var(--sev3)"/>
-          <text x="930" y="78" text-anchor="middle" font-weight="600">Mar 9</text>
-          <text x="930" y="150" text-anchor="middle">Back again; next</text>
-          <text x="930" y="166" text-anchor="middle">default is 6 months</text>
+          <circle cx="1100" cy="110" r="8" fill="var(--sev3)"/>
+          <text x="1100" y="78" text-anchor="middle" font-weight="600">Mar 9</text>
+          <text x="1100" y="150" text-anchor="middle">Back again; next</text>
+          <text x="1100" y="166" text-anchor="middle">default is 6 months</text>
         </g>
         <g font-size="11" font-family="var(--font-ui)" fill="var(--muted)" letter-spacing="1">
-          <text x="350" y="40" text-anchor="middle">QUIET: NOBODY SEES ANYTHING</text>
-          <text x="630" y="40" text-anchor="middle">OPEN</text>
-          <text x="830" y="40" text-anchor="middle">VERIFIED</text>
+          <text x="475" y="40" text-anchor="middle">QUIET: NOBODY SEES ANYTHING</text>
+          <text x="770" y="40" text-anchor="middle">OPEN</text>
+          <text x="975" y="40" text-anchor="middle">VERIFIED</text>
         </g>
-        <line x1="170" y1="50" x2="550" y2="50" stroke="var(--line)" stroke-width="1"/>
-        <line x1="570" y1="50" x2="690" y2="50" stroke="var(--sev3)" stroke-width="2"/>
-        <line x1="710" y1="50" x2="920" y2="50" stroke="var(--ok)" stroke-width="2"/>
+        <line x1="270" y1="50" x2="680" y2="50" stroke="var(--line)" stroke-width="1"/>
+        <line x1="700" y1="50" x2="840" y2="50" stroke="var(--sev3)" stroke-width="2"/>
+        <line x1="860" y1="50" x2="1090" y2="50" stroke="var(--ok)" stroke-width="2"/>
       </svg>
     </div>
+
+    <h3>When the editor rewrites the flagged section</h3>
+    <div class="prose"><p>Editing the flagged section itself is the other way a finding ends. The old flag goes away at the next scan, and the AI judges the new text from scratch, so the old date no longer applies.</p></div>
+    <div class="sketch">
+      <svg class="timeline" viewBox="0 0 1200 230" role="img" aria-label="Timeline: instructions flagged in March with an expiry in September, editor rewrites them in June, the next day the scanner drops the old flag and gives the new text an expiry the following June, September passes with no alert, alert appears the following June">
+        <line x1="48" y1="110" x2="1152" y2="110" stroke="var(--line)" stroke-width="4"/>
+        <rect x="1032" y="98" width="120" height="24" fill="var(--sev3-bg)"/>
+        <g font-size="13" fill="var(--ink)">
+          <circle cx="114" cy="110" r="8" fill="var(--accent)"/>
+          <text x="114" y="78" text-anchor="middle" font-weight="600">Mar 4</text>
+          <text x="114" y="150" text-anchor="middle">Duo instructions flagged:</text>
+          <text x="114" y="166" text-anchor="middle">"stale after Sep 1"</text>
+
+          <circle cx="312" cy="110" r="8" fill="var(--accent)"/>
+          <text x="312" y="78" text-anchor="middle" font-weight="600">Jun 20</text>
+          <text x="312" y="150" text-anchor="middle">Editor rewrites them</text>
+          <text x="312" y="166" text-anchor="middle">for Duo's new app</text>
+
+          <circle cx="540" cy="110" r="8" fill="var(--accent)"/>
+          <text x="540" y="78" text-anchor="middle" font-weight="600">Jun 21</text>
+          <text x="540" y="150" text-anchor="middle">Rescan: old flag closes;</text>
+          <text x="540" y="166" text-anchor="middle">new one: stale Jun 2027</text>
+
+          <circle cx="780" cy="110" r="6" fill="var(--surface)" stroke="var(--muted)" stroke-width="2"/>
+          <text x="780" y="78" text-anchor="middle" fill="var(--muted)">Sep 1</text>
+          <text x="780" y="150" text-anchor="middle" fill="var(--muted)">Nothing happens;</text>
+          <text x="780" y="166" text-anchor="middle" fill="var(--muted)">old date is gone</text>
+
+          <circle cx="1032" cy="110" r="9" fill="var(--sev3)"/>
+          <text x="1032" y="78" text-anchor="middle" font-weight="600">Jun 2027</text>
+          <text x="1032" y="150" text-anchor="middle">Alert for the</text>
+          <text x="1032" y="166" text-anchor="middle">new instructions</text>
+        </g>
+        <g font-size="11" font-family="var(--font-ui)" fill="var(--muted)" letter-spacing="1">
+          <text x="206" y="40" text-anchor="middle">QUIET</text>
+          <text x="786" y="40" text-anchor="middle">QUIET (NEW DATE)</text>
+          <text x="1092" y="40" text-anchor="middle">OPEN</text>
+        </g>
+        <line x1="114" y1="50" x2="300" y2="50" stroke="var(--line)" stroke-width="1"/>
+        <line x1="552" y1="50" x2="1020" y2="50" stroke="var(--line)" stroke-width="1"/>
+        <line x1="1044" y1="50" x2="1152" y2="50" stroke="var(--sev3)" stroke-width="2"/>
+      </svg>
+    </div>
+    <p class="caption">Any edit to the section counts, even a small one. Someone who edited it had the content in front of them, so if they left the time-sensitive part alone, that's good evidence it's still accurate. If the AI decides the new text isn't likely to go stale, there's simply no new finding.</p>
   </section>
 
   <!-- ============ PAGE TREE ============ -->
   <section class="tab" id="tree" role="tabpanel" aria-labelledby="t-tree" hidden>
     <h2>Badges in the page tree</h2>
     <div class="prose">
-      <p>The page tree is busy already, so scanning adds as little as possible: a small badge on pages that have open findings, and nothing at all on every other page. The badge counts open findings and takes the color of the most severe one. Hovering it shows the count for each severity. Everything else about a finding lives on the edit page.</p>
+      <p>The page tree is busy already, so scanning adds as little as possible: a small badge at the right edge of the Name column on pages that have open findings, next to the existing page-tags indicator, and nothing at all on every other page. The badge counts open findings and takes the color of the most severe one. Hovering it shows the count for each severity. Everything else about a finding lives on the edit page.</p>
       <p>Findings whose date hasn't arrived, or that an editor has verified or dismissed, don't count.</p>
       <p>One open question: when a collapsed page has no findings of its own but some of its subpages do, nothing in the tree hints at them. We don't have a design for that yet.</p>
     </div>
@@ -350,19 +417,19 @@ ol.pc-p { padding-left: 20px; }
       <div class="frame">
         <div class="chrome"><span class="dots"><i></i><i></i><i></i></span> Pages <span class="label">Sketch</span></div>
         <table class="tree">
-          <thead><tr><th>Name</th><th>Title</th><th>Template</th><th>Findings</th><th>Modified</th></tr></thead>
+          <thead><tr><th>Name</th><th>Title</th><th>Template</th><th>Modified</th></tr></thead>
           <tbody>
-            <tr><td><span class="nm site"><svg><use href="#i-chev"/></svg><svg><use href="#i-browser"/></svg>admissions</span></td><td>Admissions</td><td>Home</td><td></td><td class="num">Sep 2, 2026</td></tr>
-            <tr class="sel"><td><span class="nm" style="padding-left:22px"><svg><use href="#i-chev"/></svg><svg><use href="#i-browser"/></svg>apply</span></td><td>How to Apply</td><td>Standard</td><td class="tipcell"><span class="badge l4"><svg><use href="#i-warn"/></svg>2</span>
-              <div class="tip" role="tooltip"><b>2 open findings</b><span><span class="dot l4"></span>1 serious</span><span><span class="dot l3"></span>1 moderate</span></div></td><td class="num">Sep 28, 2026</td></tr>
-            <tr><td><span class="nm" style="padding-left:52px"><svg><use href="#i-browser"/></svg>deadlines</span></td><td>Application Deadlines</td><td>Standard</td><td></td><td class="num">Mar 14, 2026</td></tr>
-            <tr><td><span class="nm" style="padding-left:52px"><svg><use href="#i-browser"/></svg>it-setup</span></td><td>Set Up Your NetID</td><td>Standard</td><td><span class="badge l5"><svg><use href="#i-warn"/></svg>3</span></td><td class="num">Oct 9, 2026</td></tr>
-            <tr><td><span class="nm" style="padding-left:52px"><svg><use href="#i-browser"/></svg>transfer</span></td><td>Transfer Students</td><td>Standard</td><td></td><td class="num">Jul 7, 2026</td></tr>
-            <tr><td><span class="nm" style="padding-left:22px"><svg><use href="#i-browser"/></svg>tuition</span></td><td>Tuition &amp; Fees</td><td>Standard</td><td><span class="badge l3"><svg><use href="#i-warn"/></svg>1</span></td><td class="num">Aug 1, 2025</td></tr>
-            <tr><td><span class="nm" style="padding-left:22px"><svg><use href="#i-browser"/></svg>visit</span></td><td>Visit Campus</td><td>Standard</td><td></td><td class="num">Oct 11, 2026</td></tr>
-            <tr><td><span class="nm site"><svg><use href="#i-chev"/></svg><svg><use href="#i-sandbox"/></svg>admissions-2027</span></td><td>Admissions (redesign)</td><td>Home</td><td><span class="badge l4"><svg><use href="#i-warn"/></svg>12</span></td><td class="num">Oct 10, 2026</td></tr>
-            <tr><td><span class="nm site"><svg><use href="#i-chev"/></svg><svg><use href="#i-archive"/></svg>admissions-2025</span></td><td>Admissions (2025 archive)</td><td>Home</td><td></td><td class="num">Jun 30, 2025</td></tr>
-            <tr><td><span class="nm site"><svg><use href="#i-chev"/></svg><svg><use href="#i-browser"/></svg>library-pdf-archive</span></td><td>Library PDF Archive</td><td>Home</td><td></td><td class="num">Jan 4, 2019</td></tr>
+            <tr><td><span class="cellrow"><span class="nm site"><svg><use href="#i-chev"/></svg><svg><use href="#i-browser"/></svg>admissions</span></span></td><td>Admissions</td><td>Home</td><td class="num">Sep 2, 2026</td></tr>
+            <tr class="sel"><td class="tipcell"><span class="cellrow"><span class="nm" style="padding-left:22px"><svg><use href="#i-chev"/></svg><svg><use href="#i-browser"/></svg>apply</span><span class="trail"><svg class="tagind" viewBox="0 0 14 15" aria-label="has page tags"><use href="#i-tag"/></svg><span class="badge l4"><svg><use href="#i-warn"/></svg>2</span></span></span>
+              <div class="tip" role="tooltip"><b>2 open findings</b><span><span class="dot l4"></span>1 serious</span><span><span class="dot l3"></span>1 moderate</span></div></td><td>How to Apply</td><td>Standard</td><td class="num">Sep 28, 2026</td></tr>
+            <tr><td><span class="cellrow"><span class="nm" style="padding-left:52px"><svg><use href="#i-browser"/></svg>deadlines</span><span class="trail"><svg class="tagind" viewBox="0 0 14 15" aria-label="has page tags"><use href="#i-tag"/></svg></span></span></td><td>Application Deadlines</td><td>Standard</td><td class="num">Mar 14, 2026</td></tr>
+            <tr><td><span class="cellrow"><span class="nm" style="padding-left:52px"><svg><use href="#i-browser"/></svg>it-setup</span><span class="trail"><span class="badge l5"><svg><use href="#i-warn"/></svg>3</span></span></span></td><td>Set Up Your NetID</td><td>Standard</td><td class="num">Oct 9, 2026</td></tr>
+            <tr><td><span class="cellrow"><span class="nm" style="padding-left:52px"><svg><use href="#i-browser"/></svg>transfer</span></span></td><td>Transfer Students</td><td>Standard</td><td class="num">Jul 7, 2026</td></tr>
+            <tr><td><span class="cellrow"><span class="nm" style="padding-left:22px"><svg><use href="#i-browser"/></svg>tuition</span><span class="trail"><svg class="tagind" viewBox="0 0 14 15" aria-label="has page tags"><use href="#i-tag"/></svg><span class="badge l3"><svg><use href="#i-warn"/></svg>1</span></span></span></td><td>Tuition &amp; Fees</td><td>Standard</td><td class="num">Aug 1, 2025</td></tr>
+            <tr><td><span class="cellrow"><span class="nm" style="padding-left:22px"><svg><use href="#i-browser"/></svg>visit</span></span></td><td>Visit Campus</td><td>Standard</td><td class="num">Oct 11, 2026</td></tr>
+            <tr><td><span class="cellrow"><span class="nm site"><svg><use href="#i-chev"/></svg><svg><use href="#i-sandbox"/></svg>admissions-2027</span><span class="trail"><span class="badge l4"><svg><use href="#i-warn"/></svg>12</span></span></span></td><td>Admissions (redesign)</td><td>Home</td><td class="num">Oct 10, 2026</td></tr>
+            <tr><td><span class="cellrow"><span class="nm site"><svg><use href="#i-chev"/></svg><svg><use href="#i-archive"/></svg>admissions-2025</span></span></td><td>Admissions (2025 archive)</td><td>Home</td><td class="num">Jun 30, 2025</td></tr>
+            <tr><td><span class="cellrow"><span class="nm site"><svg><use href="#i-chev"/></svg><svg><use href="#i-browser"/></svg>library-pdf-archive</span></span></td><td>Library PDF Archive</td><td>Home</td><td class="num">Jan 4, 2019</td></tr>
           </tbody>
         </table>
       </div>
@@ -375,7 +442,7 @@ ol.pc-p { padding-left: 20px; }
     <h2>Findings in the page editor</h2>
     <div class="prose">
       <p>Components aren't wrapped in the editor, they just have an edit bar above them, and edit bars are already color coded by depth. So the only addition to the page itself is a warning icon on the edit bar of each flagged component, with a tooltip summarizing its findings.</p>
-      <p>The full list goes in a panel that slides out over the actions panel, opened with a new "View Findings" action and closed again when the editor is done. Selecting a finding there scrolls to its component.</p>
+      <p>The full list goes in a panel that slides out over the actions panel, opened with a new "View Findings" action and closed again when the editor is done. Selecting a finding there scrolls to its component, and it works the other way too: clicking the warning icon on an edit bar opens the findings panel and highlights and scrolls to that component's finding.</p>
     </div>
     <div class="sketch">
       <div class="frame">
@@ -410,7 +477,7 @@ ol.pc-p { padding-left: 20px; }
             <span class="act">Preview</span>
             <span class="act">Publish Page</span>
             <span class="act">Schedule Publish</span>
-            <span class="act new"><svg><use href="#i-warn"/></svg>View Findings (3)</span>
+            <span class="act new"><svg><use href="#i-warn"/></svg>View Findings<span class="count">3</span></span>
           </div>
         </div>
       </div>
@@ -551,44 +618,77 @@ ol.pc-p { padding-left: 20px; }
     </div>
   </section>
 
-  <!-- ============ REPORTS ============ -->
-  <section class="tab" id="reports" role="tabpanel" aria-labelledby="t-reports" hidden>
-    <h2>Reports</h2>
+  <!-- ============ DASHBOARD ============ -->
+  <section class="tab" id="dashboard" role="tabpanel" aria-labelledby="t-dashboard" hidden>
+    <h2>Dashboard</h2>
     <div class="prose">
-      <p>The editor dashboard gets a new section listing pages with open findings on the editor's sites. It accounts for editor responses and for staleness dates that haven't arrived yet, so it only shows what needs attention today.</p>
+      <p>The dashboard stays focused on sites. Each site card gets a findings badge counting its open findings, colored by the most severe one. Like everywhere else, it accounts for editor responses and for staleness dates that haven't arrived yet, so it only reflects what needs attention today.</p>
     </div>
     <div class="sketch">
       <div class="frame">
         <div class="chrome"><span class="dots"><i></i><i></i><i></i></span> Dashboard <span class="label">Sketch</span></div>
-        <div class="toolbar" style="opacity:.55"><h4>My Sites</h4><span class="muted">4 total sites</span></div>
-        <div class="panels" style="opacity:.55; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))">
-          <div class="dpanel"><div class="pb"><b>admissions</b><span class="muted">Launched</span></div></div>
-          <div class="dpanel"><div class="pb"><b>admissions-2027</b><span class="muted">Sandbox</span></div></div>
-          <div class="dpanel"><div class="pb"><b>bursar</b><span class="muted">Launched</span></div></div>
-          <div class="dpanel"><div class="pb"><b>it-help</b><span class="muted">Launched</span></div></div>
+        <div class="toolbar"><h4>My Sites</h4><span class="muted">4 total sites</span></div>
+        <div class="scards">
+          <div class="scard">
+            <div class="scard-head launched">
+              <div class="scard-left"><svg class="scard-icon"><use href="#i-browser"/></svg><b>admissions</b><span class="muted">2 page trees</span></div>
+              <div class="scard-right"><span class="badge l5"><svg><use href="#i-warn"/></svg>6</span><span class="scard-state">ACTIVE</span></div>
+            </div>
+            <dl class="kv scard-body"><dt>Access Level:</dt><dd>Editor</dd><dt>Assigned URL:</dt><dd>www.txst.edu/admissions</dd></dl>
+          </div>
+          <div class="scard">
+            <div class="scard-head launched">
+              <div class="scard-left"><svg class="scard-icon"><use href="#i-browser"/></svg><b>bursar</b><span class="muted">1 page tree</span></div>
+              <div class="scard-right"><span class="badge l3"><svg><use href="#i-warn"/></svg>2</span><span class="scard-state">ACTIVE</span></div>
+            </div>
+            <dl class="kv scard-body"><dt>Access Level:</dt><dd>Editor</dd><dt>Assigned URL:</dt><dd>www.txst.edu/bursar</dd></dl>
+          </div>
+          <div class="scard">
+            <div class="scard-head launched">
+              <div class="scard-left"><svg class="scard-icon"><use href="#i-browser"/></svg><b>it-help</b><span class="muted">1 page tree</span></div>
+              <div class="scard-right"><span class="scard-state">ACTIVE</span></div>
+            </div>
+            <dl class="kv scard-body"><dt>Access Level:</dt><dd>Contributor</dd><dt>Assigned URL:</dt><dd>www.txst.edu/it-help</dd></dl>
+          </div>
+          <div class="scard">
+            <div class="scard-head prelaunch">
+              <div class="scard-left"><svg class="scard-icon"><use href="#i-sandbox"/></svg><b>graduate-college</b><span class="muted">1 page tree</span></div>
+              <div class="scard-right"><span class="badge l4"><svg><use href="#i-warn"/></svg>9</span><span class="scard-state">PRELAUNCH</span></div>
+            </div>
+            <dl class="kv scard-body"><dt>Access Level:</dt><dd>Site Manager</dd><dt>Assigned URL:</dt><dd>None</dd></dl>
+          </div>
         </div>
-        <div class="toolbar"><h4>Pages with findings</h4><span class="muted">23 pages</span></div>
-        <table class="grid-table">
-          <thead><tr><th>Page</th><th>Findings</th><th>From</th><th></th></tr></thead>
-          <tbody>
-            <tr><td>Set Up Your NetID<span class="sub mono">/admissions/apply/it-setup</span></td><td><span class="badge l5"><svg><use href="#i-warn"/></svg>3</span></td><td>Sensitive Data, Content Staleness, Link Checker</td><td><span class="btn">Edit</span></td></tr>
-            <tr><td>Campus Tours<span class="sub mono">/admissions/visit/tours</span></td><td><span class="badge l4"><svg><use href="#i-warn"/></svg>4</span></td><td>Accessibility</td><td><span class="btn">Edit</span></td></tr>
-            <tr><td>Tuition &amp; Fees<span class="sub mono">/admissions/tuition</span></td><td><span class="badge l3"><svg><use href="#i-clock"/></svg>1</span></td><td>Content Staleness</td><td><span class="btn">Edit</span></td></tr>
-            <tr><td>Payment Plans<span class="sub mono">/bursar/payment-plans</span></td><td><span class="badge l3"><svg><use href="#i-clock"/></svg>1</span></td><td>Content Staleness</td><td><span class="btn">Edit</span></td></tr>
-          </tbody>
-        </table>
+      </div>
+    </div>
+
+    <h3>A site's dashboard page</h3>
+    <div class="prose">
+      <p>Clicking a site card opens that site's dashboard page (not the site's admin page). That's where the list of pages with open findings goes, in a new panel alongside Team Members and Role Management.</p>
+    </div>
+    <div class="sketch">
+      <div class="frame">
+        <div class="chrome"><span class="dots"><i></i><i></i><i></i></span> Dashboard · admissions <span class="label">Sketch</span></div>
+        <div class="dash-detail">
+          <div class="dash-title"><h4>admissions</h4><span class="muted">Assigned URL: www.txst.edu/admissions</span></div>
+          <div class="dpanel dash">
+            <div class="ph">Pages with Findings <span class="badge l5" style="margin-left:6px"><svg><use href="#i-warn"/></svg>6</span></div>
+            <table class="grid-table">
+              <thead><tr><th>Page</th><th>Findings</th><th>From</th><th></th></tr></thead>
+              <tbody>
+                <tr><td>Set Up Your NetID<span class="sub mono">/admissions/apply/it-setup</span></td><td><span class="badge l5"><svg><use href="#i-warn"/></svg>3</span></td><td>Sensitive Data, Content Staleness, Link Checker</td><td><span class="btn">Edit</span></td></tr>
+                <tr><td>How to Apply<span class="sub mono">/admissions/apply</span></td><td><span class="badge l4"><svg><use href="#i-warn"/></svg>2</span></td><td>Link Checker, Content Staleness</td><td><span class="btn">Edit</span></td></tr>
+                <tr><td>Tuition &amp; Fees<span class="sub mono">/admissions/tuition</span></td><td><span class="badge l3"><svg><use href="#i-warn"/></svg>1</span></td><td>Content Staleness</td><td><span class="btn">Edit</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="dpanel dash ghosted"><div class="ph">Utilities</div></div>
+          <div class="dpanel dash ghosted"><div class="ph">Team Members</div></div>
+          <div class="dpanel dash ghosted"><div class="ph">Role Management</div></div>
+          <div class="dpanel dash ghosted"><div class="ph">Related Page Trees</div></div>
+        </div>
       </div>
     </div>
     <p class="caption">Ordering and paging are still to be decided.</p>
-
-    <h3>Other questions the system can answer</h3>
-    <div class="prose"><p>These could become screens later.</p></div>
-    <div class="kinds">
-      <div class="kind"><b>Issues</b><span>Live Admissions pages with serious accessibility problems.</span></div>
-      <div class="kind"><b>Coverage</b><span>Pages the link checker has never checked, or hasn't checked since September.</span></div>
-      <div class="kind"><b>Out of date</b><span>Pages edited or published since their last accessibility scan.</span></div>
-      <div class="kind"><b>Combined</b><span>Has open accessibility findings and has never been link-checked.</span></div>
-    </div>
 
     <div class="prose">
       <p>Detailed reports (screenshots, rule documentation) stay in each scanner's own tool, linked from each scan.</p>
@@ -713,15 +813,25 @@ ol.pc-p { padding-left: 20px; }
   <!-- ============ OUT OF SCOPE ============ -->
   <section class="tab" id="oos" role="tabpanel" aria-labelledby="t-oos" hidden>
     <h2>Out of scope</h2>
-    <ul class="oos">
-      <li><b>Trend charts</b><span>Each scanner's summary numbers are kept for 2 years, so charts could be added later, but none are planned.</span></li>
-      <li><b>Site- or folder-level summary dashboards</b></li>
-      <li><b>Problems that span pages</b><span>Like two pages giving different deadlines for the same event. Every finding belongs to one page.</span></li>
-      <li><b>A "rescan now" button</b><span>Scanners decide their own schedules for now. We may add a way to request a rescan later, for scanners that support it.</span></li>
-      <li><b>Exempting individual pages, folders, or sandboxes from the Scanning panel</b><span>Exemptions there are per site. For a single page, editors can dismiss or verify findings. If a whole page should be skipped, a page template can offer a setting like "Don't review this page for staleness" that the scanner checks before scanning. Editors would control that setting, so it only makes sense for scanners where they should have the choice, never for accessibility.</span></li>
-      <li><b>Dismissing something everywhere at once</b><span>That belongs in the scanner's own tool, like the link checker's list of false positives.</span></li>
-      <li><b>Scanning archives</b></li>
-    </ul>
+    <div class="oos-cols">
+      <div>
+        <h3>Future enhancements</h3>
+        <ul class="oos">
+          <li><b>Trend charts</b><span>Each scanner's summary numbers are kept for 2 years, so charts could be added later, but none are planned.</span></li>
+          <li><b>Subtree counts in the page, asset, and data trees</b><span>Showing that a collapsed page or folder has open findings somewhere beneath it, even when it has none of its own. We don't have a design for it yet.</span></li>
+          <li><b>A "rescan now" button</b><span>Scanners decide their own schedules for now. We may add a way to request a rescan later, for scanners that support it.</span></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Likely never</h3>
+        <ul class="oos">
+          <li><b>Sandbox, page, or folder controls in the Scanning panel</b><span>Exemptions there are per site. Whether a scanner runs on sandboxes is left to the scanner: the staleness scanner will simply never scan them, while others might scan the live site regularly and sandboxes on request, once we can trigger scans. For a single page, editors can dismiss or verify findings, or a page template can offer a setting like "Don't review this page for staleness" that the scanner checks. Editors control that setting, so it only suits scanners where they should have the choice, never accessibility.</span></li>
+          <li><b>Dismissing something everywhere at once</b><span>That belongs in the scanner's own tool, like the link checker's list of false positives.</span></li>
+          <li><b>Scanning archives</b></li>
+          <li><b>Problems that span pages</b><span>Like two pages giving different deadlines for the same event. Every finding belongs to one page.</span></li>
+        </ul>
+      </div>
+    </div>
   </section>
 </div>
 

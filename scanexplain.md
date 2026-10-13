@@ -15,13 +15,15 @@ The obvious scanners report problems that exist right now:
 
 ### Staleness scans
 
-The one that shaped most of the design is a staleness scanner. After someone edits a page, an AI model reads it and picks out content that will probably go out of date soon, like step-by-step instructions for third-party software that will eventually change its screens. It suggests an expiration date for each piece it flags.
+The one that shaped most of the design is a staleness scanner. After someone edits a page, an AI model reads it, picks out content that will probably go out of date, and suggests an expiration date for each piece it flags. For example:
 
-Until that date passes, nobody sees anything. Once it passes, the page gets an alert icon and shows up on the editor dashboard, and the flagged section gets a warning icon in the editor. The same idea covers other date-driven checks:
-
+- Step-by-step instructions for third-party software that will eventually change its screens
 - Explicit dates on the page ("Register by March 1")
 - Figures that change every year, like tuition and fees
-- Mandatory reviews ("every page must be looked at once a year")
+
+The scanner can also add findings of its own alongside the AI's, like a whole-page "due for its yearly review" finding on every page, so mandatory reviews come along for free.
+
+Until that date passes, nobody sees anything. Once it passes, the page gets an alert icon and shows up on the dashboard, and the flagged section gets a warning icon in the editor.
 
 The hard part was keeping those dates stable. If someone edits an unrelated paragraph on the page every day, a naive scanner would keep re-reading the page and pushing the expiration date out forever. We avoid that by tracking each flagged section by its content rather than its position on the page. Moving sections around or editing other parts of the page doesn't affect a flag, so the original date holds. Only editing the flagged section itself starts things over.
 
@@ -29,7 +31,7 @@ The hard part was keeping those dates stable. If someone edits an unrelated para
 
 Each problem a scanner reports is a **finding**. It points at a specific section of the page (or the page as a whole) and has a short message and a severity.
 
-- **Pages, data entries, and assets with open findings get a badge**, and the editor dashboard gets a new section listing pages with findings. Asset findings always apply to the whole file and are listed on the asset's detail page.
+- **Pages, data entries, and assets with open findings get a badge**, and each site on the dashboard gets a badge too. Asset findings always apply to the whole file and are listed on the asset's detail page.
 - **In the page editor, flagged sections get a warning icon** on their edit bar, with a tooltip summarizing the findings. A new "View Findings" action opens a panel with the full list and the response buttons.
 - If the content was edited after the scan, the finding still shows up, marked "content changed since scan", until the next scan confirms whether the problem is gone.
 - Scanners can provide a link to a full report in their own tool.
@@ -61,16 +63,23 @@ Exempting a site hides its existing findings but doesn't delete them, so undoing
 
 ## What reports are possible
 
-- **Pages with findings, on the editor dashboard.** A new section on the dashboard lists pages with open findings on the editor's sites. How it's ordered and paged is still to be decided. It accounts for editor responses and for staleness dates that haven't arrived yet, so it only shows what needs attention today.
-- **Other questions the system can answer**, which could become screens later: pages with open findings narrowed by scanner, severity, or site ("live Admissions pages with serious accessibility problems"); pages a scanner has never checked, or hasn't checked since they were last edited; and combinations ("has open accessibility findings and has never been link-checked").
+- **Site badges on the dashboard.** The dashboard stays focused on sites, so each site card gets a findings badge counting its open findings.
+- **Pages with findings, on each site's dashboard page.** Clicking a site card opens its dashboard page, which gets a new panel listing that site's pages with open findings. How it's ordered and paged is still to be decided.
+
+Both account for editor responses and for staleness dates that haven't arrived yet, so they only show what needs attention today.
 - **Detailed reports** stay in each scanner's own tool, reached through the link on each scan.
 
 ## What's out of scope
 
+### Future enhancements
+
 - **Trend charts.** Each scanner's summary numbers are kept for 2 years, so charts could be added later, but none are planned.
-- **Site- or folder-level summary dashboards.**
-- **Problems that span pages**, like two pages giving different deadlines for the same event. Every finding belongs to one page.
+- **Subtree counts in the page, asset, and data trees.** Showing that a collapsed page or folder has open findings somewhere beneath it, even when it has none of its own. We don't have a design for it yet.
 - **A "rescan now" button** for editors. Scanners decide their own schedules for now. We may add a way to request a rescan later, for scanners that support it.
-- **Exempting individual pages, folders, or sandboxes from the Scanning panel.** Exemptions there are per site. For a single page, editors can dismiss or verify findings. If a whole page should be skipped, a page template can offer a setting like "Don't review this page for staleness" that the scanner checks before scanning. Editors would control that setting, so it only makes sense for scanners where they should have the choice, never for accessibility.
+
+### Likely never
+
+- **Sandbox, page, or folder controls in the Scanning panel.** Exemptions there are per site. Whether a scanner runs on sandboxes is left to the scanner: the staleness scanner will simply never scan them, while others might scan the live site regularly and sandboxes on request, once we can trigger scans. For a single page, editors can dismiss or verify findings, or a page template can offer a setting like "Don't review this page for staleness" that the scanner checks. Editors control that setting, so it only suits scanners where they should have the choice, never accessibility.
 - **Dismissing something everywhere at once** from within DosGato. That belongs in the scanner's own tool, like the link checker's list of known-good links.
 - **Scanning archives.**
+- **Problems that span pages**, like two pages giving different deadlines for the same event. Every finding belongs to one page.
