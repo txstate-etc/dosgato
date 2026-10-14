@@ -14,7 +14,9 @@ const usersByInternalIdLoader = new PrimaryKeyLoader({
 })
 
 const usersByIdLoader = new PrimaryKeyLoader({
-  fetch: async (ids: string[]) => await getUsers({ ids })
+  fetch: async (ids: string[]) => await getUsers({ ids }),
+  // need to be able to find users by their login regardless of case
+  options: { cacheKeyFn: (id: string) => id.toLowerCase() }
 })
 
 const usersByGroupIdLoader = new ManyJoinedLoader({

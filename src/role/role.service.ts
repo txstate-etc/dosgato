@@ -303,7 +303,7 @@ export class RoleService extends DosGatoService<Role> {
         response.addMessage(trainingRequiredMessage, 'userId')
       } else if (conflicting.length) {
         response.addMessage(`${user.name} already has ${unique(conflicting.map(r => r.access!)).join(' and ')} access to this site. Use Edit User to change their access level.`, 'access')
-      } else if (targetRoles.length) {
+      } else {
         const dupes = targetRoles.filter(r => allRoles.some(e => e.id === r.id))
         if (dupes.length) {
           response.addMessage(`${user.name} already has the ${dupes.map(r => r.name).join(', ')} role${dupes.length === 1 ? '' : 's'}.`, 'userId', MutationMessageType.warning)

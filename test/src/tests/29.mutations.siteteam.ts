@@ -13,6 +13,7 @@ let otherSiteRoleId: string
 const trainedUser = 'teammember1'
 const untrainedUser = 'teammember2'
 const contributorUser = 'teammember3'
+const mixedCaseUser = 'TeamMember4'
 
 async function getSiteId (name: string) {
   const { sites } = await query('{ sites { id name } }')
@@ -34,6 +35,7 @@ async function addSiteTeamMember (login: string, siteId: string, userId: string,
       addSiteTeamMember (siteId: $siteId, userId: $userId, access: $access, roleIds: $roleIds, validateOnly: $validateOnly) {
         success
         messages { message arg type }
+        user { id }
       }
     }`, { siteId, userId, access, roleIds, validateOnly })
   return addSiteTeamMember
@@ -76,6 +78,7 @@ describe('site team member mutations', () => {
     await createUser(trainedUser, 'Trained', [trainings[0].id])
     await createUser(untrainedUser, 'Untrained', [])
     await createUser(contributorUser, 'Contributor', [trainings[0].id])
+    await createUser(mixedCaseUser, 'MixedCase', [trainings[0].id])
   })
 
   it('should let a site manager add an editor to their site', async () => {
@@ -90,6 +93,24 @@ describe('site team member mutations', () => {
     const message = messages.find((m: any) => m.arg === 'userId')
     expect(message.type).to.equal('success')
     expect(message.message).to.contain('User found')
+  })
+
+  it('should find a lowercase login when the id is typed in uppercase', async () => {
+    const { success, messages, user } = await addSiteTeamMember('db_manager1', dashboardSiteId, untrainedUser.toUpperCase(), 'READONLY', undefined, true)
+    expect(success).to.be.true
+    const message = messages.find((m: any) => m.arg === 'userId')
+    expect(message.type).to.equal('success')
+    expect(message.message).to.contain('User found')
+    expect(user.id).to.equal(untrainedUser)
+  })
+
+  it('should find a mixed-case login when the id is typed in lowercase', async () => {
+    const { success, messages, user } = await addSiteTeamMember('db_manager1', dashboardSiteId, mixedCaseUser.toLowerCase(), 'EDITOR', undefined, true)
+    expect(success).to.be.true
+    const message = messages.find((m: any) => m.arg === 'userId')
+    expect(message.type).to.equal('success')
+    expect(message.message).to.contain('User found')
+    expect(user.id).to.equal(mixedCaseUser)
   })
 
   it('should let a site owner add multiple contributor roles at once', async () => {
