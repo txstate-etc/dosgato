@@ -425,6 +425,31 @@ describe('indexing', () => {
       expect(values).to.include('flowe')
       expect(values).to.include('lower')
     })
+
+    it('should not index data URIs serialized as LinkDefinitions as fulltext', async () => {
+      const b64 = Buffer.from(Array.from({ length: 20000 }, (_, i) => (i * 7919) % 256)).toString('base64')
+      const linkDef = JSON.stringify({ type: 'url', url: `data:image/png;base64,${b64}` }).replace(/"/g, '&quot;')
+      const { success, page } = await createPage('idx-html-datauri', rootPageId, 'keyp1', {
+        title: 'Data URI Test',
+        areas: {
+          main: [
+            { templateKey: 'richtext', title: 'RT Data URI', text: `<p>Pictured</p><img src="${linkDef}">` }
+          ]
+        }
+      })
+      expect(success).to.be.true
+      const values = await getIndexValues(page.id, page.version.version, 'fulltext')
+      expect(values).to.include('pictu')
+      expect(values.length).to.be.lessThan(100)
+    })
+
+    it('should not index words longer than 50 characters', async () => {
+      const longword = 'abcdefghij'.repeat(6)
+      const { page } = await createPage('idx-ft-longword', rootPageId, 'keyp3', { title: `Lengthy ${longword}` })
+      const values = await getIndexValues(page.id, page.version.version, 'fulltext')
+      expect(values).to.include('lengt')
+      expect(values).to.not.include('abcde')
+    })
   })
 
   describe('phraseSearch on links and names', () => {

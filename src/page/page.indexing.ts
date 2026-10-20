@@ -1,6 +1,6 @@
 import { type ComponentData, type LinkDefinition, extractLinksFromText, type PageData } from '@dosgato/templating'
 import { isNotBlank, isNotNull } from 'txstate-utils'
-import { processLink, templateRegistry, type Index, type SingleValueIndex, collectReachableComponents, extractFromHtml, urlForFulltext } from '../internal.js'
+import { processLink, templateRegistry, type Index, type SingleValueIndex, collectReachableComponents, extractFromHtml, urlForFulltext, getHostname } from '../internal.js'
 
 export function getPageIndexes (page: PageData): Index[] {
   const storage: Record<string, Set<string>> = {}
@@ -51,8 +51,17 @@ function gatherLinksAndTexts (components: ComponentData[]) {
   return { links, texts }
 }
 
+/**
+ * Only real web URLs and mailto addresses are worth searching. Anything else, like a data URI
+ * serialized into a LinkDefinition, could be enormous and generate a huge number of n-grams.
+ */
 function getUrlTexts (links: LinkDefinition[]) {
-  return links.filter(l => l.type === 'url').map(l => urlForFulltext(l.url)).filter(isNotBlank)
+  return links
+    .filter(l => l.type === 'url')
+    .map(l => l.url)
+    .filter(url => getHostname(url) || /^mailto:/i.test(url.trim()))
+    .map(urlForFulltext)
+    .filter(isNotBlank)
 }
 
 export function singleValueIndexesToIndexes (svIndexes: SingleValueIndex[]) {
@@ -95,8 +104,10 @@ export function getKeywords (text?: string, options?: { stopwords?: boolean }) {
     .split(/[^a-z0-9-]+/)
     .flatMap(word => word.includes('-') ? word.split('-').concat(word.replaceAll('-', '')) : [word])
     .flatMap(word => /\d/.test(word) && isNaN(Number(word)) ? word.split(/(?<=\d)(?=[a-z])|(?<=[a-z])(?=\d)/) : [word])
+    // words longer than 50 characters are not real words (e.g. base64 or tokens) and would generate
+    // a huge number of unique n-grams, this applies to both indexing and searching so they stay in sync
     .filter(word =>
-      word.length > 2
+      word.length > 2 && word.length <= 50
       && (options?.stopwords === false || !stopwords.has(word)))
   ))
 }
