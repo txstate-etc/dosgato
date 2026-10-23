@@ -576,6 +576,7 @@ describe('pages mutations', () => {
         success
         messages {
           type
+          message
         }
         page {
           data
@@ -586,7 +587,7 @@ describe('pages mutations', () => {
   `
   interface PageComponentResponse {
     success: boolean
-    messages: { type: string }[]
+    messages: { type: string, message: string }[]
     page: { data: any, version: { version: number } }
   }
   interface CreatePageComponentResponse {
@@ -634,6 +635,29 @@ describe('pages mutations', () => {
     expect(page.data.areas.main.length).to.equal(2)
     expect(page.data.areas.main[0].text).to.equal('Second Link Added')
     expect(page.data.areas.main[1].text).to.equal('First Link Added')
+  })
+  it('should return a validation message instead of a GraphQL error when dataVersion is stale', async () => {
+    const { page: testPage } = await createPageReturnData('testpage-stale', testSite6PageRootId, 'keyp2')
+    // first save bumps the stored version
+    await query<CreatePageComponentResponse>(createPageComponentQuery, {
+      pageId: testPage.id,
+      dataVersion: testPage.version.version,
+      schemaversion: testPage.data.savedAtVersion,
+      path: 'areas.main',
+      data: { templateKey: 'keyc1', text: 'First Link Added', link: '{ "type": "raw", "url": "https://apple.com" }' }
+    })
+    // second save still sends the original version, as a dialog opened before the first save would
+    const { createPageComponent: { success, messages, page } } = await query<CreatePageComponentResponse>(createPageComponentQuery, {
+      pageId: testPage.id,
+      dataVersion: testPage.version.version,
+      schemaversion: testPage.data.savedAtVersion,
+      path: 'areas.main',
+      data: { templateKey: 'keyc1', text: 'Second Link Added', link: '{ "type": "raw", "url": "https://bbc.com" }' }
+    })
+    expect(success).to.be.false
+    expect(messages[0].type).to.equal('error')
+    expect(messages[0].message).to.contain('Copy any work you want to keep')
+    expect(page.data.areas.main.length).to.equal(1)
   })
   it('should allow adding a single component to a page that has validation errors.', async () => {
     const { pages } = await query('{ pages (filter: { paths: ["/site8/validation-error-page"] }) { id data version { version } } }')

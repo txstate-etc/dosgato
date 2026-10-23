@@ -976,10 +976,26 @@ export class PageService extends DosGatoService<Page> {
     return response
   }
 
-  async checkLatestVersion (dataId: string, dataVersion: number) {
+  async isLatestVersion (dataId: string, dataVersion: number) {
     const latestVersion = await this.svc(VersionedService).get(Number(dataId))
     if (!latestVersion) throw new Error('Page you are trying to update is corrupted. Please contact user support.')
-    if (latestVersion.version !== dataVersion) throw new Error('Unable to update page. Another user has updated the page since you loaded it. Try again after refreshing.')
+    return latestVersion.version === dataVersion
+  }
+
+  async checkLatestVersion (dataId: string, dataVersion: number) {
+    if (!await this.isLatestVersion(dataId, dataVersion)) throw new Error('Unable to update page. Another user has updated the page since you loaded it. Try again after refreshing.')
+  }
+
+  /**
+   * For mutations that back a dialog, a stale dataVersion should come back as a
+   * validation message rather than a thrown error so the UI can display it nicely.
+   * The user has unsaved work in the dialog, so warn them before they refresh.
+   */
+  async staleVersionResponse (page: Page, dataVersion: number) {
+    if (await this.isLatestVersion(page.dataId, dataVersion)) return undefined
+    const response = new PageResponse({ success: false, page })
+    response.addMessage('Another user has updated this page since you loaded it, so your changes cannot be saved. Copy any work you want to keep, then refresh the page and try again.', undefined, MutationMessageType.error)
+    return response
   }
 
   async updatePageProperties (dataId: string, dataVersion: number, editedSchemaVersion: DateTime<true>, data: ComponentData, comment?: string, validateOnly?: boolean) {
@@ -988,7 +1004,8 @@ export class PageService extends DosGatoService<Page> {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${page.name}`)
-    await this.checkLatestVersion(dataId, dataVersion)
+    const stale = await this.staleVersionResponse(page, dataVersion)
+    if (stale) return stale
     const pageData = await this.raw.getData(page, dataVersion)
     const extras = this.raw.pageExtras(page)
     const migrated = await migratePage(pageData, extras, editedSchemaVersion)
@@ -1024,7 +1041,8 @@ export class PageService extends DosGatoService<Page> {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${page.name}`)
-    await this.checkLatestVersion(dataId, dataVersion)
+    const stale = await this.staleVersionResponse(page, dataVersion)
+    if (stale) return stale
     const pageData = await this.raw.getData(page, dataVersion)
     const extras = this.raw.pageExtras(page)
     const migrated = await migratePage(pageData, extras, editedSchemaVersion)
@@ -1058,7 +1076,8 @@ export class PageService extends DosGatoService<Page> {
     let page = await this.raw.findById(dataId)
     if (!page) throw new Error('Cannot update a page that does not exist.')
     if (!this.mayUpdate(page)) throw new Error(`Current user is not permitted to update page ${page.name}`)
-    await this.checkLatestVersion(dataId, dataVersion)
+    const stale = await this.staleVersionResponse(page, dataVersion)
+    if (stale) return stale
     const pageData = await this.raw.getData(page, dataVersion)
 
     // migrate the stored page data to match the schemaversion the UI was using
