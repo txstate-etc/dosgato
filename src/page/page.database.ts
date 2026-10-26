@@ -589,7 +589,8 @@ export async function movePages (pages: Page[], parent: Page, aboveTarget?: Page
 async function handleCopy (db: Queryable, versionedService: VersionedService, userId: string, page: Page, parent: Page, parentPath: string, displayOrder: number, includeChildren?: boolean) {
   const ctx = (versionedService as any).ctx as DGContext
   let newPageName = page.name
-  const pagesWithName = new Set(await db.getvals<string>('SELECT name FROM pages WHERE name LIKE ? AND path = ?', [`${page.name}%`, parent.pathAsParent]))
+  // strip trailing digits so that copying page1 also finds siblings like page2, page3 that numerate() will try
+  const pagesWithName = new Set(await db.getvals<string>('SELECT name FROM pages WHERE name LIKE ? AND path = ?', [`${page.name.replace(/\d+$/, '')}%`, parent.pathAsParent]))
   while (pagesWithName.has(newPageName)) newPageName = numerate(newPageName)
   const newPagePath = appendPath(parentPath, newPageName)
 

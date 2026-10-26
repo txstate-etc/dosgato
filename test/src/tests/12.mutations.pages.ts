@@ -296,6 +296,15 @@ describe('pages mutations', () => {
     const { pages } = await query(`{ pages(filter: { ids: ["${copytarget.id}"]}) { children { id name } } }`)
     expect(pages[0].children.map((p: any) => p.name)).to.include.members(['pagename', 'pagename-1'])
   })
+  it('should skip over existing numbered siblings when numbering a copied page name', async () => {
+    const { page: copytarget } = await createPage('copytestpage25', testSite6PageRootId, 'keyp1')
+    const { page: pagetocopy } = await createPage('numberedpage1', copytarget.id, 'keyp1')
+    await createPage('numberedpage2', copytarget.id, 'keyp1')
+    const { copyPages: { success } } = await query('mutation copyPages ($pageIds: [ID!]!, $parentId: ID!) { copyPages (pageIds: $pageIds, targetId: $parentId) { success page { id name } } }', { pageIds: [pagetocopy.id], parentId: copytarget.id })
+    expect(success).to.be.true
+    const { pages } = await query(`{ pages(filter: { ids: ["${copytarget.id}"]}) { children { id name } } }`)
+    expect(pages[0].children.map((p: any) => p.name)).to.have.members(['numberedpage1', 'numberedpage2', 'numberedpage3'])
+  })
   it('should delete a page', async () => {
     const { page: testpage } = await createPage('testpage5', testSite6PageRootId, 'keyp3')
     const { deletePages: { success, pages } } = await query('mutation DeletePages ($pageIds: [ID!]!) {deletePages (pageIds: $pageIds) { success pages { id name deleted deletedAt deletedBy { id firstname lastname } } } }', { pageIds: [testpage.id] })
