@@ -1,5 +1,38 @@
 # Changelog
 
+## 2.0.8
+
+### Fixes a reindex crash introduced in 2.0.7
+
+**If you deployed 2.0.7, upgrade to 2.0.8.** 2.0.7 started indexing external link URLs as fulltext so phraseSearch could find them, and it ships a migration that reindexes every page. Rich text stores links as serialized LinkDefinitions, so an old image pasted in as a data URI looks like `{"type":"url","url":"data:image/png;base64,..."}`. 2.0.7 turned every one of those into hundreds of thousands of n-grams. The reindex would spend minutes inserting them while holding the global index lock, so editors saving pages got `Lock wait timeout exceeded`, and then the API ran out of memory and got killed. The page never got marked as indexed, so the next reindex run tried it again, over and over.
+
+Now only URLs with a real hostname, plus `mailto:` addresses, are indexed as fulltext. Words longer than 50 characters are also skipped, both when indexing and when building a phraseSearch query, so no other long token can do the same thing. That means phraseSearch can no longer find a single word longer than 50 characters, but I can't think of a real word that long.
+
+## 2.0.7
+
+Deploy 2.0.8 instead of this release. See above.
+
+### phraseSearch finds link URLs and page names
+
+Say an editor needs to find every page that emails `webmaster@example.com` or links to an old vendor's site. Before, phraseSearch only looked at visible text, so it didn't help. Now a page matches when the phrase appears in:
+
+- **external link URLs**, without the query string and hash. Those are mostly tracking ids that would bloat the index, so `trackingid=...` still won't match anything.
+- **`mailto:` addresses**, so `@example.com` works.
+- **the page's name.** Names aren't versioned, so they match regardless of the entry's `published` setting.
+
+A migration resets the page reindex target, so every page gets reindexed in the background, 1000 pages per run of the `reindexPages` task. On a large site that takes a while, and until a page gets its turn, its links aren't searchable.
+
+### New filters
+
+- `PageFilter`: `modifiedBefore`/`modifiedAfter` on the latest version, and `publishActivityBefore`/`publishActivityAfter` for pages that were published, republished or unpublished in a time window. When you use both publish activity bounds, a single publish or unpublish has to fall inside the window. You can't satisfy one bound with one event and the other bound with a different event. Publish history only goes back to March 2026.
+- `AssetFilter`: `modifiedBefore`/`modifiedAfter`, plus `mimes` (`image/*` wildcards work) and `extensions`. Extensions come from the detected mime type, so `jpeg` also finds `.jpg` files. If you use both `mimes` and `extensions`, an asset only has to match one of them.
+- `DataFilter`: `modifiedBefore`/`modifiedAfter`.
+
+### Smaller changes
+
+- Deleting a published page now records an unpublish in its publish history, so it shows up in `publishActivity` filters.
+- When adding a team member, the user lookup is now case-insensitive, and it confirms the user was found even before any roles are selected.
+
 ## 2.0.6
 
 ### Current schema version is derived from migrations
