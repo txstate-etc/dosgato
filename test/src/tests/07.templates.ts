@@ -21,7 +21,7 @@ describe('templates', () => {
   })
   it('should retrieve templates by type', async () => {
     const resp = await query('{ templates(filter: { types: [COMPONENT] }) { key name } }')
-    expect(resp.templates).to.have.lengthOf(10)
+    expect(resp.templates).to.have.lengthOf(11)
     const keys = resp.templates.map((t: any) => t.key)
     expect(keys).to.include.members(['keyc1', 'keyc2', 'keyc3', 'richtext', 'horizontalrule', 'documents'])
   })
@@ -34,6 +34,17 @@ describe('templates', () => {
     expect(resp.templates).to.have.lengthOf(1)
     const rootKeys = resp.templates[0].rootPageTemplates.map((t: any) => t.key)
     expect(rootKeys).to.include('keyp1')
+  })
+  it('should retrieve the dynamic area prefixes of a template', async () => {
+    const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key areas { name } dynamicAreas { name availableComponents { key } } } }')
+    expect(resp.templates[0].dynamicAreas).to.have.lengthOf(1)
+    expect(resp.templates[0].dynamicAreas[0].name).to.equal('dyn_')
+    expect(resp.templates[0].dynamicAreas[0].availableComponents.map((t: any) => t.key)).to.have.members(['keyc1', 'dynonly'])
+    expect(resp.templates[0].areas.map((a: any) => a.name)).to.have.members(['main', 'dyn_static'])
+  })
+  it('should include page templates that only allow a component through a dynamic area in rootPageTemplates', async () => {
+    const resp = await query('{ templates(filter: { keys: ["dynonly"] }) { key rootPageTemplates { key } } }')
+    expect(resp.templates[0].rootPageTemplates.map((t: any) => t.key)).to.include('keyp2')
   })
   it('should retrieve pagetrees authorized directly for a template', async () => {
     const resp = await query('{ templates(filter: { keys: ["keyp2"] }) { key name pagetrees(direct: true) { id name } } }')

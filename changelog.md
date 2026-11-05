@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Dynamic areas
+
+Page and component templates can now declare `dynamicAreas` alongside `areas`. Each key in `dynamicAreas` is an area name prefix, and its value is the list of component templates allowed in any area whose name starts with that prefix. This lets a template accept areas whose names are only known at edit time. Things to know:
+
+- **How an area name is resolved:** an exact name in `areas` wins. Otherwise the longest `dynamicAreas` prefix that the name starts with wins. Otherwise the area is undeclared and is treated exactly as before (its content is unreachable and is removed on page create, copy and import).
+- Requires `@dosgato/templating` 1.2.6 or later, which adds the `dynamicAreas` type and the `matchArea` helper.
+- **Startup fails if a `dynamicAreas` prefix is empty or is identical to an `areas` name in the same template.**
+- Content in dynamic areas is kept on page create, copy and import, is indexed, and is checked against the prefix's allowed components when components are added or moved.
+- The `Template` GraphQL type has a new `dynamicAreas` field. Each entry's `name` is the prefix.
+- `templateRegistry.getArea(templateKey, areaName)` returns the area configuration that applies to an area name, using the rule above.
+- `templateRegistry.addAvailableComponent` accepts a `dynamicAreas` prefix as the area.
+
+
 ## 2.0.8
 
 ### Fixes a reindex crash introduced in 2.0.7

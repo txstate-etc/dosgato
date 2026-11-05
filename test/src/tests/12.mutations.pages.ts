@@ -958,4 +958,95 @@ describe('pages mutations', () => {
     expect(pages.length).to.equal(1)
     expect(pages[0].externalLinks).to.include('https://www.external-test-example.com')
   })
+  describe('dynamic areas', () => {
+    const movePageComponentQuery = `
+      mutation movePageComponent ($pageId: ID!, $dataVersion: Int!, $schemaversion: SchemaVersion!, $fromPath: String!, $toPath: String!) {
+        movePageComponent (pageId: $pageId, dataVersion: $dataVersion, schemaversion: $schemaversion, fromPath: $fromPath, toPath: $toPath) {
+          success
+          page {
+            data
+            version { version }
+          }
+        }
+      }
+    `
+    async function addComponent (page: { id: string, data: any, version: { version: number } }, path: string, data: any) {
+      const { createPageComponent } = await query<CreatePageComponentResponse>(createPageComponentQuery, {
+        pageId: page.id,
+        dataVersion: page.version.version,
+        schemaversion: page.data.savedAtVersion,
+        path,
+        data
+      })
+      return createPageComponent
+    }
+    async function moveComponent (pageId: string, page: { data: any, version: { version: number } }, fromPath: string, toPath: string) {
+      const { movePageComponent } = await query<{ movePageComponent: PageComponentResponse }>(movePageComponentQuery, {
+        pageId,
+        dataVersion: page.version.version,
+        schemaversion: page.data.savedAtVersion,
+        fromPath,
+        toPath
+      })
+      return movePageComponent
+    }
+    const link = (text: string) => ({ templateKey: 'keyc1', text, link: JSON.stringify({ type: 'url', url: 'https://www.dynamic-area-example.com' }) })
+
+    it('should add components to a dynamic area that has no array in the page data yet', async () => {
+      const { page: testPage } = await createPageReturnData('dynamic-add', testSite6PageRootId, 'keyp2')
+      expect(testPage.data.areas?.dyn_abc).to.be.undefined
+      const first = await addComponent(testPage, 'areas.dyn_abc', link('Dynamic Link'))
+      expect(first.success).to.be.true
+      const second = await addComponent({ id: testPage.id, ...first.page }, 'areas.dyn_abc', { templateKey: 'dynonly', text: 'only allowed by prefix' })
+      expect(second.success).to.be.true
+      expect(second.page.data.areas.dyn_abc.map((c: any) => c.templateKey)).to.deep.equal(['keyc1', 'dynonly'])
+    })
+    it('should reject adding a component that the dynamic area prefix does not allow', async () => {
+      const { page: testPage } = await createPageReturnData('dynamic-add-reject', testSite6PageRootId, 'keyp2')
+      await expect(addComponent(testPage, 'areas.dyn_abc', { templateKey: 'keyc3', quote: 'not allowed', author: 'nobody' })).to.be.rejectedWith('not compatible')
+    })
+    it('should use the static area rules for a static area name that starts with a dynamic prefix', async () => {
+      const { page: testPage } = await createPageReturnData('dynamic-static-wins', testSite6PageRootId, 'keyp2')
+      const { success, page } = await addComponent(testPage, 'areas.dyn_static', { templateKey: 'keyc3', quote: 'allowed by the static area', author: 'somebody' })
+      expect(success).to.be.true
+      await expect(addComponent({ id: testPage.id, ...page }, 'areas.dyn_static', { templateKey: 'dynonly', text: 'the prefix would allow this' })).to.be.rejectedWith('not compatible')
+    })
+    it('should move components into, out of, and between dynamic areas', async () => {
+      const { page: testPage } = await createPageReturnData('dynamic-move', testSite6PageRootId, 'keyp2', 'su01', {
+        areas: {
+          main: [link('A')],
+          dyn_a: [link('B'), { templateKey: 'dynonly', text: 'C' }],
+          dyn_b: []
+        }
+      })
+      // between two dynamic areas
+      const move1 = await moveComponent(testPage.id, testPage, 'areas.dyn_a.0', 'areas.dyn_b')
+      expect(move1.success).to.be.true
+      expect(move1.page.data.areas.dyn_b.map((c: any) => c.text)).to.deep.equal(['B'])
+      // out of a dynamic area
+      const move2 = await moveComponent(testPage.id, move1.page, 'areas.dyn_b.0', 'areas.main')
+      expect(move2.success).to.be.true
+      expect(move2.page.data.areas.main.map((c: any) => c.text)).to.deep.equal(['A', 'B'])
+      expect(move2.page.data.areas.dyn_b).to.have.lengthOf(0)
+      // into a dynamic area
+      const move3 = await moveComponent(testPage.id, move2.page, 'areas.main.0', 'areas.dyn_b')
+      expect(move3.success).to.be.true
+      expect(move3.page.data.areas.main.map((c: any) => c.text)).to.deep.equal(['B'])
+      expect(move3.page.data.areas.dyn_b.map((c: any) => c.text)).to.deep.equal(['A'])
+      // main does not allow dynonly
+      await expect(moveComponent(testPage.id, move3.page, 'areas.dyn_a.0', 'areas.main')).to.be.rejectedWith('not compatible')
+    })
+    it('should keep dynamic area content when creating and copying a page', async () => {
+      const { success, page: testPage } = await createPageReturnData('dynamic-create', testSite6PageRootId, 'keyp2', 'su01', {
+        areas: { main: [], dyn_abc: [{ templateKey: 'dynonly', text: 'kept on create' }] }
+      })
+      expect(success).to.be.true
+      expect(testPage.data.areas.dyn_abc.map((c: any) => c.text)).to.deep.equal(['kept on create'])
+      const { page: copytarget } = await createPage('dynamic-copy-target', testSite6PageRootId, 'keyp2')
+      const { copyPages } = await query('mutation copyPages ($pageIds: [ID!]!, $parentId: ID!) { copyPages (pageIds: $pageIds, targetId: $parentId) { success } }', { pageIds: [testPage.id], parentId: copytarget.id })
+      expect(copyPages.success).to.be.true
+      const { pages } = await query(`{ pages(filter: { ids: ["${copytarget.id}"] }) { children { name data } } }`)
+      expect(pages[0].children[0].data.areas.dyn_abc.map((c: any) => c.text)).to.deep.equal(['kept on create'])
+    })
+  })
 })

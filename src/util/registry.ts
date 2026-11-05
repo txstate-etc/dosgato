@@ -1,4 +1,5 @@
 import type { APITemplateType, APIAnyTemplate, APIPageTemplate, APIComponentTemplate, APIDataTemplate, ComponentData, LinkDefinition, Migration } from '@dosgato/templating'
+import { matchArea } from '@dosgato/templating'
 import type { FastifyRequest } from 'fastify'
 import { DateTime } from 'luxon'
 import { sortby } from 'txstate-utils'
@@ -8,6 +9,7 @@ import type { DGStartOpts } from '../index.js'
 interface HasHydratedAreas {
   getLinks: (data: any) => LinkDefinition[]
   hydratedAreas: Record<string, TemplateArea>
+  hydratedDynamicAreas: Record<string, TemplateArea>
   disallowSet: Set<string>
 }
 
@@ -33,10 +35,17 @@ class TemplateRegistry {
   public serverConfig!: Omit<DGStartOpts, 'templates'> & { customContext: DGContextClass }
 
   register (template: APIAnyTemplate) {
-    const hydrated: AnyTemplate = { ...template, hydratedAreas: {} } as AnyTemplate
+    const hydrated: AnyTemplate = { ...template, hydratedAreas: {}, hydratedDynamicAreas: {} } as AnyTemplate
     if ('areas' in template && template.areas != null) {
       for (const key of Object.keys(template.areas)) {
         hydrated.hydratedAreas[key] = new TemplateArea(key, template.areas[key])
+      }
+    }
+    if ('dynamicAreas' in template && template.dynamicAreas != null) {
+      for (const prefix of Object.keys(template.dynamicAreas)) {
+        if (!prefix) throw new Error(`Refusing to start: template ${template.templateKey} declares an empty dynamic area prefix, which would match every area name.`)
+        if (hydrated.hydratedAreas[prefix]) throw new Error(`Refusing to start: template ${template.templateKey} declares "${prefix}" as both an area and a dynamic area prefix.`)
+        hydrated.hydratedDynamicAreas[prefix] = new TemplateArea(prefix, template.dynamicAreas[prefix])
       }
     }
     const originalGetLinks = template.getLinks ?? (() => [])
@@ -69,7 +78,20 @@ class TemplateRegistry {
    * while constructing your individual CMS server.
    */
   addAvailableComponent (templateKey: string, area: string, availableComponent: string) {
-    this.get(templateKey).hydratedAreas[area]?.addAvailableComponent(availableComponent)
+    const template = this.get(templateKey)
+    const hydratedArea = template.hydratedAreas[area] ?? template.hydratedDynamicAreas[area]
+    hydratedArea?.addAvailableComponent(availableComponent)
+  }
+
+  /**
+   * Find the area configuration for an area name in a page or component template. An exact
+   * static area name wins, then the longest matching dynamic area prefix. Returns undefined
+   * when the template does not exist or does not declare the area.
+   */
+  getArea (templateKey: string, areaName: string): TemplateArea | undefined {
+    const template = this.get(templateKey)
+    if (!template) return undefined
+    return matchArea(areaName, template.hydratedAreas, template.hydratedDynamicAreas)
   }
 
   get (templateKey: string) {

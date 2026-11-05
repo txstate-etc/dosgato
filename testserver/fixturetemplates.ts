@@ -30,7 +30,12 @@ export const PageTemplate2: APIPageTemplate = {
   templateKey: 'keyp2',
   name: 'pagetemplate2',
   areas: {
-    main: ['keyc1', 'keyc2', 'keyc3', 'richtext', 'horizontalrule', 'documents']
+    main: ['keyc1', 'keyc2', 'keyc3', 'richtext', 'horizontalrule', 'documents'],
+    // starts with the dyn_ prefix below, so tests can prove an exact static name wins
+    dyn_static: ['keyc3']
+  },
+  dynamicAreas: {
+    dyn_: ['keyc1', 'dynonly']
   },
   migrations: [],
   getLinks: (data: any) => {
@@ -112,6 +117,16 @@ export const QuoteComponent: APIComponentTemplate = {
   migrations: [],
   getLinks: (data: any) => [],
   getFulltext: (data: any) => [data.quote, data.author]
+}
+
+// only allowed through PageTemplate2's dyn_ dynamic area prefix, never in a static area
+export const DynamicOnlyComponent: APIComponentTemplate = {
+  type: 'component',
+  templateKey: 'dynonly',
+  name: 'Dynamic Only',
+  migrations: [],
+  getLinks: (data: any) => [],
+  getFulltext: (data: any) => [data.text]
 }
 
 export const RichTextComponent: APIComponentTemplate = {

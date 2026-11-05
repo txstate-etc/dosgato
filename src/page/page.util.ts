@@ -21,14 +21,14 @@ export function collectComponents (component: ComponentData) {
 
 /**
  * Similar to collectComponents, but it's possible for some components in the page
- * data to be unreachable due to changes. This function reads each components'
- * area list and only recurses to components in those areas.
+ * data to be unreachable due to changes. This function only recurses to components in
+ * areas that the component's template declares, by exact name or dynamic area prefix.
  */
 export function collectReachableComponents (component: ComponentData) {
   const ret = [component] as ComponentData[]
-  const areaNames = Object.keys(templateRegistry.getPageOrComponentTemplate(component.templateKey)?.areas ?? {})
-  for (const areaName of areaNames) {
-    for (const c of component.areas?.[areaName] ?? []) {
+  for (const areaName of Object.keys(component.areas ?? {})) {
+    if (!templateRegistry.getArea(component.templateKey, areaName)) continue
+    for (const c of component.areas![areaName] ?? []) {
       ret.push(...collectReachableComponents(c))
     }
   }
@@ -41,10 +41,9 @@ export function collectReachableComponents (component: ComponentData) {
  */
 export function removeUnreachableComponents<T extends ComponentData> (component: T) {
   if (!component.areas) return component
-  const areaConfig = templateRegistry.getPageOrComponentTemplate(component.templateKey)?.areas ?? {}
   for (const areaName of Object.keys(component.areas)) {
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- areaName is a dynamic data key and removing unreachable areas in place is intended
-    if (!areaConfig[areaName]) delete component.areas[areaName]
+    if (!templateRegistry.getArea(component.templateKey, areaName)) delete component.areas[areaName]
     else for (const c of component.areas[areaName]) removeUnreachableComponents(c)
   }
   return component

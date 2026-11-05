@@ -52,6 +52,9 @@ export class Template {
   @Field(type => [TemplateArea], { description: 'If this template is a page or component template, areas are the slots it provides for child placement. Each area will have a list of acceptable child component templates. These will be validated when creating a new component on a page.' })
   areas: TemplateArea[]
 
+  @Field(type => [TemplateArea], { description: 'If this template is a page or component template, dynamic areas let it accept any area whose name starts with a given prefix. Here `name` is that prefix, not a full area name. To find the rules for an area name, an exact match in `areas` wins; otherwise the longest prefix in `dynamicAreas` that the name starts with wins; otherwise the area is undeclared.' })
+  dynamicAreas: TemplateArea[]
+
   @Field(type => JsonData, { nullable: true, description: 'Hard-coded properties that may be set on page templates to influence the rendering of components on the page. For instance, a set of color choices that are customized for each template design. Components on the page may refer to the color information stored in the template during dialogs and while rendering. Changing to a different page template could then result in different color choices for components like buttons. Will be null for non-page templates.' })
   templateProperties?: any
 
@@ -73,6 +76,7 @@ export class Template {
     this.name = tmpl.name
     this.displayCategory = tmpl.displayCategory
     this.areas = Object.entries(tmpl.hydratedAreas).map(([key, area]) => new TemplateArea(key, area.availableComponents))
+    this.dynamicAreas = Object.entries(tmpl.hydratedDynamicAreas).map(([prefix, area]) => new TemplateArea(prefix, area.availableComponents))
     this._areasByName = keyby(this.areas, 'name')
     this.global = tmpl.type === 'data' ? tmpl.global : undefined
     if (tmpl.type === 'page') this.templateProperties = tmpl.templateProperties

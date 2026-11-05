@@ -11,7 +11,7 @@ import {
   createPage, getPages, movePages, deletePages, renamePage, TemplateService, type TemplateFilter,
   getPageIndexes, undeletePages, validatePage, copyPages, TemplateType, migratePage, PagetreeServiceInternal,
   collectTemplates, TemplateServiceInternal, SiteServiceInternal, PagetreeType, DeleteState, publishPageDeletions,
-  type CreatePageExtras, parsePath, normalizePath, validateRecurse, type Template, type PageRuleGrants, type PageLinkInput,
+  type CreatePageExtras, parsePath, normalizePath, validateRecurse, type PageRuleGrants, type PageLinkInput,
   DeleteStateAll, PageRuleService, SiteRuleService, systemContext, collectComponents, makePathSafe, LaunchState,
   type DGRestrictOperations, fireEvent, setPageSearchCodes, AssetServiceInternal, getPageLinks,
   type AssetLinkInput, AssetFolderServiceInternal, type AssetFolderLinkInput, type SearchRule,
@@ -868,15 +868,15 @@ export class PageService extends DosGatoService<Page> {
     )
   }
 
-  checkAvailableTemplates (data: ComponentData, templateByKey: Record<string, Template>) {
+  checkAvailableTemplates (data: ComponentData) {
     for (const area of Object.keys(data.areas ?? {})) {
-      const availableComponents = templateByKey[data.templateKey]._areasByName[area]?._availableComponentSet ?? new Set()
+      const availableComponents = templateRegistry.getArea(data.templateKey, area)?._availableComponentSet ?? new Set()
       const areaList = data.areas?.[area] ?? []
       if (!Array.isArray(areaList)) throw new Error('Encountered a non-array in area. That is not valid data.')
       for (const component of areaList) {
         if (!component) throw new Error('Encountered an undefined component.')
         if (!availableComponents.has(component.templateKey)) throw new Error('At least one component is in an incompatible area.')
-        this.checkAvailableTemplates(component, templateByKey)
+        this.checkAvailableTemplates(component)
       }
     }
   }
@@ -1123,12 +1123,11 @@ export class PageService extends DosGatoService<Page> {
     for (const templateKey of templateKeys) if (!templateByKey[templateKey]) throw new Error(`Template key ${templateKey} has not been registered.`)
 
     // check that the new component is compatible with its area
-    const toParentTemplate = templateRegistry.getPageOrComponentTemplate(migratedToParentComponent.templateKey)
     const areaName = toParentPath.split('.').slice(-1)[0]
-    if (!toParentTemplate?.areas?.[areaName]?.includes(migratedComponent.templateKey)) throw new Error('The content you are trying to add is not compatible with the area you are trying to add it into.')
+    if (!templateRegistry.getArea(migratedToParentComponent.templateKey, areaName)?._availableComponentSet.has(migratedComponent.templateKey)) throw new Error('The content you are trying to add is not compatible with the area you are trying to add it into.')
 
     // check that any sub-components are compatible with their areas
-    this.checkAvailableTemplates(migratedComponent, templateByKey)
+    this.checkAvailableTemplates(migratedComponent)
 
     // check that any new templates are legal on the page
     await Promise.all(templateKeys.map(async templateKey => {
@@ -1229,9 +1228,8 @@ export class PageService extends DosGatoService<Page> {
     const migratedToParentComponent = get(fullymigrated, finalToParentComponentPath)
     const migratedComponent = get(fullymigrated, finalComponentPath)
     if (migratedComponent?.templateKey !== fromObj.templateKey || !migratedToParentComponent || migratedToParentComponent.templateKey !== toParentComponent.templateKey) throw new Error('There was a problem interpreting this action. You may need to refresh the page and try again.')
-    const toParentTemplate = templateRegistry.getPageOrComponentTemplate(migratedToParentComponent.templateKey)
     const areaName = toParentParts[toParentParts.length - 1]
-    if (!toParentTemplate?.areas?.[areaName]?.includes(migratedComponent.templateKey)) throw new Error('The content you are trying to move is not compatible with the area you are trying to move it into.')
+    if (!templateRegistry.getArea(migratedToParentComponent.templateKey, areaName)?._availableComponentSet.has(migratedComponent.templateKey)) throw new Error('The content you are trying to move is not compatible with the area you are trying to move it into.')
 
     // if we haven't thrown yet then we can execute the mutation
     const indexes = getPageIndexes(fullymigrated)

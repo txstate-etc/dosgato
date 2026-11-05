@@ -36,7 +36,8 @@ const mayUseTemplateInPagetreeLoader = new PrimaryKeyLoader({
 async function getAvailableComponents (templateKey: string, svc: TemplateServiceInternal, seen = new Set<string>()): Promise<string[]> {
   if (seen.has(templateKey)) return []
   seen.add(templateKey)
-  const areas = (await svc.loaders.get(templatesByKeyLoader).load(templateKey))?.areas ?? []
+  const template = await svc.loaders.get(templatesByKeyLoader).load(templateKey)
+  const areas = [...(template?.areas ?? []), ...(template?.dynamicAreas ?? [])]
   if (!areas.length) return []
   const directKeys = unique((areas?.map(a => a.availableComponents) ?? []).flat()).filter(k => k !== templateKey)
   const indirectKeys = (await Promise.all(directKeys.map(async k => await getAvailableComponents(k, svc, seen)))).flat()

@@ -517,4 +517,20 @@ describe('indexing', () => {
       expect(pages.map((p: any) => p.id)).to.include(page.id)
     })
   })
+
+  describe('dynamic areas', () => {
+    it('should index links inside a dynamic area', async () => {
+      const { page } = await createPage('idx-dynamic-area', rootPageId, 'keyp2', {
+        title: 'Dynamic Area Index Test',
+        areas: {
+          main: [],
+          dyn_links: [
+            { templateKey: 'keyc1', text: 'dynamic link', link: JSON.stringify({ type: 'url', url: 'https://dynamic-area-index-example.com' }) }
+          ]
+        }
+      })
+      const values = await getIndexValues(page.id, page.version.version, 'link_hostname')
+      expect(values).to.include('dynamic-area-index-example.com')
+    })
+  })
 })
