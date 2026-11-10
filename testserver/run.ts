@@ -2,7 +2,7 @@ import { AnalyticsClient, jwtAuthenticate, type StoredInteractionEvent } from 'f
 import { AssetServiceInternal, DGServer, requestResizes, userContext } from '../src/index.js'
 import db from 'mysql2-async/db'
 import { fixtures } from './fixtures.js'
-import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData, RichTextComponent, HorizontalRule, TextImageComponent, ColumnLayout, DocumentsComponent, SongData, TeamComponent, TeamMemberComponent, DynamicOnlyComponent } from './fixturetemplates.js'
+import { PageTemplate1, PageTemplate2, PageTemplate3, PageTemplate4, LinkComponent, PanelComponent, QuoteComponent, ColorData, BuildingData, ArticleData, RichTextComponent, HorizontalRule, TextImageComponent, ColumnLayout, DocumentsComponent, SongData, TeamComponent, TeamMemberComponent, DynamicOnlyComponent, OwnBarComponent } from './fixturetemplates.js'
 
 const userEvents: StoredInteractionEvent[] = []
 
@@ -60,7 +60,8 @@ async function main () {
       DocumentsComponent,
       TeamComponent,
       TeamMemberComponent,
-      DynamicOnlyComponent
+      DynamicOnlyComponent,
+      OwnBarComponent
     ],
     assetMeta: {
       getFulltext: data => [data.meta?.title, data.meta?.description]

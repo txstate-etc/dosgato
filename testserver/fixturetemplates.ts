@@ -6,8 +6,8 @@ export const PageTemplate1: APIPageTemplate = {
   templateKey: 'keyp1',
   name: 'pagetemplate1',
   areas: {
-    links: ['keyc1'],
-    main: ['keyc2', 'keyc3', 'richtext', 'horizontalrule', 'textimage', 'columnlayout', 'documents', 'team']
+    links: ['keyc1', 'ownbar'],
+    main: ['keyc2', 'keyc3', 'richtext', 'horizontalrule', 'textimage', 'columnlayout', 'documents', 'team', 'ownbar']
   },
   migrations: [],
   getLinks: (data: any) => [],
@@ -124,6 +124,17 @@ export const DynamicOnlyComponent: APIComponentTemplate = {
   type: 'component',
   templateKey: 'dynonly',
   name: 'Dynamic Only',
+  migrations: [],
+  getLinks: (data: any) => [],
+  getFulltext: (data: any) => [data.text]
+}
+
+// renders its own edit bar inside its markup (renderIncludesEditBar in dosgato-render's test
+// components), for exercising Customize Bars in keyp1's links area
+export const OwnBarComponent: APIComponentTemplate = {
+  type: 'component',
+  templateKey: 'ownbar',
+  name: 'Own Bar',
   migrations: [],
   getLinks: (data: any) => [],
   getFulltext: (data: any) => [data.text]
