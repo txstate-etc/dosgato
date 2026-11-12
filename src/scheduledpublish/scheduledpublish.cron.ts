@@ -1,3 +1,4 @@
+import { recordError } from 'fastify-txstate'
 import {
   getDueSchedules, updateScheduledPublishStatus, createScheduledPublish, ScheduledPublishStatus,
   ScheduledPublishAction, ScheduledPublishRecurrence, PageService, userContext
@@ -23,6 +24,7 @@ export async function executeScheduledPublishes () {
       await updateScheduledPublishStatus(schedule.internalId, ScheduledPublishStatus.COMPLETED)
     } catch (err: any) {
       console.error('Scheduled publish failed:', err)
+      recordError(err, { 'dosgato.page.id': schedule.pageDataId ?? undefined })
       permissionsError = err.message.includes('permitted')
       await updateScheduledPublishStatus(schedule.internalId, ScheduledPublishStatus.FAILED, err.message)
     }
@@ -41,6 +43,7 @@ export async function executeScheduledPublishes () {
         )
       } catch (err: any) {
         console.error('Failed to reschedule recurring publish:', err)
+        recordError(err)
       }
     }
   }

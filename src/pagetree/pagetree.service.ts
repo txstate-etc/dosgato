@@ -140,15 +140,10 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (!this.mayPromote(pagetree)) throw new Error('Current user is not permitted to promote this pagetree.')
     const site = (await this.svc(SiteServiceInternal).findById(pagetree.siteId))!
     const currentPrimaryPagetree = await this.raw.findById(site.primaryPagetreeId)
-    try {
-        await promotePagetree(currentPrimaryPagetree!.id, pagetreeId, site, this.ctx.authInfo.user!)
-      this.loaders.clear()
-      const updated = await this.raw.findById(pagetreeId)
-      return new PagetreeResponse({ success: true, pagetree: updated })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error occurred while promoting the pagetree.')
-    }
+    await promotePagetree(currentPrimaryPagetree!.id, pagetreeId, site, this.ctx.authInfo.user!)
+    this.loaders.clear()
+    const updated = await this.raw.findById(pagetreeId)
+    return new PagetreeResponse({ success: true, pagetree: updated })
   }
 
   async archive (pagetreeId: string) {
@@ -156,15 +151,10 @@ export class PagetreeService extends DosGatoService<Pagetree> {
     if (!pagetree) throw new Error('Pagetree to be archived does not exist.')
     if (pagetree.type === PagetreeType.PRIMARY) throw new Error('Primary pagetree cannot be archived')
     if (!this.mayArchive(pagetree)) throw new Error('Current user is not permitted to archive this pagetree.')
-    try {
-      await archivePagetree(pagetreeId, this.ctx.authInfo.user!)
-      this.loaders.clear()
-      const updated = await this.raw.findById(pagetreeId)
-      return new PagetreeResponse({ success: true, pagetree: updated })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error occurred while archiving the pagetree.')
-    }
+    await archivePagetree(pagetreeId, this.ctx.authInfo.user!)
+    this.loaders.clear()
+    const updated = await this.raw.findById(pagetreeId)
+    return new PagetreeResponse({ success: true, pagetree: updated })
   }
 
   mayView (pagetree: Pagetree) {

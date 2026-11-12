@@ -191,15 +191,10 @@ export class DataFolderService extends DosGatoService<DataFolder> {
         throw new Error('You are not permitted to move folders to this site.')
       }
     } else if (!(await this.mayCreateGlobal(template.id))) throw new Error('You are not permitted to add global data folders')
-    try {
-      await moveDataFolders(dataFolders.map((f: DataFolder) => f.id), siteId)
-      this.loaders.clear()
-      const moved = await this.raw.findByIds(dataFolders.map(f => f.id))
-      return new DataFoldersResponse({ dataFolders: moved, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to move one or more data folders')
-    }
+    await moveDataFolders(dataFolders.map((f: DataFolder) => f.id), siteId)
+    this.loaders.clear()
+    const moved = await this.raw.findByIds(dataFolders.map(f => f.id))
+    return new DataFoldersResponse({ dataFolders: moved, success: true })
   }
 
   async delete (folderIds: string[]) {

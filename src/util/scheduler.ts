@@ -1,3 +1,4 @@
+import { traceJob } from 'fastify-txstate'
 import { DateTime } from 'luxon'
 import type { Queryable } from 'mysql2-async'
 import db from 'mysql2-async/db'
@@ -86,7 +87,8 @@ export class Scheduler {
         let claimed = 0
         try {
           claimed = await db.update('UPDATE tasks SET lastBegin=NOW(), inProgress=1 WHERE name=:name AND lastBegin < NOW() - INTERVAL :minutes MINUTE AND (inProgress=0 OR lastBegin < NOW() - INTERVAL (:minutes * 2) MINUTE)', { name: jobname, minutes: config.minutesBetween })
-          if (claimed) await this.jobs.get(jobname)!.job()
+          // each run is the root of its own trace, so the job's queries and outgoing calls are traced
+          if (claimed) await traceJob(jobname, async () => { await config.job() })
         } catch (e: any) {
           console.error(e)
         } finally {

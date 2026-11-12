@@ -119,16 +119,11 @@ export class AssetRuleService extends DosGatoService<AssetRule> {
     }
     if (response.hasErrors()) return response
     if (!validateOnly) {
-      try {
-        const ruleId = await createAssetRule(args)
-        this.loaders.clear()
-        if (!newRule.siteId) await globalAssetRulesCache.clear()
-        const rule = await this.raw.findById(String(ruleId))
-        return new AssetRuleResponse({ assetRule: rule, success: true })
-      } catch (err: any) {
-        console.error(err)
-        throw new Error('An unknown error occurred while creating the role.')
-      }
+      const ruleId = await createAssetRule(args)
+      this.loaders.clear()
+      if (!newRule.siteId) await globalAssetRulesCache.clear()
+      const rule = await this.raw.findById(String(ruleId))
+      return new AssetRuleResponse({ assetRule: rule, success: true })
     } else {
       return new ValidatedResponse({ success: true })
     }

@@ -373,15 +373,10 @@ export class DataService extends DosGatoService<Data> {
     if (data.some(d => !this.mayDelete(d))) {
       throw new Error('You are not permitted to delete one or more data entries.')
     }
-    try {
-      await deleteDataEntries(this.svc(VersionedService), data, this.ctx.authInfo.user!.internalId)
-      this.loaders.clear()
-      const updated = await this.raw.findByIds(data.map(d => d.dataId))
-      return new DataMultResponse({ success: true, data: updated })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to delete one or more data entries.')
-    }
+    await deleteDataEntries(this.svc(VersionedService), data, this.ctx.authInfo.user!.internalId)
+    this.loaders.clear()
+    const updated = await this.raw.findByIds(data.map(d => d.dataId))
+    return new DataMultResponse({ success: true, data: updated })
   }
 
   async publishDataEntryDeletions (dataIds: string[]) {
@@ -400,15 +395,10 @@ export class DataService extends DosGatoService<Data> {
     if (data.some(d => !this.mayUndelete(d))) {
       throw new Error('Current user is not permitted to restore one or more data entries')
     }
-    try {
-      await undeleteDataEntries(this.svc(VersionedService), this.login, data)
-      this.loaders.clear()
-      const restored = await this.raw.findByIds(data.map(d => d.dataId))
-      return new DataMultResponse({ success: true, data: restored })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to restore one or more data entries')
-    }
+    await undeleteDataEntries(this.svc(VersionedService), this.login, data)
+    this.loaders.clear()
+    const restored = await this.raw.findByIds(data.map(d => d.dataId))
+    return new DataMultResponse({ success: true, data: restored })
   }
 
   async isPublished (data: Data) {

@@ -193,13 +193,8 @@ export class RoleService extends DosGatoService<Role> {
     const role = await this.findById(id)
     if (!role) throw new Error('Role to be deleted does not exist.')
     if (!this.mayDelete(role)) throw new Error(`Current user is not permitted to delete role ${role.name}.`)
-    try {
-      await deleteRole(id)
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error(`An unknown error occurred while attempting to delete role ${role.name}.`)
-    }
+    await deleteRole(id)
+    return new ValidatedResponse({ success: true })
   }
 
   async addRolesToUser (roleIds: string[], userId: string) {
@@ -210,13 +205,8 @@ export class RoleService extends DosGatoService<Role> {
     if (mayNotAssignIndexes.length) return ValidatedResponse.error(`The current user is not allowed to assign roles:\n${mayNotAssignIndexes.map(i => roles[i].name).join('\n')}`, 'roleIds')
     const user = await this.svc(UserService).findById(userId)
     if (!user) throw new Error('Cannot assign role to user who does not exist')
-    try {
-      await addRolesToUser(roleIds, user.internalId)
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error(`An unknown error occurred while trying to assign roles (${roles.map(role => role.name).join(', ')}) to user ${user.id}.`)
-    }
+    await addRolesToUser(roleIds, user.internalId)
+    return new ValidatedResponse({ success: true })
   }
 
   /**
@@ -442,18 +432,13 @@ export class RoleService extends DosGatoService<Role> {
     if (!(await this.mayAssign(role))) throw new Error(`Current user is not permitted to unassign users from role ${role.name}.`)
     const user = await this.svc(UserService).findById(userId)
     if (!user) throw new Error('Cannot remove role from user who does not exist')
-    try {
-      const removed = await removeRoleFromUser(roleId, user.internalId)
-      if (removed) {
-        return new ValidatedResponse({ success: true })
-      } else {
-        const response = new ValidatedResponse()
-        response.addMessage(`Role ${role.name} not assigned to user ${user.id}`)
-        return response
-      }
-    } catch (err: any) {
-      console.error(err)
-      throw new Error(`An unknown error occurred while trying to remove role ${role.name} from user ${user.id}.`)
+    const removed = await removeRoleFromUser(roleId, user.internalId)
+    if (removed) {
+      return new ValidatedResponse({ success: true })
+    } else {
+      const response = new ValidatedResponse()
+      response.addMessage(`Role ${role.name} not assigned to user ${user.id}`)
+      return response
     }
   }
 
@@ -472,16 +457,11 @@ export class RoleService extends DosGatoService<Role> {
     if (!role) throw new Error('Role to be updated does not exist.')
     if (!group) throw new Error('Group to be assigned does not exist.')
     if (!(await this.mayAssign(role))) throw new Error(`Current user is not permitted remove role ${role.name} from group ${group.name}.`)
-    try {
-      const removed = await removeRoleFromGroup(groupId, roleId)
-      if (removed) {
-        return new ValidatedResponse({ success: true })
-      } else {
-        return ValidatedResponse.error(`Role ${role.name} was not assigned to group ${group.name}.`)
-      }
-    } catch (err: any) {
-      console.error(err)
-      throw new Error(`An unknown error occurred while removing role ${role.name} from group ${group.name}.`)
+    const removed = await removeRoleFromGroup(groupId, roleId)
+    if (removed) {
+      return new ValidatedResponse({ success: true })
+    } else {
+      return ValidatedResponse.error(`Role ${role.name} was not assigned to group ${group.name}.`)
     }
   }
 

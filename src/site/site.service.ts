@@ -225,30 +225,20 @@ export class SiteService extends DosGatoService<Site> {
     const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site to be deleted does not exist.')
     if (!this.mayDelete(site)) throw new Error('You are not permitted to delete this site.')
-    try {
-      await deleteSite(site, this.ctx.authInfo.user!.internalId)
-      this.loaders.clear()
-      const deletedSite = await this.raw.findById(siteId)
-      return new SiteResponse({ success: true, site: deletedSite })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An error occurred while deleting the site')
-    }
+    await deleteSite(site, this.ctx.authInfo.user!.internalId)
+    this.loaders.clear()
+    const deletedSite = await this.raw.findById(siteId)
+    return new SiteResponse({ success: true, site: deletedSite })
   }
 
   async undelete (siteId: string) {
     const site = await this.raw.findById(siteId)
     if (!site) throw new Error('Site to be restored does not exist.')
     if (!this.mayUndelete(site)) throw new Error('You are not permitted to restore this site.')
-    try {
-      await undeleteSite(site)
-      this.loaders.clear()
-      const restoredSite = await this.raw.findById(siteId)
-      return new SiteResponse({ success: true, site: restoredSite })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An error occurred while restoring the site')
-    }
+    await undeleteSite(site)
+    this.loaders.clear()
+    const restoredSite = await this.raw.findById(siteId)
+    return new SiteResponse({ success: true, site: restoredSite })
   }
 
   mayView (site: Site) {

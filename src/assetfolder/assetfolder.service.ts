@@ -278,15 +278,10 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     if (!folder) throw new Error('Folder to be deleted does not exist')
     if (isNull(folder.parentInternalId)) throw new Error('Root asset folders cannot be deleted.')
     if (!this.haveAssetFolderPerm(folder, 'delete')) throw new Error(`Current user is not permitted to delete folder ${folder.name}.`)
-    try {
-      await deleteAssetFolder(folder.internalId, this.ctx.authInfo.user!.internalId)
-      this.loaders.clear()
-      const deletedfolder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
-      return new AssetFolderResponse({ assetFolder: deletedfolder, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Could not delete asset folder')
-    }
+    await deleteAssetFolder(folder.internalId, this.ctx.authInfo.user!.internalId)
+    this.loaders.clear()
+    const deletedfolder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
+    return new AssetFolderResponse({ assetFolder: deletedfolder, success: true })
   }
 
   async finalizeDeletion (folderId: string) {
@@ -303,15 +298,10 @@ export class AssetFolderService extends DosGatoService<AssetFolder> {
     const folder = await this.raw.findById(folderId)
     if (!folder) throw new Error('Folder to be restored does not exist')
     if (!this.mayUndelete(folder)) throw new Error(`Current user is not permitted to restore folder ${folder.name}.`)
-    try {
-      await undeleteAssetFolder(folder.internalId)
-      this.loaders.clear()
-      const restoredfolder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
-      return new AssetFolderResponse({ assetFolder: restoredfolder, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Could not restore asset folder')
-    }
+    await undeleteAssetFolder(folder.internalId)
+    this.loaders.clear()
+    const restoredfolder = await this.loaders.get(assetFolderByIdLoader).load(folderId)
+    return new AssetFolderResponse({ assetFolder: restoredfolder, success: true })
   }
 
   mayView (folder: AssetFolder) {

@@ -337,15 +337,10 @@ export class AssetService extends DosGatoService<Asset> {
     const asset = await this.loaders.get(assetsByIdLoader).load(dataId)
     if (!asset) throw new Error('Asset to be deleted does not exist')
     if (!this.haveAssetPerm(asset, 'delete')) throw new Error(`You are not permitted to delete asset ${String(asset.name)}.${asset.extension}.`)
-    try {
-      await deleteAsset(asset.internalId, this.ctx.authInfo.user!.internalId)
-      this.loaders.clear()
-      const deletedAsset = await this.loaders.get(assetsByIdLoader).load(dataId)
-      return new AssetResponse({ asset: deletedAsset, success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Could not delete asset')
-    }
+    await deleteAsset(asset.internalId, this.ctx.authInfo.user!.internalId)
+    this.loaders.clear()
+    const deletedAsset = await this.loaders.get(assetsByIdLoader).load(dataId)
+    return new AssetResponse({ asset: deletedAsset, success: true })
   }
 
   async deleteAssets (dataIds: string[]) {
@@ -354,15 +349,10 @@ export class AssetService extends DosGatoService<Asset> {
       throw new Error('You are not permitted to delete one or more assets')
     }
     const currentUser = this.ctx.authInfo.user
-    try {
-      await deleteAssets(assets.map(a => a.internalId), currentUser!.internalId)
-      this.loaders.clear()
-      const deleted = await this.raw.findByIds(assets.map(a => a.id))
-      return new AssetsResponse({ success: true, assets: deleted })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error ocurred while trying to delete assets.')
-    }
+    await deleteAssets(assets.map(a => a.internalId), currentUser!.internalId)
+    this.loaders.clear()
+    const deleted = await this.raw.findByIds(assets.map(a => a.id))
+    return new AssetsResponse({ success: true, assets: deleted })
   }
 
   async finalizeDeletion (dataIds: string[]) {

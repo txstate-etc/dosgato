@@ -1,3 +1,4 @@
+import { recordError } from 'fastify-txstate'
 import { templateRegistry, type Page } from '../internal.js'
 
 export type EventInfo = PublishEvent | UnpublishEvent
@@ -17,5 +18,6 @@ export async function fireEvent (ev: EventInfo) {
     await templateRegistry.serverConfig.onEvent?.(ev)
   } catch (e: any) {
     console.error(e)
+    recordError(e)
   }
 }

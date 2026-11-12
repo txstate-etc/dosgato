@@ -1,7 +1,7 @@
 import type { APIAnyTemplate, FulltextGatheringFn, LinkGatheringFn, Migration, ValidationFeedback } from '@dosgato/templating'
 import { GQLServer, type GQLStartOpts, gqlDevLogger, Context, PageInformationResolver } from '@txstate-mws/graphql-server'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
-import { type AnalyticsClient, analyticsPlugin, type FastifyTxStateAuthInfo, type FastifyTxStateOptions, prodLogger } from 'fastify-txstate'
+import { type AnalyticsClient, analyticsPlugin, type FastifyTxStateAuthInfo, type FastifyTxStateOptions, prodLogger, recordError } from 'fastify-txstate'
 import type { GraphQLError, GraphQLScalarType } from 'graphql'
 import { DateTime } from 'luxon'
 import db from 'mysql2-async/db'
@@ -228,7 +228,10 @@ export class DGServer {
           }
         } catch (e: any) {
           if (e.code === 1062) console.warn(`Did not automatically create training site for ${userId} as it appears another server is already doing it.`)
-          else console.error(e)
+          else {
+            console.error(e)
+            recordError(e)
+          }
         }
       }, { freshseconds: 12 * 3600 })
 

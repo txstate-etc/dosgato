@@ -172,14 +172,9 @@ export class GroupService extends DosGatoService<Group> {
     const group = await this.findById(id)
     if (!group) throw new Error('Group to be deleted does not exist.')
     if (!this.mayDelete(group)) throw new Error('You are not permitted to delete groups.')
-    try {
-      await deleteGroup(id)
-      await groupHierarchyCache.clear()
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error(`An unknown error occurred while attempting to delete group ${group.name}.`)
-    }
+    await deleteGroup(id)
+    await groupHierarchyCache.clear()
+    return new ValidatedResponse({ success: true })
   }
 
   async addUserToGroups (groupIds: string[], userId: string) {
@@ -189,13 +184,8 @@ export class GroupService extends DosGatoService<Group> {
     }
     const user = await this.svc(UserService).findById(userId)
     if (!user) throw new Error('Cannot add user who does not exist.')
-    try {
-      await addUserToGroups(groups.map(g => g.id), user.internalId)
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to add user to one or more groups.')
-    }
+    await addUserToGroups(groups.map(g => g.id), user.internalId)
+    return new ValidatedResponse({ success: true })
   }
 
   async removeUserFromGroup (groupIds: string[], userId: string) {
@@ -205,13 +195,8 @@ export class GroupService extends DosGatoService<Group> {
     }
     const user = await this.svc(UserService).findById(userId)
     if (!user) throw new Error('Cannot add user who does not exist.')
-    try {
-      const removed = await removeUserFromGroups(groupIds, user.internalId)
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to remove user from one or more groups.')
-    }
+    const removed = await removeUserFromGroups(groupIds, user.internalId)
+    return new ValidatedResponse({ success: true })
   }
 
   async setUserGroups (userId: string, groupIds: string[]) {
@@ -221,13 +206,8 @@ export class GroupService extends DosGatoService<Group> {
     }
     const user = await this.svc(UserService).findById(userId)
     if (!user) throw new Error('Cannot update group membership for user who does not exist')
-    try {
-      await setUserGroups(user.internalId, groupIds)
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error(`Unable to update group memberships for user ${user.id}`)
-    }
+    await setUserGroups(user.internalId, groupIds)
+    return new ValidatedResponse({ success: true })
   }
 
   async setGroupUsers (groupId: string, userIds: string[]) {
@@ -250,14 +230,9 @@ export class GroupService extends DosGatoService<Group> {
     if (!parentGroup) throw new Error('Group to be updated does not exist.')
     if (!childGroup) throw new Error('Group to be added as a subgroup does not exist.')
     if (!this.mayManageGroups(parentGroup)) throw new Error(`You are not permitted add a subgroup to group ${parentGroup.name}.`)
-    try {
-      await addSubgroup(parentId, childId)
-      await groupHierarchyCache.clear()
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error(`An unknown error occurred while adding a subgroup to group ${parentGroup.name}.`)
-    }
+    await addSubgroup(parentId, childId)
+    await groupHierarchyCache.clear()
+    return new ValidatedResponse({ success: true })
   }
 
   async removeSubgroup (parentId: string, childId: string) {
@@ -268,19 +243,14 @@ export class GroupService extends DosGatoService<Group> {
     if (!parentGroup) throw new Error('Group to be updated does not exist.')
     if (!childGroup) throw new Error('Group to be added as a subgroup does not exist.')
     if (!this.mayManageGroups(parentGroup)) throw new Error(`You are not permitted remove subgroups from group ${parentGroup.name}.`)
-    try {
-      const removed = await removeSubgroup(parentId, childId)
-      if (removed) {
-        await groupHierarchyCache.clear()
-        return new ValidatedResponse({ success: true })
-      } else {
-        const response = new ValidatedResponse()
-        response.addMessage(`Cannot remove non-existent subgroup relationship. ${childGroup.name} is not a subgroup of ${parentGroup.name}.`)
-        return response
-      }
-    } catch (err: any) {
-      console.error(err)
-      throw new Error(`An unknown error occurred while removing subgroup ${childGroup.name} from group ${parentGroup.name}.`)
+    const removed = await removeSubgroup(parentId, childId)
+    if (removed) {
+      await groupHierarchyCache.clear()
+      return new ValidatedResponse({ success: true })
+    } else {
+      const response = new ValidatedResponse()
+      response.addMessage(`Cannot remove non-existent subgroup relationship. ${childGroup.name} is not a subgroup of ${parentGroup.name}.`)
+      return response
     }
   }
 

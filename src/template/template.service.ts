@@ -178,13 +178,8 @@ export class TemplateService extends DosGatoService<Template> {
     const template = await this.raw.findByKey(templateId)
     if (!template) throw new Error('Template to be modified does not exist')
     if (!this.maySetUniversal(template)) throw new Error('Current user is not permitted to change whether or not this template is universal.')
-    try {
-      await setUniversal(template.id, universal)
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error occurred while setting the universal property for a template')
-    }
+    await setUniversal(template.id, universal)
+    return new ValidatedResponse({ success: true })
   }
 
   mayView (template: Template) {

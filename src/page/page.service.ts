@@ -1,6 +1,7 @@
 import type { LinkDefinition, ComponentData, PageData, PageExtras, AssetLink, AssetFolderLink, PageLink } from '@dosgato/templating'
 import { BaseService, ValidatedResponse, MutationMessageType, PaginationResponse, type Context } from '@txstate-mws/graphql-server'
 import { ManyJoinedLoader, OneToManyLoader, PrimaryKeyLoader } from 'dataloader-factory'
+import { recordError } from 'fastify-txstate'
 import { LRUCache } from 'lru-cache'
 import { DateTime } from 'luxon'
 import type { Queryable } from 'mysql2-async'
@@ -198,6 +199,7 @@ export class PageServiceInternal extends BaseService {
         await pageSvc!.reindex(pages[i])
       } catch (e) {
         console.error(`Error re-indexing page ${pages[i].resolvedPath} (${pages[i].id}):`, e)
+        recordError(e, { 'dosgato.page.id': pages[i].id })
       }
     }
     if (pages.length) console.info('Finished re-indexing', pages.length, 'pages.')
@@ -1330,15 +1332,10 @@ export class PageService extends DosGatoService<Page> {
     if (pages.some(page => !this.mayDelete(page))) {
       throw new Error('Current user is not permitted to delete one or more pages')
     }
-    try {
-      await deletePages(this.svc(VersionedService), pages, this.ctx.authInfo.user!.internalId, this.login)
-      this.loaders.clear()
-      const updated = await this.raw.findByIds(dataIds)
-      return new PagesResponse({ success: true, pages: updated })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('An unknown error ocurred while trying to delete a page.')
-    }
+    await deletePages(this.svc(VersionedService), pages, this.ctx.authInfo.user!.internalId, this.login)
+    this.loaders.clear()
+    const updated = await this.raw.findByIds(dataIds)
+    return new PagesResponse({ success: true, pages: updated })
   }
 
   async publishPageDeletions (dataIds: string[]) {
@@ -1381,29 +1378,24 @@ export class PageService extends DosGatoService<Page> {
     const liveRoots = rootPages.filter(p => !p.deleted)
     const pages = [...liveRoots, ...children]
     const action = includeChildren ? ScheduledPublishAction.PUBLISH_WITH_SUBPAGES : ScheduledPublishAction.PUBLISH
-    try {
-      await db.transaction(async db => {
-        for (const p of pages) {
-          await this.svc(VersionedService).tag(p.intDataId, 'published', undefined, this.login)
-        }
-        for (const pageBatch of batch(pages, 100)) {
-          await db.update(`UPDATE pages SET pubIndexedAt=indexedAt WHERE dataId IN (${db.in([], pageBatch.map(p => p.dataId))})`, pageBatch.map(p => p.dataId))
-        }
-        // when called by the scheduled-publish cron, the parent's row already exists (it's the schedule itself), so we only insert backdated rows for the descendants
-        if (parentSchedule) await logBackdatedDescendants(children.map(p => p.internalId), parentSchedule, db)
-        else await logImmediatePublish(liveRoots.map(p => p.internalId), children.map(p => p.internalId), action, this.login, db)
-      })
-      // published tag always points to latest, so only that version's indexes are needed
-      await Promise.all(pages.map(async p => {
-        await this.svc(VersionedService).deleteOtherIndexes(p.intDataId, [p.latestVersion])
-      }))
-      this.loaders.clear()
-      await Promise.all(pages.map(async page => { await fireEvent({ type: 'publish', page }) }))
-      return new ValidatedResponse({ success: true })
-    } catch (err: any) {
-      console.error(err)
-      throw new Error('Unable to publish one or more pages.')
-    }
+    await db.transaction(async db => {
+      for (const p of pages) {
+        await this.svc(VersionedService).tag(p.intDataId, 'published', undefined, this.login)
+      }
+      for (const pageBatch of batch(pages, 100)) {
+        await db.update(`UPDATE pages SET pubIndexedAt=indexedAt WHERE dataId IN (${db.in([], pageBatch.map(p => p.dataId))})`, pageBatch.map(p => p.dataId))
+      }
+      // when called by the scheduled-publish cron, the parent's row already exists (it's the schedule itself), so we only insert backdated rows for the descendants
+      if (parentSchedule) await logBackdatedDescendants(children.map(p => p.internalId), parentSchedule, db)
+      else await logImmediatePublish(liveRoots.map(p => p.internalId), children.map(p => p.internalId), action, this.login, db)
+    })
+    // published tag always points to latest, so only that version's indexes are needed
+    await Promise.all(pages.map(async p => {
+      await this.svc(VersionedService).deleteOtherIndexes(p.intDataId, [p.latestVersion])
+    }))
+    this.loaders.clear()
+    await Promise.all(pages.map(async page => { await fireEvent({ type: 'publish', page }) }))
+    return new ValidatedResponse({ success: true })
   }
 
   async unpublishPages (dataIds: string[], parentSchedule?: ScheduledPublish) {
